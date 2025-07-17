@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.modules.domain.UserInfo">
+
+    <resultMap id="BaseResultMap" type="org.com.modules.domain.UserInfo">
+            <id property="user_id" column="user_id" />
+            <result property="email" column="email" />
+            <result property="nick_name" column="nick_name" />
+            <result property="avatar" column="avatar" />
+            <result property="sex" column="sex" />
+            <result property="password" column="password" />
+            <result property="personal_signature" column="personal_signature" />
+            <result property="status" column="status" />
+            <result property="create_time" column="create_time" />
+            <result property="last_login_time" column="last_login_time" />
+            <result property="area_name" column="area_name" />
+            <result property="area_code" column="area_code" />
+            <result property="ip_info" column="ip_info" />
+            <result property="last_off_time" column="last_off_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        user_id,email,nick_name,avatar,sex,password,
+        personal_signature,status,create_time,last_login_time,area_name,
+        area_code,ip_info,last_off_time
+    </sql>
+</mapper>
