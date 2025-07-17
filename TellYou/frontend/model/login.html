@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Tell-You</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .bg-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .login-card {
+            box-shadow: 0 10px 32px 0 rgba(76, 81, 255, 0.10), 0 2px 4px 0 rgba(76, 81, 255, 0.08);
+        }
+        .login-card input:focus {
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-login flex items-center justify-center">
+    <!-- 登录卡片 -->
+    <div class="login-card bg-white rounded-2xl p-10 w-full max-w-md flex flex-col items-center">
+        <!-- Logo与标题 -->
+        <div class="mb-8 flex flex-col items-center">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mb-3">
+                <i class="fas fa-comments text-white text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Tell-You</h1>
+            <p class="text-gray-500 mt-1">安全、便捷的即时通讯体验</p>
+        </div>
+        <!-- 登录表单 -->
+        <form class="w-full" autocomplete="off" onsubmit="event.preventDefault(); handleLogin();">
+            <div class="mb-5">
+                <label class="block text-gray-700 font-medium mb-2" for="username">用户名</label>
+                <div class="relative">
+                    <input id="username" name="username" type="text" required placeholder="请输入用户名" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-user absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <div class="mb-5">
+                <label class="block text-gray-700 font-medium mb-2" for="password">密码</label>
+                <div class="relative">
+                    <input id="password" name="password" type="password" required placeholder="请输入密码" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-lock absolute left-3 top-3 text-gray-400"></i>
+                    <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-blue-500" onclick="togglePassword()">
+                        <i id="togglePwdIcon" class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mb-6">
+                <label class="flex items-center text-sm text-gray-600">
+                    <input type="checkbox" class="mr-2 rounded border-gray-300 focus:ring-blue-500">
+                    记住我
+                </label>
+                <a href="#" class="text-sm text-blue-600 hover:underline">忘记密码？</a>
+            </div>
+            <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">登录</button>
+        </form>
+        <!-- 分割线 -->
+        <div class="flex items-center my-6 w-full">
+            <div class="flex-1 h-px bg-gray-200"></div>
+            <span class="px-3 text-gray-400 text-sm">或</span>
+            <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+        <!-- 注册提示 -->
+        <div class="mt-8 text-center w-full">
+            <span class="text-gray-500 text-sm">还没有账号？</span>
+            <a href="#" class="text-blue-600 text-sm font-medium hover:underline">立即注册</a>
+        </div>
+    </div>
+    <script>
+        // 密码可见切换
+        function togglePassword() {
+            const pwdInput = document.getElementById('password');
+            const icon = document.getElementById('togglePwdIcon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+        // 登录表单提交处理
+        function handleLogin() {
+            // 这里可以添加登录逻辑
+            alert('登录成功，正在跳转...');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html> 

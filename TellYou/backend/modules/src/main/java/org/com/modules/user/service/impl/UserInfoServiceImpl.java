@@ -1,9 +1,9 @@
-package org.com.modules.service.impl;
+package org.com.modules.user.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.com.modules.domain.UserInfo;
-import org.com.modules.mapper.UserInfoMapper;
-import org.com.modules.service.UserInfoService;
+import org.com.modules.user.domain.UserInfo;
+import org.com.modules.user.mapper.UserInfoMapper;
+import org.com.modules.user.service.UserInfoService;
 import org.springframework.stereotype.Service;
 
 /**

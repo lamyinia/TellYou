@@ -47,10 +47,10 @@ interface ApiConfig {
 }
 
 const api: ApiConfig = {
-  prodDomain: "http://127.0.0.1:5050",
-  devDomain: "http://127.0.0.1:5050",
-  prodWsDomain: "ws://127.0.0.1:5051/ws",
-  devWsDomain: "ws://127.0.0.1:5051/ws",
+  prodDomain: "http://127.0.0.1:8081",
+  devDomain: "http://127.0.0.1:8081",
+  prodWsDomain: "ws://127.0.0.1:8082/ws",
+  devWsDomain: "ws://127.0.0.1:8082/ws",
   checkCode: "/account/checkCode",
   login: "/account/login",
   register: "/account/register",

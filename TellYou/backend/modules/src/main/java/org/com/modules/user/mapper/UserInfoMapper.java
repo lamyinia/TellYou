@@ -1,7 +1,7 @@
-package org.com.modules.mapper;
+package org.com.modules.user.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.com.modules.domain.UserInfo;
+import org.com.modules.user.domain.UserInfo;
 
 /**
 * @author lanyo

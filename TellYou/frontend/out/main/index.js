@@ -5,10 +5,12 @@ const utils = require("@electron-toolkit/utils");
 const icon = path.join(__dirname, "../../resources/icon.png");
 function createWindow() {
   const mainWindow = new electron.BrowserWindow({
-    width: 900,
-    height: 670,
+    icon,
+    width: 760,
+    height: 450,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: "hidden",
     ...process.platform === "linux" ? { icon } : {},
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),

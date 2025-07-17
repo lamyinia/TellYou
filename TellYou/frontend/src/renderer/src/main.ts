@@ -1,8 +1,19 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import ElementPlus from 'element-plus'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import { createVuetify } from 'vuetify'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+import 'vuetify/styles'
+import router from './router/router'
+import { createPinia } from 'pinia'
 
-createApp(App).use(ElementPlus, {
-  locale: zhCn
-}).mount('#app')
+const vuetifyBase = createVuetify({
+  components,
+  directives
+})
+
+createApp(App)
+  .use(createPinia())
+  .use(router)
+  .use(vuetifyBase)
+  .mount('#app')

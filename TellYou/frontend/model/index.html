@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tell-You - 即时通讯应用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .chat-container { height: calc(100vh - 64px); }
+        .message-bubble { max-width: 70%; }
+        .message-bubble.sent { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .message-bubble.received { background: #f3f4f6; }
+        .contact-item:hover { background-color: #f8fafc; }
+        .contact-item.active { background-color: #eff6ff; border-left: 4px solid #3b82f6; }
+        .typing-indicator { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="flex justify-between items-center h-16 px-4">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-comments text-2xl text-blue-600"></i>
+                </div>
+                <div class="ml-3">
+                    <h1 class="text-xl font-semibold text-gray-900">Tell-You</h1>
+                    <p class="text-sm text-gray-500">沉浸式即时通讯体验</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-search text-gray-600"></i>
+                </button>
+                <button class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-bell text-gray-600"></i>
+                </button>
+                <button class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-cog text-gray-600"></i>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <span class="text-white text-sm font-medium">我</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主应用容器 -->
+    <div class="flex h-screen">
+        <!-- 主内容区在左 -->
+        <main class="flex-1 bg-white">
+            <div class="chat-container flex w-full">
+                <!-- 左侧聊天区域 -->
+                <div class="flex-1 min-w-0 flex flex-col bg-white">
+                    <!-- 聊天头部 -->
+                    <div class="gradient-bg p-4 text-white">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                                    <span class="text-white font-medium">张</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-semibold">张三</h2>
+                                    <p class="text-blue-100 text-sm flex items-center">
+                                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                                        在线
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button class="p-2 rounded-full hover:bg-white hover:bg-opacity-20">
+                                    <i class="fas fa-phone text-white"></i>
+                                </button>
+                                <button class="p-2 rounded-full hover:bg-white hover:bg-opacity-20">
+                                    <i class="fas fa-video text-white"></i>
+                                </button>
+                                <button class="p-2 rounded-full hover:bg-white hover:bg-opacity-20">
+                                    <i class="fas fa-ellipsis-v text-white"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 聊天消息区域 -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <!-- 时间分割线 -->
+                        <div class="text-center">
+                            <span class="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">今天 14:30</span>
+                        </div>
+
+                        <!-- 接收的消息 -->
+                        <div class="flex items-start space-x-3 justify-end">
+                            <div class="message-bubble received rounded-lg p-3 order-1">
+                                <p class="text-gray-900">你好！最近怎么样？</p>
+                                <span class="text-xs text-gray-500 mt-1 block">14:30</span>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center order-2">
+                                <span class="text-white text-xs font-medium">张</span>
+                            </div>
+                        </div>
+
+                        <!-- 发送的消息 -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-gray-600 text-xs font-medium">我</span>
+                            </div>
+                            <div class="message-bubble sent rounded-lg p-3">
+                                <p class="text-white">挺好的！工作很忙，但还算顺利。你呢？</p>
+                                <span class="text-xs text-blue-100 mt-1 block">14:32</span>
+                            </div>
+                        </div>
+
+                        <!-- 接收的消息 -->
+                        <div class="flex items-start space-x-3 justify-end">
+                            <div class="message-bubble received rounded-lg p-3 order-1">
+                                <p class="text-gray-900">我也还不错！对了，明天有空一起吃饭吗？</p>
+                                <span class="text-xs text-gray-500 mt-1 block">14:33</span>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center order-2">
+                                <span class="text-white text-xs font-medium">张</span>
+                            </div>
+                        </div>
+
+                        <!-- 发送的消息 -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-gray-600 text-xs font-medium">我</span>
+                            </div>
+                            <div class="message-bubble sent rounded-lg p-3">
+                                <p class="text-white">当然可以！明天晚上7点怎么样？</p>
+                                <span class="text-xs text-blue-100 mt-1 block">14:35</span>
+                            </div>
+                        </div>
+
+                        <!-- 接收的消息 -->
+                        <div class="flex items-start space-x-3 justify-end">
+                            <div class="message-bubble received rounded-lg p-3 order-1">
+                                <p class="text-gray-900">完美！那就明天7点，老地方见！</p>
+                                <span class="text-xs text-gray-500 mt-1 block">14:36</span>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center order-2">
+                                <span class="text-white text-xs font-medium">张</span>
+                            </div>
+                        </div>
+
+                        <!-- 发送的消息 -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-gray-600 text-xs font-medium">我</span>
+                            </div>
+                            <div class="message-bubble sent rounded-lg p-3">
+                                <p class="text-white">好的，明天见！</p>
+                                <span class="text-xs text-blue-100 mt-1 block">14:37</span>
+                            </div>
+                        </div>
+
+                        <!-- 正在输入指示器 -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                                <span class="text-white text-xs font-medium">张</span>
+                            </div>
+                            <div class="message-bubble received rounded-lg p-3">
+                                <div class="flex items-center space-x-1">
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style="animation-delay: 0.2s;"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style="animation-delay: 0.4s;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 消息输入区域 -->
+                    <div class="border-t border-gray-200 p-4 bg-white">
+                        <div class="flex items-end space-x-3">
+                            <!-- 工具栏 -->
+                            <div class="flex items-center space-x-2">
+                                <button class="p-2 rounded-full hover:bg-gray-100 text-gray-600">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <button class="p-2 rounded-full hover:bg-gray-100 text-gray-600">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="p-2 rounded-full hover:bg-gray-100 text-gray-600">
+                                    <i class="fas fa-smile"></i>
+                                </button>
+                            </div>
+
+                            <!-- 输入框 -->
+                            <div class="flex-1">
+                                <textarea 
+                                    id="messageInput"
+                                    placeholder="输入消息..." 
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    rows="1"
+                                    style="min-height: 40px; max-height: 120px;"
+                                ></textarea>
+                            </div>
+
+                            <!-- 发送按钮 -->
+                            <button 
+                                id="sendButton"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled
+                            >
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧列表区域 -->
+                <div class="w-64 bg-white border-l border-gray-200 flex flex-col" style="min-width: 220px; max-width: 260px;">
+                    <!-- 搜索框 -->
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="relative">
+                            <input type="text" placeholder="搜索联系人..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <!-- 联系人列表 -->
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="p-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-3">最近聊天</h3>
+                            
+                            <!-- 联系人项目 -->
+                            <div class="space-y-2">
+                                <div class="contact-item active p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">张</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">张三</h4>
+                                            <p class="text-xs text-gray-500">好的，明天见！</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">14:30</span>
+                                            <div class="w-2 h-2 bg-red-500 rounded-full ml-auto mt-1"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">李</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">李四</h4>
+                                            <p class="text-xs text-gray-500">项目进展如何？</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">13:45</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">王</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">王五</h4>
+                                            <p class="text-xs text-gray-500">[图片]</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">12:20</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">赵</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">赵六</h4>
+                                            <p class="text-xs text-gray-500">会议时间确认了吗？</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">昨天</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">孙</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">孙七</h4>
+                                            <p class="text-xs text-gray-500">代码审查完成</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">昨天</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item p-3 rounded-lg cursor-pointer">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium">周</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-gray-900">周八</h4>
+                                            <p class="text-xs text-gray-500">测试报告已发送</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs text-gray-400">2天前</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部快速操作 -->
+                    <div class="border-t border-gray-200 p-4">
+                        <div class="grid grid-cols-3 gap-2">
+                            <button class="p-2 rounded-lg hover:bg-gray-100 text-center">
+                                <i class="fas fa-plus text-blue-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">新建</p>
+                            </button>
+                            <button class="p-2 rounded-lg hover:bg-gray-100 text-center">
+                                <i class="fas fa-users text-green-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">群组</p>
+                            </button>
+                            <button class="p-2 rounded-lg hover:bg-gray-100 text-center">
+                                <i class="fas fa-cog text-gray-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">设置</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- 侧边栏在右 -->
+        <aside class="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-6">
+            <!-- 图标菜单 -->
+            <button class="text-green-400 text-2xl focus:outline-none"><i class="fas fa-comment-dots"></i></button>
+            <button class="text-gray-400 text-2xl hover:text-green-400 focus:outline-none"><i class="fas fa-user-friends"></i></button>
+            <button class="text-gray-400 text-2xl hover:text-green-400 focus:outline-none"><i class="fas fa-layer-group"></i></button>
+            <button class="text-gray-400 text-2xl hover:text-green-400 focus:outline-none"><i class="fas fa-folder"></i></button>
+            <button class="text-gray-400 text-2xl hover:text-green-400 focus:outline-none mt-auto"><i class="fas fa-cog"></i></button>
+        </aside>
+    </div>
+
+    <script>
+        // 消息输入处理
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // 自动调整输入框高度
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            
+            // 启用/禁用发送按钮
+            sendButton.disabled = this.value.trim() === '';
+        });
+
+        // 发送消息
+        sendButton.addEventListener('click', function() {
+            const message = messageInput.value.trim();
+            if (message) {
+                addMessage(message, 'sent');
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                sendButton.disabled = true;
+                
+                // 模拟对方回复
+                setTimeout(() => {
+                    addMessage('收到你的消息了！', 'received');
+                }, 1000);
+            }
+        });
+
+        // 回车发送消息
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendButton.click();
+            }
+        });
+
+        // 添加消息到聊天区域
+        function addMessage(text, type) {
+            const chatArea = document.querySelector('.overflow-y-auto');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            const messageDiv = document.createElement('div');
+            if (type === 'sent') {
+                messageDiv.className = 'flex items-start space-x-3';
+                messageDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <span class="text-gray-600 text-xs font-medium">我</span>
+                    </div>
+                    <div class="message-bubble sent rounded-lg p-3">
+                        <p class="text-white">${text}</p>
+                        <span class="text-xs text-blue-100 mt-1 block">${time}</span>
+                    </div>
+                `;
+            } else {
+                messageDiv.className = 'flex items-start space-x-3 justify-end';
+                messageDiv.innerHTML = `
+                    <div class="message-bubble received rounded-lg p-3 order-1">
+                        <p class="text-gray-900">${text}</p>
+                        <span class="text-xs text-gray-500 mt-1 block">${time}</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center order-2">
+                        <span class="text-white text-xs font-medium">张</span>
+                    </div>
+                `;
+            }
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 联系人点击事件
+        document.querySelectorAll('.contact-item').forEach(contact => {
+            contact.addEventListener('click', function() {
+                // 移除其他联系人的选中状态
+                document.querySelectorAll('.contact-item').forEach(c => {
+                    c.classList.remove('active');
+                });
+                
+                // 添加当前联系人的选中状态
+                this.classList.add('active');
+                
+                // 更新聊天头部联系人信息
+                const name = this.querySelector('h4').textContent;
+                document.querySelector('.gradient-bg h2').textContent = name;
+            });
+        });
+
+        // 标签页切换
+        document.querySelectorAll('nav button').forEach(button => {
+            button.addEventListener('click', function() {
+                // 移除其他按钮的选中状态
+                document.querySelectorAll('nav button').forEach(b => {
+                    b.classList.remove('text-blue-600', 'border-blue-600');
+                    b.classList.add('text-gray-500', 'hover:text-gray-700');
+                });
+                
+                // 添加当前按钮的选中状态
+                this.classList.remove('text-gray-500', 'hover:text-gray-700');
+                this.classList.add('text-blue-600', 'border-blue-600');
+            });
+        });
+
+        // 搜索功能
+        const searchInput = document.querySelector('input[placeholder="搜索联系人..."]');
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const contacts = document.querySelectorAll('.contact-item');
+            
+            contacts.forEach(contact => {
+                const name = contact.querySelector('h4').textContent.toLowerCase();
+                const message = contact.querySelector('p').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || message.includes(searchTerm)) {
+                    contact.style.display = 'block';
+                } else {
+                    contact.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

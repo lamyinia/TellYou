@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.domain.UserInfo">
+<mapper namespace="org.com.modules.user.domain.UserInfo">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.domain.UserInfo">
+    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.UserInfo">
             <id property="user_id" column="user_id" />
             <result property="email" column="email" />
             <result property="nick_name" column="nick_name" />

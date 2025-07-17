@@ -1,14 +1,25 @@
 <script setup lang="ts">
-  import { ElConfigProvider } from 'element-plus'
-  import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 </script>
 
 <template>
-
-
-  <el-config-provider :locale="zhCn">
-    <router-view></router-view>
-  </el-config-provider>
-
+  <div class="window-drag-bar">
+    <!-- 这里可以放LOGO、标题、按钮等 -->
+    <span>My App</span>
+  </div>
+  <router-view />
 </template>
+
+<style scoped>
+.window-drag-bar {
+  height: 32px;
+  width: 100%;
+  -webkit-app-region: drag;
+  background: #222;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  user-select: none;
+}
+</style>

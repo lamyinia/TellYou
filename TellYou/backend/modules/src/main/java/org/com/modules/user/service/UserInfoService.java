@@ -1,7 +1,7 @@
-package org.com.modules.service;
+package org.com.modules.user.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import org.com.modules.domain.UserInfo;
+import org.com.modules.user.domain.UserInfo;
 
 /**
 * @author lanyo

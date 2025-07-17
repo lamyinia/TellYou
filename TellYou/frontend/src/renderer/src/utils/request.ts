@@ -6,10 +6,9 @@ import axios, {
   ResponseType
 } from 'axios';
 import { ElLoading } from 'element-plus';
-import Message from './Message';
-import Api from './Api';
+import Message from './message';
+import router from '../router/router'
 
-// 定义 Loading 实例的类型
 type LoadingInstance = ReturnType<typeof ElLoading.service>;
 
 const contentTypeForm = 'application/x-www-form-urlencoded;charset=UTF-8';
@@ -47,7 +46,7 @@ let loading: LoadingInstance | null = null;
 
 const instance: AxiosInstance = axios.create({
   withCredentials: true,
-  baseURL: (import.meta.env.PROD ? Api.prodDomain : "") + "/api",
+  baseURL: import.meta.env.VITE_BASE_URL,
   timeout: 10 * 1000,
 });
 
@@ -75,50 +74,25 @@ instance.interceptors.request.use(
 
 // 响应拦截器
 instance.interceptors.response.use(
-  (response: AxiosResponse) => {
-    const config = response.config as CustomAxiosRequestConfig;
-    const { showLoading, errorCallback, showError = true, responseType } = config;
-
-    if (showLoading && loading) {
-      loading.close();
+  (response) => {
+    if (response.data.status === 401){
+      alert('权限不足')
+      router.push('/login')
     }
+    // response.config.url = response.config.url.replace('/api', '')
 
-    const responseData: ApiResponse = response.data;
-
-    // 处理二进制响应
-    if (responseType === "arraybuffer" || responseType === "blob") {
-      return responseData;
-    }
-
-    // 处理不同状态码
-    switch (responseData.code) {
-      case 200:
-        return responseData;
-      case 901:
-        setTimeout(() => {
-          if (window.ipcRenderer) {
-            window.ipcRenderer.send('reLogin');
-          }
-        }, 2000);
-        return Promise.reject({ showError: true, msg: "登录超时" });
-      default:
-        if (errorCallback) {
-          errorCallback(responseData);
-        }
-        return Promise.reject({
-          showError: showError,
-          msg: responseData.info || "未知错误"
-        });
-    }
+    return response
   },
-  (error: AxiosError) => {
-    const config = error.config as CustomAxiosRequestConfig;
-    if (config?.showLoading && loading) {
-      loading.close();
+  (error) => {
+    if (error.response?.status === 401) {
+      // const userStore = useUserStore()
+      // userStore.clearAuthData()
+      // router.push('/login')
     }
-    return Promise.reject({ showError: true, msg: "网络异常" });
+
+    return Promise.reject(error)
   }
-);
+)
 
 const request = <T = ApiResponse>(config: RequestConfig): Promise<T | null> => {
   const {
@@ -164,5 +138,6 @@ const request = <T = ApiResponse>(config: RequestConfig): Promise<T | null> => {
     });
 };
 
+export {instance}
 export default request;
 export type { ApiResponse, RequestConfig };

@@ -1,4 +1,4 @@
-package org.com.modules.domain;
+package org.com.modules.user.domain;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import io.swagger.annotations.ApiModelProperty;

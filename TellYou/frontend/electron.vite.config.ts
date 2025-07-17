@@ -1,26 +1,40 @@
 import { resolve } from 'path'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig, externalizeDepsPlugin, loadEnv } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
-import { fileURLToPath } from 'node:url'
 
-export default defineConfig({
-  main: {
-    plugins: [externalizeDepsPlugin()]
-  },
-  preload: {
-    plugins: [externalizeDepsPlugin()]
-  },
-  renderer: {
-    resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-        '@renderer': resolve('src/renderer/src')
-      }
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, process.cwd())
+
+  return {
+    main: {
+      plugins: [externalizeDepsPlugin()]
     },
-    plugins: [vue()],
-    server: {
-      hmr: true,
-      port: 8088
+
+    preload: {
+      plugins: [externalizeDepsPlugin()]
+    },
+
+    renderer: {
+      resolve: {
+        alias: {
+          '@renderer': resolve('src/renderer/src')
+        }
+      },
+      plugins: [vue()],
+      server: {
+        hmr: true,
+        port: 7969,
+        proxy: {
+          '/api': {
+            // 使用从环境变量加载的值
+            target: env.VITE_REQUEST_URL,
+            ws: true,
+            secure: false,
+            changeOrigin: true,
+            rewrite: path => path.replace(/^\/api/, '')
+          }
+        }
+      }
     }
   }
 })
