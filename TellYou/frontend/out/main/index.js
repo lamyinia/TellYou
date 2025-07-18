@@ -3,18 +3,21 @@ const electron = require("electron");
 const path = require("path");
 const utils = require("@electron-toolkit/utils");
 const icon = path.join(__dirname, "../../resources/icon.png");
+const loginWidth = 596;
+const loginHeight = 400;
 function createWindow() {
   const mainWindow = new electron.BrowserWindow({
     icon,
-    width: 760,
-    height: 450,
+    width: loginWidth,
+    height: loginHeight,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
     ...process.platform === "linux" ? { icon } : {},
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: false
     }
   });
   mainWindow.on("ready-to-show", () => {
@@ -39,6 +42,9 @@ electron.app.whenReady().then(() => {
     utils.optimizer.watchWindowShortcuts(window);
   });
   electron.ipcMain.on("ping", () => console.log("pong"));
+  electron.ipcMain.on("loginOrRegister", (event, isLogin) => {
+    console.log("loginOrRegister " + isLogin);
+  });
   createWindow();
   electron.app.on("activate", function() {
     if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();

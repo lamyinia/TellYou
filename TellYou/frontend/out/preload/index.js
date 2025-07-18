@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const preload = require("@electron-toolkit/preload");
+window.ipcRenderer = electron.ipcRenderer;
 const api = {};
 if (process.contextIsolated) {
   try {

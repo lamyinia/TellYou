@@ -1,18 +1,9 @@
-import { ElMessage, MessageOptions } from 'element-plus';
 
 type MessageType = 'error' | 'success' | 'warning';
 type MessageCallback = (() => void) | undefined;
 
 const showMessage = (msg: string, callback: MessageCallback, type: MessageType): void => {
-  const options: MessageOptions = {
-    type,
-    message: msg,
-    duration: 2000,
-    onClose: () => {
-      callback?.();
-    }
-  };
-  ElMessage(options);
+
 };
 
 interface MessageMethods {

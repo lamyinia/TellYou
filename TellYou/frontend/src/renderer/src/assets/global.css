@@ -1,0 +1,6 @@
+html, body, #app, .v-application__wrap {
+  height: 100%;
+  width: 100%;
+  overflow: hidden !important; /* 强制覆盖 */
+  position: fixed; /* 阻止滚动链 */
+}

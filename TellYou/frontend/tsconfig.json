@@ -24,6 +24,10 @@
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment"
   },
+  "include": [
+    "src",
+    "src/preload/global.d.ts"
+  ],
 
   "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }

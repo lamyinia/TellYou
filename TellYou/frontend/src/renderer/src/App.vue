@@ -3,11 +3,10 @@
 </script>
 
 <template>
-  <div class="window-drag-bar">
-    <!-- 这里可以放LOGO、标题、按钮等 -->
-    <span>My App</span>
-  </div>
-  <router-view />
+    <div class="window-drag-bar">
+      <span>Tell You - 通彼</span>
+    </div>
+    <router-view />
 </template>
 
 <style scoped>
@@ -21,5 +20,8 @@
   align-items: center;
   padding-left: 12px;
   user-select: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 </style>

@@ -3,19 +3,23 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
+const loginWidth: number = 596
+const loginHeight: number = 400
+
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     icon: icon,
-    width: 760,
-    height: 450,
+    width: loginWidth,
+    height: loginHeight,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: false
     }
   })
 
@@ -41,6 +45,7 @@ function createWindow(): void {
 
 
 app.whenReady().then(() => {
+
   electronApp.setAppUserModelId('com.electron')
 
 
@@ -49,12 +54,18 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('loginOrRegister', (event, isLogin: boolean) => {
+    console.log("loginOrRegister " + isLogin)
+    // 这里可以根据 isLogin 判断是登录还是注册
+    // 例如：event.reply('loginOrRegisterResponse', { success: true })
+  })
 
   createWindow()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
 })
 
 

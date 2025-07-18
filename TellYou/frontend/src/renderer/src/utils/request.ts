@@ -5,11 +5,9 @@ import axios, {
   AxiosInstance,
   ResponseType
 } from 'axios';
-import { ElLoading } from 'element-plus';
 import Message from './message';
 import router from '../router/router'
 
-type LoadingInstance = ReturnType<typeof ElLoading.service>;
 
 const contentTypeForm = 'application/x-www-form-urlencoded;charset=UTF-8';
 const contentTypeJson = 'application/json';
@@ -42,7 +40,6 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
   showError?: boolean;
 }
 
-let loading: LoadingInstance | null = null;
 
 const instance: AxiosInstance = axios.create({
   withCredentials: true,
@@ -54,11 +51,7 @@ const instance: AxiosInstance = axios.create({
 instance.interceptors.request.use(
   (config: CustomAxiosRequestConfig) => {
     if (config.showLoading) {
-      loading = ElLoading.service({
-        lock: true,
-        text: '加载中......',
-        background: 'rgba(0, 0, 0, 0.7)',
-      });
+
     }
     return config;
   },

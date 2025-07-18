@@ -4,6 +4,7 @@
       <v-col cols="12" sm="8" md="4">
         <v-card>
           <v-card-title class="text-h5">登录 - Tell-You</v-card-title>
+
           <v-card-text>
             <v-form @submit.prevent="onLogin" ref="formRef">
               <v-text-field
@@ -23,6 +24,7 @@
               />
               <v-btn type="submit" color="primary" block :loading="loading" :disabled="loading">登录</v-btn>
             </v-form>
+
             <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>
             <v-btn variant="text" @click="goRegister" class="mt-2" block>没有账号？去注册</v-btn>
           </v-card-text>
@@ -42,27 +44,21 @@ const username = ref('')
 const password = ref('')
 const formRef = ref()
 const router = useRouter()
-const { loading, error, login } = useLoginStore()
+const { loading, error } = useLoginStore()
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const onLogin = async () => {
-  try {
-    const res = await instance.get("/test")
-    console.log(res)
-  } catch (error: any){
-    console.error('登录失败:', error);
-  }
-
-  router.push('chat')
-  return null
-
-  const ok = await login(username.value, password.value)
-  if (ok) {
-    router.push('/chat') // 登录成功跳转到主页面（请根据实际路由调整）
-  }
+    try {
+      const res = await instance.get("/test")
+      console.log(res)
+      router.push('chat')
+    } catch (error: unknown) {
+      console.error('登录失败:', error)
+    }
 }
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const goRegister = () => {
+  window.ipcRenderer.send('ping')
   router.push('/register')
 }
 </script>
