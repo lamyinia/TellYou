@@ -1,7 +1,6 @@
 <template>
   <v-app>
     <chat-header />
-
     <v-main class="chat-main">
       <div class="chat-container">
         <div class="main-content">
@@ -12,7 +11,7 @@
             <contact-list />
           </div>
         </div>
-        <sidebar class="sidebar" />
+        <sidebar/>
       </div>
     </v-main>
 
@@ -61,19 +60,5 @@ import Sidebar from '@renderer/components/chat/SideBar.vue'
   border-left: 1px solid #eee;
   overflow-y: auto;
   height: 100vh;
-}
-.sidebar {
-  position: fixed;
-  right: 0;
-  top: 0;
-  width: 64px;
-  min-width: 64px;
-  max-width: 64px;
-  height: 100vh;
-  background: #222 !important;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 强制不显示滚动条 */
 }
 </style>

@@ -46,7 +46,6 @@ const formRef = ref()
 const router = useRouter()
 const { loading, error } = useLoginStore()
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const onLogin = async () => {
     try {
       const res = await instance.get("/test")
@@ -56,7 +55,7 @@ const onLogin = async () => {
       console.error('登录失败:', error)
     }
 }
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+
 const goRegister = () => {
   window.ipcRenderer.send('ping')
   router.push('/register')

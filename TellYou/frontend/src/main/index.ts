@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { createDir, initTable } from './sqlite/SqliteOperation'
 
 const loginWidth: number = 596
 const loginHeight: number = 400
@@ -45,6 +46,9 @@ function createWindow(): void {
 
 
 app.whenReady().then(() => {
+  createDir()
+  initTable()
+
 
   electronApp.setAppUserModelId('com.electron')
 
@@ -55,6 +59,7 @@ app.whenReady().then(() => {
 
   ipcMain.on('ping', () => console.log('pong'))
   ipcMain.on('loginOrRegister', (event, isLogin: boolean) => {
+    console.log(event)
     console.log("loginOrRegister " + isLogin)
     // 这里可以根据 isLogin 判断是登录还是注册
     // 例如：event.reply('loginOrRegisterResponse', { success: true })
