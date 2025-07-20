@@ -5,6 +5,8 @@ const utils = require("@electron-toolkit/utils");
 const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
+const WebSocket = require("ws");
+const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
   "create table if not exists  chat_message(   user_id varchar not null,   message_id bigint not null default null,   session_id varchar,   message_type integer,   message_content varchar,   contact_type integer,   send_user_id varchar,   send_user_nick_name varchar,   send_time bigint,   status integer,   file_size bigint,   file_name varchar,   file_path varchar,   file_type integer,   primary key(user_id, message_id));",
@@ -81,9 +83,101 @@ const initTable = () => {
     await initTableColumnsMap();
   });
 };
+let ws = null;
+let maxReConnectTimes = null;
+let lockReconnect = false;
+let needReconnect = null;
+let wsUrl = null;
+const initWs = () => {
+  wsUrl = "http://localhost:8082/ws";
+  console.log(`wsUrl to connect:  ${wsUrl}`);
+  needReconnect = true;
+  maxReConnectTimes = 20;
+};
+const reconnect = () => {
+  if (!needReconnect) {
+    console.log("CONDITION DO NOT NEED RECONNECT");
+    return;
+  }
+  if (ws != null) {
+    ws.close();
+  }
+  if (lockReconnect) {
+    return;
+  }
+  console.log("READY TO RECONNECT");
+  lockReconnect = true;
+  if (maxReConnectTimes && maxReConnectTimes > 0) {
+    console.log("READY TO RECONNECT, RARE TIME:" + maxReConnectTimes);
+    --maxReConnectTimes;
+    setTimeout(function() {
+      connectWs();
+      lockReconnect = false;
+    }, 5e3);
+  } else {
+    console.log("TCP CONNECTION TIMEOUT");
+  }
+};
+const connectWs = () => {
+  if (wsUrl == null) return;
+  ws = new WebSocket(wsUrl);
+  ws.on("open", () => {
+    console.log("CLIENT CONNECT SUCCESS");
+    ws?.send("PING PING PING");
+    maxReConnectTimes = 20;
+    setInterval(() => {
+      if (ws != null && ws.readyState == 1) {
+        ws.send("HEART BEAT");
+      }
+    }, 1e3 * 5);
+  });
+  ws.on("close", () => {
+    console.log("CONNECTION CLOSE, BUT RECONNECTING RIGHT NOW");
+    reconnect();
+  });
+  ws.on("error", () => {
+    console.log("CONNECTION FAIL, BUT RECONNECTING RIGHT NOW");
+    reconnect();
+  });
+  ws.on("message", async (data) => {
+    console.log("Received message:", data.toString());
+  });
+};
+const onLoginSuccess = (callback) => {
+  electron.ipcMain.on("LoginSuccess", (_) => {
+    callback();
+  });
+};
+const onLoginOrRegister = (callback) => {
+  electron.ipcMain.on("LoginOrRegister", (_, isLogin) => {
+    callback(isLogin);
+  });
+};
+const Store = __Store.default || __Store;
+electron.app.whenReady().then(() => {
+  electron.ipcMain.on("ping", () => console.log("pong"));
+  createDir();
+  initTable();
+  initWs();
+  utils.electronApp.setAppUserModelId("com.electron");
+  electron.app.on("browser-window-created", (_, window) => {
+    utils.optimizer.watchWindowShortcuts(window);
+  });
+  createWindow();
+  electron.app.on("activate", function() {
+    if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
 const loginWidth = 596;
 const loginHeight = 400;
-function createWindow() {
+const registerHeight = 462;
+const store = new Store();
+const createWindow = () => {
   const mainWindow = new electron.BrowserWindow({
     icon,
     width: loginWidth,
@@ -91,13 +185,17 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
-    ...process.platform === "linux" ? { icon } : {},
+    resizable: false,
+    maximizable: false,
+    frame: true,
+    hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       sandbox: false,
       contextIsolation: false
     }
   });
+  processIpc(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
     if (utils.is.dev) {
@@ -113,26 +211,38 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
-}
-electron.app.whenReady().then(() => {
-  createDir();
-  initTable();
-  utils.electronApp.setAppUserModelId("com.electron");
-  electron.app.on("browser-window-created", (_, window) => {
-    utils.optimizer.watchWindowShortcuts(window);
+};
+const processIpc = (mainWindow) => {
+  electron.ipcMain.handle("store-get", (_, key) => {
+    return store.get(key);
   });
-  electron.ipcMain.on("ping", () => console.log("pong"));
-  electron.ipcMain.on("loginOrRegister", (event, isLogin) => {
-    console.log(event);
-    console.log("loginOrRegister " + isLogin);
+  electron.ipcMain.handle("store-set", (_, key, value) => {
+    store.set(key, value);
+    return true;
   });
-  createWindow();
-  electron.app.on("activate", function() {
-    if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
+  electron.ipcMain.handle("store-delete", (_, key) => {
+    store.delete(key);
+    return true;
   });
-});
-electron.app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    electron.app.quit();
-  }
-});
+  electron.ipcMain.handle("store-clear", () => {
+    store.clear();
+    return true;
+  });
+  onLoginOrRegister((isLogin) => {
+    mainWindow.setResizable(true);
+    if (isLogin === 0) {
+      mainWindow.setSize(loginWidth, loginHeight);
+    } else {
+      mainWindow.setSize(loginWidth, registerHeight);
+    }
+    mainWindow.setResizable(false);
+  });
+  onLoginSuccess(() => {
+    mainWindow.setResizable(true);
+    mainWindow.setSize(920, 740);
+    mainWindow.setMaximizable(true);
+    mainWindow.setMinimumSize(800, 600);
+    mainWindow.center();
+    connectWs();
+  });
+};

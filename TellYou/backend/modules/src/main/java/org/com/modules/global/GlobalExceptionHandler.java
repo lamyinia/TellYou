@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(value = Exception.class)
     public ApiResult systemExceptionHandler(Exception e) {
-        log.error("system exception！The reason is：{}", e.getMessage(), e);
+        log.error("SYSTEM EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
         return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 

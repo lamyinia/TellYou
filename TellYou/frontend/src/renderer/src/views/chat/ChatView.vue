@@ -1,28 +1,21 @@
 <template>
-  <v-app>
-    <chat-header />
-    <v-main class="chat-main">
-      <div class="chat-container">
-        <div class="main-content">
-          <div class="chat-panel-wrap">
-            <chat-panel />
-          </div>
-          <div class="contact-list-wrap">
-            <contact-list />
-          </div>
+  <div class="chat-main">
+    <div class="chat-container">
+      <div class="main-content">
+        <div class="chat-panel-wrap">
+          <chat-panel />
         </div>
-        <sidebar/>
+        <div class="contact-list-wrap">
+          <contact-list />
+        </div>
       </div>
-    </v-main>
-
-  </v-app>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import ChatHeader from '@renderer/components/chat/ChatHeader.vue'
 import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
 import ContactList from '@renderer/components/chat/ContackList.vue'
-import Sidebar from '@renderer/components/chat/SideBar.vue'
 </script>
 
 <style scoped>
@@ -34,14 +27,12 @@ import Sidebar from '@renderer/components/chat/SideBar.vue'
 .chat-container {
   position: relative;
   height: 100vh;
-  width: 100vw;
   background: #f5f6fa;
 }
 .main-content {
   display: flex;
   flex-direction: row;
   height: 100vh;
-  width: calc(100vw - 64px); /* 预留侧边栏宽度 */
   background: #f5f6fa;
   position: relative;
 }
@@ -53,12 +44,27 @@ import Sidebar from '@renderer/components/chat/SideBar.vue'
   height: 100vh;
 }
 .contact-list-wrap {
-  width: 260px;
-  min-width: 240px;
-  max-width: 280px;
+  min-width: 150px;
   background: #fff;
   border-left: 1px solid #eee;
   overflow-y: auto;
   height: 100vh;
+  scrollbar-width: thin;
+  scrollbar-color: #e0e0e0 #fff;
+}
+.contact-list-wrap::-webkit-scrollbar {
+  width: 6px;
+  background: #fff;
+}
+.contact-list-wrap::-webkit-scrollbar-thumb {
+  background: #e0e0e0;
+  border-radius: 6px;
+}
+.contact-list-wrap::-webkit-scrollbar-track {
+  background: #fff;
+  border-radius: 6px;
+}
+.contact-list-wrap::-webkit-scrollbar-thumb:hover {
+  background: #bdbdbd;
 }
 </style>

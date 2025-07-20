@@ -7,19 +7,18 @@
     "strict": true,
     "noLib": false,
     "sourceMap": true,
-    "resolveJsonModule": true,  // JSON模块导入允许
+    "resolveJsonModule": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "lib": ["esnext", "dom"],
     "baseUrl": ".",
-    "allowJs": true,  //编译JS
+    "allowJs": true,
     "paths": {
       "@renderer/*": ["./src/renderer/src/*"]
     },
-
-    "types": ["vite/client", "unplugin-icons/types/vue", "element-plus/global"],
-    "skipLibCheck": true /* Skip type checking all .d.ts files. */,
-    "allowSyntheticDefaultImports": true /* 允许默认导入 */,
-    "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "jsx": "preserve",
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment"
@@ -28,6 +27,5 @@
     "src",
     "src/preload/global.d.ts"
   ],
-
   "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }

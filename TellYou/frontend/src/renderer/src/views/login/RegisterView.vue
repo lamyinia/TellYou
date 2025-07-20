@@ -47,24 +47,25 @@
       </v-row>
     </v-container>
   </template>
-  
+
   <script setup lang="ts">
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
-  import { useRegisterStore } from '../stores/register'
-  
+  import { useRegisterStore } from '../../stores/register'
+
   const username = ref('')
   const password = ref('')
   const confirmPassword = ref('')
   const formRef = ref()
   const router = useRouter()
   const { loading, error, success, register } = useRegisterStore()
-  
+
   const onRegister = async () => {
     await register(username.value, password.value, confirmPassword.value)
   }
-  
+
   const goLogin = () => {
+    window.ipcRenderer.send('LoginOrRegister', 0)
     router.push('/login')
   }
   </script>

@@ -17,11 +17,11 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, TextWebSocketFrame textWebSocketFrame) throws Exception {
-        log.info("读事件正在发生");
+//        log.info("读事件正在发生: " + textWebSocketFrame.text());
     }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        log.info("用户事件注册");
+//        log.info("用户事件注册");
     }
 }

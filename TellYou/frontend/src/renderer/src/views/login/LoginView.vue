@@ -37,9 +37,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useLoginStore } from '../stores/login'
-import { instance } from '../utils/request'
+import { useLoginStore } from '../../stores/login'
+import { instance } from '../../utils/request'
+import { getUserStore } from '@renderer/stores/GlobalStore'
 
+const userStore = getUserStore()
 const username = ref('')
 const password = ref('')
 const formRef = ref()
@@ -50,14 +52,16 @@ const onLogin = async () => {
     try {
       const res = await instance.get("/test")
       console.log(res)
-      router.push('chat')
+      window.ipcRenderer.send('LoginSuccess')
+      userStore.isLogin = true
+      router.push('/main')
     } catch (error: unknown) {
       console.error('登录失败:', error)
     }
 }
 
 const goRegister = () => {
-  window.ipcRenderer.send('ping')
+  window.ipcRenderer.send('LoginOrRegister', 1)
   router.push('/register')
 }
 </script>

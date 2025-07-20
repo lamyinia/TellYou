@@ -24,6 +24,7 @@
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "axios": "1.10.0",
+    "electron-store": "^10.1.0",
     "js-cookie": "^3.0.5",
     "js-md5": "^0.8.3",
     "pinia": "^3.0.3",
