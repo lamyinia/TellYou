@@ -13,13 +13,18 @@ spring:
     password: ${value.datasource.password}
     url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&serverTimezone=GMT%2b8&allowPublicKeyRetrieval=true
     driver-class-name: ${value.datasource.driver-class-name}
+  data:
+    redis:
+      host: ${value.redis.host}
+      database: ${value.redis.database}
+      port: ${value.redis.port}
+      password: ${value.redis.password}
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   mapper-locations: classpath*:mapper/*.xml
-
 logging:
   charset:
     console: UTF-8
@@ -27,8 +32,14 @@ logging:
   file:
     name: ./backend/logs/record.log
   level:
-    org.com.service:
-      mapper: debug
-      service: info
-      controller: info
+    root: info          # 全局默认 info
 
+springdoc:
+  api-docs:
+    enabled: true
+    path: v3/api-docs
+  show-actuator: true
+
+
+knife4j:
+  enable: true

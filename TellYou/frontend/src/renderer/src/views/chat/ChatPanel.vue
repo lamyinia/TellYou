@@ -10,7 +10,6 @@ const props = defineProps({
   currentContact: Object
 })
 const contactName = computed(() => {
-  console.log(props?.currentContact + "!!!")
   return props?.currentContact === Object ? {name: '你还未选择联系人'} : props?.currentContact
 })
 

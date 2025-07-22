@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.user.domain.UserInfo">
+<mapper namespace="org.com.modules.user.mapper.UserInfoMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.UserInfo">
+    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.UserInfo">
             <id property="user_id" column="user_id" />
             <result property="email" column="email" />
             <result property="nick_name" column="nick_name" />
@@ -19,11 +19,12 @@
             <result property="area_code" column="area_code" />
             <result property="ip_info" column="ip_info" />
             <result property="last_off_time" column="last_off_time" />
+            <result property="remaining_name_change" column="remaining_name_change" />
     </resultMap>
 
     <sql id="Base_Column_List">
         user_id,email,nick_name,avatar,sex,password,
         personal_signature,status,create_time,last_login_time,area_name,
-        area_code,ip_info,last_off_time
+        area_code,ip_info,last_off_time,remaining_name_change
     </sql>
 </mapper>

@@ -60,6 +60,8 @@ npm create @quick-start/electron frontend
 
 2. align-items: center 在高度只有 25px 的情况下，可能导致图标被裁剪或定位异常
 
+
+
 最大化问题：
 
 ```ts
@@ -117,7 +119,7 @@ pipeline.addLast("aggregator", new HttpObjectAggregator(1024*1024*64));
 
 
 
-###### 如果我要设计消息点赞和点踩的需求，是在im_conversation里加字段，还是新建一个表
+###### 如果我要设计消息点赞和点踩的需求，是在im_conversation里加字段，还是新建一个表?
 
 在即时通讯系统中添加消息点赞/点踩功能时，**必须使用独立的关系型数据表**，而不是在会话表或消息表中添加字段
 
@@ -161,7 +163,37 @@ partition by hash(message_id % 64) partitions 64;
 报错 [HY000][1214] The used table type doesn't support FULLTEXT indexes
 ```
 
+搞了全文索引不分区
 
+
+
+###### knife4j 与 springboot3.5.0不兼容，网络请求500报错
+
+使用依赖
+
+```xml
+<dependency>
+    <groupId>com.github.xingfudeshi</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.6.0</version>
+</dependency>
+```
+
+
+
+###### knife4j 使用时 json 编码的问题
+
+改变序列化的优先级：
+
+```java
+@Override
+protected void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+    log.info("配置消息转换器...");
+    MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+    converter.setObjectMapper(new JacksonObjectMapper());
+    converters.add(converters.size()-1, converter);
+}
+```
 
 
 

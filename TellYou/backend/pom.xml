@@ -37,9 +37,24 @@
         <mybatis-plus-spring-boot3-starter>3.5.8-001</mybatis-plus-spring-boot3-starter>
         <spring-boot-starter-aop>3.3.2</spring-boot-starter-aop>
         <spring-aop>6.2.0</spring-aop>
-        <knife4j-spring-boot-starter>3.0.3</knife4j-spring-boot-starter>
         <netty.version>4.1.50.Final</netty.version>
+        <knife4j-openapi3-jakarta-spring-boot-starter>4.5.0</knife4j-openapi3-jakarta-spring-boot-starter>
     </properties>
+
+    <repositories>
+        <!--阿里云镜像-->
+        <repository>
+            <id>alimaven</id>
+            <name>aliyun maven</name>
+            <url>https://maven.aliyun.com/nexus/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencyManagement>
         <dependencies>
@@ -106,14 +121,15 @@
             </dependency>
 
             <dependency>
-                <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-                <version>2.6.0</version>
+                <groupId>com.github.xingfudeshi</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>4.6.0</version>
             </dependency>
+
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
-                <artifactId>knife4j-spring-boot-starter</artifactId>
-                <version> ${knife4j-spring-boot-starter} </version>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations</artifactId>
+                <version>2.2.25</version>
             </dependency>
         </dependencies>
 

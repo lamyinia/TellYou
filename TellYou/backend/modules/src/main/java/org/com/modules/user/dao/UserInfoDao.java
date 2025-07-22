@@ -1,12 +1,10 @@
-package org.com.modules.user.service.impl;
+package org.com.modules.user.dao;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
-import org.com.modules.user.mapper.UserInfoMapper;
 import org.com.modules.user.service.UserInfoService;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.com.modules.user.mapper.UserInfoMapper;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,13 +14,8 @@ import org.springframework.stereotype.Service;
 */
 @Service
 @RequiredArgsConstructor
-public class UserInfoServiceImpl implements UserInfoService {
-    private final UserInfoDao userInfoDao;
+public class UserInfoDao extends ServiceImpl<UserInfoMapper, UserInfo> {
 
-    @Override
-    public void getCheckCode(String emailAddress) {
-
-    }
 }
 
 

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 /**
  * 全局异常捕获
@@ -18,10 +19,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    @ExceptionHandler(value = Exception.class)
+    @ExceptionHandler(value = {Exception.class, NoHandlerFoundException.class})
     public ApiResult systemExceptionHandler(Exception e) {
-        log.error("SYSTEM EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
-        return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
+        throw new RuntimeException(e);
+//        log.error("SYSTEM EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
+//        return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 
 }
