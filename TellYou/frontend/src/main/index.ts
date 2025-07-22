@@ -1,10 +1,10 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createDir, initTable } from './sqlite/SqliteOperation'
 import { connectWs, initWs } from './WebSocketClient'
-import { onLoginOrRegister, onLoginSuccess } from './IpcCenter'
+import { onLoginOrRegister, onLoginSuccess, onScreenChange } from './IpcCenter'
 import __Store from 'electron-store'
 const Store = __Store.default || __Store
 
@@ -26,19 +26,25 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
-
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-
 const loginWidth: number = 596
 const loginHeight: number = 400
 const registerHeight: number = 462
 const store = new Store()
+const contextMenu = [
+  {
+    label: '退出TellYou', click: ()=> {
+      app.exit();
+    }
+  }
+];
+const menu = Menu.buildFromTemplate(contextMenu)
+
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -58,6 +64,14 @@ const createWindow = () => {
       contextIsolation: false
     }
   })
+  const tray = new Tray(icon)
+  tray.setTitle('TellYou')
+  tray.setContextMenu(menu)
+  tray.on('click', () => {
+    mainWindow.setSkipTaskbar(false)
+    mainWindow.show()
+  })
+
   processIpc(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
@@ -114,6 +128,33 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     connectWs()
   })
 
+  onScreenChange((event: Electron.IpcMainEvent, status: number) => {
+    const webContents = event.sender
+    const win = BrowserWindow.fromWebContents(webContents)
+    switch (status){
+      case 0:
+        if (win?.isAlwaysOnTop()){
+          win?.setAlwaysOnTop(false)
+        } else {
+          win?.setAlwaysOnTop(true)
+        }
+        break
+      case 1:
+        win?.minimize()
+        break
+      case 2:
+        if (win?.isMaximized()){
+          win?.unmaximize()
+        } else {
+          win?.maximize()
+        }
+        break
+      case 3:
+        win?.setSkipTaskbar(true)
+        win?.hide()
+        break
+    }
+  })
 }
 
 

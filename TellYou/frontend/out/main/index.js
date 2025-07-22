@@ -153,6 +153,11 @@ const onLoginOrRegister = (callback) => {
     callback(isLogin);
   });
 };
+const onScreenChange = (callback) => {
+  electron.ipcMain.on("window-ChangeScreen", (event, status) => {
+    callback(event, status);
+  });
+};
 const Store = __Store.default || __Store;
 electron.app.whenReady().then(() => {
   electron.ipcMain.on("ping", () => console.log("pong"));
@@ -177,6 +182,15 @@ const loginWidth = 596;
 const loginHeight = 400;
 const registerHeight = 462;
 const store = new Store();
+const contextMenu = [
+  {
+    label: "退出TellYou",
+    click: () => {
+      electron.app.exit();
+    }
+  }
+];
+const menu = electron.Menu.buildFromTemplate(contextMenu);
 const createWindow = () => {
   const mainWindow = new electron.BrowserWindow({
     icon,
@@ -194,6 +208,13 @@ const createWindow = () => {
       sandbox: false,
       contextIsolation: false
     }
+  });
+  const tray = new electron.Tray(icon);
+  tray.setTitle("TellYou");
+  tray.setContextMenu(menu);
+  tray.on("click", () => {
+    mainWindow.setSkipTaskbar(false);
+    mainWindow.show();
   });
   processIpc(mainWindow);
   mainWindow.on("ready-to-show", () => {
@@ -244,5 +265,32 @@ const processIpc = (mainWindow) => {
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
     connectWs();
+  });
+  onScreenChange((event, status) => {
+    const webContents = event.sender;
+    const win = electron.BrowserWindow.fromWebContents(webContents);
+    switch (status) {
+      case 0:
+        if (win?.isAlwaysOnTop()) {
+          win?.setAlwaysOnTop(false);
+        } else {
+          win?.setAlwaysOnTop(true);
+        }
+        break;
+      case 1:
+        win?.minimize();
+        break;
+      case 2:
+        if (win?.isMaximized()) {
+          win?.unmaximize();
+        } else {
+          win?.maximize();
+        }
+        break;
+      case 3:
+        win?.setSkipTaskbar(true);
+        win?.hide();
+        break;
+    }
   });
 };

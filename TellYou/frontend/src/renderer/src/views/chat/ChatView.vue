@@ -1,12 +1,14 @@
 <template>
-  <div class="chat-main">
+  <div class="star-bg">
     <div class="chat-container">
       <div class="main-content">
         <div class="chat-panel-wrap">
-          <chat-panel />
+          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
+          <ChatPanel :current-contact="selectedContact"/>
         </div>
         <div class="contact-list-wrap">
-          <contact-list />
+          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
+          <ContactList @contact-selected="handleContactSelected"/>
         </div>
       </div>
     </div>
@@ -14,57 +16,77 @@
 </template>
 
 <script setup lang="ts">
-import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
-import ContactList from '@renderer/components/chat/ContackList.vue'
+import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
+import ContactList from '@renderer/views/chat/ContactList.vue'
+import { randomStarStyle } from '@renderer/assets/StarFlink'
+import { ref } from 'vue'
+
+const selectedContact = ref(Object)
+const handleContactSelected = (contact) => {
+  selectedContact.value = contact
+}
+
 </script>
 
 <style scoped>
-.chat-main {
-  height: 100vh;
-  background: #f5f6fa;
+.star-bg {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
   overflow: hidden;
+}
+.star {
+  position: relative; /* 确保星星定位基准 */
+  z-index: 1;
+  animation: twinkle 2s infinite alternate;
+  animation-delay: var(--star-delay, 0s);
+}
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    filter: blur(0px) drop-shadow(0 0 5px white);
+  }
 }
 .chat-container {
   position: relative;
   height: 100vh;
-  background: #f5f6fa;
+  z-index: 2;
 }
 .main-content {
   display: flex;
   flex-direction: row;
   height: 100vh;
-  background: #f5f6fa;
-  position: relative;
 }
 .chat-panel-wrap {
   flex: 1;
   min-width: 0;
-  background: #fff;
-  overflow-y: auto;
-  height: 100vh;
+  background: rgba(20, 24, 60, 0.85);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px 0 0 18px;
+  margin: 0px 0 32px 0px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  overflow: hidden;
+  position: relative;
 }
 .contact-list-wrap {
-  min-width: 150px;
-  background: #fff;
-  border-left: 1px solid #eee;
+  min-width: 200px;
+  max-width: 200px;
+  background: rgba(24, 28, 70, 0.92);
+  border-left: 1px solid #2c2f4a;
+  color: #fff;
   overflow-y: auto;
   height: 100vh;
-  scrollbar-width: thin;
-  scrollbar-color: #e0e0e0 #fff;
-}
-.contact-list-wrap::-webkit-scrollbar {
-  width: 6px;
-  background: #fff;
-}
-.contact-list-wrap::-webkit-scrollbar-thumb {
-  background: #e0e0e0;
-  border-radius: 6px;
-}
-.contact-list-wrap::-webkit-scrollbar-track {
-  background: #fff;
-  border-radius: 6px;
-}
-.contact-list-wrap::-webkit-scrollbar-thumb:hover {
-  background: #bdbdbd;
+  border-radius: 0 18px 18px 0;
+  margin: 0px 0px 32px 0;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 32px;
 }
 </style>

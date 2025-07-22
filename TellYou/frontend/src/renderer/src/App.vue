@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getUserStore } from '@renderer/stores/GlobalStore'
 
 const userStore = getUserStore()
+const showWindowControls = computed(() => userStore.isLogin)
+const isTop = ref(false)
 
-const onTop = () => window.ipcRenderer.send('window-top')
-const onMin = () => window.ipcRenderer.send('window-min')
-const onMax = () => window.ipcRenderer.send('window-max')
-const onClose = () => window.ipcRenderer.send('window-hide-to-tray')
-
+const onTop = (): void => {
+  isTop.value = !isTop.value
+  window.ipcRenderer.send('window-ChangeScreen', 0)
+}
+const onMinimize = (): void => window.ipcRenderer.send('window-ChangeScreen', 1)
+const onScreenChange = ():void => window.ipcRenderer.send('window-ChangeScreen', 2)
+const onClose = (): void => window.ipcRenderer.send('window-ChangeScreen', 3)
 onMounted(async () => {
   await userStore.initStore()
 })
-const showWindowControls = computed(() => userStore.isLogin)
 
 </script>
 
@@ -20,9 +23,9 @@ const showWindowControls = computed(() => userStore.isLogin)
     <div class="window-drag-bar">
       <span> Tell You - 通彼</span>
       <div v-if="showWindowControls" class="window-controls">
-        <i class="iconfont icon-top" title="置顶" @click="onTop"></i>
-        <i class="iconfont icon-min" title="最小化" @click="onMin"></i>
-        <i class="iconfont icon-max" title="最大化" @click="onMax"></i>
+        <i :class="['iconfont icon-top', isTop ? 'win-top' : '']" title="置顶" @click="onTop"></i>
+        <i class="iconfont icon-min" title="最小化" @click="onMinimize"></i>
+        <i class="iconfont icon-max" title="全屏切换" @click="onScreenChange"></i>
         <i class="iconfont icon-close" title="关闭" @click="onClose"></i>
       </div>
     </div>
@@ -65,6 +68,11 @@ const showWindowControls = computed(() => userStore.isLogin)
 }
 .window-controls .iconfont:hover {
   color: #4caf50;
+}
+.window-controls .iconfont.win-top {
+  color: #ffb300 !important;      /* 高亮为金色 */
+  text-shadow: 0 0 6px #ffb30055; /* 柔和光晕 */
+  font-weight: bold;
 }
 
 </style>
