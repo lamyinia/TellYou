@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron'
 
-
 export const onLoginSuccess = (callback): void => {
   ipcMain.on('LoginSuccess', (_) => {
     callback()

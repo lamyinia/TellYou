@@ -1,8 +1,4 @@
 interface ApiConfig {
-  prodDomain: string;
-  devDomain: string;
-  prodWsDomain: string;
-  devWsDomain: string;
   checkCode: string;
   login: string;
   register: string;
@@ -46,13 +42,9 @@ interface ApiConfig {
   checkVersion: string;
 }
 
-const api: ApiConfig = {
-  prodDomain: "http://127.0.0.1:8081",
-  devDomain: "http://127.0.0.1:8081",
-  prodWsDomain: "ws://127.0.0.1:8082/ws",
-  devWsDomain: "ws://127.0.0.1:8082/ws",
-  checkCode: "/account/checkCode",
-  login: "/account/login",
+export const api: ApiConfig = {
+  checkCode: "/userAccount/checkCode",
+  login: "/userAccount/login",
   register: "/account/register",
   getSysSetting: "/account/getSysSetting",
   loadMyGroup: "/group/loadMyGroup",
@@ -94,4 +86,3 @@ const api: ApiConfig = {
   checkVersion: "/update/checkVersion",
 };
 
-export default api;

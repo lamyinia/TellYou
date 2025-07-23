@@ -14,7 +14,8 @@ if (process.contextIsolated) {
       storeGet: (key: string) => ipcRenderer.invoke('store-get', key),
       storeSet: (key: string, value: any) => ipcRenderer.invoke('store-set', key, value),
       storeDelete: (key: string) => ipcRenderer.invoke('store-delete', key),
-      storeClear: () => ipcRenderer.invoke('store-clear')
+      storeClear: () => ipcRenderer.invoke('store-clear'),
+      send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args)
     })
   } catch (error) {
     console.error(error)

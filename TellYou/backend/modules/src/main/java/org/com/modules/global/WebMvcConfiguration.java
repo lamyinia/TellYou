@@ -1,11 +1,13 @@
 package org.com.modules.global;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
+import org.com.modules.global.interceptor.JwtTokenInterceptor;
 import org.com.tools.common.JacksonObjectMapper;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
@@ -13,8 +15,9 @@ import java.util.List;
 
 @Slf4j
 @Configuration
+@RequiredArgsConstructor
 public class WebMvcConfiguration extends WebMvcConfigurationSupport {
-
+    private final JwtTokenInterceptor jwtTokenInterceptor;
     /**
      * 扩展Spring MVC框架的消息转化器
      * @param converters
@@ -36,5 +39,13 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
                         "classpath:/static/",
                         "classpath:/public/"
                 );
+    }
+
+    @Override
+    protected void addInterceptors(InterceptorRegistry registry) {
+        log.info("配置 Jwt 拦截器...");
+        registry.addInterceptor(jwtTokenInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns("/userAccount/**");
     }
 }

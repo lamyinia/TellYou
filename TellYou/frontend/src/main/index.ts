@@ -61,7 +61,7 @@ const createWindow = () => {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      contextIsolation: false
+      contextIsolation: true
     }
   })
   const tray = new Tray(icon)
@@ -125,7 +125,8 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     mainWindow.setMaximizable(true)
     mainWindow.setMinimumSize(800, 600)
     mainWindow.center()
-    connectWs()
+    console.log(store.get('token'))
+    // connectWs()
   })
 
   onScreenChange((event: Electron.IpcMainEvent, status: number) => {

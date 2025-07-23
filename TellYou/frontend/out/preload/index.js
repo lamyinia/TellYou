@@ -11,7 +11,8 @@ if (process.contextIsolated) {
       storeGet: (key) => electron.ipcRenderer.invoke("store-get", key),
       storeSet: (key, value) => electron.ipcRenderer.invoke("store-set", key, value),
       storeDelete: (key) => electron.ipcRenderer.invoke("store-delete", key),
-      storeClear: () => electron.ipcRenderer.invoke("store-clear")
+      storeClear: () => electron.ipcRenderer.invoke("store-clear"),
+      send: (channel, ...args) => electron.ipcRenderer.send(channel, ...args)
     });
   } catch (error) {
     console.error(error);

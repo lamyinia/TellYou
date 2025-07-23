@@ -5,14 +5,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import org.com.tools.common.exception.ErrorEnum;
 
-/**
- * Description: 通用返回体
- * Author: <a href="https://github.com/zongzibinbin">abin</a>
- * Date: 2023-03-23
- */
+import java.io.Serializable;
+
 @Data
 @Schema(description = "基础返回体")
-public class ApiResult<T> {
+public class ApiResult<T> implements Serializable {
     @Schema(description = "成功标识true or false")
     private Boolean success;
     @Schema(description = "错误码")

@@ -1,3 +1,45 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { instance } from '../../utils/request'
+import { getUserStore } from '../../../../main/stores/GlobalStore'
+import { api } from '@renderer/utils/api'
+
+const userStore = getUserStore()
+const username = ref('')
+const password = ref('')
+const formRef = ref()
+const router = useRouter()
+const loading = ref(0)
+const error = ref(0)
+
+const onLogin = async () => {
+  try {
+    const res = await instance.post(api.login, {
+      email: username.value,
+      password: password.value
+    })
+    const token:string = res.data.data?.token
+    if (token !== null){
+      userStore.setToken(token)
+      console.log(userStore.token)
+
+      window.electronAPI.send('LoginSuccess')
+    } else {
+      throw new Error(res.data)
+    }
+  } catch (error: unknown) {
+    console.error('登录失败:', error)
+  }
+}
+
+const goRegister = () => {
+  window.electronAPI.send('LoginOrRegister', 1)
+  router.push('/register')
+}
+</script>
+
+
 <template>
   <v-container class="fill-height" fluid>
     <v-row align="center" justify="center">
@@ -11,7 +53,6 @@
                 v-model="username"
                 label="用户名"
                 prepend-inner-icon="mdi-account"
-                :disabled="loading"
                 required
               />
               <v-text-field
@@ -19,7 +60,6 @@
                 label="密码"
                 type="password"
                 prepend-inner-icon="mdi-lock"
-                :disabled="loading"
                 required
               />
               <v-btn type="submit" color="primary" block :loading="loading" :disabled="loading">登录</v-btn>
@@ -34,34 +74,3 @@
   </v-container>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useLoginStore } from '../../stores/login'
-import { instance } from '../../utils/request'
-import { getUserStore } from '@renderer/stores/GlobalStore'
-
-const userStore = getUserStore()
-const username = ref('')
-const password = ref('')
-const formRef = ref()
-const router = useRouter()
-const { loading, error } = useLoginStore()
-
-const onLogin = async () => {
-    try {
-      const res = await instance.get("/test")
-      console.log(res)
-      window.ipcRenderer.send('LoginSuccess')
-      userStore.isLogin = true
-      router.push('/main')
-    } catch (error: unknown) {
-      console.error('登录失败:', error)
-    }
-}
-
-const goRegister = () => {
-  window.ipcRenderer.send('LoginOrRegister', 1)
-  router.push('/register')
-}
-</script>

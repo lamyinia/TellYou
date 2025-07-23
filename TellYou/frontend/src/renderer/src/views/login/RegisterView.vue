@@ -1,3 +1,24 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const username = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const formRef = ref()
+const router = useRouter()
+
+const onRegister = async () => {
+
+}
+
+const goLogin = () => {
+  window.ipcRenderer.send('LoginOrRegister', 0)
+  router.push('/login')
+}
+</script>
+
+
 <template>
     <v-container class="fill-height" fluid>
       <v-row align="center" justify="center">
@@ -10,7 +31,6 @@
                   v-model="username"
                   label="用户名"
                   prepend-inner-icon="mdi-account"
-                  :disabled="loading"
                   required
                 />
                 <v-text-field
@@ -18,7 +38,6 @@
                   label="密码"
                   type="password"
                   prepend-inner-icon="mdi-lock"
-                  :disabled="loading"
                   required
                 />
                 <v-text-field
@@ -26,15 +45,12 @@
                   label="确认密码"
                   type="password"
                   prepend-inner-icon="mdi-lock"
-                  :disabled="loading"
                   required
                 />
                 <v-btn
                   type="submit"
                   color="primary"
                   block
-                  :loading="loading"
-                  :disabled="loading"
                   class="mt-4"
                 >注册</v-btn>
               </v-form>
@@ -48,24 +64,3 @@
     </v-container>
   </template>
 
-  <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useRouter } from 'vue-router'
-  import { useRegisterStore } from '../../stores/register'
-
-  const username = ref('')
-  const password = ref('')
-  const confirmPassword = ref('')
-  const formRef = ref()
-  const router = useRouter()
-  const { loading, error, success, register } = useRegisterStore()
-
-  const onRegister = async () => {
-    await register(username.value, password.value, confirmPassword.value)
-  }
-
-  const goLogin = () => {
-    window.ipcRenderer.send('LoginOrRegister', 0)
-    router.push('/login')
-  }
-  </script>

@@ -4,10 +4,26 @@ server:
 tell-you:
   netty:
     port: 8082
+  jwt:
+    admin-secret-key: ${value.jwt.admin-secret-key}
+    admin-ttl: ${value.jwt.admin-ttl}
+    admin-token-name: ${value.jwt.admin-token-name}
+    user-secret-key: ${value.jwt.user-secret-key}
+    user-ttl: ${value.jwt.user-ttl}
+    user-token-name: ${value.jwt.user-token-name}
+  aliyun-oss:
+    endpoint: ${value.aliyun-oss.endpoint}
+    access-key-id: ${value.aliyun-oss.access-key-id}
+    access-key-secret: ${value.aliyun-oss.access-key-secret}
+    bucket-name: ${value.aliyun-oss.bucket-name}
 
 spring:
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
   datasource:
     username: ${value.datasource.username}
     password: ${value.datasource.password}
@@ -19,12 +35,26 @@ spring:
       database: ${value.redis.database}
       port: ${value.redis.port}
       password: ${value.redis.password}
+  mail:
+    username: ${value.mail.username}
+    password: ${value.mail.password}
+    host: smtp.qq.com
+    port: 465
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true
+            required: false
+        debug: true
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   mapper-locations: classpath*:mapper/*.xml
+
 logging:
   charset:
     console: UTF-8
@@ -34,12 +64,7 @@ logging:
   level:
     root: info          # 全局默认 info
 
-springdoc:
-  api-docs:
-    enabled: true
-    path: v3/api-docs
-  show-actuator: true
-
-
 knife4j:
   enable: true
+
+

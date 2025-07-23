@@ -5,7 +5,7 @@ const utils = require("@electron-toolkit/utils");
 const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
-const WebSocket = require("ws");
+require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
@@ -83,65 +83,10 @@ const initTable = () => {
     await initTableColumnsMap();
   });
 };
-let ws = null;
-let maxReConnectTimes = null;
-let lockReconnect = false;
-let needReconnect = null;
 let wsUrl = null;
 const initWs = () => {
   wsUrl = "http://localhost:8082/ws";
   console.log(`wsUrl to connect:  ${wsUrl}`);
-  needReconnect = true;
-  maxReConnectTimes = 20;
-};
-const reconnect = () => {
-  if (!needReconnect) {
-    console.log("CONDITION DO NOT NEED RECONNECT");
-    return;
-  }
-  if (ws != null) {
-    ws.close();
-  }
-  if (lockReconnect) {
-    return;
-  }
-  console.log("READY TO RECONNECT");
-  lockReconnect = true;
-  if (maxReConnectTimes && maxReConnectTimes > 0) {
-    console.log("READY TO RECONNECT, RARE TIME:" + maxReConnectTimes);
-    --maxReConnectTimes;
-    setTimeout(function() {
-      connectWs();
-      lockReconnect = false;
-    }, 5e3);
-  } else {
-    console.log("TCP CONNECTION TIMEOUT");
-  }
-};
-const connectWs = () => {
-  if (wsUrl == null) return;
-  ws = new WebSocket(wsUrl);
-  ws.on("open", () => {
-    console.log("CLIENT CONNECT SUCCESS");
-    ws?.send("PING PING PING");
-    maxReConnectTimes = 20;
-    setInterval(() => {
-      if (ws != null && ws.readyState == 1) {
-        ws.send("HEART BEAT");
-      }
-    }, 1e3 * 5);
-  });
-  ws.on("close", () => {
-    console.log("CONNECTION CLOSE, BUT RECONNECTING RIGHT NOW");
-    reconnect();
-  });
-  ws.on("error", () => {
-    console.log("CONNECTION FAIL, BUT RECONNECTING RIGHT NOW");
-    reconnect();
-  });
-  ws.on("message", async (data) => {
-    console.log("Received message:", data.toString());
-  });
 };
 const onLoginSuccess = (callback) => {
   electron.ipcMain.on("LoginSuccess", (_) => {
@@ -206,7 +151,7 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       sandbox: false,
-      contextIsolation: false
+      contextIsolation: true
     }
   });
   const tray = new electron.Tray(icon);
@@ -264,7 +209,7 @@ const processIpc = (mainWindow) => {
     mainWindow.setMaximizable(true);
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
-    connectWs();
+    console.log(store.get("token"));
   });
   onScreenChange((event, status) => {
     const webContents = event.sender;

@@ -12,11 +12,12 @@ import org.springframework.context.annotation.Configuration;
 public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
+        log.info("正在生成接口文档");
         return new OpenAPI()
                 .info(new Info()
                         .title("API 文档")
                         .version("3.0")
-                        .contact(new Contact().name("团队"))
+                        .contact(new Contact().name("Tell You Developer"))
                 );
     }
 }
