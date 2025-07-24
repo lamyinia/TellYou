@@ -1,4 +1,4 @@
-package org.com.tools.common;
+package org.com.tools.constant;
 
 
 import io.swagger.v3.oas.annotations.media.Schema;

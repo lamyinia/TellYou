@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.lettuce.core.RedisConnectionException;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -15,8 +20,20 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Slf4j
 @Configuration
 public class RedisConfiguration {
+    @Value("${spring.data.redis.host:}")
+    private String redisHost;
+    @Value("${spring.data.redis.port:}")
+    private Integer redisPort;
 
-    @Bean
+    @Bean(name = "redissonClient", destroyMethod = "shutdown")
+    public RedissonClient redissonClient() {
+        log.info("配置 redissonClient 对象");
+        Config config = new Config();
+        config.useSingleServer().setAddress("redis://" + redisHost + ":" + redisPort);
+        return Redisson.create(config); // 直接返回，让异常抛出
+    }
+
+    @Bean(name = "redisTemplate")
     public RedisTemplate redisTemplate(RedisConnectionFactory redisConnectionFactory){
         log.info("配置 redis 模板对象...");
 

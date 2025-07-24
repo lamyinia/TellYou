@@ -37,10 +37,12 @@
         <mybatis-plus-spring-boot3-starter>3.5.8-001</mybatis-plus-spring-boot3-starter>
         <spring-boot-starter-aop>3.3.2</spring-boot-starter-aop>
         <spring-aop>6.2.0</spring-aop>
-        <netty.version>4.1.50.Final</netty.version>
+        <netty.version>4.1.107.Final</netty.version>
         <knife4j-openapi3-jakarta-spring-boot-starter>4.6.0</knife4j-openapi3-jakarta-spring-boot-starter>
         <swagger-annotations>2.2.25</swagger-annotations>
         <aliyun-sdk-oss>3.18.1</aliyun-sdk-oss>
+        <rocketmq-spring-boot-starter>2.3.4</rocketmq-spring-boot-starter>
+        <redisson-spring-boot-starter>3.50.0</redisson-spring-boot-starter>
     </properties>
 
     <repositories>
@@ -135,6 +137,16 @@
                 <groupId>com.aliyun.oss</groupId>
                 <artifactId>aliyun-sdk-oss</artifactId>
                 <version> ${aliyun-sdk-oss} </version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version> ${rocketmq-spring-boot-starter} </version>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson-spring-boot-starter</artifactId>
+                <version> ${redisson-spring-boot-starter} </version>
             </dependency>
         </dependencies>
 

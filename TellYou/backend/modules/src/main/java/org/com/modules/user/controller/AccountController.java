@@ -8,7 +8,7 @@ import org.com.modules.user.domain.dto.LoginDTO;
 import org.com.modules.user.domain.dto.RegisterDTO;
 import org.com.modules.user.domain.vo.LoginVO;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.common.ApiResult;
+import org.com.tools.constant.ApiResult;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;

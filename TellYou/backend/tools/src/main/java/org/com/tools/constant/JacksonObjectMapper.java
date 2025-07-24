@@ -1,4 +1,4 @@
-package org.com.tools.common;
+package org.com.tools.constant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonParser;
