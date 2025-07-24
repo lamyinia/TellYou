@@ -5,12 +5,10 @@ tell-you:
   netty:
     port: 8082
   jwt:
-    admin-secret-key: ${value.jwt.admin-secret-key}
-    admin-ttl: ${value.jwt.admin-ttl}
-    admin-token-name: ${value.jwt.admin-token-name}
     user-secret-key: ${value.jwt.user-secret-key}
     user-ttl: ${value.jwt.user-ttl}
     user-token-name: ${value.jwt.user-token-name}
+    uid-key: ${value.jwt.uid-key}
   aliyun-oss:
     endpoint: ${value.aliyun-oss.endpoint}
     access-key-id: ${value.aliyun-oss.access-key-id}

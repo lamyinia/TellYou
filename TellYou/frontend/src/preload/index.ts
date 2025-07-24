@@ -15,7 +15,9 @@ if (process.contextIsolated) {
       storeSet: (key: string, value: any) => ipcRenderer.invoke('store-set', key, value),
       storeDelete: (key: string) => ipcRenderer.invoke('store-delete', key),
       storeClear: () => ipcRenderer.invoke('store-clear'),
-      send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args)
+      send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
+      onWsConnected: (callback) => ipcRenderer.on('ws-connected', callback),
+      offWsConnected: (callback) => ipcRenderer.removeListener('ws-connected', callback)
     })
   } catch (error) {
     console.error(error)

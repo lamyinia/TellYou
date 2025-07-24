@@ -35,7 +35,8 @@ app.on('window-all-closed', () => {
 const loginWidth: number = 596
 const loginHeight: number = 400
 const registerHeight: number = 462
-const store = new Store()
+export const store = new Store()
+
 const contextMenu = [
   {
     label: '退出TellYou', click: ()=> {
@@ -125,8 +126,7 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     mainWindow.setMaximizable(true)
     mainWindow.setMinimumSize(800, 600)
     mainWindow.center()
-    console.log(store.get('token'))
-    // connectWs()
+    connectWs()
   })
 
   onScreenChange((event: Electron.IpcMainEvent, status: number) => {
@@ -157,5 +157,4 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     }
   })
 }
-
 

@@ -12,7 +12,9 @@ if (process.contextIsolated) {
       storeSet: (key, value) => electron.ipcRenderer.invoke("store-set", key, value),
       storeDelete: (key) => electron.ipcRenderer.invoke("store-delete", key),
       storeClear: () => electron.ipcRenderer.invoke("store-clear"),
-      send: (channel, ...args) => electron.ipcRenderer.send(channel, ...args)
+      send: (channel, ...args) => electron.ipcRenderer.send(channel, ...args),
+      onWsConnected: (callback) => electron.ipcRenderer.on("ws-connected", callback),
+      offWsConnected: (callback) => electron.ipcRenderer.removeListener("ws-connected", callback)
     });
   } catch (error) {
     console.error(error);

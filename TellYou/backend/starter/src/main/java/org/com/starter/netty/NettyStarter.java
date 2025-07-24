@@ -15,9 +15,11 @@ import io.netty.handler.timeout.IdleStateHandler;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.com.starter.netty.handler.JwtAuthHandler;
 import org.com.starter.netty.properties.NettyProperties;
 import org.com.starter.netty.protocal.HeartBeatRule;
 import org.com.starter.netty.handler.BaseHandler;
+import org.com.tools.utils.JwtUtil;
 import org.springframework.stereotype.Component;
 
 import java.net.DatagramPacket;
@@ -32,6 +34,7 @@ public class NettyStarter implements Runnable {
     private EventLoopGroup workerGroup = new NioEventLoopGroup();
     private final NettyProperties nettyProperties;
     private final BaseHandler baseHandler;
+    private final JwtUtil jwtUtil;
 
     @PreDestroy
     public void close(){
@@ -58,6 +61,8 @@ public class NettyStarter implements Runnable {
                         ChannelPipeline pipeline = channel.pipeline();
                         pipeline.addLast(new HttpServerCodec());
                         pipeline.addLast(new HttpObjectAggregator(64 * 1024));
+                        pipeline.addLast(new JwtAuthHandler(jwtUtil));
+
                         pipeline.addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS));
                         pipeline.addLast(new HeartBeatRule());
                         pipeline.addLast(new WebSocketServerProtocolHandler("/ws", null, true, 64 * 1024, true, true, 10000L));

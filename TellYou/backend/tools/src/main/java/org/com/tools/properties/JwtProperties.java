@@ -12,11 +12,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "tell-you.jwt")
 @ToString
 public class JwtProperties {
-    private String adminSecretKey;
-    private String adminTokenName;
-    private long adminTtl;
-
     private String userSecretKey;
     private String userTokenName;
     private long userTtl;
+
+    private String uidKey;
 }

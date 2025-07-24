@@ -1,11 +1,12 @@
 "use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const electron = require("electron");
 const path = require("path");
 const utils = require("@electron-toolkit/utils");
 const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
-require("ws");
+const WebSocket = require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
@@ -83,10 +84,75 @@ const initTable = () => {
     await initTableColumnsMap();
   });
 };
+let ws = null;
+let maxReConnectTimes = null;
+let lockReconnect = false;
+let needReconnect = null;
 let wsUrl = null;
 const initWs = () => {
   wsUrl = "http://localhost:8082/ws";
   console.log(`wsUrl to connect:  ${wsUrl}`);
+  needReconnect = true;
+  maxReConnectTimes = 20;
+};
+const reconnect = () => {
+  if (!needReconnect) {
+    console.log("CONDITION DO NOT NEED RECONNECT");
+    return;
+  }
+  if (ws != null) {
+    ws.close();
+  }
+  if (lockReconnect) {
+    return;
+  }
+  console.log("READY TO RECONNECT");
+  lockReconnect = true;
+  if (maxReConnectTimes && maxReConnectTimes > 0) {
+    console.log("READY TO RECONNECT, RARE TIME:" + maxReConnectTimes);
+    --maxReConnectTimes;
+    setTimeout(function() {
+      connectWs();
+      lockReconnect = false;
+    }, 5e3);
+  } else {
+    console.log("TCP CONNECTION TIMEOUT");
+  }
+};
+const connectWs = () => {
+  if (wsUrl == null) return;
+  const token = store.get("token");
+  if (token === null) {
+    console.log("NO SATISFIED TOKEN");
+    return;
+  }
+  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
+  ws = new WebSocket(urlWithToken);
+  ws.on("open", () => {
+    console.log("CLIENT CONNECT SUCCESS");
+    ws?.send("PING PING PING");
+    maxReConnectTimes = 20;
+    setInterval(() => {
+      if (ws != null && ws.readyState == 1) {
+        ws.send("HEART BEAT");
+      }
+    }, 1e3 * 5);
+    const mainWindow = electron.BrowserWindow.getFocusedWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send("ws-connected");
+    }
+  });
+  ws.on("close", () => {
+    console.log("CONNECTION CLOSE, BUT RECONNECTING RIGHT NOW");
+    reconnect();
+  });
+  ws.on("error", () => {
+    console.log("CONNECTION FAIL, BUT RECONNECTING RIGHT NOW");
+    reconnect();
+  });
+  ws.on("message", async (data) => {
+    console.log("Received message:", data.toString());
+  });
 };
 const onLoginSuccess = (callback) => {
   electron.ipcMain.on("LoginSuccess", (_) => {
@@ -209,7 +275,7 @@ const processIpc = (mainWindow) => {
     mainWindow.setMaximizable(true);
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
-    console.log(store.get("token"));
+    connectWs();
   });
   onScreenChange((event, status) => {
     const webContents = event.sender;
@@ -239,3 +305,4 @@ const processIpc = (mainWindow) => {
     }
   });
 };
+exports.store = store;

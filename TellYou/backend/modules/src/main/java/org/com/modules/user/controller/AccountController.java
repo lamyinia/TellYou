@@ -41,6 +41,8 @@ public class AccountController {
         userInfoService.getCheckCode(emailAddress);
         return ApiResult.success();
     }
+
+    // TODO reconnect重连token 拿ip
 }
 
 

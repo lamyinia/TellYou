@@ -54,7 +54,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         }
 
         Map <String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getUserId());
+        claims.put(jwtUtil.getJwtProperties().getUidKey(), user.getUserId());
         String token = jwtUtil.createJwt(claims);
 
         return new LoginVO(token);
