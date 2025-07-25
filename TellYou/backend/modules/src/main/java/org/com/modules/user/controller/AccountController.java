@@ -4,11 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.com.modules.chat.domain.dto.ChatMessageDTO;
 import org.com.modules.user.domain.dto.LoginDTO;
 import org.com.modules.user.domain.dto.RegisterDTO;
 import org.com.modules.user.domain.vo.LoginVO;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.constant.ApiResult;
+import org.com.tools.common.ApiResult;
+import org.com.tools.constant.MQConstant;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -20,6 +23,7 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 public class AccountController {
     private final UserInfoService userInfoService;
+    private final RocketMQTemplate rocketMQTemplate;
 
     @PostMapping("/login")
     @Operation(summary = "登录")
@@ -43,6 +47,14 @@ public class AccountController {
     }
 
     // TODO reconnect重连token 拿ip
+
+    @PostMapping("/test")
+    @Operation(summary = "测试")
+    public ApiResult test(@RequestBody ChatMessageDTO dto){
+        log.info("测试消息: {}", dto.toString());
+        rocketMQTemplate.convertAndSend(MQConstant.DELIVER_TOPIC, dto);
+        return ApiResult.success();
+    }
 }
 
 

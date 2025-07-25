@@ -7,9 +7,10 @@ type ColumnMap = {[bizField: string]: string}
 type GlobalColumnMap = {[tableName: string]: ColumnMap}
 const globalColumnMap: GlobalColumnMap = {}
 
+export const instanceId: string = process.env.ELECTRON_INSTANCE_ID as string
 const NODE_ENV: string = process.env.NODE_ENV || "production"
 const userDir: string = os.homedir()
-const dataFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev/' : 'tellyou/');
+const dataFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev/' : 'tellyou/') + `instance_${instanceId}/`;
 var dataBase: sqlite3.Database
 
 const toCamelCase = (str: string): string => {

@@ -6,7 +6,9 @@ import io.jsonwebtoken.JwtException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
+import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.JwtUtil;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +41,8 @@ public class JwtAuthHandler extends ChannelInboundHandlerAdapter {
                 Claims claims = jwtUtil.parseJWT(token);
                 Long uid = (Long) claims.get(jwtUtil.getJwtProperties().getUidKey());
                 log.info("uid: {}, JWT验证 - 令牌: {}...", uid, token.substring(0, Math.min(token.length(), 6)));
+                ctx.channel().attr(NettyConstant.UID_KEY).set(uid);
+
                 ctx.fireChannelRead(msg);
             } catch (ExpiredJwtException ex){
                 ctx.close();

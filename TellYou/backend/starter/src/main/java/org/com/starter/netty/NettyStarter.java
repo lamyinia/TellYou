@@ -62,9 +62,8 @@ public class NettyStarter implements Runnable {
                         pipeline.addLast(new HttpServerCodec());
                         pipeline.addLast(new HttpObjectAggregator(64 * 1024));
                         pipeline.addLast(new JwtAuthHandler(jwtUtil));
-
-                        pipeline.addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS));
-                        pipeline.addLast(new HeartBeatRule());
+//                        pipeline.addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS));  TODO
+//                        pipeline.addLast(new HeartBeatRule());
                         pipeline.addLast(new WebSocketServerProtocolHandler("/ws", null, true, 64 * 1024, true, true, 10000L));
                         pipeline.addLast(baseHandler);
                     }

@@ -1,4 +1,4 @@
-package org.com.modules.global;
+package org.com.modules.global.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.autoconfigure.ConfigurationCustomizer;

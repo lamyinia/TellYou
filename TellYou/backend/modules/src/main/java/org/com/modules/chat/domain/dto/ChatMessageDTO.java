@@ -1,11 +1,13 @@
 package org.com.modules.chat.domain.dto;
 
 import lombok.Data;
+import lombok.ToString;
 
 import java.io.Serializable;
 import java.util.Map;
 
 @Data
+@ToString
 public class ChatMessageDTO implements Serializable {
     /** 消息类型（如 text、image、file、system、heartbeat 等） */
     private String type;

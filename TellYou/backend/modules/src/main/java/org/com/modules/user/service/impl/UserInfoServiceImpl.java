@@ -11,7 +11,7 @@ import org.com.modules.user.domain.dto.RegisterDTO;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.LoginVO;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.common.exception.BusinessException;
+import org.com.tools.exception.BusinessException;
 import org.com.tools.utils.JwtUtil;
 import org.com.tools.utils.SecurityUtil;
 import org.springframework.data.redis.core.RedisTemplate;

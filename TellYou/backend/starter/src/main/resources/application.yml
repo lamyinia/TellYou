@@ -1,5 +1,6 @@
 server:
   port: 8081
+  node: 127.0.0.1:8081
 
 tell-you:
   netty:

@@ -18,9 +18,10 @@ const add_indexes = [
   "create index if not exists idx_session_id on chat_message( session_id asc);"
 ];
 const globalColumnMap = {};
+const instanceId = process.env.ELECTRON_INSTANCE_ID;
 const NODE_ENV = process.env.NODE_ENV || "production";
 const userDir = os.homedir();
-const dataFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/");
+const dataFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/") + `instance_${instanceId}/`;
 var dataBase;
 const toCamelCase = (str) => {
   return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
@@ -133,10 +134,33 @@ const connectWs = () => {
     ws?.send("PING PING PING");
     maxReConnectTimes = 20;
     setInterval(() => {
-      if (ws != null && ws.readyState == 1) {
-        ws.send("HEART BEAT");
-      }
+      ws.send(JSON.stringify({
+        type: "HEARTBEAT",
+        fromUserId: "2",
+        toUserId: "1948031012054159361",
+        content: 1,
+        timestamp: Date.now(),
+        extra: {
+          1: 3,
+          2: 4,
+          5: 6
+        }
+      }));
     }, 1e3 * 5);
+    setInterval(() => {
+      ws.send(JSON.stringify({
+        type: "PRIVATE_TEST",
+        fromUserId: "2",
+        toUserId: "1948031012054159361",
+        content: "i do best! i do best! i do best",
+        timestamp: Date.now(),
+        extra: {
+          1: 3,
+          2: 4,
+          5: 6
+        }
+      }));
+    }, 1e3 * 10);
     const mainWindow = electron.BrowserWindow.getFocusedWindow();
     if (mainWindow) {
       mainWindow.webContents.send("ws-connected");
@@ -170,6 +194,7 @@ const onScreenChange = (callback) => {
   });
 };
 const Store = __Store.default || __Store;
+electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
 electron.app.whenReady().then(() => {
   electron.ipcMain.on("ping", () => console.log("pong"));
   createDir();
@@ -231,7 +256,8 @@ const createWindow = () => {
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
     if (utils.is.dev) {
-      mainWindow.webContents.openDevTools({ mode: "detach" });
+      mainWindow.webContents.openDevTools({ mode: "detach", title: "devTool", activate: false });
+      mainWindow.focus();
     }
   });
   mainWindow.webContents.setWindowOpenHandler((details) => {

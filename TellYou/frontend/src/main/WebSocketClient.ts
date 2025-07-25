@@ -58,10 +58,34 @@ export const connectWs = (): void => {
     maxReConnectTimes = 20
 
     setInterval(() => {
-      if (ws != null && ws.readyState == 1) {
-        ws.send('HEART BEAT');
-      }
+      ws.send(JSON.stringify({
+        type: "HEARTBEAT",
+        fromUserId: "2",
+        toUserId: "1948031012054159361",
+        content: 1,
+        timestamp: Date.now(),
+        extra: {
+          1: 3,
+          2: 4,
+          5: 6
+        }
+      }));
     }, 1000 * 5)
+
+    setInterval(() => {
+      ws.send(JSON.stringify({
+        type: "PRIVATE_TEST",
+        fromUserId: "2",
+        toUserId: "1948031012054159361",
+        content: "i do best! i do best! i do best",
+        timestamp: Date.now(),
+        extra: {
+          1: 3,
+          2: 4,
+          5: 6
+        }
+      }));
+    }, 1000 * 10)
 
     const mainWindow = BrowserWindow.getFocusedWindow()
     if (mainWindow){

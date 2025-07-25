@@ -1,9 +1,9 @@
-package org.com.modules.global;
+package org.com.modules.global.exception;
 
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.constant.ApiResult;
-import org.com.tools.common.exception.BusinessException;
-import org.com.tools.common.exception.CommonErrorEnum;
+import org.com.tools.common.ApiResult;
+import org.com.tools.exception.BusinessException;
+import org.com.tools.exception.CommonErrorEnum;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;

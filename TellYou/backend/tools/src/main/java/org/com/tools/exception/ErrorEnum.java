@@ -1,4 +1,4 @@
-package org.com.tools.common.exception;
+package org.com.tools.exception;
 
 public interface ErrorEnum {
     Integer getErrorCode();

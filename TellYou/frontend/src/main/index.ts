@@ -2,12 +2,14 @@ import { app, shell, BrowserWindow, ipcMain, Tray, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { createDir, initTable } from './sqlite/SqliteOperation'
+import { createDir, initTable, instanceId } from './sqlite/SqliteOperation'
 import { connectWs, initWs } from './WebSocketClient'
 import { onLoginOrRegister, onLoginSuccess, onScreenChange } from './IpcCenter'
 import __Store from 'electron-store'
 const Store = __Store.default || __Store
 
+
+app.setPath('userData', app.getPath('userData') + '_' + instanceId)
 app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
   createDir()
@@ -78,7 +80,8 @@ const createWindow = () => {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
     if (is.dev) {
-      mainWindow.webContents.openDevTools({ mode: 'detach' })
+      mainWindow.webContents.openDevTools({ mode: 'detach', title: "devTool", activate: false});
+      mainWindow.focus();
     }
   })
 

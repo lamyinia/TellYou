@@ -1,9 +1,9 @@
-package org.com.tools.constant;
+package org.com.tools.common;
 
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import org.com.tools.common.exception.ErrorEnum;
+import org.com.tools.exception.ErrorEnum;
 
 import java.io.Serializable;
 
