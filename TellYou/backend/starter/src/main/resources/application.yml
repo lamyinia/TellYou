@@ -34,6 +34,13 @@ spring:
       database: ${value.redis.database}
       port: ${value.redis.port}
       password: ${value.redis.password}
+    mongodb:
+      auto-index-creation: true  # 兼容MongoDB 8.0的索引管理
+      encryption:
+        enabled: true  # 启用客户端字段级加密
+      host: ${value.mongodb.host}
+      port: ${value.mongodb.port}
+      database: ${value.mongodb.database}
   mail:
     username: ${value.mail.username}
     password: ${value.mail.password}

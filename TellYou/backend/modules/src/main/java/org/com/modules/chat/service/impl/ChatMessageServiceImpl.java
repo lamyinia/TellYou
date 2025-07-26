@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.com.modules.chat.domain.dto.ChatMessageDTO;
 import org.com.modules.chat.service.ChatMessageService;
 import org.com.tools.utils.ChannelManagerUtil;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
 @Service

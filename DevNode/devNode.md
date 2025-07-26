@@ -2,13 +2,13 @@
 
 ###### 前端:
 
+脚手架搭建
+
 ![image-20250702215009035](.\assets\image-20250702215009035.png)
 
 npm create @quick-start/electron frontend
 
 ​	配置axios请求、各种css、代理、端口
-
-
 
 
 
@@ -18,7 +18,7 @@ npm create @quick-start/electron frontend
 
 
 
-###### css图标渲染问题
+###### css图标渲染异常
 
 ```css
 .window-drag-bar {
@@ -62,7 +62,7 @@ npm create @quick-start/electron frontend
 
 
 
-最大化问题：
+###### 最大化异常
 
 ```ts
 case 0:
@@ -94,6 +94,30 @@ case 0:
   }
   break
 ```
+
+
+
+###### electron 项目怎么开多个实例
+
+添加环境变量
+
+![image-20250726074241659](./assets/image-20250726074241659.png)
+
+![image-20250726074448559](./assets/image-20250726074448559.png)
+
+缓存区分离
+
+userData 就是 package.json 的name
+
+![image-20250726074743735](./assets/image-20250726074743735.png)
+
+![image-20250726074324353](./assets/image-20250726074324353.png)
+
+![image-20250726074713977](./assets/image-20250726074713977.png)
+
+数据库分离
+
+![image-20250726074513945](./assets/image-20250726074513945.png)
 
 
 
@@ -197,7 +221,17 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 
 
+###### netty 中如何提取公共常量
 
+全局静态常量
+
+![image-20250726075011658](./assets/image-20250726075011658.png)
+
+相同 Channel 的AttributeKey 全局唯一，不同 Channel 存的值互相隔离
+
+![image-20250726075146846](./assets/image-20250726075146846.png)
+
+![image-20250726075203532](./assets/image-20250726075203532.png)
 
 #### 开发思路和关键设计
 
@@ -221,7 +255,9 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 
 
-消息可靠性(信箱机制、ack入库出库、重试机制)
+消息可靠性(信箱机制(mongodb)、ack入库出库、重试机制)
+
+![image-20250725135024434](./assets/image-20250725135024434.png)
 
 
 

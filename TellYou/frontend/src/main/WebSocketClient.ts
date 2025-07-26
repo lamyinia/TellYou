@@ -1,6 +1,5 @@
 import WebSocket from 'ws'
 import { store } from './index'
-import { useRouter } from 'vue-router'
 import { BrowserWindow } from 'electron'
 
 let ws: WebSocket|null = null
