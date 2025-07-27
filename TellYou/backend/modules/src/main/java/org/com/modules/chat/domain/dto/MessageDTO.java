@@ -8,13 +8,15 @@ import java.util.Map;
 
 @Data
 @ToString
-public class ChatMessageDTO implements Serializable {
+public class MessageDTO implements Serializable {
+    /** 客户端消息ID（用于幂等性） */
+    private String messageId;
     /** 消息类型（如 text、image、file、system、heartbeat 等） */
-    private String type;
+    private Integer type;
     /** 发送者ID */
-    private String fromUserId;
+    private Long fromUserId;
     /** 接收者ID（单聊/群聊） */
-    private String toUserId;
+    private Long toUserId;
     /** 消息内容（文本、图片URL、文件URL等） */
     private String content;
     /** 发送时间（时间戳） */

@@ -1,4 +1,4 @@
-package org.com.modules.global.interceptor;
+package org.com.modules.spring.interceptor;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;

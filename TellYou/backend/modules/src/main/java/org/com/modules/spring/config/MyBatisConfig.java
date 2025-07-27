@@ -1,4 +1,4 @@
-package org.com.modules.global.config;
+package org.com.modules.spring.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.autoconfigure.ConfigurationCustomizer;

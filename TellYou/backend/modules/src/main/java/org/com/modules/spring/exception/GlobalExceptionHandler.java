@@ -1,4 +1,4 @@
-package org.com.modules.global.exception;
+package org.com.modules.spring.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.com.tools.common.ApiResult;

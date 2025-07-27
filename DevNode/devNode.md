@@ -253,9 +253,13 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 发送失败和本地数据库
 
+敏感词拦截
+
+在实际生产中，业务需求永远没有最佳实践，兜底始终以服务端为核心
 
 
-消息可靠性(信箱机制(mongodb)、ack入库出库、重试机制)
+
+消息可靠性(信箱机制(mongodb)、ack入库出库、重试机制、客户端待定名单机制)
 
 ![image-20250725135024434](./assets/image-20250725135024434.png)
 

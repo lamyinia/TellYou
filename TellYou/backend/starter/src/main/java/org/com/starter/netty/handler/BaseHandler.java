@@ -10,19 +10,24 @@ import io.netty.util.AttributeKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.com.modules.chat.domain.dto.ChatMessageDTO;
-import org.com.modules.chat.service.ChatMessageService;
-import org.com.tools.constant.MQConstant;
+import org.com.modules.chat.domain.dto.MessageDTO;
+import org.com.modules.chat.domain.enums.MessageTypeEnum;
 import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.springframework.stereotype.Component;
 
+/**
+ * @author lanye
+ * @date 2025/07/27
+ * @description 代表 netty 的消息生产者，
+ *职责包括鉴权、幂等(设置唯一消息id)、消息校验(格式、敏感词检验)、流量控制。
+ *消费者的职责是业务分发、最终一致性、延迟策略、状态上报、死信处理。
+ */
 @Slf4j
 @Component
 @ChannelHandler.Sharable
-@RequiredArgsConstructor
+@RequiredArgsConstructor  // TODO 在 websocket 长连接层做流量控制
 public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private final ChatMessageService chatMessageService;
     private final ChannelManagerUtil channelManagerUtil;
     private final RocketMQTemplate rocketMQTemplate;
 
@@ -30,22 +35,15 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, TextWebSocketFrame textWebSocketFrame) throws Exception {
         String text = textWebSocketFrame.text();
         log.info("收到消息: {}", text);
-        ChatMessageDTO dto = null;
+        MessageDTO dto = null;
         try {
-            dto = JSON.parseObject(text, ChatMessageDTO.class);
+            dto = JSON.parseObject(text, MessageDTO.class);
         } catch (Exception e){
             log.warn("前端JSON错误 {}", e.getMessage());
         }
+        if (dto.getType() == 0) return;
 
-        if ("HEARTBEAT".equals(dto.getType())){  // TODO 优化 HEARTBEAT 大小
-            return;
-        }
-
-        if (dto.getType().contains("PRIVATE")){
-            rocketMQTemplate.convertAndSend(MQConstant.DELIVER_TOPIC, dto);
-        } else {
-            rocketMQTemplate.convertAndSend(MQConstant.PUBLISH_TOPIC, dto);
-        }
+        rocketMQTemplate.convertAndSend(MessageTypeEnum.of(dto.getType()).getTopic(), dto);
     }
 
     @Override

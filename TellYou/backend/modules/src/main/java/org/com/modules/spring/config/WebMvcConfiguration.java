@@ -1,8 +1,8 @@
-package org.com.modules.global.config;
+package org.com.modules.spring.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.global.interceptor.JwtTokenInterceptor;
+import org.com.modules.spring.interceptor.JwtTokenInterceptor;
 import org.com.tools.common.JacksonObjectMapper;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
