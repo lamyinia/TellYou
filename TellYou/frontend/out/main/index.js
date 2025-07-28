@@ -135,32 +135,32 @@ const connectWs = () => {
     maxReConnectTimes = 20;
     setInterval(() => {
       ws.send(JSON.stringify({
-        type: "HEARTBEAT",
+        messageId: 1,
+        type: 0,
         fromUserId: "2",
-        toUserId: "1948031012054159361",
+        toUserId: 1,
+        sessionId: 1,
         content: 1,
         timestamp: Date.now(),
         extra: {
-          1: 3,
-          2: 4,
-          5: 6
+          something: "nothing"
         }
       }));
     }, 1e3 * 5);
     setInterval(() => {
       ws.send(JSON.stringify({
-        type: "PRIVATE_TEST",
+        messageId: 1,
+        type: 1,
         fromUserId: "2",
-        toUserId: "1948031012054159361",
+        toUserId: 1,
+        sessionId: 1,
         content: "i do best! i do best! i do best",
         timestamp: Date.now(),
         extra: {
-          1: 3,
-          2: 4,
-          5: 6
+          something: "nothing"
         }
       }));
-    }, 1e3 * 10);
+    }, 1e3 * 10, 1e3 * 5);
     const mainWindow = electron.BrowserWindow.getFocusedWindow();
     if (mainWindow) {
       mainWindow.webContents.send("ws-connected");

@@ -1,4 +1,4 @@
-package org.com.modules.chat.domain.entity;
+package org.com.modules.chat.domain.document;
 
 import lombok.Builder;
 import lombok.Data;
@@ -105,14 +105,9 @@ public class MessageMailBox {
     @Field("update_time")
     private Long updateTime;
 
-    /** 消息状态：0-待处理 1-处理中 2-已发送 3-已送达 4-已读 5-发送失败 */
-    @Indexed
-    @Field("status")
-    private Integer status;
-
-    /** 消息确认状态映射 */
-    @Field("ack_status")
-    private Map<String, MessageAck> ackStatus;
+    /** ACK状态位图 */
+    @Field("ack_bitmap")
+    private byte[] ackBitmap;
 
     /** 处理锁（用于并发控制） */
     @Field("processing_lock")
@@ -126,11 +121,9 @@ public class MessageMailBox {
     @Field("expire_time")
     private Long expireTime;
 
-    public static class MessageAck {
-        private String userId;
-        private Integer status;
-        private Long ackTime;
-    }
+    @Field("extra")
+    private Map<String, Object> extra;
+
     private static class ProcessingLock {
         private String lockHolder;
         private Long lockTime;
@@ -138,6 +131,4 @@ public class MessageMailBox {
         private Long lockVersion;
     }
 }
-
-// Rocket
 

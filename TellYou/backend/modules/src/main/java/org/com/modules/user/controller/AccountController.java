@@ -10,6 +10,7 @@ import org.com.modules.user.domain.dto.RegisterDTO;
 import org.com.modules.user.domain.vo.LoginVO;
 import org.com.modules.user.service.UserInfoService;
 import org.com.tools.common.ApiResult;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,9 @@ public class AccountController {
     private final UserInfoService userInfoService;
     private final RocketMQTemplate rocketMQTemplate;
     private final MongoTemplate mongoTemplate;
+
+    @Value("${server.node}")
+    private String node;
 
     @PostMapping("/login")
     @Operation(summary = "登录")
@@ -52,7 +56,7 @@ public class AccountController {
     @Operation(summary = "测试")
     public ApiResult test(){
         String dbName = mongoTemplate.getDb().getName();
-        log.info("✅ 成功连接数据库: " + dbName);
+        log.info("✅ 成功连接数据库: " + node);
         mongoTemplate.getCollectionNames().forEach(log::info);
         return ApiResult.success();
     }

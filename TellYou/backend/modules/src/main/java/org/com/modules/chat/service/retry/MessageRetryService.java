@@ -1,86 +1,48 @@
 package org.com.modules.chat.service.retry;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.com.modules.chat.domain.dto.MessageDTO;
+import org.com.modules.chat.domain.vo.MessageVO;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author: lanye
+ * @date: 2025/07/27 21:14
+ * @description 服务端执行重试任务的服务
+ * @replenish
+ */
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageRetryService {
+    @Value("${server.node}")
+    private String node;
+
     private final MessageDelayQueue messageDelayQueue;
     private final ChannelManagerUtil channelManagerUtil;
-    private final RedissonClient redissonClient;
 
-    public void deliverWithRetry(MessageDTO dto) {
-        messageDelayQueue.submit(dto);
-    }
 
     @Retryable(value = RuntimeException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
-    public void performDelivery(MessageDTO message) {
-        boolean success = channelManagerUtil.deliver(message.getToUserId(), message);
-
-        if (!success) {  // TODO 异常完善
-            throw new RuntimeException("Message delivery failed");
-        }
-        // 更新状态为已投递（等待ACK）
-
-        // 0.5 秒后去检查 ack
-        scheduleAckCheck(message.getMessageId(), 500, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * 调度ACK检查
-     * @param messageId
-     * @param delay
-     * @param unit
-     */
-    private void scheduleAckCheck(String messageId, long delay, TimeUnit unit) {
-        RDelayedQueue<String> delayedQueue = redissonClient.getDelayedQueue(
-                redissonClient.getBlockingQueue("msg:ack_check_queue")
-        );
-        delayedQueue.offer(messageId, delay, unit);
-    }
-
-    /**
-     * ACK检查定时任务
-     */
-    @Scheduled(fixedRate = 1000)
-    public void checkPendingAcks() {
-        RBlockingQueue<String> queue = redissonClient.getBlockingQueue("msg:ack_check_queue");
-
-        for (int i = 0; i < 100; ++ i){
-            String messageId = queue.poll();
-            if (messageId != null) {
-                // 未收到 ack 的重新放入任务队列
-            }
+    public void retryDelivery(Long uid, MessageVO vo) {
+        boolean success = channelManagerUtil.doDeliver(uid, vo);
+        if (success){
+            channelManagerUtil.doDeliver(uid, vo);
+            messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
+        } else {
+            throw new RuntimeException("路由表查不到");
         }
     }
 
-    private void handleMissingAck(MessageDTO message) {
-        // 如果大于最大重试次数，标记为 Failed，不再重试
-        // 否则指数退避重试
-    }
-
-    /**
-     * 指数退避计算
-     * @param retryCount
-     * @return
-     */
-    private int calculateNextDelay(int retryCount) {
-        return (int) Math.min(1000 * Math.pow(2, retryCount), 60000);
-    }
-
-//    public int drainTo(Collection<? super E> c, int maxElements) {
-//        // 单次网络往返获取多条消息
-//        return get(drainToAsync(c, maxElements));
-//    }
 }

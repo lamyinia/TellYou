@@ -4,12 +4,9 @@ import com.alibaba.fastjson.JSON;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.common.SubscribedItem;
 import org.com.tools.constant.RedissonConstant;
-import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -31,17 +28,9 @@ public class ChannelManagerUtil {
 
     private final ConcurrentHashMap<Long, Channel> USER_CHANNEL_MAP = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<ChannelId, Long> CHANNEL_USER_MAP = new ConcurrentHashMap<>();
+
     private final RedissonClient redissonClient;
 
-
-    @PostConstruct
-    public void subscribe(){
-        RTopic topic = redissonClient.getTopic(node);
-        topic.addListener(SubscribedItem.class, (channel, item) -> {
-            log.info("{} 收到消息: {}", node, item.getMessage());
-            item.getUIds().forEach(uid -> deliver(uid, item.getMessage()));
-        });
-    }
 
     /**
      * 绑定用户id和Channel
@@ -98,7 +87,7 @@ public class ChannelManagerUtil {
      * @description: 向指定用户推送消息
      * @todo: message可以优化成更轻的
      */
-    public boolean deliver(Long userId, Object message) {
+    public boolean doDeliver(Long userId, Object message) {
         Channel channel = getChannel(userId);
         if (channel != null && channel.isActive()) {
             channel.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(message)));
@@ -106,7 +95,7 @@ public class ChannelManagerUtil {
             return true;
         } else {
             log.info("用户[{}]不在线，消息推送失败", userId);
-            return true;
+            return false;
         }
     }
 

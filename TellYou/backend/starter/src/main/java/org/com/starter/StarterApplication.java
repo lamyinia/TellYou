@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableConfigurationProperties
 @EnableTransactionManagement
 @EnableMongoRepositories
-@EnableRetry
 public class StarterApplication {
     public static void main(String[] args) {
         SpringApplication.run(StarterApplication.class, args);

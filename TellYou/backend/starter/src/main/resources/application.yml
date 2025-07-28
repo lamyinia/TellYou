@@ -73,5 +73,14 @@ logging:
 knife4j:
   enable: true
 
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: chat-producer-group
+  consumer:
+    group: chat-message-consumer-group
+    pull-batch-size: 10
+    consume-timeout: 15
+    consume-mode: CONCURRENTLY
 
 

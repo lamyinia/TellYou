@@ -7,19 +7,20 @@ package org.com.tools.constant;
  * @description 消息队列 topic 枚举类
  * @replenish 为选择不同 Tag 设置独立线程池，避免图片处理阻塞文字消息
  */
-public interface MQConstant {
+public class MQConstant {
     /**
      * 单聊发送mq
      */
-    String DELIVER_TOPIC = "deliver_msg";
+    public static final String DELIVER_TOPIC = "deliver_msg";
     /**
      * 群聊发送
      */
-    String PUBLISH_TOPIC = "publish_msg";
+    public static final String PUBLISH_TOPIC = "publish_msg";
 
-    String ACK_TOPIC = "ack_msg";
+    public static final String ACK_TOPIC = "ack_msg";
 
-    String CONSUMER_GROUP = "chat-message-consumer-group";
+    public static final String CONSUMER_GROUP = "chat-message-consumer-group";
+    public static final String ACK_CONSUMER_GROUP = "chat-ack-consumer-group";
 }
 
 
