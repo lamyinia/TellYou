@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.com.modules.chat.domain.dto.MessageDTO;
 import org.com.modules.chat.domain.enums.MessageTypeEnum;
-import org.com.tools.constant.MQConstant;
 import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,7 @@ import java.util.Date;
 /**
  * @author lanye
  * @date 2025/07/27
- * @description 代表 netty 的消息生产者，
+ * @description: 代表 netty 的消息生产者，
  *职责包括鉴权、幂等(设置唯一消息id)、消息校验(格式、敏感词检验)、流量控制。
  *消费者的职责是业务分发、最终一致性、延迟策略、状态上报、死信处理。
  */
@@ -48,7 +47,7 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
 
         log.info("收到消息: {}", text);
         System.out.println(new Date());
-        rocketMQTemplate.convertAndSend(MessageTypeEnum.of(dto.getType()).getTopic(), dto);
+        rocketMQTemplate.convertAndSend(MessageTypeEnum.of(dto.getType()).getTopic(), text);
     }
 
     @Override

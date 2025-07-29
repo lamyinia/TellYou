@@ -2,18 +2,13 @@ package org.com.modules.chat.service.retry;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.chat.domain.dto.MessageDTO;
 import org.com.modules.chat.domain.vo.MessageVO;
 import org.com.tools.utils.ChannelManagerUtil;
-import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RDelayedQueue;
-import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,6 +34,8 @@ public class MessageRetryService {
         boolean success = channelManagerUtil.doDeliver(uid, vo);
         if (success){
             channelManagerUtil.doDeliver(uid, vo);
+
+            messageDelayQueue.initCache4Deliver(uid, vo);
             messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
         } else {
             throw new RuntimeException("路由表查不到");

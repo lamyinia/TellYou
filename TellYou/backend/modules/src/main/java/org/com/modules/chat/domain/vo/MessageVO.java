@@ -7,7 +7,6 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
-@Slf4j
 public class MessageVO implements Serializable {
     /** 客户端消息ID（用于幂等性） */
     private String messageId;

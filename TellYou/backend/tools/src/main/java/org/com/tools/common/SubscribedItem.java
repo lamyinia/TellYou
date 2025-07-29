@@ -12,7 +12,7 @@ import java.util.List;
 @Schema(description = "节点订阅 redisson 的信息")
 public class SubscribedItem implements Serializable {
     @Schema(description = "需要投递的 uid")
-    public List<Long> uIds;
+    public Long uId;
     @Schema (description = "回推的 message")
     public Object message;
 }

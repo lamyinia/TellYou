@@ -10,7 +10,6 @@ import org.redisson.api.RedissonClient;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -110,7 +109,7 @@ public class MessageMailBoxServiceImpl implements MessageMailBoxService {
                 .sequenceNumber(sequenceNumber)
                 .messageType(getMessageType(dto.getType()))
                 .senderId(dto.getFromUserId())
-                .toUserIds(List.of(dto.getToUserId())) // 单聊只有一个接收者
+                .toUserIds(List.of(3L, 2L, 1L, 4L, 5L, 6L, 7L, 8L))
                 .content(dto.getContent())
                 .clientTimestamp(dto.getTimestamp())
                 .serverTimestamp(currentTime)
