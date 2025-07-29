@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tell You - 原型展示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #cdede7;
+            margin-bottom: 16px;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #90a4ae;
+            margin-bottom: 8px;
+        }
+
+        .version {
+            font-size: 14px;
+            color: #90a4ae;
+            opacity: 0.7;
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 32px;
+            margin-bottom: 60px;
+        }
+
+        .module-card {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #4caf50, #45a049);
+        }
+
+        .module-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .module-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 24px;
+        }
+
+        .module-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #cdede7;
+            margin-bottom: 12px;
+        }
+
+        .module-desc {
+            color: #90a4ae;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .module-features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .module-features li {
+            color: #cdede7;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .module-features li::before {
+            content: '✓';
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .view-btn {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .view-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .design-info {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 40px;
+        }
+
+        .design-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #cdede7;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .design-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .design-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .design-item {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .design-item-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #cdede7;
+            margin-bottom: 8px;
+        }
+
+        .design-item-desc {
+            color: #90a4ae;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #90a4ae;
+            font-size: 14px;
+        }
+
+        /* 星空背景效果 */
+        .star {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.2;
+                transform: scale(0.8);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+                filter: blur(0px) drop-shadow(0 0 5px white);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 星空背景 -->
+    <div class="star" style="top: 10%; left: 15%; animation-delay: 0s;"></div>
+    <div class="star" style="top: 20%; left: 25%; animation-delay: 0.5s;"></div>
+    <div class="star" style="top: 30%; left: 35%; animation-delay: 1s;"></div>
+    <div class="star" style="top: 40%; left: 45%; animation-delay: 1.5s;"></div>
+    <div class="star" style="top: 50%; left: 55%; animation-delay: 2s;"></div>
+    <div class="star" style="top: 60%; left: 65%; animation-delay: 0.3s;"></div>
+    <div class="star" style="top: 70%; left: 75%; animation-delay: 0.8s;"></div>
+    <div class="star" style="top: 80%; left: 85%; animation-delay: 1.3s;"></div>
+    <div class="star" style="top: 90%; left: 95%; animation-delay: 1.8s;"></div>
+
+    <div class="container">
+        <!-- 页面标题 -->
+        <div class="header">
+            <div class="title">Tell You - 通彼</div>
+            <div class="subtitle">即时通讯PC桌面应用原型展示</div>
+            <div class="version">版本 v1.0.0 | 基于 Electron + Vue 开发</div>
+        </div>
+
+        <!-- 模块展示 -->
+        <div class="modules-grid">
+            <!-- 聊天模块 -->
+            <div class="module-card">
+                <div class="module-icon">💬</div>
+                <div class="module-title">聊天模块</div>
+                <div class="module-desc">
+                    核心的即时通讯功能，支持私聊和群聊，具有星空主题的现代化界面设计。
+                </div>
+                <ul class="module-features">
+                    <li>私聊和群聊功能</li>
+                    <li>星空主题背景</li>
+                    <li>实时消息推送</li>
+                    <li>消息历史记录</li>
+                    <li>表情和文件传输</li>
+                </ul>
+                <a href="chat.html" class="view-btn">查看原型</a>
+            </div>
+
+            <!-- 联系管理模块 -->
+            <div class="module-card">
+                <div class="module-icon">👥</div>
+                <div class="module-title">联系管理</div>
+                <div class="module-desc">
+                    全面的联系人管理功能，包括好友管理、群组管理、黑名单等功能。
+                </div>
+                <ul class="module-features">
+                    <li>好友添加和管理</li>
+                    <li>群组创建和管理</li>
+                    <li>黑名单功能</li>
+                    <li>联系人搜索</li>
+                    <li>在线状态显示</li>
+                </ul>
+                <a href="contact-management.html" class="view-btn">查看原型</a>
+            </div>
+
+            <!-- 设置模块 -->
+            <div class="module-card">
+                <div class="module-icon">⚙️</div>
+                <div class="module-title">设置中心</div>
+                <div class="module-desc">
+                    个性化的设置选项，包括外观、消息、隐私、账户等全方位的配置。
+                </div>
+                <ul class="module-features">
+                    <li>主题和外观设置</li>
+                    <li>消息提醒配置</li>
+                    <li>隐私和安全设置</li>
+                    <li>账户管理</li>
+                    <li>系统偏好设置</li>
+                </ul>
+                <a href="settings.html" class="view-btn">查看原型</a>
+            </div>
+        </div>
+
+        <!-- 设计说明 -->
+        <div class="design-info">
+            <div class="design-title">
+                <div class="design-icon">🎨</div>
+                设计理念与特色
+            </div>
+            <div class="design-grid">
+                <div class="design-item">
+                    <div class="design-item-title">星空主题</div>
+                    <div class="design-item-desc">
+                        采用深蓝色渐变背景配合动态闪烁星星，营造浪漫而现代的视觉体验，减少长时间使用的视觉疲劳。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">毛玻璃效果</div>
+                    <div class="design-item-desc">
+                        大量使用半透明背景和模糊效果，增强层次感和现代感，提升界面的视觉深度。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">圆角设计</div>
+                    <div class="design-item-desc">
+                        统一的18px圆角设计语言，营造柔和友好的视觉感受，符合现代UI设计趋势。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">交互反馈</div>
+                    <div class="design-item-desc">
+                        丰富的hover效果和过渡动画，提供流畅的用户交互体验，增强操作的反馈感。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">色彩搭配</div>
+                    <div class="design-item-desc">
+                        以深蓝为主色调，绿色作为强调色，白色文字确保可读性，形成和谐的色彩体系。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">响应式布局</div>
+                    <div class="design-item-desc">
+                        采用Flexbox和Grid布局，确保在不同屏幕尺寸下都能保持良好的显示效果。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 技术栈说明 -->
+        <div class="design-info">
+            <div class="design-title">
+                <div class="design-icon">🔧</div>
+                技术实现
+            </div>
+            <div class="design-grid">
+                <div class="design-item">
+                    <div class="design-item-title">前端框架</div>
+                    <div class="design-item-desc">
+                        Vue 3 + TypeScript，采用Composition API，提供类型安全和现代化的开发体验。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">桌面应用</div>
+                    <div class="design-item-desc">
+                        Electron框架，支持跨平台部署，提供原生桌面应用体验。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">UI组件</div>
+                    <div class="design-item-desc">
+                        Vuetify 3，提供丰富的Material Design组件，快速构建现代化界面。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">样式设计</div>
+                    <div class="design-item-desc">
+                        自定义CSS + CSS Grid/Flexbox，实现独特的星空主题和响应式布局。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">状态管理</div>
+                    <div class="design-item-desc">
+                        Pinia状态管理，提供响应式的数据管理，支持开发工具调试。
+                    </div>
+                </div>
+                <div class="design-item">
+                    <div class="design-item-title">构建工具</div>
+                    <div class="design-item-desc">
+                        Vite + Electron Builder，提供快速的开发体验和高效的打包部署。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <div class="footer">
+            <p>© 2025 Tell You - 通彼. 让沟通更简单，让连接更美好。</p>
+            <p>基于 Electron + Vue 3 + TypeScript 开发</p>
+        </div>
+    </div>
+
+    <script>
+        // 添加一些交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 卡片悬停效果增强
+            const cards = document.querySelectorAll('.module-card');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-8px) scale(1.02)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            // 按钮点击效果
+            const buttons = document.querySelectorAll('.view-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    // 添加点击波纹效果
+                    const ripple = document.createElement('div');
+                    ripple.style.position = 'absolute';
+                    ripple.style.borderRadius = '50%';
+                    ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+                    ripple.style.transform = 'scale(0)';
+                    ripple.style.animation = 'ripple 0.6s linear';
+                    ripple.style.left = e.clientX - this.offsetLeft + 'px';
+                    ripple.style.top = e.clientY - this.offsetTop + 'px';
+                    ripple.style.width = ripple.style.height = '20px';
+                    
+                    this.style.position = 'relative';
+                    this.style.overflow = 'hidden';
+                    this.appendChild(ripple);
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+        });
+
+        // 添加CSS动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html> 

@@ -9,6 +9,7 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,13 +34,23 @@ public class MessageRetryService {
     public void retryDelivery(Long uid, MessageVO vo) {
         boolean success = channelManagerUtil.doDeliver(uid, vo);
         if (success){
-            channelManagerUtil.doDeliver(uid, vo);
-
             messageDelayQueue.initCache4Deliver(uid, vo);
+            channelManagerUtil.doDeliver(uid, vo);
             messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
         } else {
             throw new RuntimeException("路由表查不到");
         }
     }
 
+    public void retryPublish(List<Long> uidList, MessageVO vo){
+        messageDelayQueue.initCache4Group(uidList, vo);
+
+        uidList.forEach(uid -> {
+            if (channelManagerUtil.getChannel(uid) != null){
+                log.info("广播发现用户 {} 上线", uid);
+                channelManagerUtil.doDeliver(uid, vo);
+                messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
+            }
+        });
+    }
 }

@@ -1,6 +1,7 @@
 package org.com.starter.netty.handler;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -10,7 +11,6 @@ import io.netty.util.AttributeKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.com.modules.chat.domain.dto.MessageDTO;
 import org.com.modules.chat.domain.enums.MessageTypeEnum;
 import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.ChannelManagerUtil;
@@ -36,18 +36,16 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, TextWebSocketFrame textWebSocketFrame) throws Exception {
         String text = textWebSocketFrame.text();
-        MessageDTO dto = null;
-        try {
-            dto = JSON.parseObject(text, MessageDTO.class);
-        } catch (Exception e){
-            log.warn("前端JSON错误 {}", e.getMessage());
-        }
 
-        if (dto.getType() == 0) return;
+        JSONObject json = JSON.parseObject(text);
+        Integer type = json.getInteger("type");
+        if (type == 0){
+            return;
+        }
 
         log.info("收到消息: {}", text);
         System.out.println(new Date());
-        rocketMQTemplate.convertAndSend(MessageTypeEnum.of(dto.getType()).getTopic(), text);
+        rocketMQTemplate.convertAndSend(MessageTypeEnum.of(type).getTopic(), text);
     }
 
     @Override

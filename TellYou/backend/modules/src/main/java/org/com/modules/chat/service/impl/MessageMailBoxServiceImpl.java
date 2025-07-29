@@ -109,7 +109,7 @@ public class MessageMailBoxServiceImpl implements MessageMailBoxService {
                 .sequenceNumber(sequenceNumber)
                 .messageType(getMessageType(dto.getType()))
                 .senderId(dto.getFromUserId())
-                .toUserIds(List.of(3L, 2L, 1L, 4L, 5L, 6L, 7L, 8L))
+                .toUserIds(List.of(1948031012053333361L, 1948031012054159361L, 1L, 4L, 5L, 6L, 7L, 8L))
                 .content(dto.getContent())
                 .clientTimestamp(dto.getTimestamp())
                 .serverTimestamp(currentTime)

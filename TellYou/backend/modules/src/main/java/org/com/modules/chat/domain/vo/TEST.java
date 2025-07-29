@@ -1,14 +1,13 @@
 package org.com.modules.chat.domain.vo;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.Serializable;
 
 @Data
-@Builder
 @ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public class TEST implements Serializable {
     private Long integer;
 

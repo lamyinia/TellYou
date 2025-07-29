@@ -1,6 +1,8 @@
 package org.com.modules.chat.service.retry;
 
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.com.modules.chat.constant.DelayQueConstant;
 import org.com.modules.chat.domain.vo.MessageVO;
 import org.com.tools.utils.ChannelManagerUtil;
@@ -18,13 +20,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 
 /**
+ * 用 redisson 重试实现的延迟队列
  * @author lanye
  * @date 2025/07/29
- * @description: 用 redisson 重试实现的延迟队列
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MessageDelayQueue {
+    @Value("${server.retry.threads}")
+    private int threadPoolSize;
+    @Value("${server.node}")
+    private String node;
+
     private final RedissonClient redissonClient;
     private final ChannelManagerUtil channelManagerUtil;
 
@@ -41,17 +49,13 @@ public class MessageDelayQueue {
     /**
      * 缓存清理任务调度器
      */
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(threadPoolSize);
 
     /**
      * 存储每个消息ID对应的清理任务
      */
     private final ConcurrentHashMap<String, ScheduledFuture<?>> cleanupTasks = new ConcurrentHashMap<>();
 
-
-
-    @Value("${server.node}")
-    private String node;
 
     public void initCache4Deliver(Long uid, MessageVO vo){
         String messageId = vo.getMessageId();
@@ -61,21 +65,14 @@ public class MessageDelayQueue {
         messageRetryCount.put(locating(uid, vo), 1);
     }
     
-    public void initCache4Group(List<Long> uids, MessageVO vo){
+    public void initCache4Group(List<Long> uidList, MessageVO vo){
         String messageId = vo.getMessageId();
         messageCache.put(messageId, vo);
         scheduleCleanup(messageId);
 
-        uids.forEach(uid -> messageRetryCount.put(locating(uid, vo), 1));
+        uidList.forEach(uid -> messageRetryCount.put(locating(uid, vo), 1));
     }
 
-    /**
-     * @param vo - 消息vo
-     */
-    public void submit(MessageVO vo){
-        RBlockingQueue<MessageVO> queue = redissonClient.getBlockingQueue(DelayQueConstant.DELAY_QUEUE + node);
-        queue.offer(vo);
-    }
     /**
      * 提交延迟消息
      * @param vo 消息vo
@@ -104,24 +101,27 @@ public class MessageDelayQueue {
             Long uid = Long.parseLong(split[0]);
             String messageId = split[1];
 
-            if (messageCache.get(locating) != null){
-                Integer count = messageRetryCount.get(locating);
-                if (count == 0) continue;
+            MessageVO vo = messageCache.get(messageId);
 
+            if (vo != null){
+                Integer count = messageRetryCount.get(locating);
+                if (count == 0){
+                    messageRetryCount.remove(locating);
+                    continue;  // 当收到 ack，会设置 count = 0
+                }
                 if (count > 3){
+                    log.info("{} 进入死信队列", locating);
+                    messageRetryCount.remove(locating);
                     // 进入死信队列，做最多 4 次发送，1 次正常发送， 3次重试
                 } else {
+                    log.info("第 {} 向用户 {} 推送消息", count+1, uid);
                     messageRetryCount.put(locating, count+1);
-                    MessageVO vo = messageCache.get(messageId);
-                    if (vo != null){
-                        boolean success = channelManagerUtil.doDeliver(uid, vo);
-                        if (success){
-                            try {
-                                queue.offer(locating, 2, TimeUnit.SECONDS);
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException("提交延迟消息被中断 2", e);
-                            }
-                        }
+                    boolean success = channelManagerUtil.doDeliver(uid, vo);
+                    if (success){
+                        try { queue.offer(locating, 2, TimeUnit.SECONDS);}
+                        catch (InterruptedException e) {throw new RuntimeException("提交延迟消息被中断 2", e);}
+                    } else {
+                        log.info("查不到路由表");
                     }
                 }
             }
@@ -137,10 +137,19 @@ public class MessageDelayQueue {
         if (existingTask != null && !existingTask.isDone()) {
             existingTask.cancel(false);
         }
-        
+
+        log.info("准备安排清理任务，消息ID: {}", messageId);
+
         ScheduledFuture<?> cleanupTask = scheduler.schedule(() -> {
-            messageCache.remove(messageId);
-            cleanupTasks.remove(messageId);
+            try {
+                log.info("开始执行清理任务，消息ID: {}", messageId);
+                log.info("缓存被清理 - 消息ID: {}", messageId);
+                messageCache.remove(messageId);
+                cleanupTasks.remove(messageId);
+                log.info("清理任务完成，消息ID: {}", messageId);
+            } catch (Exception e) {
+                log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
+            }
         }, 1, TimeUnit.MINUTES);
         
         cleanupTasks.put(messageId, cleanupTask);
@@ -154,8 +163,10 @@ public class MessageDelayQueue {
     /**
      * 销毁方法，清理调度器资源
      */
+    @PreDestroy
     public void destroy() {
         if (scheduler != null && !scheduler.isShutdown()) {
+            log.info("ack 缓存清理调度器被关闭");
             scheduler.shutdown();
             try {
                 if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {

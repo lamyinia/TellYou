@@ -11,11 +11,12 @@ import org.com.modules.chat.domain.document.MessageMailBox;
 import org.com.modules.chat.domain.dto.MessageDTO;
 import org.com.modules.chat.domain.vo.MessageVO;
 
-import org.com.modules.chat.domain.vo.TEST;
 import org.com.modules.chat.utils.MessageConvertUtil;
+import org.com.modules.chat.subscriber.SubscribedItem;
 import org.com.tools.constant.MQConstant;
 import org.com.tools.constant.RedissonConstant;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -62,6 +63,9 @@ public class SessionConsumer implements RocketMQListener<String> {
       } catch (Exception e){
          log.warn("前端JSON错误 {}", e.getMessage());
       }
+      if (dto == null){
+         return;
+      }
 
       log.info("SessionConsumer 正在消费消息: {}", dto.toString());
       System.out.println(new Date());
@@ -78,7 +82,10 @@ public class SessionConsumer implements RocketMQListener<String> {
             }
          });
       } else {
-         rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, text);
+         MessageVO vo = new MessageVO();
+         BeanUtils.copyProperties(dto, vo);
+
+         rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, new SubscribedItem(document.getToUserIds(), vo));
       }
    }
 }

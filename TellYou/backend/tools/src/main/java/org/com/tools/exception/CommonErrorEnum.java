@@ -3,9 +3,8 @@ package org.com.tools.exception;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-
-@AllArgsConstructor
 @Getter
+@AllArgsConstructor
 public enum CommonErrorEnum implements ErrorEnum {
 
     SYSTEM_ERROR(-1, "SYSTEM ERROR，PLEASE RETRY AGAIN"),

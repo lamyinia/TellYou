@@ -10,10 +10,7 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum BusinessErrorEnum implements ErrorEnum {
-    //==================================common==================================
     BUSINESS_ERROR(1001, "BUSINESS ERROR"),
-    //==================================user==================================
-    //==================================chat==================================
     SYSTEM_ERROR(1001, "SYSTEM ERROR");
     private Integer code;
     private String msg;

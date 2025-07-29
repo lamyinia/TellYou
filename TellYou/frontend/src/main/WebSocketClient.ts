@@ -53,7 +53,6 @@ export const connectWs = (): void => {
 
   ws.on('open', () => {
     console.log('CLIENT CONNECT SUCCESS')
-    ws?.send("PING PING PING")
     maxReConnectTimes = 20
 
     setInterval(() => {
@@ -71,20 +70,20 @@ export const connectWs = (): void => {
       }));
     }, 1000 * 5)
 
-    setInterval(() => {
-      ws.send(JSON.stringify({
-        messageId: 1,
-        type: 1,
-        fromUserId: "2",
-        toUserId: 1,
-        sessionId: 1,
-        content: "i do best! i do best! i do best",
-        timestamp: Date.now(),
-        extra: {
-          something: "nothing",
-        }
-      }));
-    }, 1000 * 10, 1000 * 5)
+    // setInterval(() => {
+    //   ws.send(JSON.stringify({
+    //     messageId: 1,
+    //     type: 1,
+    //     fromUserId: 3,
+    //     toUserId: 1,
+    //     sessionId: 1,
+    //     content: "i do best! i do best! i do best",
+    //     timestamp: Date.now(),
+    //     extra: {
+    //       something: "nothing",
+    //     }
+    //   }));
+    // }, 1000 * 10, 1000 * 5)
 
     const mainWindow = BrowserWindow.getFocusedWindow()
     if (mainWindow){

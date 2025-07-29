@@ -131,7 +131,6 @@ const connectWs = () => {
   ws = new WebSocket(urlWithToken);
   ws.on("open", () => {
     console.log("CLIENT CONNECT SUCCESS");
-    ws?.send("PING PING PING");
     maxReConnectTimes = 20;
     setInterval(() => {
       ws.send(JSON.stringify({
@@ -147,20 +146,6 @@ const connectWs = () => {
         }
       }));
     }, 1e3 * 5);
-    setInterval(() => {
-      ws.send(JSON.stringify({
-        messageId: 1,
-        type: 1,
-        fromUserId: "2",
-        toUserId: 1,
-        sessionId: 1,
-        content: "i do best! i do best! i do best",
-        timestamp: Date.now(),
-        extra: {
-          something: "nothing"
-        }
-      }));
-    }, 1e3 * 10, 1e3 * 5);
     const mainWindow = electron.BrowserWindow.getFocusedWindow();
     if (mainWindow) {
       mainWindow.webContents.send("ws-connected");
