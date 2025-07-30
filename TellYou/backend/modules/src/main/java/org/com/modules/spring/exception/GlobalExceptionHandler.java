@@ -45,25 +45,13 @@ public class GlobalExceptionHandler {
      * validation参数校验异常
      */
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    @ExceptionHandler(value = {MethodArgumentNotValidException.class, BindException.class})
     public ApiResult methodArgumentNotValidExceptionExceptionHandler(MethodArgumentNotValidException e) {
         StringBuilder errorMsg = new StringBuilder();
         e.getBindingResult().getFieldErrors().forEach(x -> errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
         String message = errorMsg.toString();
-        log.info("validation parameters error! The reason is:{}", message);
+        log.info("VALIDATION PARAMETERS ERROR! THE REASON IS: {}", message);
         return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
     }
 
-    /**
-     * validation参数校验异常
-     */
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(value = BindException.class)
-    public ApiResult bindException(BindException e) {
-        StringBuilder errorMsg = new StringBuilder();
-        e.getBindingResult().getFieldErrors().forEach(x -> errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
-        String message = errorMsg.toString();
-        log.info("validation parameters error! The reason is:{}", message);
-        return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
-    }
 }
