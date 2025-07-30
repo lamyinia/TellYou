@@ -237,7 +237,7 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 
 
-先写后端的 netty 部分 -> 登录部分业务 -> 前端搭建 -> 联系人业务 -> 群组业务 -> Ai机器人
+先写后端的 netty 部分 -> 登录部分业务 -> 前端搭建 -> 聊天设计 -> 联系人业务 -> 群组业务 -> Ai机器人
 
 
 
@@ -250,6 +250,17 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 
 ###### 业务设计关键点：
+
+群组业务设计：
+
+- 创建群组
+- 退群 (群主退群需要指定新群主、如果群成员只有群主一人直接解散群(前端提示改变api接口))
+- 解散群
+- 群成员
+
+
+
+
 
 发送失败和本地数据库
 

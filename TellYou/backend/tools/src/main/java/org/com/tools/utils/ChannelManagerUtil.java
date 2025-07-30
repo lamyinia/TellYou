@@ -98,9 +98,4 @@ public class ChannelManagerUtil {
             return false;
         }
     }
-
-    public boolean publish(List<Long> Uid){
-
-        return true;
-    }
 }

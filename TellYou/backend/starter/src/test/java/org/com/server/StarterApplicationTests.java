@@ -10,8 +10,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 @Slf4j
 @SpringBootTest
 class StarterApplicationTests {
-    @Autowired
-    private MongoTemplate mongoTemplate;
 
     @Test
     void contextLoads() {

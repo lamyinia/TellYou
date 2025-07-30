@@ -11,7 +11,7 @@ import io.netty.util.AttributeKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.com.modules.chat.domain.enums.MessageTypeEnum;
+import org.com.modules.session.domain.enums.MessageTypeEnum;
 import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.springframework.stereotype.Component;

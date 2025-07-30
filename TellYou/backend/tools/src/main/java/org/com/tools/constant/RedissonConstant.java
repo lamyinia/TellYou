@@ -1,5 +1,5 @@
 package org.com.tools.constant;
 
-public interface RedissonConstant {
-    String ROUTE = "USER_ROUTE";
+public class RedissonConstant {
+    public static final String ROUTE = "USER_ROUTE";
 }

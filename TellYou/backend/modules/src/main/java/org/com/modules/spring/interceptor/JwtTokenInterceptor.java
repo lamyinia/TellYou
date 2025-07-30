@@ -18,6 +18,8 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtTokenInterceptor implements HandlerInterceptor {
+    public static final String ATTRIBUTE_UID = "uid";
+
     public final JwtUtil jwtUtil;
 
     @Override
@@ -25,6 +27,7 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
         if (!(handler instanceof HandlerMethod)){
             return true;
         }
+
         String token = request.getHeader(jwtUtil.getJwtProperties().getUserTokenName());
         if (token == null || token.isBlank()){
             response.setStatus(401);
@@ -33,8 +36,10 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
         }
 
         try {
+            String attributeKey = jwtUtil.getJwtProperties().getUidKey();
             log.info("JWT验证 - 令牌: {}...", token.substring(0, Math.min(token.length(), 6)));
             Claims claims = jwtUtil.parseJWT(token);
+            request.setAttribute(ATTRIBUTE_UID, (Long) claims.get(attributeKey));
 
             return true;
         } catch (ExpiredJwtException ex){

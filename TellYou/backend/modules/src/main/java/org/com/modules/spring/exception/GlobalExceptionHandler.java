@@ -5,6 +5,8 @@ import org.com.tools.common.ApiResult;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.exception.CommonErrorEnum;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -19,10 +21,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * 未知异常
+     */
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(value = Exception.class)
     public ApiResult systemExceptionHandler(Exception e) {
-        log.error("SYSTEM EXCEPTION！THE REASON IS: {}", e.getMessage(), e);
+        log.error("SYSTEM EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
         return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 
@@ -32,7 +37,33 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(value = BusinessException.class)
     public ApiResult businessExceptionHandler(BusinessException e) {
-        log.info("BUSINESS EXCEPTION！THE REASON IS: {}", e.getMessage(), e);
+        log.info("BUSINESS EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
         return ApiResult.fail(e.getErrorCode(), e.getMessage());
+    }
+
+    /**
+     * validation参数校验异常
+     */
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ApiResult methodArgumentNotValidExceptionExceptionHandler(MethodArgumentNotValidException e) {
+        StringBuilder errorMsg = new StringBuilder();
+        e.getBindingResult().getFieldErrors().forEach(x -> errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
+        String message = errorMsg.toString();
+        log.info("validation parameters error! The reason is:{}", message);
+        return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
+    }
+
+    /**
+     * validation参数校验异常
+     */
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = BindException.class)
+    public ApiResult bindException(BindException e) {
+        StringBuilder errorMsg = new StringBuilder();
+        e.getBindingResult().getFieldErrors().forEach(x -> errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
+        String message = errorMsg.toString();
+        log.info("validation parameters error! The reason is:{}", message);
+        return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
     }
 }

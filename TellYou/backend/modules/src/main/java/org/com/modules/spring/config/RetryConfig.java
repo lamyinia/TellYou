@@ -13,13 +13,11 @@ public class RetryConfig {
     public RetryTemplate retryTemplate() {
         RetryTemplate template = new RetryTemplate();
 
-        // 配置重试策略（最多尝试4次 = 初始调用 + 3次重试）
         SimpleRetryPolicy policy = new SimpleRetryPolicy();
         policy.setMaxAttempts(4);
 
-        // 配置退避策略（每次间隔2秒）
         FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-        backOffPolicy.setBackOffPeriod(2000); // 毫秒
+        backOffPolicy.setBackOffPeriod(2000);
 
         template.setRetryPolicy(policy);
         template.setBackOffPolicy(backOffPolicy);

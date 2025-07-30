@@ -1,9 +1,8 @@
 package org.com.modules.user.service;
 
-import org.com.modules.user.domain.dto.LoginDTO;
-import org.com.modules.user.domain.dto.RegisterDTO;
-import org.com.modules.user.domain.vo.LoginVO;
-import org.springframework.stereotype.Service;
+import org.com.modules.user.domain.vo.req.LoginReq;
+import org.com.modules.user.domain.vo.req.RegisterReq;
+import org.com.modules.user.domain.vo.resp.LoginResp;
 
 /**
 * @author lanyo
@@ -14,7 +13,7 @@ public interface UserInfoService {
 
     void getCheckCode(String emailAddress);
 
-    void register(RegisterDTO registerDTO);
+    void register(RegisterReq registerReq);
 
-    LoginVO login(LoginDTO loginDTO);
+    LoginResp login(LoginReq loginReq);
 }

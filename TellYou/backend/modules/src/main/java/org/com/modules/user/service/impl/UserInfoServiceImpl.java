@@ -6,10 +6,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.com.modules.user.dao.UserInfoDao;
-import org.com.modules.user.domain.dto.LoginDTO;
-import org.com.modules.user.domain.dto.RegisterDTO;
+import org.com.modules.user.domain.vo.req.LoginReq;
+import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.entity.UserInfo;
-import org.com.modules.user.domain.vo.LoginVO;
+import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.utils.JwtUtil;
@@ -44,10 +44,10 @@ public class UserInfoServiceImpl implements UserInfoService {
 
     // TODO 流量控制
     @Override
-    public LoginVO login(LoginDTO loginDTO) {
-        UserInfo user = userInfoDao.getByEmail(loginDTO.getEmail());
-        if (Objects.isNull(user) || !user.getPassword().equals( SecurityUtil.encode(loginDTO.getPassword()) )){
-            throw new BusinessException(20003, "用户密码错误");
+    public LoginResp login(LoginReq loginReq) {
+        UserInfo user = userInfoDao.getByEmail(loginReq.getEmail());
+        if (Objects.isNull(user) || !user.getPassword().equals( SecurityUtil.encode(loginReq.getPassword()) )){
+            throw new BusinessException(20003, "用户密码错误");  // TODO 错误枚举类完善
         }
         if (user.getStatus().equals(0)){
             throw new BusinessException(20004, "改用户已被封号处理");
@@ -57,11 +57,11 @@ public class UserInfoServiceImpl implements UserInfoService {
         claims.put(jwtUtil.getJwtProperties().getUidKey(), user.getUserId());
         String token = jwtUtil.createJwt(claims);
 
-        return new LoginVO(token);
+        return new LoginResp(token);
     }
 
     @Override
-    public void register(RegisterDTO dto) {
+    public void register(RegisterReq dto) {
         String key = REDIS_CODE_PREFIX + dto.getEmail();
         String code = (String) redisTemplate.opsForValue().get(key);
         if (StringUtils.isEmpty(code) || !StringUtils.equals(code, dto.getCode())){
