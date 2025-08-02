@@ -4,9 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.common.ApiResult;
+import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * @author lanye
+ * @date 2025/07/31
+ */
 @Slf4j
 @Tag(name = "消息管理接口")
 @RestController("messageController")

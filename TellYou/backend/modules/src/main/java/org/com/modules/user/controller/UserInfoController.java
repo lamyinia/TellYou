@@ -6,9 +6,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.user.domain.vo.req.RegisterReq;
-import org.com.tools.common.ApiResult;
+import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * @author lanye
+ * @date 2025/07/31
+ */
 @Slf4j
 @Tag(name = "用户信息管理接口")
 @RestController("userInfoController")

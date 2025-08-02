@@ -32,7 +32,7 @@
         <slf4j-api>2.0.16</slf4j-api>
         <logback-classic>1.5.18</logback-classic>
         <logback-core>1.5.18</logback-core>
-        <aspectjweaver>1.9.22.1</aspectjweaver>
+        <aspectjweaver>1.9.22</aspectjweaver>
         <jjwt>0.12.5</jjwt>
         <mybatis-plus-spring-boot3-starter>3.5.8-001</mybatis-plus-spring-boot3-starter>
         <spring-boot-starter-aop>3.3.2</spring-boot-starter-aop>
@@ -114,6 +114,12 @@
                 <artifactId>aspectjweaver</artifactId>
                 <version> ${aspectjweaver} </version>
             </dependency>
+            <dependency>
+                <groupId>org.aspectj</groupId>
+                <artifactId>aspectjrt</artifactId>
+                <version> ${aspectjweaver} </version>
+            </dependency>
+
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt</artifactId>

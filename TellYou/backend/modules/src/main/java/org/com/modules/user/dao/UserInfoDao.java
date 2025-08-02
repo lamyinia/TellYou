@@ -8,7 +8,7 @@ import org.com.modules.user.mapper.UserInfoMapper;
 import org.springframework.stereotype.Service;
 
 /**
-* @author lanyo
+* @author lanye
 * @description 针对表【user_info(用户信息)】的数据库操作Service实现
 * @createDate 2025-07-22 20:27:43
 */

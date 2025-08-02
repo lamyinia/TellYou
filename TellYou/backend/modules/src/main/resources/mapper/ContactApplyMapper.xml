@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.modules.user.mapper.ContactApplyMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.ContactApply">
+            <id property="applyId" column="apply_id" jdbcType="BIGINT"/>
+            <result property="applyUserId" column="apply_user_id" jdbcType="BIGINT"/>
+            <result property="targetId" column="target_id" jdbcType="BIGINT"/>
+            <result property="contactType" column="contact_type" jdbcType="TINYINT"/>
+            <result property="lastApplyTime" column="last_apply_time" jdbcType="TIMESTAMP"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="applyInfo" column="apply_info" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        apply_id,apply_user_id,target_id,contact_type,last_apply_time,status,
+        apply_info
+    </sql>
+</mapper>

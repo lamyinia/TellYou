@@ -4,19 +4,29 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.common.ApiResult;
+import org.com.modules.common.util.RequestHolder;
+import org.com.modules.user.domain.vo.req.FriendApplyReq;
+import org.com.modules.user.service.UserContactService;
+import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * @author lanye
+ * @date 2025/07/31
+ */
 @Slf4j
 @Tag(name = "用户关系管理接口")
 @RestController("userContactController")
 @RequestMapping("/contact")
 @RequiredArgsConstructor
 public class UserContactController {
+    private final UserContactService userContactService;
 
-    @PostMapping("/applyAdd")
+    @PostMapping("/applySend")
     @Operation(description = "发送好友申请")
-    public ApiResult<Void> applyAdd(){
+    public ApiResult<Void> applySend(@RequestBody FriendApplyReq friendApplyReq){
+        Long uid = RequestHolder.get().getUid();
+        userContactService.friendApplySend(uid, friendApplyReq);
         return ApiResult.success();
     }
 

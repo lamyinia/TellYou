@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.modules.user.mapper.FriendContactMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.FriendContact">
+            <id property="userId" column="user_id" jdbcType="BIGINT"/>
+            <id property="contactId" column="contact_id" jdbcType="BIGINT"/>
+            <result property="sessionId" column="session_id" jdbcType="BIGINT"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+            <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
+            <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        user_id,contact_id,session_id,status,created_at,updated_at,
+        is_deleted,version
+    </sql>
+</mapper>

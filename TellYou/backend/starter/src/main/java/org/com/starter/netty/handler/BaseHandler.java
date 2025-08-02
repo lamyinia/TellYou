@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.com.modules.session.domain.enums.MessageTypeEnum;
+import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.tools.constant.NettyConstant;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.springframework.stereotype.Component;
@@ -36,15 +37,19 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, TextWebSocketFrame textWebSocketFrame) throws Exception {
         String text = textWebSocketFrame.text();
-
-        JSONObject json = JSON.parseObject(text);
-        Integer type = json.getInteger("type");
-        if (type == 0){
-            return;
+        MessageReq json = null;
+        try {
+            json = JSON.parseObject(text, MessageReq.class);
+        } catch (Exception e){
+            log.warn("前端JSON错误 {}", e.getMessage());
         }
+        if (json == null) return;
+
+        Integer type = json.getType();
+
+        if (type == 0) return;
 
         log.info("收到消息: {}", text);
-        System.out.println(new Date());
         rocketMQTemplate.convertAndSend(MessageTypeEnum.of(type).getTopic(), text);
     }
 

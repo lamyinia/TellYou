@@ -6,20 +6,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.com.modules.session.domain.document.MessageMailBox;
+import org.com.modules.common.domain.document.MessageMailboxDocument;
+import org.com.modules.common.domain.enums.DeliveryEnum;
+import org.com.modules.common.event.MessageSendEvent;
+import org.com.modules.common.service.dispatch.DispatcherService;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.modules.session.domain.vo.resp.MessageResp;
 
 import org.com.modules.session.utils.MessageConvertUtil;
-import org.com.modules.session.subscriber.SubscribedItem;
 import org.com.tools.constant.MQConstant;
-import org.com.tools.constant.RedissonConstant;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -44,9 +43,8 @@ import java.util.List;
     consumeMode = org.apache.rocketmq.spring.annotation.ConsumeMode.CONCURRENTLY
 )
 public class SessionConsumer implements RocketMQListener<String> {
-   private final RedissonClient redissonClient;
    private final MessageConvertUtil messageConvertUtil;
-   private final RocketMQTemplate rocketMQTemplate;
+   private final ApplicationEventPublisher applicationEventPublisher;
 
    @PostConstruct
    public void init() {
@@ -57,35 +55,19 @@ public class SessionConsumer implements RocketMQListener<String> {
 
    @Override
    public void onMessage(String text) {
-      MessageReq dto = null;
-      try {
-         dto = JSON.parseObject(text, MessageReq.class);
-      } catch (Exception e){
-         log.warn("前端JSON错误 {}", e.getMessage());
-      }
-      if (dto == null){
-         return;
-      }
+      MessageReq req = JSON.parseObject(text, MessageReq.class);
+      if (req == null) return;
 
-      log.info("SessionConsumer 正在消费消息: {}", dto.toString());
-      System.out.println(new Date());
+      log.info("SessionConsumer 正在消费消息: {}", req.toString());
 
-      MessageMailBox document = messageConvertUtil.covertToDocumentAndSave(dto);
+      MessageMailboxDocument document = messageConvertUtil.covertToDocumentAndSave(req);
+      List<Long> uidList = getUidList(req);
 
-      List<Long> toUserIds = document.getToUserIds();
+      applicationEventPublisher.publishEvent(new MessageSendEvent(this, document, uidList));
+   }
 
-      if (toUserIds.size() < 5){
-         document.getToUserIds().forEach(uid -> {
-            String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
-            if (node != null){
-               redissonClient.getTopic(node).publish(document);
-            }
-         });
-      } else {
-         MessageResp vo = new MessageResp();
-         BeanUtils.copyProperties(dto, vo);
-
-         rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, new SubscribedItem(document.getToUserIds(), vo));
-      }
+   private List<Long> getUidList(MessageReq req) {
+      if (req.getToUserId() < 0) return null;
+      else return List.of(req.getFromUserId(), req.getToUserId());
    }
 }

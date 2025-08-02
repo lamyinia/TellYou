@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * @author lanye
+ * @date 2025/07/31
+ */
 @Slf4j
 @Tag(name = "版本管理接口")
 @RestController("versionController")

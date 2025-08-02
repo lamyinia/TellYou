@@ -4,9 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.common.ApiResult;
+import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * @author lanye
+ * @date 2025/07/31
+ */
 @Slf4j
 @Tag(name = "群组管理接口")
 @RestController("groupController")
@@ -23,6 +27,12 @@ public class GroupController {
     @PostMapping("/invite")
     @Operation(summary = "邀请好友")
     public ApiResult<Void> invite(){
+        return ApiResult.success();
+    }
+
+    @PostMapping("/apply")
+    @Operation(summary = "入群申请")
+    public ApiResult<Void> apply(){
         return ApiResult.success();
     }
 

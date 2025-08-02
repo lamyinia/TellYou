@@ -5,21 +5,21 @@
 <mapper namespace="org.com.modules.user.mapper.UserInfoMapper">
 
     <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.UserInfo">
-            <id property="user_id" column="user_id" />
+            <id property="userId" column="user_id" />
             <result property="email" column="email" />
-            <result property="nick_name" column="nick_name" />
+            <result property="nickName" column="nick_name" />
             <result property="avatar" column="avatar" />
             <result property="sex" column="sex" />
             <result property="password" column="password" />
-            <result property="personal_signature" column="personal_signature" />
+            <result property="personalSignature" column="personal_signature" />
             <result property="status" column="status" />
-            <result property="create_time" column="create_time" />
-            <result property="last_login_time" column="last_login_time" />
-            <result property="area_name" column="area_name" />
-            <result property="area_code" column="area_code" />
-            <result property="ip_info" column="ip_info" />
-            <result property="last_off_time" column="last_off_time" />
-            <result property="remaining_name_change" column="remaining_name_change" />
+            <result property="createTime" column="create_time" />
+            <result property="lastLoginTime" column="last_login_time" />
+            <result property="areaName" column="area_name" />
+            <result property="areaCode" column="area_code" />
+            <result property="ipInfo" column="ip_info" />
+            <result property="lastOffTime" column="last_off_time" />
+            <result property="remainingNameChange" column="remaining_name_change" />
     </resultMap>
 
     <sql id="Base_Column_List">

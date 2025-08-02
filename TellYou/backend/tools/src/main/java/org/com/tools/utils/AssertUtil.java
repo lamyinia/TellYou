@@ -50,7 +50,8 @@ public class AssertUtil {
 
     public static void isEmpty(Object obj, String msg) {
         if (!isEmpty(obj)) {
-            throwException(msg);
+//            throwException(msg);
+            throw new BusinessException(msg);
         }
     }
 
