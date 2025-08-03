@@ -8,13 +8,13 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-
     <artifactId>modules</artifactId>
     <packaging>jar</packaging>
 
     <properties>
         <java.version>21</java.version>
     </properties>
+    
     <dependencies>
         <dependency>
             <groupId>org.com</groupId>
@@ -91,5 +91,20 @@
             <version>6.2.0.Final</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

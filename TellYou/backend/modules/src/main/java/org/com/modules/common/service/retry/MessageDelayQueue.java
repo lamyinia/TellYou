@@ -8,11 +8,14 @@ import org.com.modules.session.domain.vo.resp.MessageResp;
 import org.com.modules.user.domain.vo.resp.ContactApplyResp;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
+import org.redisson.api.RDelayedQueue;
+import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +36,10 @@ public class MessageDelayQueue {
     private int threadPoolSize;
     @Value("${server.node}")
     private String node;
+
+    private static final String DELAY_SORTED_SET = "delay:sortedset:";
+    private static final String DELAY_QUEUE = "delay:queue:";
+    private static final int[] retryWaitingByCount = {1, 2, 4, 8};
 
     private final RedissonClient redissonClient;
     private final ChannelManagerUtil channelManagerUtil;
@@ -81,18 +88,27 @@ public class MessageDelayQueue {
      * @param timeUnit 时间单位
      */
     public void submitWithDelay(Long uid, Object vo, long delay, TimeUnit timeUnit){
-        try {
-            RBlockingQueue<String> queue = redissonClient.getBlockingQueue(DelayQueConstant.DELAY_QUEUE + node);
-            queue.offer(locating(uid, vo), delay, timeUnit);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("提交延迟消息被中断 1", e);
+        RScoredSortedSet<String> scoredSortedSet = redissonClient.getScoredSortedSet(DELAY_SORTED_SET + node);
+        scoredSortedSet.add(System.currentTimeMillis() + timeUnit.toMillis(delay), locating(uid, vo));
+    }
+
+    @Scheduled(fixedDelay = 1000)
+    public void moveExpiredToQueue() {
+        RScoredSortedSet<String> scoredSortedSet = redissonClient.getScoredSortedSet(DELAY_SORTED_SET + node);
+        RBlockingQueue<String> blockingQueue = redissonClient.getBlockingQueue(DELAY_QUEUE + node);
+
+        Collection<String> expired = scoredSortedSet.valueRange(0, true, System.currentTimeMillis(), true);
+
+        for (String msg : expired) {
+            if (scoredSortedSet.remove(msg)) {
+                blockingQueue.offer(msg);
+            }
         }
     }
 
     @Scheduled(fixedDelay = 1000)
     public void processDelayedMessage(){
-        RBlockingQueue<String> queue = redissonClient.getBlockingQueue(DelayQueConstant.DELAY_QUEUE + node);
+        RBlockingQueue<String> queue = redissonClient.getBlockingQueue(DELAY_QUEUE + node);
 
         for (int i = 0; i < 300; ++ i){
             String locating = queue.poll();
@@ -120,13 +136,8 @@ public class MessageDelayQueue {
                 } else {
                     log.info("第 {} 次向用户 {} 推送消息", count+1, uid);
                     letterRetryCount.put(locating, count+1);
-                    boolean success = channelManagerUtil.doDeliver(uid, vo);
-                    if (success){
-                        try { queue.offer(locating, 2, TimeUnit.SECONDS);}
-                        catch (InterruptedException e) {throw new RuntimeException("提交延迟消息被中断 2", e);}
-                    } else {
-                        log.info("查不到路由表");
-                    }
+                    channelManagerUtil.doDeliver(uid, vo);
+                    submitWithDelay(uid, vo, retryWaitingByCount[count], TimeUnit.SECONDS);
                 }
             }
         }
@@ -162,6 +173,7 @@ public class MessageDelayQueue {
     private String locating(Long uid, Object vo){
         return String.valueOf(uid) + ":" + getLetterId(vo);
     }
+
     private String getLetterId(Object vo){
         if (vo.getClass() == MessageResp.class){
             return ((MessageResp) vo).getMessageId() + "-message";

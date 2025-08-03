@@ -3,23 +3,26 @@ package org.com.modules.session.consumer;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.domain.document.MessageMailboxDocument;
-import org.com.modules.common.domain.enums.DeliveryEnum;
+import org.com.modules.common.domain.dto.FlowControlDTO;
 import org.com.modules.common.event.MessageSendEvent;
-import org.com.modules.common.service.dispatch.DispatcherService;
+import org.com.modules.common.util.ApplicationContextProvider;
+import org.com.modules.common.util.FlowControlUtil;
 import org.com.modules.session.domain.vo.req.MessageReq;
-import org.com.modules.session.domain.vo.resp.MessageResp;
-
 import org.com.modules.session.utils.MessageConvertUtil;
 import org.com.tools.constant.MQConstant;
-import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static org.com.modules.common.service.flow.FlowControlStrategyFactory.REDISSON_FLOW_CONTROL;
 
 /**
  * @author: lanye
@@ -53,16 +56,23 @@ public class SessionConsumer implements RocketMQListener<String> {
        log.info("RocketMQ配置 - NameServer: 127.0.0.1:9876");
    }
 
+   @SneakyThrows
    @Override
    public void onMessage(String text) {
       MessageReq req = JSON.parseObject(text, MessageReq.class);
       if (req == null) return;
+      Long uid = req.getFromUserId();
 
+      SessionConsumer proxy = (SessionConsumer) ApplicationContextProvider.currentProxy();
+      proxy.consumeMessage(uid, req);
+   }
+
+   @FlowControl(time = 10, count = 20, spEl = "#fromUid", target = FlowControl.Target.EL)
+   public void consumeMessage(Long fromUid, MessageReq req){
       log.info("SessionConsumer 正在消费消息: {}", req.toString());
 
       MessageMailboxDocument document = messageConvertUtil.covertToDocumentAndSave(req);
       List<Long> uidList = getUidList(req);
-
       applicationEventPublisher.publishEvent(new MessageSendEvent(this, document, uidList));
    }
 

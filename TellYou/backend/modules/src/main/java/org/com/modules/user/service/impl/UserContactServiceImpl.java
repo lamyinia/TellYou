@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.event.FriendApplyEvent;
-import org.com.modules.common.service.LockService;
+import org.com.modules.common.service.lock.LockService;
 import org.com.modules.user.dao.ContactApplyDao;
 import org.com.modules.user.dao.FriendContactDao;
 import org.com.modules.user.domain.entity.ContactApply;
@@ -16,7 +16,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
