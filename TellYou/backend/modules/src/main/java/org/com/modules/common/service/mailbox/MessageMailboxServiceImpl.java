@@ -4,18 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.dao.MessageMailboxDao;
-import org.com.modules.common.dao.MongoSessionDao;
+import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.common.domain.document.MessageMailboxDocument;
-import org.com.modules.common.event.MessageSendEvent;
 import org.com.modules.session.domain.vo.req.MessageReq;
-import org.redisson.api.RedissonClient;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -62,7 +56,7 @@ public class MessageMailboxServiceImpl implements MessageMailboxService {
                 .clientMessageId(dto.getMessageId())
                 .sequenceNumber(sequenceNumber)
                 .messageType(getMessageType(dto.getType()))
-                .senderId(dto.getFromUserId())
+                .senderId(dto.getFromUid())
                 .content(dto.getContent())
                 .adjustedTimestamp(calculateAdjustedTimestamp(dto.getTimestamp(), currentTime))
                 .createTime(currentTime)

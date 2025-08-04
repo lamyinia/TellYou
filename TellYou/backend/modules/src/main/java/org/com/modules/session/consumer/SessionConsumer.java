@@ -9,10 +9,8 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.domain.document.MessageMailboxDocument;
-import org.com.modules.common.domain.dto.FlowControlDTO;
 import org.com.modules.common.event.MessageSendEvent;
 import org.com.modules.common.util.ApplicationContextProvider;
-import org.com.modules.common.util.FlowControlUtil;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.modules.session.utils.MessageConvertUtil;
 import org.com.tools.constant.MQConstant;
@@ -20,9 +18,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static org.com.modules.common.service.flow.FlowControlStrategyFactory.REDISSON_FLOW_CONTROL;
 
 /**
  * @author: lanye
@@ -61,7 +56,7 @@ public class SessionConsumer implements RocketMQListener<String> {
    public void onMessage(String text) {
       MessageReq req = JSON.parseObject(text, MessageReq.class);
       if (req == null) return;
-      Long uid = req.getFromUserId();
+      Long uid = req.getFromUid();
 
       SessionConsumer proxy = (SessionConsumer) ApplicationContextProvider.currentProxy();
       proxy.consumeMessage(uid, req);
@@ -78,6 +73,6 @@ public class SessionConsumer implements RocketMQListener<String> {
 
    private List<Long> getUidList(MessageReq req) {
       if (req.getToUserId() < 0) return null;
-      else return List.of(req.getFromUserId(), req.getToUserId());
+      else return List.of(req.getFromUid(), req.getToUserId());
    }
 }

@@ -3,12 +3,10 @@ package org.com.modules.common.service.retry;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.session.constant.DelayQueConstant;
 import org.com.modules.session.domain.vo.resp.MessageResp;
 import org.com.modules.user.domain.vo.resp.ContactApplyResp;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,11 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.*;
 
 /**
  * 用 redisson 重试实现的延迟队列

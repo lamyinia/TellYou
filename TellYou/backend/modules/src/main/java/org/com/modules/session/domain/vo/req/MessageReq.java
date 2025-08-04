@@ -2,6 +2,7 @@ package org.com.modules.session.domain.vo.req;
 
 import lombok.Data;
 import lombok.ToString;
+import org.com.modules.common.annotation.UnifyUid;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -16,7 +17,7 @@ public class MessageReq implements Serializable {
     private Integer type;
 
     /** 发送者ID */
-    private Long fromUserId;
+    private Long fromUid;
 
     /** 接收者ID（单聊/群聊） */
     private Long toUserId;

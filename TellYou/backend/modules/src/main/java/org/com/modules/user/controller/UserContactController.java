@@ -2,9 +2,12 @@ package org.com.modules.user.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.com.modules.common.annotation.Unify;
 import org.com.modules.common.util.RequestHolder;
+import org.com.modules.user.domain.vo.req.AcceptFriendApplyReq;
 import org.com.modules.user.domain.vo.req.FriendApplyReq;
 import org.com.modules.user.service.UserContactService;
 import org.com.modules.common.domain.vo.resp.ApiResult;
@@ -24,15 +27,15 @@ public class UserContactController {
 
     @PostMapping("/applySend")
     @Operation(description = "发送好友申请")
-    public ApiResult<Void> applySend(@RequestBody FriendApplyReq friendApplyReq){
-        Long uid = RequestHolder.get().getUid();
-        userContactService.friendApplySend(uid, friendApplyReq);
+    public ApiResult<Void> applySend(@Unify @Valid @RequestBody FriendApplyReq friendApplyReq){
+        userContactService.friendApplySend(friendApplyReq.getFromUid(), friendApplyReq);
         return ApiResult.success();
     }
 
     @PutMapping("/applyAccept")
     @Operation(summary = "接受申请")
-    public ApiResult<Void> applyAccept(){
+    public ApiResult<Void> applyAccept(@Valid @RequestBody AcceptFriendApplyReq req){
+        userContactService.applyAccept(req);
         return ApiResult.success();
     }
 

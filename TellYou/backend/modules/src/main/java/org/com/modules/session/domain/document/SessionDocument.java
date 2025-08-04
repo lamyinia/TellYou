@@ -1,11 +1,15 @@
-package org.com.modules.common.domain.document;
+package org.com.modules.session.domain.document;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
  * 会话文档
@@ -13,6 +17,7 @@ import java.time.LocalDateTime;
  * @date 2025/08/01
  */
 @Data
+@Builder
 @Document(collection = "session")
 public class SessionDocument {
 
@@ -62,13 +67,13 @@ public class SessionDocument {
      * 创建时间
      */
     @Field("created_at")
-    private LocalDateTime createdAt;
+    private Date createdAt;
 
     /**
      * 最后修改时间
      */
     @Field("updated_at")
-    private LocalDateTime updatedAt;
+    private Date updatedAt;
 
     /**
      * 额外信息（根据不同类型房间有不同存储的东西）

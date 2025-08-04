@@ -5,5 +5,5 @@ import org.com.modules.session.domain.vo.req.MessageReq;
 
 public interface MessageMailboxService {
 
-    MessageMailboxDocument save(MessageReq dto);
+    MessageMailboxDocument save(MessageReq req);
 }

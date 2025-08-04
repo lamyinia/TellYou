@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 public class MessageConvertUtil {
     private final MessageMailboxService messageMailboxService;
 
-    public MessageMailboxDocument covertToDocumentAndSave(MessageReq dto) {
-        return messageMailboxService.save(dto);
+    public MessageMailboxDocument covertToDocumentAndSave(MessageReq req) {
+        return messageMailboxService.save(req);
     }
 
     public MessageResp covertToVO(MessageMailboxDocument document) {

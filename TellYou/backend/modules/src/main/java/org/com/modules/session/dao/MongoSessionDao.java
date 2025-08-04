@@ -1,13 +1,17 @@
-package org.com.modules.common.dao;
+package org.com.modules.session.dao;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.common.domain.document.SessionDocument;
+import org.com.modules.common.domain.enums.YesOrNoEnum;
+import org.com.modules.session.domain.document.SessionDocument;
+import org.com.modules.session.domain.entity.Session;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.mongodb.core.query.Query;
+
+import java.util.Date;
 
 /**
  * 会话数据访问层
@@ -37,10 +41,8 @@ public class MongoSessionDao {
         );
 
         if (result == null) {
-            SessionDocument newSession = new SessionDocument();
-            newSession.setSessionId(sessionId);
-            newSession.setSequenceId(1L);
-            newSession.setIsDeleted(0);
+            SessionDocument newSession = SessionDocument.builder()
+                            .sessionId(sessionId).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
             mongoTemplate.save(newSession);
             return 1L;
         }
@@ -60,29 +62,25 @@ public class MongoSessionDao {
 
     /**
      * 保存会话
-     * @param sessionDocument 会话文档
+     * @param session 会话文档
      * @return 保存后的会话文档
      */
-    public SessionDocument save(SessionDocument sessionDocument) {
-        return mongoTemplate.save(sessionDocument);
+    public SessionDocument insert(Session session) {
+        SessionDocument document = SessionDocument.builder().sessionId(session.getSessionId()).sessionType(session.getSessionType())
+                .createdAt(session.getCreatedAt()).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
+
+        return mongoTemplate.save(document);
     }
-/*
-    *//**
-     * 更新会话的最后消息信息
-     * @param sessionId 会话ID
-     * @param lastMsgId 最后消息ID
-     * @param lastMsgContent 最后消息内容
-     * @param lastMsgTime 最后消息时间
-     *//*
-    public void updateLastMessage(Long sessionId, Long lastMsgId, String lastMsgContent, LocalDateTime lastMsgTime) {
+
+    public void updateLastMessage(Long sessionId, Long lastMsgId, String lastMsgContent, Date lastMsgTime) {
         Query query = new Query(Criteria.where("sessionId").is(sessionId));
         Update update = new Update()
                 .set("lastMsgId", lastMsgId)
                 .set("lastMsgContent", lastMsgContent)
                 .set("lastMsgTime", lastMsgTime)
-                .set("updatedAt", LocalDateTime.now());
+                .set("updatedAt", new Date());
 
         mongoTemplate.updateFirst(query, update, SessionDocument.class);
     }
-    */
+
 }

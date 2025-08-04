@@ -4,7 +4,7 @@ import lombok.Data;
 import org.com.tools.exception.ErrorEnum;
 
 @Data
-public class FlowControlException extends RuntimeException implements ErrorEnum{
+public class UnifyException extends RuntimeException implements ErrorEnum{
 
     private static final long serialVersionUID = 1L;
 
@@ -18,16 +18,16 @@ public class FlowControlException extends RuntimeException implements ErrorEnum{
      */
     protected String errorMsg;
 
-    public FlowControlException() {
+    public UnifyException() {
         super();
     }
 
-    public FlowControlException(String errorMsg) {
+    public UnifyException(String errorMsg) {
         super(errorMsg);
         this.errorMsg = errorMsg;
     }
 
-    public FlowControlException(ErrorEnum error) {
+    public UnifyException(ErrorEnum error) {
         super(error.getErrorMsg());
         this.errorCode = error.getErrorCode();
         this.errorMsg = error.getErrorMsg();

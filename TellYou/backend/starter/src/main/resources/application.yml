@@ -37,12 +37,10 @@ spring:
       port: ${value.redis.port}
       password: ${value.redis.password}
     mongodb:
-      auto-index-creation: true  # 兼容MongoDB 8.0的索引管理
+      uri: mongodb://${value.mongodb.host}:${value.mongodb.port}/${value.mongodb.database}?replicaSet=rs0&retryWrites=false
+      auto-index-creation: true
       encryption:
-        enabled: true  # 启用客户端字段级加密
-      host: ${value.mongodb.host}
-      port: ${value.mongodb.port}
-      database: ${value.mongodb.database}
+        enabled: true
   mail:
     username: ${value.mail.username}
     password: ${value.mail.password}
@@ -84,5 +82,26 @@ rocketmq:
     pull-batch-size: 10
     consume-timeout: 15
     consume-mode: CONCURRENTLY
+
+seata:
+  enabled: true
+  application-id: ${spring.application.name}
+  tx-service-group: my_test_tx_group
+  enable-auto-data-source-proxy: true
+  data-source-proxy-mode: AT
+  service:
+    vgroup-mapping:
+      my_test_tx_group: default
+    grouplist:
+      default: 127.0.0.1:8091
+    enable-degrade: false
+    disable-global-transaction: false
+  registry:
+    type: file
+  config:
+    type: file
+    file:
+      name: file.conf
+
 
 

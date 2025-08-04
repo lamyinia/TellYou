@@ -10,7 +10,8 @@ public enum CommonErrorEnum implements ErrorEnum {
     SYSTEM_ERROR(-1, "SYSTEM ERROR，PLEASE RETRY AGAIN"),
     PARAM_VALID(-2, "VALIDATION ERROR"),
     FLOW_LIMIT(-3, "ERROR FOR FREQUENT REQUEST"),
-    LOCK_LIMIT(-4, "ERROR FOR FREQUENT REQUEST");
+    LOCK_LIMIT(-4, "ERROR FOR FREQUENT REQUEST"),
+    UNIFY_ERROR(-5, "UNIFY UID ERROR");
 
     private final Integer code;
     private final String msg;

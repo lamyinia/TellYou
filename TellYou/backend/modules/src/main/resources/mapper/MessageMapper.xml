@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.modules.session.mapper.MessageMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.modules.session.domain.entity.Message">
+            <id property="sessionId" column="session_id" jdbcType="BIGINT"/>
+            <id property="sequenceId" column="sequence_id" jdbcType="BIGINT"/>
+            <result property="senderId" column="sender_id" jdbcType="BIGINT"/>
+            <result property="adjustedTimestamp" column="adjustedTimestamp" jdbcType="VARCHAR"/>
+            <result property="msgType" column="msg_type" jdbcType="TINYINT"/>
+            <result property="isRecalled" column="is_recalled" jdbcType="TINYINT"/>
+            <result property="text" column="text" jdbcType="VARCHAR"/>
+            <result property="extJson" column="ext_json" jdbcType="OTHER"/>
+            <result property="sendTime" column="send_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        session_id,sequence_id,sender_id,adjustedTimestamp,msg_type,is_recalled,
+        text,ext_json,send_time
+    </sql>
+</mapper>

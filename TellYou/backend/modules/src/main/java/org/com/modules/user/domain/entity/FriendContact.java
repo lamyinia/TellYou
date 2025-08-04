@@ -4,9 +4,11 @@ package org.com.modules.user.domain.entity;
 import java.util.Date;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class FriendContact {
     @Schema(description = "用户id")
     private Long userId;
@@ -17,7 +19,7 @@ public class FriendContact {
     @Schema(description = "会话id")
     private Long sessionId;
 
-    @Schema(description = "1 = 好友, 2 = 有一方删除, 3 = 黑名单处理")
+    @Schema(description = "1 = 好友, 2 = 有一方删除, 3 = 黑名单处理且互相不是好友, 4 = 黑名单但互相是好友(解除黑名单会回到好友关系)")
     private Integer status;
 
     @Schema(description = "创建时间")

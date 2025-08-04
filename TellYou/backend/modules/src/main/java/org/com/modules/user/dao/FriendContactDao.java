@@ -17,4 +17,9 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
                 .eq(FriendContact::getContactId, contactId)
                 .eq(FriendContact::getIsDeleted, YesOrNoEnum.NO.getStatus()).one();
     }
+
+    public FriendContact findByBothId(Long uid1, Long uid2) {
+        return lambdaQuery().eq(FriendContact::getUserId, uid1)
+                .eq(FriendContact::getContactId, uid2).one();
+    }
 }

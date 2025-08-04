@@ -54,4 +54,15 @@ public class GlobalExceptionHandler {
         return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
     }
 
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = UnifyException.class)
+    public ApiResult unifyExceptionHandler(UnifyException e) {
+        return ApiResult.fail(e);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = FlowControlException.class)
+    public ApiResult unifyExceptionHandler(FlowControlException e) {
+        return ApiResult.fail(e);
+    }
 }
