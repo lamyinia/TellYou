@@ -6,11 +6,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.util.RequestHolder;
-import org.com.modules.user.domain.vo.req.AcceptFriendApplyReq;
-import org.com.modules.user.domain.vo.req.FriendApplyReq;
-import org.com.modules.user.service.UserContactService;
+import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.common.domain.vo.resp.CursorPageResp;
+import org.com.modules.user.domain.vo.req.*;
+import org.com.modules.user.domain.vo.resp.FriendContactResp;
+import org.com.modules.user.service.UserContactService;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -34,32 +35,35 @@ public class UserContactController {
 
     @PutMapping("/applyAccept")
     @Operation(summary = "接受申请")
-    public ApiResult<Void> applyAccept(@Valid @RequestBody AcceptFriendApplyReq req){
+    public ApiResult<Void> applyAccept(@Unify @Valid @RequestBody AcceptFriendApplyReq req){
         userContactService.applyAccept(req);
         return ApiResult.success();
     }
 
     @PutMapping("/pullBlackList")
     @Operation(summary = "拉入黑名单")
-    public ApiResult<Void> pullBlackList(){
+    public ApiResult<Void> pullBlackList(@Unify @Valid @RequestBody PullBlackListReq req){
+        userContactService.pullBlackList(req);
         return ApiResult.success();
     }
     @PutMapping("/removeBlackList")
     @Operation(summary = "移除黑名单")
-    public ApiResult<Void> removeBlackList(){
+    public ApiResult<Void> removeBlackList(@Unify @Valid @RequestBody RemoveBlackListReq req){
+        userContactService.removeBlackList(req);
         return ApiResult.success();
     }
 
     @DeleteMapping("/deleteContact")
     @Operation(summary = "删除好友")
-    public ApiResult<Void> deleteContact(){
+    public ApiResult<Void> deleteContact(@Unify @Valid @RequestBody DeleteContactReq req){
+        userContactService.deleContact(req);
         return ApiResult.success();
     }
 
     @GetMapping("/pageContact")
     @Operation(summary = "联系人或者群组的分页查询")
-    public ApiResult<Void> pageContact(){
-        return ApiResult.success();
+    public ApiResult<CursorPageResp<FriendContactResp>> pageContact(@ModelAttribute @Valid CursorPageReq req){
+        return ApiResult.success(userContactService.friendList(req));
     }
 
     @GetMapping("/pageApply")

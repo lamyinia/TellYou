@@ -67,7 +67,7 @@ public class MongoSessionDao {
      */
     public SessionDocument insert(Session session) {
         SessionDocument document = SessionDocument.builder().sessionId(session.getSessionId()).sessionType(session.getSessionType())
-                .createdAt(session.getCreatedAt()).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
+                .createdAt(new Date()).updatedAt(new Date()).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
 
         return mongoTemplate.save(document);
     }
@@ -79,8 +79,16 @@ public class MongoSessionDao {
                 .set("lastMsgContent", lastMsgContent)
                 .set("lastMsgTime", lastMsgTime)
                 .set("updatedAt", new Date());
-
         mongoTemplate.updateFirst(query, update, SessionDocument.class);
     }
 
+    public void updateStatus(Long sessionId, Integer status){
+        Query query = new Query(Criteria.where("sessionId").is(sessionId));
+        Update update = new Update().set("isDeleted", status);
+        mongoTemplate.updateFirst(query, update, SessionDocument.class);
+    }
+
+    public void abandon(Long sessionId) {
+        updateStatus(sessionId, YesOrNoEnum.YES.getStatus());
+    }
 }

@@ -83,8 +83,14 @@ public class GroupController {
     }
 
     @PutMapping("/assignOwner")
-    @Operation(summary = "指定群主")
+    @Operation(summary = "指定备选群主")
     public ApiResult<Void> assignOwner(){
+        return ApiResult.success();
+    }
+
+    @PutMapping("/transferOwner")
+    @Operation(summary = "转让群主")
+    public ApiResult<Void> transferOwner(){
         return ApiResult.success();
     }
 

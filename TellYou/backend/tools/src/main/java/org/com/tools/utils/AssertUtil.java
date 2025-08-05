@@ -18,9 +18,9 @@ public class AssertUtil {
         }
     }
 
-    public static void isTrue(boolean expression, ErrorEnum errorEnum, Object... args) {
+    public static void isTrue(boolean expression, ErrorEnum errorEnum) {
         if (!expression) {
-            throwException(errorEnum, args);
+            throwException(errorEnum);
         }
     }
 
@@ -30,9 +30,9 @@ public class AssertUtil {
         }
     }
 
-    public static void isFalse(boolean expression, ErrorEnum errorEnum, Object... args) {
+    public static void isFalse(boolean expression, ErrorEnum errorEnum) {
         if (expression) {
-            throwException(errorEnum, args);
+            throwException(errorEnum);
         }
     }
 
@@ -42,16 +42,15 @@ public class AssertUtil {
         }
     }
 
-    public static void isNotEmpty(Object obj, ErrorEnum errorEnum, Object... args) {
+    public static void isNotEmpty(Object obj, ErrorEnum errorEnum) {
         if (isEmpty(obj)) {
-            throwException(errorEnum, args);
+            throwException(errorEnum);
         }
     }
 
     public static void isEmpty(Object obj, String msg) {
         if (!isEmpty(obj)) {
-//            throwException(msg);
-            throw new BusinessException(msg);
+            throwException(msg);
         }
     }
 
@@ -72,7 +71,10 @@ public class AssertUtil {
     }
 
     private static void throwException(String msg) {
-        throwException(null, msg);
+        throw new BusinessException(null, msg);
+    }
+    private static void throwException(ErrorEnum errorEnum) {
+        throw new BusinessException(errorEnum.getErrorCode(), errorEnum.getErrorMsg());
     }
 
     private static void throwException(ErrorEnum errorEnum, Object... arg) {
