@@ -26,6 +26,6 @@ public class PullBlackListReq {
 
     @NotNull
     @Schema(description = "被拉进黑名单者 id")
-    private Long blackId;
+    private Long targetId;
 
 }

@@ -25,7 +25,7 @@ import org.com.modules.user.service.UserContactService;
 import org.com.modules.user.service.adapter.ApplyContactAdapter;
 import org.com.modules.user.service.adapter.BlackAdapter;
 import org.com.modules.user.service.adapter.FriendContactAdapter;
-import org.com.modules.user.service.adapter.SessionAdapter;
+import org.com.modules.session.service.adapter.SessionAdapter;
 import org.com.tools.utils.AssertUtil;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -64,7 +64,9 @@ public class UserContactServiceImpl implements UserContactService {
     @GlobalTransactional(rollbackFor = Exception.class)
     public void applyAccept(AcceptFriendApplyReq req) {
         ContactApply apply = contactApplyDao.getById(req.getApplyId());
+
         AssertUtil.isTrue(apply != null && apply.getContactType() == 0, "申请参数错误");
+        AssertUtil.isTrue(apply.getStatus() == ConfirmEnum.WAITING.getStatus(), "你已经接收过这个好友申请了");
 
         apply.setStatus(ConfirmEnum.ACCEPTED.getStatus());
         contactApplyDao.updateById(apply);
@@ -92,12 +94,13 @@ public class UserContactServiceImpl implements UserContactService {
     public void pullBlackList(PullBlackListReq req) {
         AssertUtil.isTrue(req.getFromType() == ContactTypeEnum.FRIEND.getStatus(), "参数错误");
 
-        Long uid = req.getBlackId(), target = req.getBlackId();
+        Long uid = req.getFromId(), target = req.getTargetId();
         Black black = blackDao.findBlack(uid, target, ContactTypeEnum.FRIEND.getStatus());
         if (black == null) {
             black = BlackAdapter.buildBlackContact(uid, target, ContactTypeEnum.FRIEND.getStatus());
             blackDao.save(black);
         } else {
+            AssertUtil.isTrue(black.getIsDeleted() == YesOrNoEnum.YES.getStatus(), "对象已经进入黑名单了");
             black.setBlackVersion(black.getBlackVersion() + 1);
             black.setIsDeleted(YesOrNoEnum.NO.getStatus());
             blackDao.updateById(black);
@@ -108,6 +111,7 @@ public class UserContactServiceImpl implements UserContactService {
     public void removeBlackList(RemoveBlackListReq req) {
         Black black = blackDao.getById(req.getBlackId());
         AssertUtil.isTrue(black != null && black.getFromId().equals(req.getFromId()), "参数错误");
+        AssertUtil.isTrue(black.getIsDeleted() == YesOrNoEnum.NO.getStatus(), "对象已经移除黑名单了");
 
         black.setIsDeleted(YesOrNoEnum.YES.getStatus());
         blackDao.updateById(black);
@@ -119,6 +123,7 @@ public class UserContactServiceImpl implements UserContactService {
     public void deleContact(DeleteContactReq req) {
         FriendContact contact1 = friendContactDao.getContactByBothId(req.getUserId(), req.getContactId());
         FriendContact contact2 = friendContactDao.getContactByBothId(req.getContactId(), req.getUserId());
+
         AssertUtil.isTrue(contact1 != null && contact2 != null, "参数错误");
 
         friendContactDao.abandon(contact1);

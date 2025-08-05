@@ -4,21 +4,21 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyUid;
 import org.hibernate.validator.constraints.Length;
 
 @Data
-@Unify
-@Schema(description = "创建群组传参")
-public class CreateGroupReq {
-    @UnifyUid
+@Schema(description = "改群名传参")
+public class ModifyNameReq {
     @NotNull
-    @Schema(description = "群主")
-    private Long fromUid;
+    @Schema(description = "群主 id")
+    private Long fromId;
+
+    @NotNull
+    @Schema(description = "群 id")
+    private Long groupId;
 
     @NotBlank
     @Length(max = 30)
-    @Schema(description = "新群名称")
+    @Schema(description = "要改成的群名")
     private String name;
 }

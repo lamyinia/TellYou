@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.com.modules.common.annotation.Unify;
+import org.com.modules.common.annotation.UnifyOwner;
 import org.com.modules.common.annotation.UnifyUid;
 import org.com.modules.common.exception.UnifyException;
 import org.com.modules.common.util.RequestHolder;
@@ -40,29 +41,31 @@ public class UnifyAspect {
         try {
             Class<?> clazz = obj.getClass();
             Field[] fields = clazz.getDeclaredFields();
-
+            Long fromId = null;
             for (Field field : fields) {
                 if (field.isAnnotationPresent(UnifyUid.class)) {
                     field.setAccessible(true);
                     Object fieldValue = field.get(obj);
 
                     if (fieldValue != null) {
-                        Long requestUid = (Long) fieldValue;
+                        fromId = (Long) fieldValue;
                         Long currentUid = RequestHolder.get().getUid();
+                        if (currentUid == null) return;
 
-                        if (currentUid == null) {
-                            throw new UnifyException("用户未登录");
-                        }
-
-                        if (!requestUid.equals(currentUid)) {
-                            log.warn("UID不匹配: 请求UID={}, 当前用户UID={}", requestUid, currentUid);
+                        if (!fromId.equals(currentUid)) {
+                            log.warn("UID不匹配: 请求UID={}, 当前用户UID={}", fromId, currentUid);
                             throw new UnifyException(CommonErrorEnum.UNIFY_ERROR);
                         }
 
-                        log.debug("UID验证通过: {}", requestUid);
+                        log.debug("UID验证通过: {}", fromId);
                     }
                 }
+                if (field.isAnnotationPresent(UnifyOwner.class)){
+
+                }
             }
+
+
         } catch (IllegalAccessException e) {
             log.error("验证UID时发生异常", e);
             throw new UnifyException("UID验证异常");

@@ -5,25 +5,28 @@
 <mapper namespace="org.com.modules.session.mapper.GroupInfoMapper">
 
     <resultMap id="BaseResultMap" type="org.com.modules.session.domain.entity.GroupInfo">
-            <id property="id" column="id" jdbcType="BIGINT"/>
-            <result property="sessionId" column="session_id" jdbcType="BIGINT"/>
-            <result property="groupOwnerId" column="group_owner_id" jdbcType="BIGINT"/>
-            <result property="name" column="name" jdbcType="VARCHAR"/>
-            <result property="avatar" column="avatar" jdbcType="VARCHAR"/>
-            <result property="maxMembers" column="max_members" jdbcType="INTEGER"/>
-            <result property="memberCount" column="member_count" jdbcType="INTEGER"/>
-            <result property="joinMode" column="join_mode" jdbcType="TINYINT"/>
-            <result property="msgMode" column="msg_mode" jdbcType="TINYINT"/>
-            <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
-            <result property="version" column="version" jdbcType="INTEGER"/>
-            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
-            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
-            <result property="card" column="card" jdbcType="VARCHAR"/>
+        <id property="id" column="id" jdbcType="BIGINT"/>
+        <result property="sessionId" column="session_id" jdbcType="BIGINT"/>
+        <result property="groupOwnerId" column="group_owner_id" jdbcType="BIGINT"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="avatar" column="avatar" jdbcType="VARCHAR"/>
+        <result property="maxMembers" column="max_members" jdbcType="INTEGER"/>
+        <result property="memberCount" column="member_count" jdbcType="INTEGER"/>
+        <result property="joinMode" column="join_mode" jdbcType="TINYINT"/>
+        <result property="msgMode" column="msg_mode" jdbcType="TINYINT"/>
+        <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+        <result property="card" column="card" jdbcType="VARCHAR"/>
+        <result property="backpackOwnerId" column="backpack_owner_id" jdbcType="BIGINT"/>
+        <result property="notification" column="notification" jdbcType="BIGINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,session_id,group_owner_id,name,avatar,max_members,
+        id
+    ,session_id,group_owner_id,name,avatar,max_members,
         member_count,join_mode,msg_mode,is_deleted,version,
-        create_time,update_time,card
+        create_time,update_time,card,backpack_owner_id,notification
     </sql>
 </mapper>

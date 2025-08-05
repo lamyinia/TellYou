@@ -1,3 +1,21 @@
+#### 通彼-分布式即时通讯软件
+
+技术栈：
+
+后端：springboot、mysql、mongodb、redisson、mybatis、netty、websocket、seata、rocketmq、minio、docker、nginx
+
+前端：vue3、vuetify、electron、pinia、sqlite3、
+
+
+
+用 mongodb 实现信箱机制
+
+秉承着边缘业务完全信任客户端的设计原则，减轻服务端的压力
+
+
+
+
+
 #### 开发问题和解决方案
 
 ###### 前端:
@@ -246,6 +264,7 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 - 改名机制(改名上限、重放机制)
 - 封号处理
 - ip 属地处理
+- 允许其他人拉我进群
 
 
 
@@ -317,4 +336,6 @@ protected void extendMessageConverters(List<HttpMessageConverter<?>> converters)
 
 
 重连接机制
+
+
 

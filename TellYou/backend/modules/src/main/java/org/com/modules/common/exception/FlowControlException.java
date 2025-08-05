@@ -4,7 +4,7 @@ import lombok.Data;
 import org.com.tools.exception.ErrorEnum;
 
 @Data
-public class FlowControlException extends RuntimeException implements ErrorEnum{
+public class FlowControlException extends RuntimeException implements ErrorEnum {
 
     private static final long serialVersionUID = 1L;
 

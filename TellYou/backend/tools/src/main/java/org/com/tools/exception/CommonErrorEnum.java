@@ -7,11 +7,11 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum CommonErrorEnum implements ErrorEnum {
 
-    SYSTEM_ERROR(-1, "SYSTEM ERROR，PLEASE RETRY AGAIN"),
-    PARAM_VALID(-2, "VALIDATION ERROR"),
-    FLOW_LIMIT(-3, "ERROR FOR FREQUENT REQUEST"),
-    LOCK_LIMIT(-4, "ERROR FOR FREQUENT REQUEST"),
-    UNIFY_ERROR(-5, "UNIFY UID ERROR");
+    SYSTEM_ERROR(-1, "系统，请稍后再试试"),
+    PARAM_VALID(-2, "参数校验错误"),
+    FLOW_LIMIT(-3, "发送太频繁，你被限流了"),
+    LOCK_LIMIT(-4, "操作繁忙，请稍后再试试"),
+    UNIFY_ERROR(-5, "绕过前端请求 Api，制裁你");
 
     private final Integer code;
     private final String msg;

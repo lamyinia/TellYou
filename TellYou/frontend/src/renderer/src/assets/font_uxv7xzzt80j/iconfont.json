@@ -1,0 +1,30 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "2551777",
+      "name": "聊天",
+      "font_class": "liaotian",
+      "unicode": "e60f",
+      "unicode_decimal": 58895
+    },
+    {
+      "icon_id": "10857621",
+      "name": "铃铛图标",
+      "font_class": "lingdangtubiao",
+      "unicode": "e61b",
+      "unicode_decimal": 58907
+    },
+    {
+      "icon_id": "25285149",
+      "name": "联系人管理",
+      "font_class": "lianxirenguanli",
+      "unicode": "e61d",
+      "unicode_decimal": 58909
+    }
+  ]
+}

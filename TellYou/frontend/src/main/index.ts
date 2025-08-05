@@ -10,6 +10,7 @@ const Store = __Store.default || __Store
 
 
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
+
 app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
   createDir()

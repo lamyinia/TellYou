@@ -7,4 +7,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class GroupInfoDao extends ServiceImpl<GroupInfoMapper, GroupInfo> {
+
+    public void assignOwner(Long groupId, Long backpackOwnerId){
+        lambdaUpdate().eq(GroupInfo::getId, groupId)
+                .set(GroupInfo::getBackpackOwnerId, backpackOwnerId)
+                .update();
+    }
 }

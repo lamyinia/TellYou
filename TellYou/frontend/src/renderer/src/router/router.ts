@@ -6,10 +6,10 @@ const routes: Array<RouteRecordRaw> = [
     redirect: "/login"
   },
   {
-    path: "/login", name: "登录", component: () => import("@renderer/views/login/LoginView.vue")
+    path: "/login", name: "登录", component: () => import("@renderer/views/account/LoginView.vue")
   },
   {
-    path: "/register", name: "注册", component: () => import("@renderer/views/login/RegisterView.vue")
+    path: "/register", name: "注册", component: () => import("@renderer/views/account/RegisterView.vue")
   },
 
   {

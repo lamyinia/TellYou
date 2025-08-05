@@ -46,7 +46,7 @@ public class UserContactController {
         userContactService.pullBlackList(req);
         return ApiResult.success();
     }
-    @PutMapping("/removeBlackList")
+    @DeleteMapping("/removeBlackList")
     @Operation(summary = "移除黑名单")
     public ApiResult<Void> removeBlackList(@Unify @Valid @RequestBody RemoveBlackListReq req){
         userContactService.removeBlackList(req);
