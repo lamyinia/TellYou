@@ -6,17 +6,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyUid;
+import org.com.modules.common.annotation.UnifyMark;
 
 @Data
 @Builder
-@Unify
+@UnifyMark(target = UnifyMark.Target.NORMAL)
 @AllArgsConstructor
 @NoArgsConstructor
 public class AcceptFriendApplyReq {
     @NotNull
-    @UnifyUid
+    @UnifyMark(target = UnifyMark.Target.USER_ID)
     @Schema(description = "发送者 id")
     private Long fromUid;
 

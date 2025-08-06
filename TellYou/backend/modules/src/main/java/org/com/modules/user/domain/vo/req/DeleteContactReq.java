@@ -4,15 +4,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyUid;
+import org.com.modules.common.annotation.UnifyMark;
 
 @Data
 @Builder
-@Unify
+@UnifyMark(target = UnifyMark.Target.NORMAL)
 public class DeleteContactReq {
-    @UnifyUid
     @NotNull
+    @UnifyMark(target = UnifyMark.Target.USER_ID)
     @Schema(description = "用户id")
     private Long userId;
 

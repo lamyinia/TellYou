@@ -2,7 +2,6 @@ package org.com.modules.session.domain.vo.req;
 
 import lombok.Data;
 import lombok.ToString;
-import org.com.modules.common.annotation.UnifyUid;
 
 import java.io.Serializable;
 import java.util.Map;

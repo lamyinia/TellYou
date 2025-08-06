@@ -22,7 +22,7 @@ import org.com.modules.user.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
 import org.com.modules.user.service.UserContactService;
-import org.com.modules.user.service.adapter.ApplyContactAdapter;
+import org.com.modules.user.service.adapter.ContactApplyAdapter;
 import org.com.modules.user.service.adapter.BlackAdapter;
 import org.com.modules.user.service.adapter.FriendContactAdapter;
 import org.com.modules.session.service.adapter.SessionAdapter;
@@ -54,7 +54,7 @@ public class UserContactServiceImpl implements UserContactService {
         AssertUtil.isEmpty(contactApplyDao.getApplyByBothId(uid, friendApplyReq.getContactId()), "你已经发送过好友申请了");
         AssertUtil.isEmpty(contactApplyDao.getApplyByBothId(friendApplyReq.getContactId(), uid), "对方已经向你发送过好友申请，请检查通知");
 
-        ContactApply contactApply = ApplyContactAdapter.buildFriendApply(uid, friendApplyReq);
+        ContactApply contactApply = ContactApplyAdapter.buildFriendApply(uid, friendApplyReq);
         contactApplyDao.save(contactApply);
         applicationEventPublisher.publishEvent(new FriendApplyEvent(this, contactApply, List.of(uid, friendApplyReq.getContactId())));
     }

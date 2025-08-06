@@ -6,17 +6,17 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyUid;
+import org.com.modules.common.annotation.UnifyMark;
 
 @Data
 @Builder
 @AllArgsConstructor
 @ToString
-@Unify
+@UnifyMark(target = UnifyMark.Target.NORMAL)
 public class RemoveBlackListReq {
-    @UnifyUid
+
     @NotNull
+    @UnifyMark(target = UnifyMark.Target.USER_ID)
     @Schema(description = "发起者 id")
     private Long fromId;
 

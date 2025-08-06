@@ -7,25 +7,26 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyUid;
+import org.com.modules.common.annotation.UnifyMark;
+import org.hibernate.validator.constraints.Length;
 
 @Data
 @Builder
 @AllArgsConstructor
 @ToString
-@Unify
+@UnifyMark(target = UnifyMark.Target.NORMAL)
 public class FriendApplyReq {
     @NotNull
-    @UnifyUid
+    @UnifyMark(target = UnifyMark.Target.USER_ID)
     @Schema(description = "申请信息")
     private Long fromUid;
-
-    @NotBlank
-    @Schema(description = "申请信息")
-    private String description;
 
     @NotNull
     @Schema(description = "申请的接收者")
     private Long contactId;
+
+    @NotBlank
+    @Length(max = 100)
+    @Schema(description = "申请信息")
+    private String description;
 }
