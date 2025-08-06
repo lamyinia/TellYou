@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.session.domain.document.SessionDocument;
 import org.com.modules.session.domain.entity.Session;
+import org.com.tools.constant.ValueConstant;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
@@ -65,9 +66,10 @@ public class MongoSessionDao {
      * @param session 会话文档
      * @return 保存后的会话文档
      */
-    public SessionDocument insert(Session session) {
+    public SessionDocument save(Session session) {
         SessionDocument document = SessionDocument.builder().sessionId(session.getSessionId()).sessionType(session.getSessionType())
-                .createdAt(new Date()).updatedAt(new Date()).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
+                .createdAt(ValueConstant.getDefaultDate()).updatedAt(ValueConstant.getDefaultDate())
+                .sequenceId(ValueConstant.DEFAULT_ZERO).isDeleted(YesOrNoEnum.NO.getStatus()).build();
 
         return mongoTemplate.save(document);
     }
@@ -78,7 +80,7 @@ public class MongoSessionDao {
                 .set("lastMsgId", lastMsgId)
                 .set("lastMsgContent", lastMsgContent)
                 .set("lastMsgTime", lastMsgTime)
-                .set("updatedAt", new Date());
+                .set("updatedAt", ValueConstant.getDefaultDate());
         mongoTemplate.updateFirst(query, update, SessionDocument.class);
     }
 

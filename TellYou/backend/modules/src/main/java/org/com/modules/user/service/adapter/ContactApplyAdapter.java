@@ -5,6 +5,7 @@ import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.domain.enums.ConfirmEnum;
 import org.com.modules.user.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.vo.req.FriendApplyReq;
+import org.com.tools.constant.ValueConstant;
 
 public class ContactApplyAdapter {
     public static ContactApply buildFriendApply(Long uid, FriendApplyReq friendApplyReq){
@@ -12,6 +13,7 @@ public class ContactApplyAdapter {
                 .targetId(friendApplyReq.getContactId())
                 .applyInfo(friendApplyReq.getDescription())
                 .contactType(ContactTypeEnum.FRIEND.getStatus())
+                .lastApplyTime(ValueConstant.getDefaultDate())
                 .status(ConfirmEnum.WAITING.getStatus())
                 .build();
     }
@@ -21,6 +23,7 @@ public class ContactApplyAdapter {
                 .targetId(groupApplyReq.getGroupId())
                 .applyInfo(groupApplyReq.getDescription())
                 .contactType(ContactTypeEnum.GROUP.getStatus())
+                .lastApplyTime(ValueConstant.getDefaultDate())
                 .status(ConfirmEnum.WAITING.getStatus())
                 .build();
     }

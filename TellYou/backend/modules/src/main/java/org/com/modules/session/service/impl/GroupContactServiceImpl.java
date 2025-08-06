@@ -12,9 +12,7 @@ import org.com.modules.session.domain.entity.GroupContact;
 import org.com.modules.session.domain.entity.GroupInfo;
 import org.com.modules.session.domain.entity.Session;
 import org.com.modules.session.domain.enums.GroupRoleEnum;
-import org.com.modules.session.domain.vo.req.CreateGroupReq;
-import org.com.modules.session.domain.vo.req.GroupApplyReq;
-import org.com.modules.session.domain.vo.req.InviteFriendReq;
+import org.com.modules.session.domain.vo.req.*;
 import org.com.modules.session.service.GroupContactService;
 import org.com.modules.session.service.adapter.GroupContactAdapter;
 import org.com.modules.session.service.adapter.GroupInfoAdapter;
@@ -23,6 +21,7 @@ import org.com.modules.user.dao.ContactApplyDao;
 import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.service.adapter.ContactApplyAdapter;
 import org.com.tools.constant.GroupConstant;
+import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.exception.CommonErrorEnum;
 import org.com.tools.utils.AssertUtil;
@@ -49,7 +48,8 @@ public class GroupContactServiceImpl implements GroupContactService {
     public void createGroup(CreateGroupReq req) {
         Session session = SessionAdapter.buildDefaultGroupSession();
         sessionDao.save(session);
-        mongoSessionDao.insert(session);
+        mongoSessionDao.save(session);
+
         GroupInfo groupInfo = GroupInfoAdapter.buildDefaultGroup(req.getFromUid(), session.getSessionId(), req.getName());
         groupInfoDao.save(groupInfo);
 
@@ -75,6 +75,9 @@ public class GroupContactServiceImpl implements GroupContactService {
                 targetId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole()))
         );
 
+        group.setMemberCount(group.getMemberCount() + contactList.size());
+        group.setUpdateTime(ValueConstant.getDefaultDate());
+
         groupInfoDao.updateById(group);
         groupContactDao.saveBatch(contactList);
     }
@@ -85,9 +88,47 @@ public class GroupContactServiceImpl implements GroupContactService {
         GroupInfo group = groupInfoDao.getById(req.getGroupId());
 
         AssertUtil.isNotEmpty(group, "群聊参数提交错误");
-        AssertUtil.isEmpty(contactApplyDao.getApplyByBothId(req.getFromId(), req.getGroupId()), "你已经提交过申请了");
+        AssertUtil.isFalse(groupContactDao.validatePower(req.getFromId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole()), "你已经是该群的成员了");
+        AssertUtil.isEmpty(contactApplyDao.getGroupApply(req.getFromId(), req.getGroupId()), "你已经提交过申请了");
 
         ContactApply apply = ContactApplyAdapter.buildGroupApply(req.getFromId(), req);
         contactApplyDao.save(apply);
+    }
+
+    @Override
+    @RedissonLocking(key = "#req.groupId")
+    public void leaveGroup(LeaveGroupReq req) {
+        boolean isOwner = groupContactDao.validatePower(req.getFromId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
+
+        GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        if (group.getMemberCount().equals(GroupConstant.DEFAULT_MEMBER_COUNT)){
+            throw new BusinessException(CommonErrorEnum.GROUP_API_ERROR);  // 群只有 1 个人，请求解散改群的接口
+        }
+        if (isOwner){
+            if (group.getBackpackOwnerId() == null){
+                throw new BusinessException(CommonErrorEnum.BACKPACK_OWNER_ERROR);
+            }
+            groupContactDao.assignPower(group.getBackpackOwnerId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
+            group.setGroupOwnerId(group.getBackpackOwnerId());
+            group.setBackpackOwnerId(null);
+        }
+        if (group.getBackpackOwnerId() == req.getFromId()){  // 备选群主退群
+            group.setBackpackOwnerId(null);
+        }
+        group.setMemberCount(group.getMemberCount() - 1);
+        group.setUpdateTime(ValueConstant.getDefaultDate());
+
+        groupContactDao.assignPower(req.getGroupId(), req.getGroupId(), GroupRoleEnum.NORMAL.getRole());
+        groupInfoDao.updateById(group);
+    }
+
+    @Override
+    public void addManager(AddManagerReq req) {
+
+    }
+
+    @Override
+    public void withdrawManager(WithdrawManagerReq req) {
+
     }
 }

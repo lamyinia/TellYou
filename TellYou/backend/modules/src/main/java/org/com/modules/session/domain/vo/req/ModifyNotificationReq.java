@@ -24,5 +24,5 @@ public class ModifyNotificationReq {
     @NotBlank
     @Length(max = 200)
     @Schema(description = "要改成的群公告")
-    private String name;
+    private String notification;
 }

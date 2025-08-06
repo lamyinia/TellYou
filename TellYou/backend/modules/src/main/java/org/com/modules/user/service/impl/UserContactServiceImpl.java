@@ -51,8 +51,8 @@ public class UserContactServiceImpl implements UserContactService {
         if (uid == friendApplyReq.getContactId()) return;
 
         AssertUtil.isEmpty(friendContactDao.getContactByBothId(uid, friendApplyReq.getContactId()), "你们已经是好友了");
-        AssertUtil.isEmpty(contactApplyDao.getApplyByBothId(uid, friendApplyReq.getContactId()), "你已经发送过好友申请了");
-        AssertUtil.isEmpty(contactApplyDao.getApplyByBothId(friendApplyReq.getContactId(), uid), "对方已经向你发送过好友申请，请检查通知");
+        AssertUtil.isEmpty(contactApplyDao.getFriendApply(uid, friendApplyReq.getContactId()), "你已经发送过好友申请了");
+        AssertUtil.isEmpty(contactApplyDao.getFriendApply(friendApplyReq.getContactId(), uid), "对方已经向你发送过好友申请，请检查通知");
 
         ContactApply contactApply = ContactApplyAdapter.buildFriendApply(uid, friendApplyReq);
         contactApplyDao.save(contactApply);
@@ -78,7 +78,7 @@ public class UserContactServiceImpl implements UserContactService {
             Session session = SessionAdapter.buildDefaultFrinedSession();
             sessionDao.save(session);
             List<FriendContact> list = FriendContactAdapter.buildFriendContact(session.getSessionId(), uid1, uid2);
-            mongoSessionDao.insert(session);
+            mongoSessionDao.save(session);
             friendContactDao.saveBatch(list);
         } else {
             Long sessionId = contact.getSessionId();

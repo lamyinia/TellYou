@@ -1,10 +1,19 @@
 package org.com.modules.session.service;
 
-import org.com.modules.session.domain.vo.req.AssignOwnerReq;
-import org.com.modules.session.domain.vo.req.DissolveGroupReq;
+import org.com.modules.session.domain.vo.req.*;
 
 public interface GroupInfoService {
     void assignOwner(AssignOwnerReq req);
 
     void dissolveGroup(DissolveGroupReq req);
+
+    void transferOwner(TransferOwnerReq req);
+
+    void modifyName(ModifyNameReq req);
+
+    void modifyNotification(ModifyNotificationReq req);
+
+    void modifyCard(ModifyCardReq req);
+
+    void banChat(BanChatReq req);
 }

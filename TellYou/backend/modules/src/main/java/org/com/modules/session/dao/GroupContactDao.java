@@ -4,7 +4,10 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.com.modules.session.domain.entity.GroupContact;
 import org.com.modules.session.mapper.GroupContactMapper;
+import org.com.tools.constant.ValueConstant;
 import org.springframework.stereotype.Service;
+
+import java.util.Date;
 
 @Service
 public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact> {
@@ -17,4 +20,19 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
         return ObjectUtil.isNotNull(contact);
     }
 
+    public GroupContact getByBothId(Long userId, Long groupId){
+        return lambdaQuery().eq(GroupContact::getUserId, userId)
+                .eq(GroupContact::getGroupId, groupId).one();
+    }
+
+    public void leaveGroup(){
+
+    }
+
+    public void assignPower(Long userId, Long groupId, Integer role){
+        lambdaUpdate().eq(GroupContact::getUserId, userId)
+                .eq(GroupContact::getGroupId, groupId)
+                .set(GroupContact::getLastActive, ValueConstant.getDefaultDate())
+                .set(GroupContact::getRole, role).update();
+    }
 }

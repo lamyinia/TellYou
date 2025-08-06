@@ -60,32 +60,34 @@ public class GroupController {
     @DeleteMapping("/leaveGroup")
     @Operation(summary = "退群")
     public ApiResult<Void> leaveGroup(@Unify @Valid @RequestBody LeaveGroupReq req){
-
+        groupContactService.leaveGroup(req);
         return ApiResult.success();
     }
 
     @DeleteMapping("/kickOut")
     @Operation(summary = "踢出群聊")
     public ApiResult<Void> kickOut(@Unify @Valid @RequestBody KickMemberReq req){
-
         return ApiResult.success();
     }
 
     @PutMapping("/modifyName")
     @Operation(summary = "修改群名称")
     public ApiResult<Void> modifyName(@Unify @Valid @RequestBody ModifyNameReq req){
+        groupInfoService.modifyName(req);
         return ApiResult.success();
     }
 
     @PutMapping("/modifyNotification")
     @Operation(summary = "修改群公告")
     public ApiResult<Void> modifyNotification(@Unify @Valid @RequestBody ModifyNotificationReq req){
+        groupInfoService.modifyNotification(req);
         return ApiResult.success();
     }
 
     @PutMapping("/modifyCard")
     @Operation(summary = "修改群卡片")
     public ApiResult<Void> modifyCard(@Unify @Valid @RequestBody ModifyCardReq req){
+        groupInfoService.modifyCard(req);
         return ApiResult.success();
     }
 
@@ -96,6 +98,7 @@ public class GroupController {
     @PutMapping("/banChat")
     @Operation(summary = "禁言开关")
     public ApiResult<Void> banChat(@Unify @Valid @RequestBody BanChatReq req){
+        groupInfoService.banChat(req);
         return ApiResult.success();
     }
 
@@ -109,19 +112,21 @@ public class GroupController {
     @PutMapping("/transferOwner")
     @Operation(summary = "转让群主")
     public ApiResult<Void> transferOwner(@Unify @Valid @RequestBody TransferOwnerReq req){
-
+        groupInfoService.transferOwner(req);
         return ApiResult.success();
     }
 
     @PutMapping("/addManager")
     @Operation(summary = "添加管理员")
     public ApiResult<Void> addManager(@Unify @Valid @RequestBody AddManagerReq req){
+        groupContactService.addManager(req);
         return ApiResult.success();
     }
 
     @PutMapping("/withdrawManager")
     @Operation(summary = "撤销管理员")
     public ApiResult<Void> withdrawManager(@Unify @Valid @RequestBody WithdrawManagerReq req){
+        groupContactService.withdrawManager(req);
         return ApiResult.success();
     }
 

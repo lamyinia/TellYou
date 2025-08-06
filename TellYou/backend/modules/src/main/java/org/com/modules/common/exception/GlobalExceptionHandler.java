@@ -37,8 +37,22 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(value = BusinessException.class)
     public ApiResult businessExceptionHandler(BusinessException e) {
-        log.info("BUSINESS EXCEPTION! THE REASON IS: {}", e.getMessage(), e);
+        log.warn("BUSINESS EXCEPTION! THE REASON IS: {}", e.getMessage());
         return ApiResult.fail(e.getErrorCode(), e.getMessage());
+    }
+
+    /**
+     * 拦截被 seata 包装的异常
+     */
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = RuntimeException.class)
+    public ApiResult runtimeExceptionHandler(RuntimeException e) {
+        log.warn("RUNTIME EXCEPTION! THE REASON IS: {}", e.getMessage());
+        if (e.getCause() instanceof BusinessException) {
+            BusinessException be = (BusinessException) e.getCause();
+            return ApiResult.fail(be.getErrorCode(), be.getMessage());
+        }
+        return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 
     /**
@@ -50,7 +64,7 @@ public class GlobalExceptionHandler {
         StringBuilder errorMsg = new StringBuilder();
         e.getBindingResult().getFieldErrors().forEach(x -> errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
         String message = errorMsg.toString();
-        log.info("VALIDATION PARAMETERS ERROR! THE REASON IS: {}", message);
+        log.warn("VALIDATION PARAMETERS ERROR! THE REASON IS: {}", message);
         return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(), message.substring(0, message.length() - 1));
     }
 

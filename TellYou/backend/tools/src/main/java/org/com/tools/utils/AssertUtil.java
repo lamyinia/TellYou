@@ -71,7 +71,7 @@ public class AssertUtil {
     }
 
     private static void throwException(String msg) {
-        throw new BusinessException(null, msg);
+        throw new BusinessException(msg);
     }
     private static void throwException(ErrorEnum errorEnum) {
         throw new BusinessException(errorEnum.getErrorCode(), errorEnum.getErrorMsg());

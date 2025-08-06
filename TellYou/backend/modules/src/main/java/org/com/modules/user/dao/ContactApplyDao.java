@@ -9,10 +9,18 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ContactApplyDao extends ServiceImpl<ContactApplyMapper, ContactApply> {
-    public ContactApply getApplyByBothId(Long uid, Long targetId){
+    public ContactApply getFriendApply(Long uid, Long targetId){
         return lambdaQuery().eq(ContactApply::getApplyUserId, uid)
                 .eq(ContactApply::getTargetId, targetId)
                 .eq(ContactApply::getContactType, ContactTypeEnum.FRIEND.getStatus())
+                .eq(ContactApply::getStatus, ConfirmEnum.WAITING.getStatus())
+                .one();
+    }
+
+    public ContactApply getGroupApply(Long uid, Long targetId){
+        return lambdaQuery().eq(ContactApply::getApplyUserId, uid)
+                .eq(ContactApply::getTargetId, targetId)
+                .eq(ContactApply::getContactType, ContactTypeEnum.GROUP.getStatus())
                 .eq(ContactApply::getStatus, ConfirmEnum.WAITING.getStatus())
                 .one();
     }
