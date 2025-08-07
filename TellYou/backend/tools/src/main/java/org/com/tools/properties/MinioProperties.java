@@ -7,12 +7,15 @@ import org.springframework.stereotype.Component;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "tell-you.jwt")
+@ConfigurationProperties(prefix = "tell-you.minio")
 @ToString
-public class JwtProperties {
-    private String userSecretKey;
-    private String userTokenName;
-    private long userTtl;
+public class MinioProperties {
 
-    private String uidKey;
+    private String endpoint;
+
+    private String accessKey;
+
+    private String secretKey;
+
+    private String bucket;
 }

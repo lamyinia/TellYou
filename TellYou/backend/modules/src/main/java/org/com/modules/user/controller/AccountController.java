@@ -11,6 +11,7 @@ import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.tools.properties.MinioProperties;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,7 @@ public class AccountController {
     private final UserInfoService userInfoService;
     private final RocketMQTemplate rocketMQTemplate;
     private final MongoTemplate mongoTemplate;
+    private final MinioProperties minioProperties;
 
     @PostMapping("/login")
     @Operation(summary = "登录")
@@ -53,9 +55,7 @@ public class AccountController {
     @GetMapping("/test")
     @Operation(summary = "测试")
     public ApiResult<Void> test(){
-        String dbName = mongoTemplate.getDb().getName();
-        log.info("✅ 成功连接数据库: ");
-        mongoTemplate.getCollectionNames().forEach(log::info);
+        log.info(minioProperties.toString());
         return ApiResult.success();
     }
 }

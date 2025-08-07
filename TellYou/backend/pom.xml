@@ -45,6 +45,7 @@
         <redisson-spring-boot-starter>3.50.0</redisson-spring-boot-starter>
         <mongodb-spring-boot-starter>3.5.0</mongodb-spring-boot-starter>
         <seata.version>2.0.0</seata.version>
+        <minio.version>8.5.17</minio.version>
     </properties>
 
     <repositories>
@@ -165,6 +166,11 @@
                 <groupId>io.seata</groupId>
                 <artifactId>seata-spring-boot-starter</artifactId>
                 <version>${seata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version> ${minio.version} </version>
             </dependency>
         </dependencies>
 
