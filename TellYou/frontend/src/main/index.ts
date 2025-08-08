@@ -97,6 +97,7 @@ const createWindow = () => {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
+
 const processIpc = (mainWindow: Electron.BrowserWindow): void => {
   ipcMain.handle('store-get', (_, key) => {
     return store.get(key)

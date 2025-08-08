@@ -16,5 +16,5 @@ public interface UserContactService {
 
     void deleContact(DeleteContactReq req);
 
-    CursorPageResp<FriendContactResp> friendList(CursorPageReq req);
+    CursorPageResp<FriendContactResp> friendListPage(CursorPageReq req);
 }

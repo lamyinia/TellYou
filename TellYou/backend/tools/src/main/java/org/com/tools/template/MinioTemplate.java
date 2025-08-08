@@ -164,14 +164,13 @@ public class MinioTemplate {
      */
     @SneakyThrows
     public Map<String, String> getPreSignedPostFormData(String bucketName, String fileName) {
-        // 为存储桶创建一个上传策略，过期时间为7天
+
         PostPolicy policy = new PostPolicy(bucketName, ZonedDateTime.now().plusDays(7));
-        // 设置一个参数key，值为上传对象的名称
+
         policy.addEqualsCondition("key", fileName);
-        // 添加Content-Type以"image/"开头，表示只能上传照片
         policy.addStartsWithCondition("Content-Type", "image/");
-        // 设置上传文件的大小 64kiB to 10MiB.
         policy.addContentLengthRangeCondition(64 * 1024, 10 * 1024 * 1024);
+
         return minioClient.getPresignedPostFormData(policy);
     }
 

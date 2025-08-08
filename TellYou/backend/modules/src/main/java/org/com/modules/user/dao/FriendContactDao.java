@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
+import org.com.modules.common.domain.vo.req.CursorPageReq;
+import org.com.modules.common.domain.vo.resp.CursorPageResp;
+import org.com.modules.common.util.CursorUtil;
 import org.com.modules.user.domain.entity.FriendContact;
 import org.com.modules.user.domain.enums.ContactStatusEnum;
 import org.com.modules.user.mapper.FriendContactMapper;
@@ -44,5 +47,10 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
                 .set(FriendContact::getIsDeleted, YesOrNoEnum.YES.getStatus())
                 .set(FriendContact::getStatus, ContactStatusEnum.NORMAL.getStatus())
                 .update();
+    }
+
+    public CursorPageResp<FriendContact> getFriendPage(Long uid, CursorPageReq cursorPageReq) {
+        return CursorUtil.getCursorPageByMysql(this, cursorPageReq,
+                wrapper -> wrapper.eq(FriendContact::getUserId, uid), FriendContact::getCreatedAt);
     }
 }

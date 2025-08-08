@@ -1,5 +1,6 @@
 package org.com.modules.user.service.impl;
 
+import cn.hutool.core.collection.CollectionUtil;
 import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.event.FriendApplyEvent;
+import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.dao.SessionDao;
 import org.com.modules.session.domain.entity.Session;
@@ -31,7 +33,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -135,7 +140,20 @@ public class UserContactServiceImpl implements UserContactService {
     }
 
     @Override
-    public CursorPageResp<FriendContactResp> friendList(CursorPageReq req) {
-        return null;
+    public CursorPageResp<FriendContactResp> friendListPage(CursorPageReq req) {
+        Long uid = RequestHolder.get().getUid();
+
+        CursorPageResp<FriendContact> friendPage = friendContactDao.getFriendPage(uid, req);
+        if (CollectionUtil.isEmpty(friendPage.getList())){
+            return CursorPageResp.empty();
+        }
+        List<FriendContactResp> friendList = friendPage.getList().stream()
+                .map(contact -> {
+                    FriendContactResp resp = new FriendContactResp();
+                    resp.setContactId(contact.getContactId());
+                    return resp;
+                }).collect(Collectors.toList());
+
+        return CursorPageResp.init(friendPage, friendList);
     }
 }

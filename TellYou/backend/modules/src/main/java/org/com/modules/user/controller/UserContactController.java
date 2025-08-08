@@ -63,7 +63,7 @@ public class UserContactController {
     @GetMapping("/pageContact")
     @Operation(summary = "联系人或者群组的分页查询")
     public ApiResult<CursorPageResp<FriendContactResp>> pageContact(@ModelAttribute @Valid CursorPageReq req){
-        return ApiResult.success(userContactService.friendList(req));
+        return ApiResult.success(userContactService.friendListPage(req));
     }
 
     @GetMapping("/pageApply")
