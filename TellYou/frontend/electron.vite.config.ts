@@ -7,11 +7,23 @@ export default defineConfig(({mode}) => {
 
   return {
     main: {
-      plugins: [externalizeDepsPlugin()]
+      plugins: [externalizeDepsPlugin()],
+      resolve: {
+        alias: {
+          '@renderer': resolve('src/renderer/src'),
+          '@main': resolve('src/main')
+        }
+      },
     },
 
     preload: {
-      plugins: [externalizeDepsPlugin()]
+      plugins: [externalizeDepsPlugin()],
+      resolve: {
+        alias: {
+          '@renderer': resolve('src/renderer/src'),
+          '@main': resolve('src/main')
+        }
+      },
     },
 
     renderer: {

@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 const message = ref('')
 const sendMessage = (): void => {
-  // 发送消息逻辑
   message.value = ''
 }
 
@@ -26,14 +25,14 @@ const contactName = computed(() => {
         <v-btn icon><v-icon>mdi-dots-vertical</v-icon></v-btn>
       </div>
     </div>
-    <!-- 聊天消息区 -->
+
     <div class="star-messages">
       <div class="text-center text-caption grey--text">今天 14:30</div>
-      <!-- 消息列表后续实现 -->
-      <div class="star-message" v-for="i in 6" :key="i">
-        <div class="star-bubble">这是一条星空风格的消息 {{ i }}</div>
+      <div class="star-message" v-for="i in 1" :key="i">
+        <div class="star-bubble">消息 {{ i }}</div>
       </div>
     </div>
+
     <!-- 消息输入区 -->
     <div class="star-input-wrap">
       <v-btn icon><v-icon>mdi-paperclip</v-icon></v-btn>

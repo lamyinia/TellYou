@@ -11,6 +11,7 @@ import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
+import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.utils.JwtUtil;
 import org.com.tools.utils.SecurityUtil;
@@ -57,7 +58,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         claims.put(jwtUtil.getJwtProperties().getUidKey(), user.getUserId());
         String token = jwtUtil.createJwt(claims);
 
-        return new LoginResp(token);
+        return new LoginResp(token, user.getUserId());
     }
 
     @Override
@@ -69,7 +70,9 @@ public class UserInfoServiceImpl implements UserInfoService {
         }
 
         UserInfo user = UserInfo.builder().email(dto.getEmail()).nickName(dto.getNickName()).sex(dto.getSex())
-                .password(SecurityUtil.encode(dto.getPassword())).personalSignature("万般通祇，彼岸花开")
+                .password(SecurityUtil.encode(dto.getPassword()))
+                .personalSignature(ValueConstant.DEFAULT_SIGNATURE)
+                .avatar(ValueConstant.DEFAULT_AVATAR)
                 .build();
 
         userInfoDao.save(user);

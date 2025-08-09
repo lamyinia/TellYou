@@ -39,9 +39,12 @@ const onLogin = async () => {
 
     if (token !== null){
       userStore.setToken(token)
-      console.log(userStore.token)
-      loading.value = true
-      window.electronAPI.send('LoginSuccess')
+      const uid: string = res.data.data?.uid;
+      if (uid !== null){
+        console.log(uid + ":" + userStore.token)
+        loading.value = true
+        window.electronAPI.send('LoginSuccess', uid)
+      }
     } else {
       throw new Error(res.data)
     }

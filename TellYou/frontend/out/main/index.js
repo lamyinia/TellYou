@@ -6,6 +6,7 @@ const utils = require("@electron-toolkit/utils");
 const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
+const child_process = require("child_process");
 const WebSocket = require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
@@ -17,12 +18,222 @@ const add_tables = [
 const add_indexes = [
   "create index if not exists idx_session_id on chat_message( session_id asc);"
 ];
+var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
+  LogLevel2[LogLevel2["DEBUG"] = 0] = "DEBUG";
+  LogLevel2[LogLevel2["INFO"] = 1] = "INFO";
+  LogLevel2[LogLevel2["WARN"] = 2] = "WARN";
+  LogLevel2[LogLevel2["ERROR"] = 3] = "ERROR";
+  LogLevel2[LogLevel2["FATAL"] = 4] = "FATAL";
+  return LogLevel2;
+})(LogLevel || {});
+const colors = {
+  reset: "\x1B[0m",
+  red: "\x1B[31m",
+  green: "\x1B[32m",
+  yellow: "\x1B[33m",
+  magenta: "\x1B[35m",
+  cyan: "\x1B[36m",
+  white: "\x1B[37m",
+  gray: "\x1B[90m"
+};
+class Logger {
+  static instance;
+  logLevel;
+  logDir;
+  logFile;
+  enableColors;
+  constructor() {
+    this.ensureConsoleEncoding();
+    this.logLevel = 1;
+    this.logDir = path.join(os.homedir(), ".tellyou", "logs");
+    this.logFile = path.join(this.logDir, `tellyou-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.log`);
+    this.enableColors = true;
+    if (!fs.existsSync(this.logDir)) {
+      fs.mkdirSync(this.logDir, { recursive: true });
+    }
+  }
+  ensureConsoleEncoding() {
+    if (process.platform === "win32") {
+      try {
+        child_process.execSync("reg add HKEY_CURRENT_USER\\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f", { stdio: "ignore" });
+      } catch {
+      }
+    }
+  }
+  static getInstance() {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
+    }
+    return Logger.instance;
+  }
+  setLevel(level) {
+    this.logLevel = level;
+  }
+  setEnableColors(enable) {
+    this.enableColors = enable;
+  }
+  colorize(text, color) {
+    return this.enableColors ? `${color}${text}${colors.reset}` : text;
+  }
+  getLevelColor(level) {
+    switch (level.toLowerCase()) {
+      case "debug":
+        return colors.gray;
+      case "info":
+        return colors.green;
+      case "warn":
+        return colors.yellow;
+      case "error":
+        return colors.red;
+      case "fatal":
+        return colors.magenta;
+      default:
+        return colors.white;
+    }
+  }
+  formatTimestamp() {
+    const now = /* @__PURE__ */ new Date();
+    const date = now.toISOString().split("T")[0];
+    const time = now.toTimeString().split(" ")[0];
+    return `${date} ${time}`;
+  }
+  writeLog(level, message, data) {
+    if (this.logLevel > this.getLogLevel(level)) {
+      return;
+    }
+    const timestamp = this.formatTimestamp();
+    const levelUpper = level.toUpperCase();
+    const levelColor = this.getLevelColor(level);
+    const consoleMessage = `${this.colorize(`[${timestamp}]`, colors.cyan)} ${this.colorize(levelUpper.padEnd(5), levelColor)} ${message}`;
+    if (data) {
+      console.log(consoleMessage, data);
+    } else {
+      console.log(consoleMessage);
+    }
+    const logEntry = {
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      level: levelUpper,
+      message,
+      data: data || null,
+      pid: process.pid
+    };
+    const logLine = JSON.stringify(logEntry, null, 2) + "\n";
+    try {
+      fs.appendFileSync(this.logFile, logLine, "utf8");
+    } catch (error) {
+      console.error("写入日志文件失败:", error);
+    }
+  }
+  getLogLevel(level) {
+    switch (level.toLowerCase()) {
+      case "debug":
+        return 0;
+      case "info":
+        return 1;
+      case "warn":
+        return 2;
+      case "error":
+        return 3;
+      case "fatal":
+        return 4;
+      default:
+        return 1;
+    }
+  }
+  debug(message, data) {
+    this.writeLog("debug", message, data);
+  }
+  info(message, data) {
+    this.writeLog("info", message, data);
+  }
+  warn(message, data) {
+    this.writeLog("warn", message, data);
+  }
+  error(message, error) {
+    this.writeLog("error", message, error);
+  }
+  fatal(message, error) {
+    this.writeLog("fatal", message, error);
+  }
+  // SQL查询专用日志
+  sql(sql, params, result) {
+    const message = `SQL执行: ${sql}`;
+    const data = { params, result };
+    this.writeLog("debug", message, data);
+  }
+  // 数据库操作专用日志
+  db(operation, table, data) {
+    const message = `数据库操作: ${operation} -> ${table}`;
+    this.writeLog("debug", message, data);
+  }
+  // 网络请求专用日志
+  network(method, url, status, data) {
+    const message = `${method} ${url}${status ? ` (${status})` : ""}`;
+    this.writeLog("info", message, data);
+  }
+  getLogFilePath() {
+    return this.logFile;
+  }
+  cleanOldLogs(daysToKeep = 7) {
+    try {
+      const files = fs.readdirSync(this.logDir);
+      const cutoffDate = /* @__PURE__ */ new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+      files.forEach((file) => {
+        const filePath = path.join(this.logDir, file);
+        const stats = fs.statSync(filePath);
+        if (stats.mtime < cutoffDate) {
+          fs.unlinkSync(filePath);
+          this.info(`删除旧日志文件: ${file}`);
+        }
+      });
+    } catch (error) {
+      this.error("清理日志文件失败", error);
+    }
+  }
+}
+const logger = Logger.getInstance();
 const globalColumnMap = {};
 const instanceId = process.env.ELECTRON_INSTANCE_ID;
 const NODE_ENV = process.env.NODE_ENV || "production";
 const userDir = os.homedir();
-const dataFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/") + `instance_${instanceId}/`;
-var dataBase;
+const baseFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/");
+let dataFolder = baseFolder;
+let dataBase;
+const setCurrentFolder = (userId) => {
+  dataFolder = baseFolder + "_" + userId + "/";
+  logger.info("数据库操作目录 " + dataFolder);
+  if (!fs.existsSync(dataFolder)) {
+    fs.mkdirSync(dataFolder);
+  }
+};
+const existsLocalDB = () => {
+  const result = fs.existsSync(dataFolder + "local.db");
+  dataBase = NODE_ENV === "development" ? new (sqlite3.verbose()).Database(dataFolder + "local.db") : new sqlite3.Database(dataFolder + "local.db");
+  return result;
+};
+const initTable = () => {
+  dataBase.serialize(async () => {
+    await createTable();
+    await initTableColumnsMap();
+  });
+};
+const queryAll = (sql, params) => {
+  return new Promise((resolve) => {
+    const stmt = dataBase.prepare(sql);
+    stmt.all(params, function(err, rows) {
+      if (err) {
+        logger.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        resolve([]);
+        return;
+      }
+      const result = rows.map((item) => convertDb2Biz(item));
+      logger.sql(sql, params, result);
+      resolve(result);
+    });
+    stmt.finalize();
+  });
+};
 const toCamelCase = (str) => {
   return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
 };
@@ -44,46 +255,16 @@ const createTable = async () => {
 };
 const initTableColumnsMap = async () => {
   let sql = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'";
-  let tables = await queryAll(sql, []);
+  const tables = await queryAll(sql, []);
   for (let i = 0; i < tables.length; ++i) {
     sql = `PRAGMA table_info(${tables[i].name})`;
-    let columns = await queryAll(sql, []);
+    const columns = await queryAll(sql, []);
     const columnsMapItem = {};
     for (let j = 0; j < columns.length; j++) {
       columnsMapItem[toCamelCase(columns[j].name)] = columns[j].name;
     }
     globalColumnMap[tables[i].name] = columnsMapItem;
   }
-  console.log(globalColumnMap);
-};
-const createDir = () => {
-  console.log(dataFolder);
-  if (!fs.existsSync(dataFolder)) {
-    fs.mkdirSync(dataFolder);
-  }
-  dataBase = NODE_ENV === "development" ? new (sqlite3.verbose()).Database(dataFolder + "local.db") : new sqlite3.Database(dataFolder + "local.db");
-};
-const queryAll = (sql, params) => {
-  return new Promise((resolve) => {
-    const stmt = dataBase.prepare(sql);
-    stmt.all(params, function(err, rows) {
-      if (err) {
-        console.error(err);
-        resolve([]);
-        return;
-      }
-      const result = rows.map((item) => convertDb2Biz(item));
-      console.log(`executing sql:${sql}, params:${JSON.stringify(params)}, row:${JSON.stringify(result)}`);
-      resolve(result);
-    });
-    stmt.finalize();
-  });
-};
-const initTable = () => {
-  dataBase.serialize(async () => {
-    await createTable();
-    await initTableColumnsMap();
-  });
 };
 let ws = null;
 let maxReConnectTimes = null;
@@ -92,45 +273,46 @@ let needReconnect = null;
 let wsUrl = null;
 const initWs = () => {
   wsUrl = "http://localhost:8082/ws";
-  console.log(`wsUrl to connect:  ${wsUrl}`);
+  logger.debug(`wsUrl 连接的url地址:  ${wsUrl}`);
   needReconnect = true;
   maxReConnectTimes = 20;
 };
 const reconnect = () => {
   if (!needReconnect) {
-    console.log("CONDITION DO NOT NEED RECONNECT");
+    logger.info("不允许重试服务");
     return;
   }
+  logger.info("连接关闭，现在正在重试....");
   if (ws != null) {
     ws.close();
   }
   if (lockReconnect) {
     return;
   }
-  console.log("READY TO RECONNECT");
+  logger.info("重试请求发起");
   lockReconnect = true;
   if (maxReConnectTimes && maxReConnectTimes > 0) {
-    console.log("READY TO RECONNECT, RARE TIME:" + maxReConnectTimes);
+    logger.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
     --maxReConnectTimes;
     setTimeout(function() {
       connectWs();
       lockReconnect = false;
     }, 5e3);
   } else {
-    console.log("TCP CONNECTION TIMEOUT");
+    logger.info("TCP 连接超时");
   }
 };
 const connectWs = () => {
   if (wsUrl == null) return;
   const token = store.get("token");
   if (token === null) {
-    console.log("NO SATISFIED TOKEN");
+    logger.info("token 不满足条件");
     return;
   }
   const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
   ws = new WebSocket(urlWithToken);
   ws.on("open", () => {
-    console.log("CLIENT CONNECT SUCCESS");
+    logger.info("客户端连接成功");
     maxReConnectTimes = 20;
     setInterval(() => {
       ws.send(JSON.stringify({
@@ -152,20 +334,18 @@ const connectWs = () => {
     }
   });
   ws.on("close", () => {
-    console.log("CONNECTION CLOSE, BUT RECONNECTING RIGHT NOW");
     reconnect();
   });
   ws.on("error", () => {
-    console.log("CONNECTION FAIL, BUT RECONNECTING RIGHT NOW");
     reconnect();
   });
   ws.on("message", async (data) => {
-    console.log("Received message:", data.toString());
+    logger.debug("收到消息:", data.toString());
   });
 };
 const onLoginSuccess = (callback) => {
-  electron.ipcMain.on("LoginSuccess", (_) => {
-    callback();
+  electron.ipcMain.on("LoginSuccess", (_, uid) => {
+    callback(uid);
   });
 };
 const onLoginOrRegister = (callback) => {
@@ -178,12 +358,57 @@ const onScreenChange = (callback) => {
     callback(event, status);
   });
 };
+const initializeUserData = async (uid) => {
+  connectWs();
+  setCurrentFolder(uid);
+  const everCreated = existsLocalDB();
+  initTable();
+  await pullStrongTransactionData();
+  if (!everCreated) {
+    await pullHistoryMessage();
+  }
+};
+const pullStrongTransactionData = async () => {
+  logger.info(`正在拉取强事务数据...`);
+  try {
+    await pullFriendContact();
+    await pullApply();
+    await pullGroup();
+    await pullBlackList();
+    await pullOfflineMessage();
+    logger.info(`拉取强事务数据完成`);
+  } catch (error) {
+    logger.info(`拉取强事务数据失败:`, error);
+    throw error;
+  }
+};
+const pullFriendContact = async () => {
+};
+const pullApply = async () => {
+};
+const pullGroup = async () => {
+};
+const pullBlackList = async () => {
+};
+const pullOfflineMessage = async () => {
+};
+const pullHistoryMessage = async () => {
+  console.log(`正在拉取历史消息...`);
+};
 const Store = __Store.default || __Store;
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
 electron.app.whenReady().then(() => {
-  electron.ipcMain.on("ping", () => console.log("pong"));
-  createDir();
-  initTable();
+  if (process.env.NODE_ENV === "development") {
+    logger.setLevel(LogLevel.DEBUG);
+  } else {
+    logger.setLevel(LogLevel.INFO);
+  }
+  logger.info("TellYou应用启动", {
+    version: electron.app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+    nodeEnv: process.env.NODE_ENV
+  });
   initWs();
   utils.electronApp.setAppUserModelId("com.electron");
   electron.app.on("browser-window-created", (_, window) => {
@@ -280,13 +505,13 @@ const processIpc = (mainWindow) => {
     }
     mainWindow.setResizable(false);
   });
-  onLoginSuccess(() => {
+  onLoginSuccess((uid) => {
     mainWindow.setResizable(true);
     mainWindow.setSize(920, 740);
     mainWindow.setMaximizable(true);
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
-    connectWs();
+    initializeUserData(uid);
   });
   onScreenChange((event, status) => {
     const webContents = event.sender;

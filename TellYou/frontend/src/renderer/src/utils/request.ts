@@ -1,17 +1,11 @@
-import axios, {
-  AxiosRequestConfig,
-  AxiosResponse,
-  AxiosError,
-  AxiosInstance,
-  ResponseType
-} from 'axios';
-import Message from './message';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, ResponseType } from 'axios'
+import Message from './message'
 import router from '../router/router'
 
 
-const contentTypeForm = 'application/x-www-form-urlencoded;charset=UTF-8';
-const contentTypeJson = 'application/json';
-const responseTypeJson: ResponseType = 'json';
+const contentTypeForm = 'application/x-www-form-urlencoded;charset=UTF-8'
+const contentTypeJson = 'application/json'
+const responseTypeJson: ResponseType = 'json'
 
 interface RequestConfig {
   url: string;
@@ -44,8 +38,8 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
 const instance: AxiosInstance = axios.create({
   withCredentials: true,
   baseURL: import.meta.env.VITE_BASE_URL,
-  timeout: 10 * 1000,
-});
+  timeout: 10 * 1000
+})
 
 // 请求拦截器
 instance.interceptors.request.use(
@@ -53,22 +47,22 @@ instance.interceptors.request.use(
     if (config.showLoading) {
 
     }
-    return config;
+    return config
   },
   (error: AxiosError) => {
-    const config = error.config as CustomAxiosRequestConfig;
+    const config = error.config as CustomAxiosRequestConfig
     if (config?.showLoading && loading) {
-      loading.close();
+      loading.close()
     }
-    Message.error("请求发送失败");
-    return Promise.reject("请求发送失败");
+    Message.error('请求发送失败')
+    return Promise.reject('请求发送失败')
   }
-);
+)
 
 // 响应拦截器
 instance.interceptors.response.use(
   (response) => {
-    if (response.data.status === 401){
+    if (response.data.status === 401) {
       alert('权限不足')
       router.push('/login')
     }
@@ -95,25 +89,25 @@ const request = <T = ApiResponse>(config: RequestConfig): Promise<T | null> => {
     showLoading = true,
     responseType = responseTypeJson,
     showError = true
-  } = config;
+  } = config
 
-  let contentType = contentTypeForm;
-  const formData = new FormData();
+  let contentType = contentTypeForm
+  const formData = new FormData()
 
   Object.entries(params).forEach(([key, value]) => {
-    formData.append(key, value === undefined ? "" : String(value));
-  });
+    formData.append(key, value === undefined ? '' : String(value))
+  })
 
   if (dataType === 'json') {
-    contentType = contentTypeJson;
+    contentType = contentTypeJson
   }
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token')
   const headers = {
     'Content-Type': contentType,
     'X-Requested-With': 'XMLHttpRequest',
-    token: token || ""
-  };
+    token: token || ''
+  }
 
   return instance.post(url, formData, {
     headers,
@@ -125,12 +119,12 @@ const request = <T = ApiResponse>(config: RequestConfig): Promise<T | null> => {
     .then(response => response as unknown as T)
     .catch((error: RequestError) => {
       if (error.showError && error.msg) {
-        Message.error(error.msg);
+        Message.error(error.msg)
       }
-      return null;
-    });
-};
+      return null
+    })
+}
 
-export {instance}
-export default request;
-export type { ApiResponse, RequestConfig };
+export { instance }
+export default request
+export type { ApiResponse, RequestConfig }

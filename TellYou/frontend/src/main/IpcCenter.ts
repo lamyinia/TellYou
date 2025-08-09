@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron'
 
 export const onLoginSuccess = (callback): void => {
-  ipcMain.on('LoginSuccess', (_) => {
-    callback()
+  ipcMain.on('LoginSuccess', (_, uid: string) => {
+    callback(uid)
   })
 }
 export const onLoginOrRegister = (callback): void => {
