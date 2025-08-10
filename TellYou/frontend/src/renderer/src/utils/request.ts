@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, ResponseType } from 'axios'
 import Message from './message'
 import router from '../router/router'
-
+import { useUserStore } from '@main/store/persist/user-store'
 
 const contentTypeForm = 'application/x-www-form-urlencoded;charset=UTF-8'
 const contentTypeJson = 'application/json'
@@ -44,8 +44,13 @@ const instance: AxiosInstance = axios.create({
 // 请求拦截器
 instance.interceptors.request.use(
   (config: CustomAxiosRequestConfig) => {
-    if (config.showLoading) {
+    const token: string = useUserStore().token
+    if (token) {
+      config.headers.token = token
+    }
 
+    if (config.showLoading) {
+      // loading 逻辑
     }
     return config
   },
@@ -102,11 +107,11 @@ const request = <T = ApiResponse>(config: RequestConfig): Promise<T | null> => {
     contentType = contentTypeJson
   }
 
-  const token = localStorage.getItem('token')
+
   const headers = {
     'Content-Type': contentType,
     'X-Requested-With': 'XMLHttpRequest',
-    token: token || ''
+    token: ''
   }
 
   return instance.post(url, formData, {

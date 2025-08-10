@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import Session = Electron.Session
 
 window.ipcRenderer = ipcRenderer
 
@@ -17,7 +18,14 @@ if (process.contextIsolated) {
       storeClear: () => ipcRenderer.invoke('store-clear'),
       send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
       onWsConnected: (callback) => ipcRenderer.on('ws-connected', callback),
-      offWsConnected: (callback) => ipcRenderer.removeListener('ws-connected', callback)
+      offWsConnected: (callback) => ipcRenderer.removeListener('ws-connected', callback),
+      // 会话相关的接口
+      getSessionsWithOrder: () => ipcRenderer.invoke('get-sessions-with-order'),
+      updateSessionLastMessage: (sessionId: number, content: string, time: Date) =>
+        ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
+      toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
+      addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
+      getSessionMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-session-manager', sessionId, obj)
     })
   } catch (error) {
     console.error(error)

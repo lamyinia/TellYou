@@ -2,10 +2,10 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { instance } from '../../utils/request'
-import { getUserStore } from '../../../../main/stores/GlobalStore'
 import { api } from '@renderer/utils/api'
+import { useUserStore } from '@main/store/persist/user-store'
 
-const userStore = getUserStore()
+const userStore = useUserStore()
 const username = ref('')
 const password = ref('')
 const formRef = ref()

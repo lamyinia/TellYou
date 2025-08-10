@@ -1,4 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { Session } from '@renderer/store/session/session-class'
 
 declare global {
   interface Window {
@@ -13,6 +14,12 @@ declare global {
       send: (channel: string, ...args: any[]) => Promise<any>
       onWsConnected: (callback: ()=>void) => Promise<any>
       offWsConnected: (callback: ()=>void) => Promise<any>
+      // 会话相关的接口
+      getSessionsWithOrder: () => Promise<any[]>
+      updateSessionLastMessage: (sessionId: number, content: string, time: Date) => Promise<boolean>
+      toggleSessionPin: (sessionId: number) => Promise<boolean>
+      addSession: (session: Session) => Promise<boolean>
+      getSessionMessages: (sessionId: number, obj: any) => Promise<any>
     }
   }
   interface ImportMetaEnv {

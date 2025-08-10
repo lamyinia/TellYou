@@ -1,0 +1,162 @@
+create table black
+(
+    id            bigint unsigned auto_increment comment 'id'
+        primary key,
+    from_id       bigint unsigned                          not null comment '黑名单发起者 id',
+    type          tinyint(1)                               not null comment '发起者类型 1=uid 2=gid',
+    target        bigint unsigned                          not null comment '拉黑目标',
+    black_version int         default 1                    not null comment '第几次拉黑',
+    is_deleted    tinyint(1)  default 0                    not null comment '软删除标记',
+    create_time   datetime(3) default CURRENT_TIMESTAMP(3) not null comment '创建时间',
+    update_time   datetime(3) default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '修改时间',
+    constraint idx_type_target
+        unique (from_id, type, target)
+)
+    comment '黑名单' row_format = DYNAMIC;
+
+create table contact_apply
+(
+    apply_id        bigint unsigned auto_increment comment '自增ID'
+        primary key,
+    apply_user_id   bigint unsigned                          not null comment '申请人 id',
+    target_id       bigint unsigned                          not null comment '目标 id',
+    contact_type    tinyint(1)                               not null comment '联系人类型 0:好友 1:群组',
+    last_apply_time datetime(3) default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '最后申请时间',
+    status          tinyint(1)                               null comment '状态0: 待处理 1:已同意  2:已拒绝  3:已拉黑',
+    apply_info      varchar(100)                             null comment '申请信息'
+)
+    comment '联系人申请';
+
+create index contactApply_applyId_targetId_contactType_index
+    on contact_apply (apply_user_id, target_id, contact_type, status);
+
+create table friend_contact
+(
+    user_id    bigint unsigned                          not null comment '用户id',
+    contact_id bigint unsigned                          not null comment '联系人id',
+    session_id bigint unsigned                          not null comment '会话id',
+    status     tinyint(1)                               not null comment '1 = 好友, 2 = 有一方删除, 3 = 黑名单处理且不是好友, 4 = 黑名单且互为好友',
+    created_at datetime(3) default CURRENT_TIMESTAMP(3) null,
+    updated_at datetime(3) default CURRENT_TIMESTAMP(3) null on update CURRENT_TIMESTAMP(3),
+    is_deleted tinyint(1)                               not null comment '0 = 好友, 1 = 删除或者黑名单',
+    version    int         default 1                    not null comment '关系版本号',
+    primary key (user_id, contact_id)
+)
+    comment '用户好友会话关系';
+
+create index idx_userId_contactId_isDeleted
+    on friend_contact (user_id, contact_id, is_deleted);
+
+create index idx_userId_contactId_status
+    on friend_contact (user_id, contact_id, status);
+
+create index userId_createdAt_index
+    on friend_contact (user_id, contact_id, created_at);
+
+create table group_contact
+(
+    user_id         bigint unsigned not null comment '成员id',
+    group_id        bigint unsigned not null comment '群组id',
+    session_id      bigint unsigned not null comment '会话id',
+    role            tinyint(1)      not null comment '1=成员 2=管理员 3=群主',
+    join_time       datetime(3)     not null comment '加入时间',
+    last_active     datetime(3)     null comment '最后活跃时间',
+    contact_version int default 1   not null comment '第几次进入群聊',
+    primary key (user_id, group_id)
+)
+    comment '群组成员表';
+
+create table group_info
+(
+    id                bigint unsigned auto_increment comment 'id'
+        primary key,
+    session_id        bigint unsigned                           not null comment '会话id',
+    group_owner_id    bigint unsigned                           not null comment '群主id',
+    backpack_owner_id bigint unsigned                           null comment '备选群主 id',
+    name              varchar(16)                               not null comment '群名称',
+    avatar            varchar(256)                              not null comment '群头像',
+    max_members       int unsigned default '300'                not null comment '最大成员数',
+    member_count      int unsigned default '0'                  not null comment '当前成员数',
+    join_mode         tinyint(1)   default 1                    not null comment '1=自由加入 2=需审核 3=邀请加入',
+    msg_mode          tinyint(1)   default 1                    not null comment '1=所有人可发言 2=仅管理员',
+    is_deleted        tinyint(1)   default 0                    not null comment '逻辑删除(1-正常,0-删除)',
+    version           int unsigned default '1'                  not null comment '乐观锁版本',
+    create_time       datetime(3)  default CURRENT_TIMESTAMP(3) not null comment '创建时间',
+    update_time       datetime(3)  default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '修改时间',
+    card              varchar(200)                              null comment '群名片',
+    notification      varchar(300)                              null comment '群公告'
+)
+    comment '群聊信息表';
+
+
+create table message
+(
+    session_id         bigint unsigned      not null comment '会话id',
+    sequence_id        bigint unsigned      not null comment '会话内自增id',
+    sender_id          bigint unsigned      not null comment '发送者uid',
+    adjusted_timestamp varchar(70)          not null comment '时序性id',
+    msg_type           tinyint(1)           not null comment '消息类型：1文本 2图片 3语音 4视频 5文件 6红包',
+    is_recalled        tinyint(1) default 0 not null comment '是否撤回',
+    text               varchar(300)         null comment '基本展示内容',
+    ext_json           json                 null comment '额外信息',
+    send_time          datetime(3)          not null comment '发送时间（毫秒精度）',
+    primary key (session_id, sequence_id)
+)
+    comment '策略消息表';
+
+create table session
+(
+    session_id       bigint unsigned                          not null comment '会话id（雪花算法）'
+        primary key,
+    session_type     tinyint(1)                               not null comment '会话类型：1单聊 2群聊 3系统',
+    last_msg_id      bigint                                   null comment '最后一条消息id',
+    last_msg_content varchar(100)                             null comment '最后消息摘要',
+    last_msg_time    datetime(3)                              null comment '最后消息时间（毫秒精度）',
+    version          int         default 1                    null comment '乐观锁版本',
+    is_deleted       tinyint(1)  default 0                    null comment '软删除标记',
+    created_at       datetime(3) default CURRENT_TIMESTAMP(3) null,
+    updated_at       datetime(3) default CURRENT_TIMESTAMP(3) null on update CURRENT_TIMESTAMP(3),
+    ext_json         json                                     null comment '额外信息（根据不同类型房间有不同存储的东西）'
+)
+    comment '会话表';
+
+create table undo_log
+(
+    id            bigint auto_increment
+        primary key,
+    branch_id     bigint       not null,
+    xid           varchar(100) not null,
+    context       varchar(128) not null,
+    rollback_info longblob     not null,
+    log_status    int          not null,
+    log_created   datetime     not null,
+    log_modified  datetime     not null,
+    ext           varchar(100) null,
+    constraint ux_undo_log
+        unique (xid, branch_id)
+)
+    charset = utf8mb3;
+
+create table user_info
+(
+    user_id               bigint unsigned                          not null comment '用户ID'
+        primary key,
+    email                 varchar(50)                              null comment '邮箱',
+    nick_name             varchar(20)                              null comment '昵称',
+    avatar                varchar(255)                             null comment '用户头像',
+    sex                   int                                      null comment '性别 0:女 1:男',
+    password              varchar(80)                              null comment '密码',
+    personal_signature    varchar(50)                              null comment '个性签名',
+    status                tinyint     default 1                    not null comment '状态 1正常 0封号',
+    create_time           datetime(3) default CURRENT_TIMESTAMP(3) not null comment '创建时间',
+    last_login_time       datetime(3) default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '最后登录时间',
+    area_name             varchar(50)                              null comment '地区',
+    area_code             varchar(50)                              null comment '地区编号',
+    ip_info               json                                     null comment 'ip信息',
+    last_off_time         datetime(3) default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '最后离开时间',
+    remaining_name_change int         default 3                    not null comment '剩余改名次数',
+    constraint idx_key_email
+        unique (email)
+)
+    comment '用户信息';
+

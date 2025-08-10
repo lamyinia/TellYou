@@ -2,12 +2,14 @@ import { app, BrowserWindow, ipcMain, Menu, shell, Tray } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { instanceId } from './sqlite/SqliteOperation'
-import { initWs } from './WebSocketClient'
-import { onLoginOrRegister, onLoginSuccess, onScreenChange } from './IpcCenter'
+import { instanceId } from './sqlite/sqlite-operation'
+import { initWs } from './websocket-client'
+import { onLoginOrRegister, onLoginSuccess, onScreenChange } from './ipc-center'
 import __Store from 'electron-store'
-import { initializeUserData } from '@main/sqlite/dao/LocalDao'
+import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { logger, LogLevel } from '../utils/LogUtil'
+import { queryAll, sqliteRun } from './sqlite/sqlite-operation'
+import { Session } from '@renderer/store/session/session-class'
 
 const Store = __Store.default || __Store
 
@@ -121,6 +123,55 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
   ipcMain.handle('store-clear', () => {
     store.clear()
     return true
+  })
+
+  ipcMain.handle('get-sessions-with-order', async () => {
+    try {
+      const sql = `
+        SELECT *
+        FROM sessions
+        WHERE contact_type IN (1, 2)
+        ORDER BY is_pinned DESC, last_msg_time DESC
+      `
+      const result = await queryAll(sql, [])
+      return result
+    } catch (error) {
+      console.error('获取会话列表失败:', error)
+      return []
+    }
+  })
+  ipcMain.handle('update-session-last-message', async (_, sessionId: number, content: string, time: Date) => {
+    try {
+      const sql = `
+        UPDATE sessions
+        SET last_msg_content = ?,
+            last_msg_time    = ?,
+            updated_at       = ?
+        WHERE session_id = ?
+      `
+      const result = await sqliteRun(sql, [content, time.toISOString(), new Date().toISOString(), sessionId])
+      return result > 0
+    } catch (error) {
+      console.error('更新会话最后消息失败:', error)
+      return false
+    }
+  })
+  ipcMain.handle('toggle-session-pin', async (_, sessionId: number) => {
+    try {
+      const sql = `
+        UPDATE sessions
+        SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
+        WHERE session_id = ?
+      `
+      const result = await sqliteRun(sql, [sessionId])
+      return result > 0
+    } catch (error) {
+      console.error('切换置顶状态失败:', error)
+      return false
+    }
+  })
+  ipcMain.handle('add-session', async (_, session: Session) => {
+
   })
 
   onLoginOrRegister((isLogin: number) => {

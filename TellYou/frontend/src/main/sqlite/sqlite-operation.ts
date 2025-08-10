@@ -1,14 +1,14 @@
 import fs from 'fs'
 import os from 'os'
 import sqlite3 from 'sqlite3'
-import { add_indexes, add_tables } from './SqliteStruct'
+import { add_indexes, add_tables } from './sqlite-struct'
 import { logger } from '../../utils/LogUtil'
 
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }
 const globalColumnMap: GlobalColumnMap = {}
 
-export const instanceId: string = process.env.ELECTRON_INSTANCE_ID as string
+export const instanceId: string = process.env.ELECTRON_INSTANCE_ID as string || ''
 const NODE_ENV: string = process.env.NODE_ENV || 'production'
 const userDir: string = os.homedir()
 const baseFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev/' : 'tellyou/')

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { getUserStore } from '../../main/stores/GlobalStore'
+import { useUserStore } from '@main/store/persist/user-store'
 
-const userStore = getUserStore()
+const userStore = useUserStore()
 const showWindowControls = computed(() => userStore.isLogin)
 const isTop = ref(false)
 

@@ -1,5 +1,5 @@
-import { existsLocalDB, initTable, setCurrentFolder } from '@main/sqlite/SqliteOperation'
-import { connectWs } from '@main/WebSocketClient'
+import { existsLocalDB, initTable, setCurrentFolder } from '@main/sqlite/sqlite-operation'
+import { connectWs } from '@main/websocket-client'
 import { logger } from '../../../utils/LogUtil'
 
 

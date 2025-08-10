@@ -11,12 +11,30 @@ const WebSocket = require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
-  "create table if not exists  chat_message(   user_id varchar not null,   message_id bigint not null default null,   session_id varchar,   message_type integer,   message_content varchar,   contact_type integer,   send_user_id varchar,   send_user_nick_name varchar,   send_time bigint,   status integer,   file_size bigint,   file_name varchar,   file_path varchar,   file_type integer,   primary key(user_id, message_id));",
-  "create table if not exists chat_session_user(   user_id varchar not null default 0,   contact_id varchar(11) not null,   contact_type integer,   session_id varchar(11),   status integer default 1,   contact_name varchar(20),   last_message varchar(500),   last_receive_time bigint,   no_read_count integer default 0,   member_count integer,   top_type integer default 0,   primary key (user_id, contact_id));",
+  // 会话表（包含联系人信息）
+  "create table if not exists sessions(   session_id integer primary key,   session_type integer not null,   contact_id integer not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
+  // 消息表
+  "create table if not exists messages(   id integer primary key autoincrement,   session_id integer not null,   sequence_id integer not null,   sender_id integer not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
+  // 黑名单表
+  "create table if not exists blacklist(   id integer primary key autoincrement,   target_id integer not null,   target_type integer not null,   create_time datetime);",
+  // 申请表
+  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id integer not null,   target_id integer not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
+  // 用户设置表（保留原有功能）
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
-  "create index if not exists idx_session_id on chat_message( session_id asc);"
+  // 会话查询优化
+  "create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);",
+  "create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);",
+  "create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);",
+  // 消息查询优化
+  "create index if not exists idx_messages_session_time on messages(session_id, send_time desc);",
+  "create index if not exists idx_messages_sender on messages(sender_id);",
+  // 黑名单查询优化
+  "create index if not exists idx_blacklist_target on blacklist(target_id, target_type);",
+  // 申请表查询优化
+  "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
+  "create index if not exists idx_applications_status on contact_applications(status);"
 ];
 var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
   LogLevel2[LogLevel2["DEBUG"] = 0] = "DEBUG";
@@ -194,7 +212,7 @@ class Logger {
 }
 const logger = Logger.getInstance();
 const globalColumnMap = {};
-const instanceId = process.env.ELECTRON_INSTANCE_ID;
+const instanceId = process.env.ELECTRON_INSTANCE_ID || "";
 const NODE_ENV = process.env.NODE_ENV || "production";
 const userDir = os.homedir();
 const baseFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/");
@@ -230,6 +248,21 @@ const queryAll = (sql, params) => {
       const result = rows.map((item) => convertDb2Biz(item));
       logger.sql(sql, params, result);
       resolve(result);
+    });
+    stmt.finalize();
+  });
+};
+const sqliteRun = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    const stmt = dataBase.prepare(sql);
+    stmt.run(params, function(err) {
+      if (err) {
+        logger.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        reject(-1);
+        return;
+      }
+      logger.sql(sql, params, this.changes);
+      resolve(this.changes);
     });
     stmt.finalize();
   });
@@ -495,6 +528,53 @@ const processIpc = (mainWindow) => {
   electron.ipcMain.handle("store-clear", () => {
     store.clear();
     return true;
+  });
+  electron.ipcMain.handle("get-sessions-with-order", async () => {
+    try {
+      const sql = `
+        SELECT *
+        FROM sessions
+        WHERE contact_type IN (1, 2)
+        ORDER BY is_pinned DESC, last_msg_time DESC
+      `;
+      const result = await queryAll(sql, []);
+      return result;
+    } catch (error) {
+      console.error("获取会话列表失败:", error);
+      return [];
+    }
+  });
+  electron.ipcMain.handle("update-session-last-message", async (_, sessionId, content, time) => {
+    try {
+      const sql = `
+        UPDATE sessions
+        SET last_msg_content = ?,
+            last_msg_time    = ?,
+            updated_at       = ?
+        WHERE session_id = ?
+      `;
+      const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), sessionId]);
+      return result > 0;
+    } catch (error) {
+      console.error("更新会话最后消息失败:", error);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
+    try {
+      const sql = `
+        UPDATE sessions
+        SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
+        WHERE session_id = ?
+      `;
+      const result = await sqliteRun(sql, [sessionId]);
+      return result > 0;
+    } catch (error) {
+      console.error("切换置顶状态失败:", error);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("add-session", async (_, session) => {
   });
   onLoginOrRegister((isLogin) => {
     mainWindow.setResizable(true);
