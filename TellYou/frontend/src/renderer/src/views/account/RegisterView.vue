@@ -13,14 +13,14 @@ const onRegister = async () => {
 }
 
 const goLogin = () => {
-  window.ipcRenderer.send('LoginOrRegister', 0)
+  window.electronAPI.send('LoginOrRegister', 0)
   router.push('/login')
 }
 </script>
 
 
 <template>
-    <v-container class="fill-height" fluid>
+  <v-container class="fill-height" fluid>
       <v-row align="center" justify="center">
         <v-col cols="12" sm="8" md="4">
           <v-card>
@@ -54,11 +54,12 @@ const goLogin = () => {
                   class="mt-4"
                 >注册</v-btn>
               </v-form>
-              <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>
-              <v-alert v-if="success" type="success" class="mt-2">注册成功！请前往登录</v-alert>
+<!--              <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>-->
+<!--              <v-alert v-if="success" type="success" class="mt-2">注册成功！请前往登录</v-alert>-->
               <v-btn variant="text" @click="goLogin" class="mt-2" block>已有账号？去登录</v-btn>
             </v-card-text>
           </v-card>
+
         </v-col>
       </v-row>
     </v-container>

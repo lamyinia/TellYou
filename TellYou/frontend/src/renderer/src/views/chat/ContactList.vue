@@ -1,30 +1,16 @@
 <script setup lang="ts">
-import updateBg from '@renderer/assets/img/update_bg.png'
-const contacts = [
-  { id: 1, name: '张三', avatar: '张', lastMsg: '好的，明天见！好的，明天见！', time: '14:30', active: true },
-  { id: 2, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 3, name: '王五', avatar: '王', lastMsg: '[图片]', time: '12:20', active: false },
-  { id: 4, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 5, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 6, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 7, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 8, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 9, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 10, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 11, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 12, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 13, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 14, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-  { id: 15, name: '李四', avatar: '李', lastMsg: '项目进展如何？', time: '13:45', active: false },
-]
+import { computed } from 'vue'
+import { useSessionStore } from '@renderer/store/session/session-store'
+import type { Session } from '@renderer/store/session/session-class'
+import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '@renderer/utils/process'
 
-const emit = defineEmits(['contact-selected'])
-const selectContact = (contact) => {
-  console.log("this is emit selectContact")
+const store = useSessionStore()
+const sessions = computed<Session[]>(() => store.sortedSessions)
+
+const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void }>()
+const selectContact = (contact: Session): void => {
   emit('contact-selected', contact)
 }
-
-
 </script>
 
 <template>
@@ -38,15 +24,30 @@ const selectContact = (contact) => {
       />
     </div>
     <v-list class="star-list">
-      <v-list-item v-for="item in contacts"
-                   :key="item.id" @click="selectContact(item)"
-                   :active="item.active">
-        <div class="star-list-item-content">
-          <img class="star-contact-avatar" :src="updateBg" alt="avatar" />
-          <div class="star-list-item-text">
-            <div class="star-list-item-title">{{ item.name }}</div>
-            <div class="star-list-item-subtitle">{{ item.lastMsg }}</div>
-            <div class="star-list-item-time">{{ item.time }}</div>
+      <v-list-item v-for="item in sessions" :key="item.sessionId" class="session-item" @click="selectContact(item)">
+        <div class="row-wrap">
+          <div class="avatar-box">
+            <img
+              class="star-contact-avatar"
+              :src="resolveAvatar(item.contactAvatar)"
+              alt="avatar"
+              referrerpolicy="no-referrer"
+              crossorigin="anonymous"
+              loading="lazy"
+              @error="onAvatarError"
+            />
+            <span v-if="item.contactType === 2" class="contact-tag">群</span>
+            <span v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount > 99 ? '99+' : item.unreadCount }}</span>
+
+          </div>
+
+          <div class="content-col">
+            <div class="name">{{ item.contactName }}</div>
+            <div class="subtitle">{{ briefMsg(item.lastMsgContent) }}</div>
+            <div class="footer-row">
+              <i v-if="item.isPinned" class="iconfont icon-top pin-flag" title="置顶"></i>
+              <div class="time">{{ formatTime(item.lastMsgTime) }}</div>
+            </div>
           </div>
         </div>
       </v-list-item>
@@ -65,6 +66,7 @@ const selectContact = (contact) => {
   padding-left: 0;
   padding-right: 0;
 }
+
 .star-search-field {
   width: 100%;
   margin: 0px 40px 20px 10px;
@@ -73,16 +75,15 @@ const selectContact = (contact) => {
   min-height: 20px !important;
   font-size: 12px;
 }
-.star-search-field .v-input__control,
-.star-search-field .v-field,
-.star-search-field .v-field__field,
-.star-search-field input {
+
+.star-search-field .v-input__control, .star-search-field .v-field, .star-search-field .v-field__field, .star-search-field input {
   min-height: 36px !important;
   height: 36px !important;
   line-height: 36px !important;
   color: #fff !important;
   font-size: 15px !important;
 }
+
 .star-search-field input::placeholder {
   color: #fff !important;
   opacity: 0.7;
@@ -94,58 +95,134 @@ const selectContact = (contact) => {
   border-radius: 0 0 18px 0;
   padding-bottom: 12px;
 }
+
 .star-list::-webkit-scrollbar {
   width: 5px;
   background: #ba0d9c;
   border-radius: 8px;
 }
+
 .star-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #0b4c7c 0%, #061449 100%);
+  background: linear-gradient(135deg, #092a43 0%, #04165e 100%);
   border-radius: 8px;
   min-height: 40px;
 }
+
 .star-list::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #1d12b5 0%, #2e0c83 100%);
 }
+
 .star-list::-webkit-scrollbar-track {
   background: #181c46;
   border-radius: 8px;
 }
 
-.v-list-item {
-  background: rgba(255,255,255,0.06);
+.v-list-item.session-item {
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  margin: 4px 8px;
+  margin: 6px 8px;
   transition: background 0.2s;
   padding: 0 !important;
+  min-height: 72px;
 }
-.v-list-item--active {
-  background: rgba(255,255,255,0.16) !important;
+
+.v-list-item.session-item:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
 }
-.star-list-item-content {
+
+.row-wrap {
   display: flex;
-  flex-direction: row;
   align-items: center;
+  gap: 10px;
+  padding: 10px 12px; /* 增大内边距与高度 */
   width: 100%;
-  gap: 12px;
 }
+
+.avatar-box {
+  position: relative;
+  width: 42px;
+  height: 35px;
+  flex: 0 0 42px;
+}
+
 .star-contact-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  margin-right: 0;
-  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.12);
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.12);
   display: inline-block;
   object-fit: cover;
   background: #fff;
 }
-.star-list-item-text {
+
+.contact-tag {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  z-index: 2;
+  background: #24acf2;
+  color: #fff;
+  font-size: 10px;
+  padding: 0 3px;
+  border-radius: 2px;
+  line-height: 14px;
+}
+
+.badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  background: #e53935;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 0 5px;
+  line-height: 18px;
+  min-width: 18px;
+  text-align: center;
+  z-index: 2;
+}
+
+
+.meta-col {
+  flex: 0 0 100px;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-width: 0;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
-.star-list-item-title {
+
+.footer-row { /* 新增第二行：时间与置顶 */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.pin-flag {
+  color: #8f8f8f;
+  font-size: 14px;
+}
+
+.time {
+  font-size: 12px;
+  color: #90a4ae;
+}
+
+/* 右侧文本列 */
+.content-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: #e9f1f4;
+}
+
+.name {
   font-size: 14px;
   color: #cdede7;
   font-weight: bold;
@@ -153,17 +230,13 @@ const selectContact = (contact) => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.star-list-item-subtitle {
-  font-size: 14px;
+
+.subtitle {
+  font-size: 13px;
   color: #eefaf5;
-  margin-bottom: 2px;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.star-list-item-time {
-  font-size: 12px;
-  color: #90a4ae;
-  white-space: nowrap;
 }
 </style>

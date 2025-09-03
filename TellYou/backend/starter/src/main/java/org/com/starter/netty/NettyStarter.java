@@ -21,10 +21,9 @@ import org.com.tools.utils.JwtUtil;
 import org.springframework.stereotype.Component;
 
 /**
+ * <p> 组合 netty 的配置规则，包括webSocket 的升级协议、解耦心跳信息和业务信息、jwt鉴权、配置序列化器
  * @author lanye
  * @date 2025/07/27
- * @description 组合 netty 的配置规则
- * @包括 webSocket 的升级协议、解耦心跳信息和业务信息、jwt鉴权、配置序列化器
  */
 @Slf4j
 @Component
@@ -63,9 +62,7 @@ public class NettyStarter implements Runnable {
                         pipeline.addLast(new HttpServerCodec());
                         pipeline.addLast(new HttpObjectAggregator(64 * 1024));
                         pipeline.addLast(new JwtAuthHandler(jwtUtil));
-
 //                        pipeline.addLast(new IdleStateHandler(30, 0, 0));
-//                        pipeline.addLast(new HeartBeatRule());
 
                         pipeline.addLast(new WebSocketServerProtocolHandler("/ws", null, true, 64 * 1024, true, true, 10000L));
                         pipeline.addLast(baseHandler);

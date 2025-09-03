@@ -1,5 +1,4 @@
 const add_tables = [
-  // 会话表（包含联系人信息）
   'create table if not exists sessions(' +
   '   session_id integer primary key,' +
   '   session_type integer not null,' + // 1:单聊 2:群聊 3:系统
@@ -26,7 +25,6 @@ const add_tables = [
   '   last_active datetime' +
   ');',
 
-  // 消息表
   'create table if not exists messages(' +
   '   id integer primary key autoincrement,' +
   '   session_id integer not null,' +
@@ -42,7 +40,6 @@ const add_tables = [
   '   unique(session_id, sequence_id)' +
   ');',
 
-  // 黑名单表
   'create table if not exists blacklist(' +
   '   id integer primary key autoincrement,' +
   '   target_id integer not null,' +
@@ -50,7 +47,6 @@ const add_tables = [
   '   create_time datetime' +
   ');',
 
-  // 申请表
   'create table if not exists contact_applications(' +
   '   id integer primary key autoincrement,' +
   '   apply_user_id integer not null,' +
@@ -61,7 +57,6 @@ const add_tables = [
   '   last_apply_time datetime' +
   ');',
 
-  // 用户设置表（保留原有功能）
   'create table if not exists user_setting (' +
   '   user_id varchar not null,' +
   '   email varchar not null,' +
@@ -73,33 +68,20 @@ const add_tables = [
 ];
 
 const add_indexes = [
-  // 会话查询优化
   'create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);',
   'create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);',
   'create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);',
 
-  // 消息查询优化
   'create index if not exists idx_messages_session_time on messages(session_id, send_time desc);',
   'create index if not exists idx_messages_sender on messages(sender_id);',
 
-  // 黑名单查询优化
   'create index if not exists idx_blacklist_target on blacklist(target_id, target_type);',
 
-  // 申请表查询优化
   'create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);',
   'create index if not exists idx_applications_status on contact_applications(status);'
-];
-
-const alter_tables = [
-  /*  {
-        tableName: "user_setting",
-        field: "email",
-        sql: "alter table user_setting add column email varchar"
-    }*/
 ];
 
 export {
   add_tables,
   add_indexes,
-  alter_tables
 }

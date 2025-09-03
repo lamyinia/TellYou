@@ -4,6 +4,7 @@ server:
   retry:
     threads: 1
 
+
 tell-you:
   netty:
     port: 8082
@@ -17,6 +18,11 @@ tell-you:
     access-key-id: ${value.aliyun-oss.access-key-id}
     access-key-secret: ${value.aliyun-oss.access-key-secret}
     bucket-name: ${value.aliyun-oss.bucket-name}
+  minio:
+    endpoint: ${value.minio.endpoint}
+    accessKey: ${value.minio.accessKey}
+    secretKey: ${value.minio.secretKey}
+    bucket: ${value.minio.bucket}
 
 spring:
   profiles:
@@ -28,7 +34,7 @@ spring:
   datasource:
     username: ${value.datasource.username}
     password: ${value.datasource.password}
-    url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&serverTimezone=GMT%2b8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false
     driver-class-name: ${value.datasource.driver-class-name}
   data:
     redis:
@@ -102,6 +108,5 @@ seata:
     type: file
     file:
       name: file.conf
-
 
 

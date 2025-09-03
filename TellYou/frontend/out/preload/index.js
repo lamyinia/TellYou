@@ -13,14 +13,15 @@ if (process.contextIsolated) {
       storeDelete: (key) => electron.ipcRenderer.invoke("store-delete", key),
       storeClear: () => electron.ipcRenderer.invoke("store-clear"),
       send: (channel, ...args) => electron.ipcRenderer.send(channel, ...args),
+      on: (channel, callback) => electron.ipcRenderer.on(channel, callback),
+      removeListener: (channel, callback) => electron.ipcRenderer.removeListener(channel, callback),
       onWsConnected: (callback) => electron.ipcRenderer.on("ws-connected", callback),
       offWsConnected: (callback) => electron.ipcRenderer.removeListener("ws-connected", callback),
-      // 会话相关的接口
       getSessionsWithOrder: () => electron.ipcRenderer.invoke("get-sessions-with-order"),
       updateSessionLastMessage: (sessionId, content, time) => electron.ipcRenderer.invoke("update-session-last-message", sessionId, content, time),
       toggleSessionPin: (sessionId) => electron.ipcRenderer.invoke("toggle-session-pin", sessionId),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
-      getSessionMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-session-manager", sessionId, obj)
+      getSessionMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-message-by-sessionId", sessionId, obj)
     });
   } catch (error) {
     console.error(error);

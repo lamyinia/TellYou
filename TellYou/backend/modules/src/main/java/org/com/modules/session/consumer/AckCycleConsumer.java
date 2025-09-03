@@ -9,12 +9,25 @@ import org.com.tools.constant.MQConstant;
 import org.springframework.stereotype.Service;
 
 /**
+ * ACK 生命周期消费端。
+ *
+ * 职责：
+ * 1) 兜底处理 ACK 未达场景，确保“服务端推送 -> 客户端确认”的闭环；
+ * 2) 客户端未收到 ACK 的自发消息会进入“待确认队列”，定时重拉直至确认；
+ * 3) 客户端离线期间的消息，上线后需从“信箱/离线存储”补拉未确认记录；
+ * 4) 服务端对所有下行消息需最终获得客户端的 ACK 状态（成功/超时/失败）。
+ *
+ * 语义说明：
+ * - 至少一次投递，消费端需保证幂等；
+ * - 建议基于消息唯一键（如 messageId）进行去重；
+ * - 可结合重试/死信队列监控异常并做告警。
+ *
+ * 消费配置：topic = MQConstant.ACK_TOPIC, group = MQConstant.ACK_MANAGER_GROUP
+ *
  * @author lanye
- * @date 2025/07/27
- * @description: ack整个生命周期的处理机制，兜底 ack 发送失败的情况
- * @(1) 对于从客户端推出去的消息，客户端对没有收到 ack 的信息，会将其持久化到待定状态的队列，定时的拉取消息，直到收到 ack
- * @(2) 客户端从离线到上线的状态变化，需要从信箱里面拉取近期未收到的消息
- * @(3) 所有从服务器推出去的消息，服务端总要去得到一个客户端确认的 ack 状态
+ * @since 2025/07/27
+ * @see org.com.tools.constant.MQConstant#ACK_TOPIC
+ * @see org.com.tools.constant.MQConstant#ACK_MANAGER_GROUP
  */
 @Slf4j
 @Service

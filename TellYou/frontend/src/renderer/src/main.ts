@@ -9,6 +9,7 @@ import '@renderer/assets/font_uxv7xzzt80j/iconfont.css'
 import '@renderer/utils/api'
 
 import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
 import router from './router/router'
 import { createPinia } from 'pinia'
 

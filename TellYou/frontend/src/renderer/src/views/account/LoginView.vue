@@ -58,19 +58,23 @@ const goRegister = () => {
   window.electronAPI.send('LoginOrRegister', 1)
   router.push('/register')
 }
+const goTotest = () => {
+  window.electronAPI.send('test', 'ping')
+}
+
 </script>
 
 
 <template>
   <v-container class="fill-height" fluid>
+
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="4">
         <v-card>
           <v-card-title class="text-h5">登录 - Tell-You</v-card-title>
-
+          <v-alert type="success" closable> display </v-alert>
           <v-card-text>
             <v-form @submit.prevent="onLogin" ref="formRef">
-              <div></div>
               <v-text-field
                 v-model="username"
                 label="用户名"
@@ -92,6 +96,7 @@ const goRegister = () => {
 
             <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>
             <v-btn variant="text" @click="goRegister" class="mt-2" block>没有账号？去注册</v-btn>
+            <v-btn variant="text" @click="goTotest" class="mt-2" block>测试按钮</v-btn>
           </v-card-text>
         </v-card>
       </v-col>

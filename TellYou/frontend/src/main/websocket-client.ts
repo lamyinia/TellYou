@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import { store } from './index'
 import { BrowserWindow } from 'electron'
-import { logger } from '../utils/LogUtil'
+import { logger } from '../utils/log-util'
 
 let ws: WebSocket|null = null
 let maxReConnectTimes: number | null = null;
@@ -86,7 +86,8 @@ export const connectWs = (): void => {
   })
 
   ws.on('message', async (data) => {
-    logger.debug('收到消息:', data.toString())
+    console.log('收到消息:', data.toString())
+
   })
 
 }

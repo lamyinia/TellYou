@@ -11,28 +11,19 @@ const WebSocket = require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
-  // 会话表（包含联系人信息）
   "create table if not exists sessions(   session_id integer primary key,   session_type integer not null,   contact_id integer not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
-  // 消息表
   "create table if not exists messages(   id integer primary key autoincrement,   session_id integer not null,   sequence_id integer not null,   sender_id integer not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
-  // 黑名单表
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id integer not null,   target_type integer not null,   create_time datetime);",
-  // 申请表
   "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id integer not null,   target_id integer not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
-  // 用户设置表（保留原有功能）
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
-  // 会话查询优化
   "create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);",
   "create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);",
   "create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);",
-  // 消息查询优化
   "create index if not exists idx_messages_session_time on messages(session_id, send_time desc);",
   "create index if not exists idx_messages_sender on messages(sender_id);",
-  // 黑名单查询优化
   "create index if not exists idx_blacklist_target on blacklist(target_id, target_type);",
-  // 申请表查询优化
   "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
   "create index if not exists idx_applications_status on contact_applications(status);"
 ];
@@ -230,11 +221,11 @@ const existsLocalDB = () => {
   dataBase = NODE_ENV === "development" ? new (sqlite3.verbose()).Database(dataFolder + "local.db") : new sqlite3.Database(dataFolder + "local.db");
   return result;
 };
-const initTable = () => {
+const initTable = async () => {
   dataBase.serialize(async () => {
     await createTable();
-    await initTableColumnsMap();
   });
+  await initTableColumnsMap();
 };
 const queryAll = (sql, params) => {
   return new Promise((resolve) => {
@@ -267,6 +258,46 @@ const sqliteRun = (sql, params) => {
     stmt.finalize();
   });
 };
+const insert = (sqlPrefix, tableName, data) => {
+  const columnMap = globalColumnMap[tableName];
+  const columns = [];
+  const params = [];
+  for (const item in data) {
+    if (data[item] != void 0 && columnMap[item] != void 0) {
+      columns.push(columnMap[item]);
+      params.push(data[item]);
+    }
+  }
+  const prepare = Array(columns.length).fill("?").join(",");
+  const sql = `${sqlPrefix} ${tableName}(${columns.join(",")}) values(${prepare})`;
+  return sqliteRun(sql, params);
+};
+const insertOrReplace = (tableName, data) => {
+  console.log(data);
+  return insert("insert or replace into", tableName, data);
+};
+const update = (tableName, data, paramData) => {
+  const columnMap = globalColumnMap[tableName];
+  const columns = [];
+  const params = [];
+  const whereColumns = [];
+  for (const item in data) {
+    if (data[item] != void 0 && columnMap[item] != void 0) {
+      columns.push(`${columnMap[item]} = ?`);
+      params.push(data[item]);
+    }
+  }
+  for (const item in paramData) {
+    if (paramData[item] != void 0 && columnMap[item] != void 0) {
+      whereColumns.push(`${columnMap[item]} = ?`);
+      params.push(paramData[item]);
+    }
+  }
+  const sql = `update ${tableName}
+               set ${columns.join(",")} ${whereColumns.length > 0 ? " where " : ""}${whereColumns.join(" and ")}`;
+  logger.info(sql);
+  return sqliteRun(sql, params);
+};
 const toCamelCase = (str) => {
   return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
 };
@@ -279,12 +310,18 @@ const convertDb2Biz = (data) => {
   return bizData;
 };
 const createTable = async () => {
-  for (const item of add_tables) {
-    await dataBase.run(item);
-  }
-  for (const item of add_indexes) {
-    await dataBase.run(item);
-  }
+  const add_table = async () => {
+    for (const item of add_tables) {
+      dataBase.run(item);
+    }
+  };
+  const add_index = async () => {
+    for (const item of add_indexes) {
+      dataBase.run(item);
+    }
+  };
+  await add_table();
+  await add_index();
 };
 const initTableColumnsMap = async () => {
   let sql = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'";
@@ -373,7 +410,45 @@ const connectWs = () => {
     reconnect();
   });
   ws.on("message", async (data) => {
-    logger.debug("收到消息:", data.toString());
+    console.log("收到消息:", data.toString());
+  });
+};
+const selectSessions = async () => {
+  const sql = `
+    SELECT
+      session_id,
+      contact_id,
+      contact_type,
+      contact_name,
+      contact_avatar,
+      contact_signature,
+      last_msg_content,
+      last_msg_time,
+      unread_count,
+      is_pinned,
+      is_muted,
+      created_at,
+      updated_at,
+      member_count,
+      max_members,
+      join_mode,
+      msg_mode,
+      group_card,
+      group_notification,
+      my_role,
+      join_time,
+      last_active
+    FROM sessions
+  `;
+  const result = await queryAll(sql, []);
+  return result;
+};
+const onLoadSessionData = () => {
+  electron.ipcMain.on("loadSessionData", async (event) => {
+    console.log("开始查询session");
+    const result = await selectSessions();
+    console.log("查询结果:", result);
+    event.sender.send("loadSessionDataCallback", result);
   });
 };
 const onLoginSuccess = (callback) => {
@@ -391,11 +466,16 @@ const onScreenChange = (callback) => {
     callback(event, status);
   });
 };
+const onTest = (callback) => {
+  electron.ipcMain.on("test", (_, __) => {
+    callback();
+  });
+};
 const initializeUserData = async (uid) => {
   connectWs();
   setCurrentFolder(uid);
   const everCreated = existsLocalDB();
-  initTable();
+  await initTable();
   await pullStrongTransactionData();
   if (!everCreated) {
     await pullHistoryMessage();
@@ -428,6 +508,28 @@ const pullOfflineMessage = async () => {
 const pullHistoryMessage = async () => {
   console.log(`正在拉取历史消息...`);
 };
+const test = async () => {
+  setCurrentFolder("1");
+  existsLocalDB();
+  await initTable();
+  const raw = fs.readFileSync("./test/test-data.json", "utf-8");
+  const data = JSON.parse(raw);
+  for (const session of data.sessions) {
+    await insertOrReplace("sessions", session);
+  }
+  for (const message of data.messages) {
+    await insertOrReplace("messages", message);
+  }
+  for (const black of data.blacklist) {
+    await insertOrReplace("blacklist", black);
+  }
+  for (const apply of data.contact_applications) {
+    await insertOrReplace("contact_applications", apply);
+  }
+  await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
+  const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
+  logger.info("sessions:", sessions);
+};
 const Store = __Store.default || __Store;
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
 electron.app.whenReady().then(() => {
@@ -459,6 +561,7 @@ electron.app.on("window-all-closed", () => {
 });
 const loginWidth = 596;
 const loginHeight = 400;
+const registerWidth = 596;
 const registerHeight = 462;
 const store = new Store();
 const contextMenu = [
@@ -514,6 +617,57 @@ const createWindow = () => {
   }
 };
 const processIpc = (mainWindow) => {
+  invokeHandle();
+  onLoadSessionData();
+  onLoginOrRegister((isLogin) => {
+    mainWindow.setResizable(true);
+    if (isLogin === 0) {
+      mainWindow.setSize(loginWidth, loginHeight);
+    } else {
+      mainWindow.setSize(registerWidth, registerHeight);
+    }
+    mainWindow.setResizable(false);
+  });
+  onLoginSuccess((uid) => {
+    mainWindow.setResizable(true);
+    mainWindow.setSize(920, 740);
+    mainWindow.setMaximizable(true);
+    mainWindow.setMinimumSize(800, 600);
+    mainWindow.center();
+    initializeUserData(uid);
+  });
+  onScreenChange((event, status) => {
+    const webContents = event.sender;
+    const win = electron.BrowserWindow.fromWebContents(webContents);
+    switch (status) {
+      case 0:
+        if (win?.isAlwaysOnTop()) {
+          win?.setAlwaysOnTop(false);
+        } else {
+          win?.setAlwaysOnTop(true);
+        }
+        break;
+      case 1:
+        win?.minimize();
+        break;
+      case 2:
+        if (win?.isMaximized()) {
+          win?.unmaximize();
+        } else {
+          win?.maximize();
+        }
+        break;
+      case 3:
+        win?.setSkipTaskbar(true);
+        win?.hide();
+        break;
+    }
+  });
+  onTest(() => {
+    test();
+  });
+};
+const invokeHandle = () => {
   electron.ipcMain.handle("store-get", (_, key) => {
     return store.get(key);
   });
@@ -574,51 +728,7 @@ const processIpc = (mainWindow) => {
       return false;
     }
   });
-  electron.ipcMain.handle("add-session", async (_, session) => {
-  });
-  onLoginOrRegister((isLogin) => {
-    mainWindow.setResizable(true);
-    if (isLogin === 0) {
-      mainWindow.setSize(loginWidth, loginHeight);
-    } else {
-      mainWindow.setSize(loginWidth, registerHeight);
-    }
-    mainWindow.setResizable(false);
-  });
-  onLoginSuccess((uid) => {
-    mainWindow.setResizable(true);
-    mainWindow.setSize(920, 740);
-    mainWindow.setMaximizable(true);
-    mainWindow.setMinimumSize(800, 600);
-    mainWindow.center();
-    initializeUserData(uid);
-  });
-  onScreenChange((event, status) => {
-    const webContents = event.sender;
-    const win = electron.BrowserWindow.fromWebContents(webContents);
-    switch (status) {
-      case 0:
-        if (win?.isAlwaysOnTop()) {
-          win?.setAlwaysOnTop(false);
-        } else {
-          win?.setAlwaysOnTop(true);
-        }
-        break;
-      case 1:
-        win?.minimize();
-        break;
-      case 2:
-        if (win?.isMaximized()) {
-          win?.unmaximize();
-        } else {
-          win?.maximize();
-        }
-        break;
-      case 3:
-        win?.setSkipTaskbar(true);
-        win?.hide();
-        break;
-    }
+  electron.ipcMain.handle("get-message-by-sessionId", (_) => {
   });
 };
 exports.store = store;

@@ -2,7 +2,7 @@ import fs from 'fs'
 import os from 'os'
 import sqlite3 from 'sqlite3'
 import { add_indexes, add_tables } from './sqlite-struct'
-import { logger } from '../../utils/LogUtil'
+import { logger } from '../../utils/log-util'
 
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }
@@ -31,11 +31,11 @@ export const existsLocalDB = (): boolean => {
     new (sqlite3.verbose().Database)(dataFolder + 'local.db') : new sqlite3.Database(dataFolder + 'local.db')  // 开发模式输出日志
   return result
 }
-export const initTable = (): void => {
+export const initTable =  async ()=> {
   dataBase.serialize(async () => {
     await createTable()
-    await initTableColumnsMap()
   })
+  await initTableColumnsMap()
 }
 
 /************************************************** 业务层意义的 sqlite 原子操作 *************************************************************/
@@ -115,6 +115,7 @@ export const insert = (sqlPrefix: string, tableName: string, data: Record<string
   return sqliteRun(sql, params)
 }
 export const insertOrReplace = (tableName: string, data: Record<string, unknown>): Promise<number> => {
+  console.log(data)
   return insert('insert or replace into', tableName, data)
 }
 export const insertOrIgnore = (tableName: string, data: Record<string, unknown>): Promise<number> => {
@@ -139,6 +140,9 @@ export const update = (tableName: string, data: Record<string, unknown>, paramDa
   }
   const sql = `update ${tableName}
                set ${columns.join(',')} ${whereColumns.length > 0 ? ' where ' : ''}${whereColumns.join(' and ')}`
+
+  logger.info(sql)
+
   return sqliteRun(sql, params)
 }
 
@@ -155,13 +159,20 @@ const convertDb2Biz = (data: Record<string, unknown> | null): Record<string, unk
   }
   return bizData
 }
+
 const createTable = async (): Promise<void> => {
-  for (const item of add_tables) {
-    await dataBase.run(item)
+  const add_table = async () => {
+    for (const item of add_tables) {
+      dataBase.run(item)
+    }
   }
-  for (const item of add_indexes) {
-    await dataBase.run(item)
+  const add_index = async () => {
+    for (const item of add_indexes) {
+      dataBase.run(item)
+    }
   }
+  await add_table()
+  await add_index()
 }
 const initTableColumnsMap = async (): Promise<void> => {
   let sql: string = 'select name from sqlite_master where type = \'table\' and name != \'sqlite_sequence\''

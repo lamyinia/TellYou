@@ -11,10 +11,14 @@ declare global {
       storeSet: (key: string, value: any) => Promise<boolean>
       storeDelete: (key: string) => Promise<boolean>
       storeClear: () => Promise<boolean>
-      send: (channel: string, ...args: any[]) => Promise<any>
-      onWsConnected: (callback: ()=>void) => Promise<any>
-      offWsConnected: (callback: ()=>void) => Promise<any>
-      // 会话相关的接口
+      send: (channel: string, ...args: any[]) => void
+      on: (channel: string, callback: (...args: any[]) => void) => void
+      removeListener: (channel: string, callback: (...args: any[]) => void) => void
+
+      onWsConnected: (callback: ()=>void) => void
+      offWsConnected: (callback: ()=>void) => void
+
+
       getSessionsWithOrder: () => Promise<any[]>
       updateSessionLastMessage: (sessionId: number, content: string, time: Date) => Promise<boolean>
       toggleSessionPin: (sessionId: number) => Promise<boolean>

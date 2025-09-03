@@ -8,8 +8,6 @@ export interface ChatMessage {
   senderAvatar: string
   timestamp: Date
   isRead: boolean
-  isSelf: boolean
-  // 其他字段...
 }
 
 // 消息分页信息

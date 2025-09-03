@@ -2,20 +2,21 @@ import { app, BrowserWindow, ipcMain, Menu, shell, Tray } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { instanceId } from './sqlite/sqlite-operation'
+import { instanceId, queryAll, sqliteRun } from './sqlite/sqlite-operation'
 import { initWs } from './websocket-client'
-import { onLoginOrRegister, onLoginSuccess, onScreenChange } from './ipc-center'
+import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
-import { logger, LogLevel } from '../utils/LogUtil'
-import { queryAll, sqliteRun } from './sqlite/sqlite-operation'
-import { Session } from '@renderer/store/session/session-class'
+import { logger, LogLevel } from '../utils/log-util'
+import { test } from './test'
 
 const Store = __Store.default || __Store
+
 
 /************************************************** app 生命周期 *************************************************************/
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
 app.whenReady().then(() => {
+
   if (process.env.NODE_ENV === 'development') {
     logger.setLevel(LogLevel.DEBUG)
   } else {
@@ -29,7 +30,6 @@ app.whenReady().then(() => {
   })
 
   initWs()
-
   electronApp.setAppUserModelId('com.electron')
 
   app.on('browser-window-created', (_, window) => {
@@ -49,6 +49,7 @@ app.on('window-all-closed', () => {
 /************************************************** app 构建逻辑 *************************************************************/
 const loginWidth: number = 596
 const loginHeight: number = 400
+const registerWidth: number = 596
 const registerHeight: number = 462
 export const store = new Store()
 const contextMenu = [
@@ -109,6 +110,64 @@ const createWindow = () => {
 }
 
 const processIpc = (mainWindow: Electron.BrowserWindow): void => {
+  invokeHandle()
+
+  onLoadSessionData()
+
+  onLoginOrRegister((isLogin: number) => {
+    mainWindow.setResizable(true)
+    if (isLogin === 0) {
+      mainWindow.setSize(loginWidth, loginHeight)
+    } else {
+      mainWindow.setSize(registerWidth, registerHeight)
+    }
+    mainWindow.setResizable(false)
+  })
+
+  onLoginSuccess((uid: string) => {
+    mainWindow.setResizable(true)
+    mainWindow.setSize(920, 740)
+    mainWindow.setMaximizable(true)
+    mainWindow.setMinimumSize(800, 600)
+    mainWindow.center()
+
+    initializeUserData(uid)
+  })
+
+  onScreenChange((event: Electron.IpcMainEvent, status: number) => {
+    const webContents = event.sender
+    const win = BrowserWindow.fromWebContents(webContents)
+    switch (status) {
+      case 0:
+        if (win?.isAlwaysOnTop()) {
+          win?.setAlwaysOnTop(false)
+        } else {
+          win?.setAlwaysOnTop(true)
+        }
+        break
+      case 1:
+        win?.minimize()
+        break
+      case 2:
+        if (win?.isMaximized()) {
+          win?.unmaximize()
+        } else {
+          win?.maximize()
+        }
+        break
+      case 3:
+        win?.setSkipTaskbar(true)
+        win?.hide()
+        break
+    }
+  })
+
+  onTest(() => {
+    test()
+  })
+}
+
+const invokeHandle = ():void => {
   ipcMain.handle('store-get', (_, key) => {
     return store.get(key)
   })
@@ -170,56 +229,8 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
       return false
     }
   })
-  ipcMain.handle('add-session', async (_, session: Session) => {
+  ipcMain.handle('get-message-by-sessionId', (_) => {
 
-  })
-
-  onLoginOrRegister((isLogin: number) => {
-    mainWindow.setResizable(true)
-    if (isLogin === 0) {
-      mainWindow.setSize(loginWidth, loginHeight)
-    } else {
-      mainWindow.setSize(loginWidth, registerHeight)
-    }
-    mainWindow.setResizable(false)
-  })
-
-  onLoginSuccess((uid: string) => {
-    mainWindow.setResizable(true)
-    mainWindow.setSize(920, 740)
-    mainWindow.setMaximizable(true)
-    mainWindow.setMinimumSize(800, 600)
-    mainWindow.center()
-
-    initializeUserData(uid)
-  })
-
-  onScreenChange((event: Electron.IpcMainEvent, status: number) => {
-    const webContents = event.sender
-    const win = BrowserWindow.fromWebContents(webContents)
-    switch (status) {
-      case 0:
-        if (win?.isAlwaysOnTop()) {
-          win?.setAlwaysOnTop(false)
-        } else {
-          win?.setAlwaysOnTop(true)
-        }
-        break
-      case 1:
-        win?.minimize()
-        break
-      case 2:
-        if (win?.isMaximized()) {
-          win?.unmaximize()
-        } else {
-          win?.maximize()
-        }
-        break
-      case 3:
-        win?.setSkipTaskbar(true)
-        win?.hide()
-        break
-    }
   })
 }
 

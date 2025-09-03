@@ -11,12 +11,10 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-
     "dev": "chcp 65001 && electron-vite dev",
     "build": "chcp 65001 && npm run typecheck && electron-vite build",
     "preview": "chcp 65001 && electron-vite preview",
     "start": "chcp 65001 && electron-vite preview",
-
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
@@ -26,10 +24,12 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
+    "@mdi/font": "^7.4.47",
     "axios": "1.10.0",
     "electron-store": "^10.1.0",
     "js-cookie": "^3.0.5",
     "js-md5": "^0.8.3",
+    "log4js": "^6.9.1",
     "pinia": "^3.0.3",
     "sqlite3": "^5.1.7",
     "vue": "^3.5.17",

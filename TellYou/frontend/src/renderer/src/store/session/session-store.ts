@@ -2,163 +2,77 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { SessionManager, Session } from '@renderer/store/session/session-class'
 
+/**
+ * 聚合会话和联系的状态管理工具类，方法有添加会话、删除会话、确定置顶、取消置顶、从sqlite加载数据、标记会话已
+ * 读、更新最后消息、设置静音、取消静音、搜索会话
+ */
+
 export const useSessionStore = defineStore('session', () => {
-  // 状态
   const sessionManager = ref(new SessionManager())
-  const isLoading = ref(false)
-  const currentSessionId = ref<number | null>(null)
+  const isInitialized = ref(false)
+  let loadSessionFunction: ((_: Electron.IpcRendererEvent, sessions: Session[]) => void) | null = null
 
-  // 计算属性
-  const sessions = computed(() => sessionManager.value.getOrderedSessions())
-  const pinnedSessions = computed(() => sessionManager.value.getPinnedSessions())
-  const unpinnedSessions = computed(() => sessionManager.value.getUnpinnedSessions())
-  const sessionCount = computed(() => sessionManager.value.getSessionCount())
-  const totalUnreadCount = computed(() => sessionManager.value.getTotalUnreadCount())
-  const currentSession = computed(() =>
-    currentSessionId.value ? sessionManager.value.getSession(currentSessionId.value) : null
-  )
+  const sortedSessions = computed(() => sessionManager.value.getOrderedSessions())
 
-  // 方法
-  const addSession = async(session: Session): Promise<void> => {
-    sessionManager.value.addSession(session)
-    await window.electronAPI.addSession(session)
-  }
+  const init = ():void => {
+    if (isInitialized.value === true || loadSessionFunction) return
 
-  const loadSessionsFromDB = async (): Promise<void> => {
-    if (isLoading.value) return
+    loadSessionFunction = (_: Electron.IpcRendererEvent, sessions: Session[]) => {
+      console.log('收到会话数据:', sessions.length, '条')
+      sessions.forEach(session => {
+        sessionManager.value.addSession(session)
+      })
+      console.log('会话数据已加载:', sessions.length, '条')
 
-    isLoading.value = true
-    try {
-      if (sessionManager.value.getSessionCount() === 0 || sessionManager.value.isCacheExpired()) {
-        const result = await window.electronAPI.getSessionsWithOrder()
-        sessionManager.value.clear()
-        sessionManager.value.addSessions(result)
-      }
-    } catch (error) {
-      console.error('加载会话失败:', error)
-    } finally {
-      isLoading.value = false
+      console.log(sortedSessions.value)
     }
+
+    window.electronAPI.on('loadSessionDataCallback', loadSessionFunction)
+    window.electronAPI.send('loadSessionData')
+
+    this.isInitialized = true
+    console.log('session 数据初始化请求已发送')
   }
 
-  const updateSessionLastMessage = async (sessionId: number, content: string): Promise<void> => {
-    sessionManager.value.updateSession(sessionId, {
-      lastMsgContent: content,
-      lastMsgTime: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-
-    try {
-      await window.electronAPI.updateSessionLastMessage(sessionId, content, new Date())
-    } catch (error) {
-      console.error('更新数据库失败:', error)
-    }
+  const exit = (): void => {
+    sessionManager.value.clear()
+    isInitialized.value = false
+    window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction)
   }
 
-  const togglePin = async (sessionId: number): Promise<void> => {
+
+  const getSession = (sessionId: number) => {
+    return sessionManager.value.getSession(sessionId)
+  }
+  const updateSession = (sessionId: number, updates: Partial<Session>) => {
+    sessionManager.value.updateSession(sessionId, updates)
+  }
+  const togglePin = (sessionId: number) => {
     sessionManager.value.togglePin(sessionId)
-
-    try {
-      await window.electronAPI.toggleSessionPin(sessionId)
-    } catch (error) {
-      console.error('更新置顶状态失败:', error)
-    }
   }
-
-  const toggleMute = async (sessionId: number): Promise<void> => {
+  const toggleMute = (sessionId: number) => {
     sessionManager.value.toggleMute(sessionId)
   }
-
-  const markAsRead = (sessionId: number): void => {
+  const markAsRead = (sessionId: number) => {
     sessionManager.value.markSessionAsRead(sessionId)
   }
-
-  const searchSessions = (keyword: string): Session[] => {
-    return sessionManager.value.searchSessions(keyword) as Session[]
-  }
-
-  const setCurrentSession = async (sessionId: number | null): Promise<void> => {
-    currentSessionId.value = sessionId
-
-    if (sessionId) {
-      console.log(`切换到会话: ${sessionId}`)
-
-      try {
-        // 动态导入避免循环依赖
-        const { useMessageStore } = await import('@renderer/store/message/message-store')
-        const messageStore = useMessageStore()
-        messageStore.setCurrentSession(sessionId)
-      } catch (error) {
-        console.error('通知message-store失败:', error)
-      }
-
-      try {
-        const session = sessionManager.value.getSession(sessionId)
-        if (session) {
-          sessionManager.value.updateSession(sessionId, {
-            lastActive: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-        }
-      } catch (error) {
-        console.error('更新会话访问时间失败:', error)
-      }
-
-      try {
-        markAsRead(sessionId)
-      } catch (error) {
-        console.error('标记会话已读失败:', error)
-      }
-
-      try {
-        const session = sessionManager.value.getSession(sessionId)
-        if (session && session.unreadCount > 0) {
-          sessionManager.value.reorderSessions()
-        }
-      } catch (error) {
-        console.error('重新排序会话失败:', error)
-      }
-
-    } else {
-      try {
-        const { useMessageStore } = await import('@renderer/store/message/message-store')
-        const messageStore = useMessageStore()
-
-        messageStore.clearCurrentSession()
-      } catch (error) {
-        console.error('清空message-store状态失败:', error)
-      }
-    }
-  }
-
-  const refreshCache = (): Promise<void> => {
-    sessionManager.value.clear()
-    return loadSessionsFromDB()
+  const searchSessions = (keyword: string) => {
+    return sessionManager.value.searchSessions(keyword)
   }
 
   return {
-    // 状态
     sessionManager,
-    isLoading,
-    currentSessionId,  // 🎯 暴露给其他store使用
+    sortedSessions,
+    isInitialized,
 
-    // 计算属性
-    sessions,
-    pinnedSessions,
-    unpinnedSessions,
-    sessionCount,
-    totalUnreadCount,
-    currentSession,
+    init,
+    exit,
 
-    // 方法
-    addSession,
-    loadSessionsFromDB,
-    updateSessionLastMessage,
+    getSession,
+    updateSession,
     togglePin,
     toggleMute,
     markAsRead,
-    searchSessions,
-    setCurrentSession,  // 🎯 核心方法
-    refreshCache
+    searchSessions
   }
 })

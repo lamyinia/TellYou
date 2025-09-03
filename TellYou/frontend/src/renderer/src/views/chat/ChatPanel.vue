@@ -1,24 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { Session } from '@renderer/store/session/session-class'
 const message = ref('')
 const sendMessage = (): void => {
   message.value = ''
 }
 
-const props = defineProps({
-  currentContact: Object
-})
-const contactName = computed(() => {
-  return props?.currentContact === Object ? {name: '你还未选择联系人'} : props?.currentContact
-})
-
+const props = defineProps<{ currentContact: Session | null }>()
+const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
 </script>
 
 <template>
   <div class="star-panel-bg">
-    <!-- 聊天头部 -->
     <div class="star-header">
-      <div class="star-title"> {{contactName.name}} </div>
+      <div class="star-title"> {{contactName}} </div>
       <div>
         <v-btn icon><v-icon>mdi-phone</v-icon></v-btn>
         <v-btn icon><v-icon>mdi-video</v-icon></v-btn>
@@ -33,7 +28,6 @@ const contactName = computed(() => {
       </div>
     </div>
 
-    <!-- 消息输入区 -->
     <div class="star-input-wrap">
       <v-btn icon><v-icon>mdi-paperclip</v-icon></v-btn>
       <v-btn icon><v-icon>mdi-image</v-icon></v-btn>
@@ -54,7 +48,6 @@ const contactName = computed(() => {
     </div>
   </div>
 </template>
-
 
 <style scoped>
 .star-panel-bg {

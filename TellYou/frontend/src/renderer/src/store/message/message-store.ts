@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { ChatMessage, MessageCacheConfig, MessagePageInfo } from '@renderer/store/message/message-class'
 
 export const useMessageStore = defineStore('message', () => {
-  // 配置
   const config: MessageCacheConfig = {
     maxMessagesPerSession: 1000,
     maxCachedSessions: 5,
@@ -12,15 +11,32 @@ export const useMessageStore = defineStore('message', () => {
     cacheExpireTime: 30 * 60 * 1000
   }
 
-  // 状态：移除 currentSessionId，通过参数传递
   const messageCache = ref<Map<number, ChatMessage[]>>(new Map())
   const pageInfoCache = ref<Map<number, MessagePageInfo>>(new Map())
   const sessionAccessTime = ref<Map<number, number>>(new Map())
+  const isInitialized = ref(false)
   const isLoading = ref(false)
   const isLoadingOlder = ref(false)
   const isLoadingNewer = ref(false)
+  let loadMessageFunction: ((_: Electron.IpcRendererEvent, sessionId: number, messages: ChatMessage[]) => void) | null = null
 
-  // 计算属性：需要传入 sessionId 参数
+  const init = (): void => {
+    if (isInitialized.value === true || loadSessionFunction) return
+
+    loadMessageFunction = (_: Electron.IpcRendererEvent, sessionId: number, message: ChatMessage): void => {
+
+    }
+
+    window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
+    isInitialized.value = true
+    console.log('messageListener 初始化完成')
+  }
+  const exit = (): void => {
+    clearAllCache()
+    isInitialized.value = false
+    window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction)
+  }
+
   const getCurrentSessionMessages = (sessionId: number): ChatMessage[] => {
     if (!sessionId) return []
     return messageCache.value.get(sessionId) || []
@@ -31,31 +47,24 @@ export const useMessageStore = defineStore('message', () => {
     return pageInfoCache.value.get(sessionId) || null
   }
 
-  // 获取指定会话的消息
   const getSessionMessages = (sessionId: number): ChatMessage[] => {
     return messageCache.value.get(sessionId) || []
   }
 
-  // 获取指定会话的分页信息
   const getSessionPageInfo = (sessionId: number): MessagePageInfo | null => {
     return pageInfoCache.value.get(sessionId) || null
   }
 
-  // 🎯 设置当前会话：不维护自己的currentSessionId
   const setCurrentSession = (sessionId: number): void => {
-    // 更新访问时间
     sessionAccessTime.value.set(sessionId, Date.now())
 
-    // 如果该会话没有消息，立即加载
     if (!messageCache.value.has(sessionId)) {
       loadInitialMessages(sessionId)
     }
 
-    // 智能清理过期缓存
     cleanupExpiredCache()
   }
 
-  // 智能缓存清理
   const cleanupExpiredCache = (): void => {
     const now = Date.now()
     const sessions = Array.from(sessionAccessTime.value.entries())
@@ -82,11 +91,11 @@ export const useMessageStore = defineStore('message', () => {
     })
   }
 
-  // 加载初始消息（最新消息）
   const loadInitialMessages = async (sessionId: number): Promise<void> => {
     if (isLoading.value) return
 
     isLoading.value = true
+
     try {
       const result = await window.electronAPI.getSessionMessages(sessionId, {
         limit: config.pageSize,
@@ -111,7 +120,6 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  // 加载更早的消息（向上滚动）
   const loadOlderMessages = async (sessionId: number): Promise<boolean> => {
     if (isLoadingOlder.value) return false
 
@@ -154,7 +162,6 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  // 加载更新的消息（向下滚动或新消息）
   const loadNewerMessages = async (sessionId: number): Promise<boolean> => {
     if (isLoadingNewer.value) return false
 
@@ -197,7 +204,6 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  // 添加新消息
   const addMessage = (sessionId: number, message: ChatMessage): void => {
     const currentMessages = messageCache.value.get(sessionId) || []
     const newMessages = [message, ...currentMessages]
@@ -218,7 +224,6 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  // 预加载检查（滚动时调用）
   const checkPreload = (sessionId: number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {
     const pageInfo = pageInfoCache.value.get(sessionId)
     if (!pageInfo) return
@@ -232,7 +237,6 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  // 手动清理指定会话缓存
   const clearSessionCache = (sessionId: number): void => {
     messageCache.value.delete(sessionId)
     pageInfoCache.value.delete(sessionId)
@@ -240,7 +244,6 @@ export const useMessageStore = defineStore('message', () => {
     console.log(`手动清理缓存: 会话 ${sessionId}`)
   }
 
-  // 清理所有缓存
   const clearAllCache = (): void => {
     messageCache.value.clear()
     pageInfoCache.value.clear()
@@ -248,30 +251,17 @@ export const useMessageStore = defineStore('message', () => {
     console.log('清理所有缓存')
   }
 
-  // 获取缓存统计信息
-  const getCacheStats = (): {
-    cachedSessions: number
-    totalMessages: number
-    sessionAccessTimes: Record<string, number>
-  } => {
-    return {
-      cachedSessions: messageCache.value.size,
-      totalMessages: Array.from(messageCache.value.values()).reduce((sum, messages) => sum + messages.length, 0),
-      sessionAccessTimes: Object.fromEntries(sessionAccessTime.value)
-    }
-  }
-
   return {
-    // 状态
     isLoading,
     isLoadingOlder,
     isLoadingNewer,
 
-    // 计算属性（需要传入sessionId）
+    init,
+    exit,
+
     getCurrentSessionMessages,
     getCurrentPageInfo,
 
-    // 方法
     getSessionMessages,
     getSessionPageInfo,
     setCurrentSession,
@@ -282,6 +272,5 @@ export const useMessageStore = defineStore('message', () => {
     checkPreload,
     clearSessionCache,
     clearAllCache,
-    getCacheStats
   }
 })
