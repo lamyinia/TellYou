@@ -21,7 +21,7 @@ if (process.contextIsolated) {
       updateSessionLastMessage: (sessionId, content, time) => electron.ipcRenderer.invoke("update-session-last-message", sessionId, content, time),
       toggleSessionPin: (sessionId) => electron.ipcRenderer.invoke("toggle-session-pin", sessionId),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
-      getSessionMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-message-by-sessionId", sessionId, obj)
+      requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-message-by-sessionId", sessionId, obj)
     });
   } catch (error) {
     console.error(error);

@@ -13,10 +13,10 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
   <div class="msg-row" :class="{ other: !isSelf }">
     <template v-if="isSelf">
       <Avatar :url="props.message.senderAvatar" :name="props.message.senderName" side="left" />
-      <img class="image" :src="props.message.content" alt="image" />
+      <div class="bubble left">{{ props.message.content }}</div>
     </template>
     <template v-else>
-      <img class="image" :src="props.message.content" alt="image" />
+      <div class="bubble right">{{ props.message.content }}</div>
       <Avatar :url="props.message.senderAvatar" :name="props.message.senderName" side="right" />
     </template>
   </div>
@@ -28,10 +28,24 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
   align-items: flex-end;
 }
 .msg-row.other { justify-content: flex-end; }
-.image {
-  max-width: 240px;
-  max-height: 240px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(31, 38, 135, 0.18);
+.bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  max-width: 60%;
+  font-size: 0.95rem;
+  word-break: break-all;
+  box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.18);
+}
+.bubble.left {
+  background: rgba(255,255,255,0.12);
+  color: #e9f1f4;
+  border-top-left-radius: 4px;
+  margin-right: 8px;
+}
+.bubble.right {
+  background: linear-gradient(135deg, #3949ab 60%, #5c6bc0 100%);
+  color: #fff;
+  border-top-right-radius: 4px;
+  margin-left: 8px;
 }
 </style>

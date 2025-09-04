@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { Session } from '@renderer/store/session/session-class'
+import { Session } from '@renderer/status/session/session-class'
 
 declare global {
   interface Window {
@@ -23,7 +23,7 @@ declare global {
       updateSessionLastMessage: (sessionId: number, content: string, time: Date) => Promise<boolean>
       toggleSessionPin: (sessionId: number) => Promise<boolean>
       addSession: (session: Session) => Promise<boolean>
-      getSessionMessages: (sessionId: number, obj: any) => Promise<any>
+      requestMessages: (sessionId: number, obj: any) => Promise<any>
     }
   }
   interface ImportMetaEnv {

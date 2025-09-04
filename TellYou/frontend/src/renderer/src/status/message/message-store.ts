@@ -1,12 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { ChatMessage, MessageCacheConfig, MessagePageInfo } from '@renderer/store/message/message-class'
+import {
+  ChatMessage,
+  MessageCacheConfig,
+  MessagePageInfo,
+  MessagesResponse
+} from '@renderer/status/message/message-class'
 
 export const useMessageStore = defineStore('message', () => {
   const config: MessageCacheConfig = {
     maxMessagesPerSession: 1000,
     maxCachedSessions: 5,
-    pageSize: 50,
+    pageSize: 20,
     preloadThreshold: 10,
     cacheExpireTime: 30 * 60 * 1000
   }
@@ -18,13 +23,13 @@ export const useMessageStore = defineStore('message', () => {
   const isLoading = ref(false)
   const isLoadingOlder = ref(false)
   const isLoadingNewer = ref(false)
-  let loadMessageFunction: ((_: Electron.IpcRendererEvent, sessionId: number, messages: ChatMessage[]) => void) | null = null
+  let loadMessageFunction: ((_: Electron.IpcRendererEvent, sessionId: number, messages: ChatMessage) => void) | null = null
 
   const init = (): void => {
-    if (isInitialized.value === true || loadSessionFunction) return
+    if (isInitialized.value === true || loadMessageFunction) return
 
     loadMessageFunction = (_: Electron.IpcRendererEvent, sessionId: number, message: ChatMessage): void => {
-
+      addMessage(sessionId, message)
     }
 
     window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
@@ -34,7 +39,7 @@ export const useMessageStore = defineStore('message', () => {
   const exit = (): void => {
     clearAllCache()
     isInitialized.value = false
-    window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction)
+    window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction!)
   }
 
   const getCurrentSessionMessages = (sessionId: number): ChatMessage[] => {
@@ -59,7 +64,7 @@ export const useMessageStore = defineStore('message', () => {
     sessionAccessTime.value.set(sessionId, Date.now())
 
     if (!messageCache.value.has(sessionId)) {
-      loadInitialMessages(sessionId)
+      loadMessagesById(sessionId)
     }
 
     cleanupExpiredCache()
@@ -91,16 +96,18 @@ export const useMessageStore = defineStore('message', () => {
     })
   }
 
-  const loadInitialMessages = async (sessionId: number): Promise<void> => {
+  const loadMessagesById = async (sessionId: number): Promise<void> => {
     if (isLoading.value) return
 
     isLoading.value = true
 
     try {
-      const result = await window.electronAPI.getSessionMessages(sessionId, {
+      const result: MessagesResponse = await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         direction: 'newest'
       })
+
+      console.log(result)
 
       messageCache.value.set(sessionId, result.messages)
 
@@ -128,7 +135,7 @@ export const useMessageStore = defineStore('message', () => {
 
     isLoadingOlder.value = true
     try {
-      const result = await window.electronAPI.getSessionMessages(sessionId, {
+      const result = await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         beforeId: pageInfo.oldestMessageId,
         direction: 'older'
@@ -170,7 +177,7 @@ export const useMessageStore = defineStore('message', () => {
 
     isLoadingNewer.value = true
     try {
-      const result = await window.electronAPI.getSessionMessages(sessionId, {
+      const result = await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         afterId: pageInfo.newestMessageId,
         direction: 'newer'
@@ -265,7 +272,7 @@ export const useMessageStore = defineStore('message', () => {
     getSessionMessages,
     getSessionPageInfo,
     setCurrentSession,
-    loadInitialMessages,
+    loadMessagesById,
     loadOlderMessages,
     loadNewerMessages,
     addMessage,

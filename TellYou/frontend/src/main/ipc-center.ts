@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { selectSessions } from '@main/sqlite/dao/session-dao'
-import { Session } from '@renderer/store/session/session-class'
+import { Session } from '@renderer/status/session/session-class'
 
 export const onLoadSessionData = ():void => {
   ipcMain.on('loadSessionData', async (event) => {

@@ -29,6 +29,7 @@
     "electron-store": "^10.1.0",
     "js-cookie": "^3.0.5",
     "js-md5": "^0.8.3",
+    "json-bigint": "^1.0.0",
     "log4js": "^6.9.1",
     "pinia": "^3.0.3",
     "sqlite3": "^5.1.7",

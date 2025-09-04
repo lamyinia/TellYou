@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { SessionManager, Session } from '@renderer/store/session/session-class'
+import { SessionManager, Session } from '@renderer/status/session/session-class'
 
 /**
  * 聚合会话和联系的状态管理工具类，方法有添加会话、删除会话、确定置顶、取消置顶、从sqlite加载数据、标记会话已
@@ -37,7 +37,7 @@ export const useSessionStore = defineStore('session', () => {
   const exit = (): void => {
     sessionManager.value.clear()
     isInitialized.value = false
-    window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction)
+    window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction!)
   }
 
 

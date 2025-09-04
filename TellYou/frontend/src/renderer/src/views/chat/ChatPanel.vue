@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { Session } from '@renderer/store/session/session-class'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import type { Session } from '@renderer/status/session/session-class'
+import { useMessageStore } from '@renderer/status/message/message-store'
+import TextMessage from '@renderer/views/chat/TextMessage.vue'
+import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
+
 const message = ref('')
 const sendMessage = (): void => {
   message.value = ''
@@ -8,6 +12,81 @@ const sendMessage = (): void => {
 
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
+
+const messageStore = useMessageStore()
+messageStore.init()
+
+const currentSessionId = computed(() => props.currentContact?.sessionId || 0)
+
+const listRef = ref<HTMLElement | null>(null)
+const isFirstLoad = ref(true)
+
+const scrollToBottom = async (): Promise<void> => {
+  if (!listRef.value) return
+  await nextTick()
+  listRef.value.scrollTop = listRef.value.scrollHeight
+  await new Promise<void>((resolve) => requestAnimationFrame(() => {
+    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+    resolve()
+  }))
+}
+
+watch(currentSessionId, (id) => {
+  if (id > 0) {
+    isFirstLoad.value = true
+    messageStore.setCurrentSession(id)
+  }
+}, { immediate: true })
+
+const messages = computed(() => {
+  const id = currentSessionId.value
+  if (!id) return []
+  return messageStore.getCurrentSessionMessages(id)
+})
+
+// 显示顺序：底部是最新消息
+const displayedMessages = computed(() => [...messages.value].reverse())
+
+// 首次加载后滚动到底部
+watch(messages, async (val) => {
+  if (!listRef.value) return
+  if (isFirstLoad.value && val.length > 0) {
+    await scrollToBottom()
+    isFirstLoad.value = false
+  }
+}, { deep: true })
+
+onMounted(async () => {
+  await scrollToBottom()
+})
+
+const preloadThreshold = 80
+
+const onScroll = async (): Promise<void> => {
+  const el = listRef.value
+  const sessionId = currentSessionId.value
+  if (!el || !sessionId) return
+
+  const { scrollTop, scrollHeight, clientHeight } = el
+
+  // 触顶：加载更早的消息，保持视觉位置
+  if (scrollTop <= preloadThreshold) {
+    const prevScrollHeight = scrollHeight
+    const prevTop = scrollTop
+    const loaded = await messageStore.loadOlderMessages(sessionId)
+    if (loaded) {
+      await nextTick()
+      const diff = (listRef.value!.scrollHeight - prevScrollHeight)
+      listRef.value!.scrollTop = prevTop + diff
+    }
+  }
+
+  // 触底：加载更新的消息（如果有）
+  const distanceToBottom = scrollHeight - scrollTop - clientHeight
+  if (distanceToBottom <= preloadThreshold) {
+    await messageStore.loadNewerMessages(sessionId)
+  }
+}
 </script>
 
 <template>
@@ -21,11 +100,12 @@ const contactName = computed(() => props.currentContact?.contactName || '你还�
       </div>
     </div>
 
-    <div class="star-messages">
-      <div class="text-center text-caption grey--text">今天 14:30</div>
-      <div class="star-message" v-for="i in 1" :key="i">
-        <div class="star-bubble">消息 {{ i }}</div>
-      </div>
+    <div class="star-messages" ref="listRef" @scroll="onScroll">
+      <template v-for="msg in displayedMessages" :key="msg.id">
+        <TextMessage v-if="msg.messageType === 'text'" :message="msg" />
+        <ImageMessage v-else-if="msg.messageType === 'image'" :message="msg" />
+        <TextMessage v-else :message="msg" />
+      </template>
     </div>
 
     <div class="star-input-wrap">
@@ -78,24 +158,11 @@ const contactName = computed(() => props.currentContact?.contactName || '你还�
 .star-messages {
   flex: 1;
   padding: 24px 32px;
+  padding-bottom: 120px; /* 预留输入区高度，避免被遮挡 */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-.star-message {
-  display: flex;
-  align-items: flex-end;
-}
-.star-bubble {
-  background: linear-gradient(135deg, #3949ab 60%, #5c6bc0 100%);
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.18);
-  max-width: 60%;
-  font-size: 1rem;
-  word-break: break-all;
+  gap: 12px;
 }
 .star-input-wrap {
   position: absolute;
@@ -108,6 +175,7 @@ const contactName = computed(() => props.currentContact?.contactName || '你还�
   background: linear-gradient(0deg, rgba(13,19,61,0.95) 80%, rgba(13,19,61,0.0) 100%);
   z-index: 3;
   border-radius: 0 0 0 18px;
+  min-height: 88px; /* 固定最小高度便于上方留白计算 */
 }
 .star-input {
   flex: 1;

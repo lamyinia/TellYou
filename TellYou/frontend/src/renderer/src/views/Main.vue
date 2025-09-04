@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import RightNavBar from '../components/RightNavBar.vue'
 import { onMounted, onUnmounted } from 'vue'
-import { useSessionStore } from '@renderer/store/session/session-store'
-import { useMessageStore } from '@renderer/store/message/message-store'
+import { useSessionStore } from '@renderer/status/session/session-store'
+import { useMessageStore } from '@renderer/status/message/message-store'
 
 const sessionStore = useSessionStore()
 const messageStore = useMessageStore()

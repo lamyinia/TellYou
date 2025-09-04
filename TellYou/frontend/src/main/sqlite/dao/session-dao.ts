@@ -1,4 +1,4 @@
-import { Session } from '../../../renderer/src/store/session/session-class'
+import { Session } from '@renderer/status/session/session-class'
 import { queryAll } from '../sqlite-operation'
 
 const selectSessions = async (): Promise<Session[]> => {

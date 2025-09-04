@@ -28,7 +28,7 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
       toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
-      getSessionMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj)
+      requestMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj)
     })
   } catch (error) {
     console.error(error)

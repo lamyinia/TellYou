@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useSessionStore } from '@renderer/store/session/session-store'
-import type { Session } from '@renderer/store/session/session-class'
+import { useSessionStore } from '@renderer/status/session/session-store'
+import type { Session } from '@renderer/status/session/session-class'
 import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '@renderer/utils/process'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
 
-const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void }>()
+const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void}>()
 const selectContact = (contact: Session): void => {
   emit('contact-selected', contact)
 }

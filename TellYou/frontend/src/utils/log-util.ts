@@ -40,7 +40,6 @@ export class Logger {
     this.logFile = path.join(this.logDir, `tellyou-${new Date().toISOString().split('T')[0]}.log`)
     this.enableColors = true
 
-    // 确保日志目录存在
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true })
     }
@@ -49,7 +48,6 @@ export class Logger {
   private ensureConsoleEncoding(): void {
     if (process.platform === 'win32') {
       try {
-        // 启用ANSI颜色支持
         execSync('reg add HKEY_CURRENT_USER\\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f', { stdio: 'ignore' })
       } catch {
 

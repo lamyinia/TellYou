@@ -31,6 +31,8 @@ onUnmounted(() => {
 
 const onLogin = async () => {
   try {
+    loading.value = true
+
     const res = await instance.post(api.login, {
       email: username.value,
       password: password.value
@@ -39,10 +41,12 @@ const onLogin = async () => {
 
     if (token !== null){
       userStore.setToken(token)
+
       const uid: string = res.data.data?.uid;
       if (uid !== null){
+        userStore.setId(parseInt(uid))
+        console.log(res.data)
         console.log(uid + ":" + userStore.token)
-        loading.value = true
         window.electronAPI.send('LoginSuccess', uid)
       }
     } else {
