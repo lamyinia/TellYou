@@ -1,5 +1,7 @@
 package org.com.modules.session.domain.vo.resp;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -15,21 +17,23 @@ import java.util.Map;
 public class MessageResp implements Serializable {
     private String messageId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long sessionId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long sequenceNumber;
 
-    private String messageType;
+    private Integer messageType;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long senderId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long toUserId;
 
     private String content;
 
     private String adjustedTimestamp;
-
-    private Boolean isRecalled;
 
     private Map<String, Object> extra;
 }

@@ -89,11 +89,11 @@ public class CursorUtil {
             String cursorField) {
 /*
         使用示例：
-        CursorPageResp<MessageMailboxDocument> result = CursorUtil.getCursorPageByMongoDB(
+        CursorPageResp<MessageDoc> result = CursorUtil.getCursorPageByMongoDB(
             mongoTemplate,
             request,
             "message_mailbox",
-            MessageMailboxDocument.class,
+            MessageDoc.class,
             criteria -> criteria.and("sessionId").is(sessionId),
             "createTime"
         );

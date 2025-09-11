@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const fse = require('fs-extra');
 const NODE_ENV = process.env.NODE_ENV

@@ -1,8 +1,8 @@
 const add_tables = [
   'create table if not exists sessions(' +
-  '   session_id integer primary key,' +
+  '   session_id text primary key,' +
   '   session_type integer not null,' + // 1:单聊 2:群聊 3:系统
-  '   contact_id integer not null,' + // 联系人ID（用户ID或群组ID）
+  '   contact_id text not null,' + // 联系人ID（用户ID或群组ID）
   '   contact_type integer not null,' + // 1:用户 2:群组
   '   contact_name text,' + // 联系人名称
   '   contact_avatar text,' + // 联系人头像
@@ -27,14 +27,15 @@ const add_tables = [
 
   'create table if not exists messages(' +
   '   id integer primary key autoincrement,' +
-  '   session_id integer not null,' +
-  '   sequence_id integer not null,' +
-  '   sender_id integer not null,' +
-  '   sender_name text,' + // 发送者昵称（缓存）
+  '   session_id text not null,' +
+  '   msg_id text not null,' +
+  '   sequence_id text not null,' +
+  '   sender_id text not null,' +
+  '   sender_name text,' +
   '   msg_type integer not null,' + // 1:文本 2:图片 3:语音 4:视频 5:文件 6:红包
   '   is_recalled integer default 0,' +
   '   text text,' +
-  '   ext_data text,' + // JSON字符串存储额外信息
+  '   ext_data text,' +
   '   send_time datetime not null,' +
   '   is_read integer default 0,' +
   '   unique(session_id, sequence_id)' +
@@ -42,15 +43,15 @@ const add_tables = [
 
   'create table if not exists blacklist(' +
   '   id integer primary key autoincrement,' +
-  '   target_id integer not null,' +
+  '   target_id text not null,' +
   '   target_type integer not null,' + // 1:用户 2:群组
   '   create_time datetime' +
   ');',
 
   'create table if not exists contact_applications(' +
   '   id integer primary key autoincrement,' +
-  '   apply_user_id integer not null,' +
-  '   target_id integer not null,' +
+  '   apply_user_id text not null,' +
+  '   target_id text not null,' +
   '   contact_type integer not null,' + // 0:好友 1:群组
   '   status integer,' + // 0:待处理 1:已同意 2:已拒绝 3:已拉黑
   '   apply_info text,' +

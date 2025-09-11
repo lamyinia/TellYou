@@ -11,10 +11,10 @@ const WebSocket = require("ws");
 const __Store = require("electron-store");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
-  "create table if not exists sessions(   session_id integer primary key,   session_type integer not null,   contact_id integer not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
-  "create table if not exists messages(   id integer primary key autoincrement,   session_id integer not null,   sequence_id integer not null,   sender_id integer not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
-  "create table if not exists blacklist(   id integer primary key autoincrement,   target_id integer not null,   target_type integer not null,   create_time datetime);",
-  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id integer not null,   target_id integer not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
+  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
+  "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
+  "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
+  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
@@ -276,6 +276,9 @@ const insertOrReplace = (tableName, data) => {
   console.log(data);
   return insert("insert or replace into", tableName, data);
 };
+const insertOrIgnore = (tableName, data) => {
+  return insert("insert or ignore into", tableName, data);
+};
 const update = (tableName, data, paramData) => {
   const columnMap = globalColumnMap[tableName];
   const columns = [];
@@ -336,6 +339,131 @@ const initTableColumnsMap = async () => {
     globalColumnMap[tables[i].name] = columnsMapItem;
   }
 };
+const getMessageId = () => {
+  const time = BigInt(Date.now());
+  const rand = BigInt(Math.floor(Math.random() * 1e6));
+  return (time << 20n | rand).toString();
+};
+const addLocalMessage = async (data) => {
+  const changes = await insertOrIgnore("messages", {
+    sessionId: data.sessionId,
+    sequenceId: String(data.sequenceId),
+    senderId: data.senderId,
+    msgId: data.messageId,
+    senderName: data.senderName ?? "",
+    msgType: data.msgType,
+    isRecalled: 0,
+    text: data.text ?? "",
+    extData: data.extData ?? "",
+    sendTime: data.sendTime,
+    isRead: data.isRead ?? 1
+  });
+  if (!changes) return 0;
+  const rows = await queryAll(
+    "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
+    [data.sessionId, String(data.sequenceId)]
+  );
+  return rows[0]?.id ?? 0;
+};
+const getMessageBySessionId = async (sessionId, options) => {
+  try {
+    const limit = Math.max(1, Math.min(Number(options?.limit) || 50, 200));
+    const direction = options?.direction || "newest";
+    const beforeId = options?.beforeId;
+    const afterId = options?.afterId;
+    let where = "WHERE session_id = ?";
+    const params = [sessionId];
+    if (direction === "older" && beforeId) {
+      where += " AND id < ?";
+      params.push(beforeId);
+    }
+    if (direction === "newer" && afterId) {
+      where += " AND id > ?";
+      params.push(afterId);
+    }
+    const sql = `
+        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
+               text, ext_data, send_time, is_read
+        FROM messages
+        ${where}
+        ORDER BY send_time DESC, id DESC
+        LIMIT ${limit}
+      `;
+    const rows = await queryAll(sql, params);
+    const messages = rows.map((r) => ({
+      id: r.id,
+      sessionId: r.sessionId,
+      content: r.text ?? "",
+      messageType: (() => {
+        switch (r.msgType) {
+          case 1:
+            return "text";
+          case 2:
+            return "image";
+          case 5:
+            return "file";
+          default:
+            return "system";
+        }
+      })(),
+      senderId: r.senderId,
+      senderName: r.senderName || "",
+      senderAvatar: "",
+      timestamp: new Date(r.sendTime),
+      isRead: !!r.isRead
+    }));
+    const totalCountRow = await queryAll(
+      "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
+      [sessionId]
+    );
+    const totalCount = totalCountRow[0]?.total || 0;
+    let hasMore = false;
+    if (messages.length > 0) {
+      const lastId = messages[messages.length - 1].id;
+      const moreRow = await queryAll(
+        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND id < ?",
+        [sessionId, lastId]
+      );
+      hasMore = (moreRow[0]?.cnt || 0) > 0;
+    }
+    return { messages, hasMore, totalCount };
+  } catch (error) {
+    console.error("获取会话消息失败:", error);
+    return { messages: [], hasMore: false, totalCount: 0 };
+  }
+};
+const handleMessage = async (msg) => {
+  console.log(msg);
+  const snap = Number(msg.adjustedTimestamp);
+  const insertId = await addLocalMessage({
+    sessionId: msg.sessionId,
+    sequenceId: msg.sequenceNumber,
+    senderId: msg.senderId,
+    messageId: msg.messageId,
+    senderName: msg.fromName ?? "",
+    msgType: 1,
+    text: String(msg.content ?? ""),
+    extData: JSON.stringify(msg.extra),
+    sendTime: new Date(snap).toISOString(),
+    isRead: 1
+  });
+  if (!insertId || insertId <= 0) {
+    return;
+  }
+  const chatMsg = {
+    id: Number(insertId) || 0,
+    sessionId: msg.sessionId,
+    content: String(msg.content ?? ""),
+    messageType: "text",
+    senderId: msg.senderId,
+    senderName: msg.fromName ?? "",
+    senderAvatar: "",
+    timestamp: new Date(snap),
+    isRead: true
+  };
+  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+  mainWindow?.webContents.send("loadMessageDataCallback", msg.sessionId, chatMsg);
+};
 let ws = null;
 let maxReConnectTimes = null;
 let lockReconnect = false;
@@ -346,6 +474,32 @@ const initWs = () => {
   logger.debug(`wsUrl 连接的url地址:  ${wsUrl}`);
   needReconnect = true;
   maxReConnectTimes = 20;
+};
+const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
+const sendText = (payload) => {
+  if (!isWsOpen()) {
+    logger.warn("WebSocket 未连接，发送取消");
+    throw new Error("WebSocket is not connected");
+  }
+  const fromUId = String(payload.fromUId || "");
+  const toUserId = String(payload.toUserId || "");
+  const sessionId = String(payload.sessionId || "");
+  const content = payload.content;
+  if (!fromUId || !sessionId) {
+    logger.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
+    throw new Error("Missing required fields: fromUId/sessionId");
+  }
+  const base = {
+    messageId: getMessageId(),
+    type: 1,
+    fromUId,
+    toUserId,
+    sessionId,
+    content,
+    timestamp: Date.now(),
+    extra: { platform: "desktop" }
+  };
+  ws.send(JSON.stringify(base));
 };
 const reconnect = () => {
   if (!needReconnect) {
@@ -411,6 +565,12 @@ const connectWs = () => {
   });
   ws.on("message", async (data) => {
     console.log("收到消息:", data.toString());
+    const msg = JSON.parse(data);
+    switch (msg.messageType) {
+      case 1:
+        await handleMessage(msg);
+        break;
+    }
   });
 };
 const selectSessions = async () => {
@@ -683,6 +843,17 @@ const invokeHandle = () => {
     store.clear();
     return true;
   });
+  electron.ipcMain.handle("ws-send", async (_, msg) => {
+    console.log(msg);
+    try {
+      sendText(msg);
+      console.log("发送成功");
+      return true;
+    } catch (error) {
+      console.error("发送消息失败:", error);
+      return false;
+    }
+  });
   electron.ipcMain.handle("get-sessions-with-order", async () => {
     try {
       const sql = `
@@ -707,7 +878,7 @@ const invokeHandle = () => {
             updated_at       = ?
         WHERE session_id = ?
       `;
-      const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), sessionId]);
+      const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), String(sessionId)]);
       return result > 0;
     } catch (error) {
       console.error("更新会话最后消息失败:", error);
@@ -721,73 +892,15 @@ const invokeHandle = () => {
         SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
         WHERE session_id = ?
       `;
-      const result = await sqliteRun(sql, [sessionId]);
+      const result = await sqliteRun(sql, [String(sessionId)]);
       return result > 0;
     } catch (error) {
       console.error("切换置顶状态失败:", error);
       return false;
     }
   });
-  electron.ipcMain.handle("get-message-by-sessionId", async (_, sessionId, options) => {
-    try {
-      const limit = Math.max(1, Math.min(Number(options?.limit) || 50, 200));
-      const direction = options?.direction || "newest";
-      const beforeId = options?.beforeId;
-      const afterId = options?.afterId;
-      let where = "WHERE session_id = ?";
-      const params = [sessionId];
-      if (direction === "older" && beforeId) {
-        where += " AND id < ?";
-        params.push(beforeId);
-      }
-      if (direction === "newer" && afterId) {
-        where += " AND id > ?";
-        params.push(afterId);
-      }
-      const sql = `
-        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
-               text, ext_data, send_time, is_read
-        FROM messages
-        ${where}
-        ORDER BY send_time DESC, id DESC
-        LIMIT ${limit}
-      `;
-      const rows = await queryAll(sql, params);
-      const messages = rows.map((r) => ({
-        id: r.id,
-        sessionId: r.sessionId,
-        content: r.text ?? "",
-        messageType: (() => {
-          switch (r.msgType) {
-            case 1:
-              return "text";
-            case 2:
-              return "image";
-            case 5:
-              return "file";
-            default:
-              return "system";
-          }
-        })(),
-        senderId: r.senderId,
-        senderName: r.senderName || "",
-        senderAvatar: "",
-        timestamp: new Date(r.sendTime),
-        isRead: !!r.isRead
-      }));
-      const totalCountRow = await queryAll("SELECT COUNT(1) as total FROM messages WHERE session_id = ?", [sessionId]);
-      const totalCount = totalCountRow[0]?.total || 0;
-      let hasMore = false;
-      if (messages.length > 0) {
-        const lastId = messages[messages.length - 1].id;
-        const moreRow = await queryAll("SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND id < ?", [sessionId, lastId]);
-        hasMore = (moreRow[0]?.cnt || 0) > 0;
-      }
-      return { messages, hasMore, totalCount };
-    } catch (error) {
-      console.error("获取会话消息失败:", error);
-      return { messages: [], hasMore: false, totalCount: 0 };
-    }
+  electron.ipcMain.handle("get-message-by-sessionId", (_, sessionId, options) => {
+    return getMessageBySessionId(String(sessionId), options);
   });
 };
 exports.store = store;

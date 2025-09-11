@@ -13,12 +13,12 @@ if (process.contextIsolated) {
 
     contextBridge.exposeInMainWorld('electronAPI', {
       storeGet: (key: string) => ipcRenderer.invoke('store-get', key),
-      storeSet: (key: string, value: any) => ipcRenderer.invoke('store-set', key, value),
+      storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store-set', key, value),
       storeDelete: (key: string) => ipcRenderer.invoke('store-delete', key),
       storeClear: () => ipcRenderer.invoke('store-clear'),
-      send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
-      on: (channel: string, callback: (...args: any[]) => void) => ipcRenderer.on(channel, callback),
-      removeListener: (channel: string, callback: (...args: any[]) => void) => ipcRenderer.removeListener(channel, callback),
+      send: (channel: string, ...args: unknown[]) => ipcRenderer.send(channel, ...args),
+      on: (channel: string, callback: (...args: unknown[]) => void) => ipcRenderer.on(channel, callback),
+      removeListener: (channel: string, callback: (...args: unknown[]) => void) => ipcRenderer.removeListener(channel, callback),
 
       onWsConnected: (callback) => ipcRenderer.on('ws-connected', callback),
       offWsConnected: (callback) => ipcRenderer.removeListener('ws-connected', callback),
@@ -28,7 +28,9 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
       toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
-      requestMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj)
+      requestMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj),
+
+      wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg)
     })
   } catch (error) {
     console.error(error)

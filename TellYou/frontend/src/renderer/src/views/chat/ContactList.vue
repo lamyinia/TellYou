@@ -2,13 +2,16 @@
 import { computed } from 'vue'
 import { useSessionStore } from '@renderer/status/session/session-store'
 import type { Session } from '@renderer/status/session/session-class'
-import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '@renderer/utils/process'
+import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '../../../../utils/process'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
 
-const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void}>()
+const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void }>()
 const selectContact = (contact: Session): void => {
+  // 确保会话 ID 为字符串（Session 已定义为 string，这里只是兜底）
+  contact.sessionId = String(contact.sessionId)
+  contact.contactId = String(contact.contactId)
   emit('contact-selected', contact)
 }
 </script>

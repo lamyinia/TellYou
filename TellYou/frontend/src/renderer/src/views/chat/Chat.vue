@@ -1,3 +1,16 @@
+<script setup lang="ts">
+import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
+import ContactList from '@renderer/views/chat/ContactList.vue'
+import { randomStarStyle } from '@renderer/assets/StarFlink'
+import { ref } from 'vue'
+import type { Session } from '@renderer/status/session/session-class'
+
+const selectedContact = ref<Session | null>(null)
+const handleContactSelected = (contact: Session): void => {
+  selectedContact.value = contact
+}
+</script>
+
 <template>
   <div class="star-bg">
     <div class="chat-container">
@@ -14,19 +27,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
-import ContactList from '@renderer/views/chat/ContactList.vue'
-import { randomStarStyle } from '@renderer/assets/StarFlink'
-import { ref } from 'vue'
-import type { Session } from '@renderer/status/session/session-class'
-
-const selectedContact = ref<Session | null>(null)
-const handleContactSelected = (contact: Session): void => {
-  selectedContact.value = contact
-}
-</script>
 
 <style scoped>
 .star-bg {

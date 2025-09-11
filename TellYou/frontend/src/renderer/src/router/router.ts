@@ -1,4 +1,4 @@
-import {createRouter, createWebHistory, RouteRecordRaw} from 'vue-router'
+import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -19,7 +19,7 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@renderer/views/Main.vue"),
     children: [
       {
-        path: "/chat", name: "聊天界面", component: () => import("@renderer/views/chat/ChatView.vue")
+        path: "/chat", name: "聊天界面", component: () => import("@renderer/views/chat/Chat.vue")
       },
       {
         path: "/contactManagement", name: "联系人管理", component: () => import("@renderer/views/relation/ContactManagementView.vue")
@@ -32,7 +32,7 @@ const routes: Array<RouteRecordRaw> = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.VITE_BASE_URL),
+  history: createWebHashHistory(import.meta.env.VITE_BASE_URL),
   routes
 })
 

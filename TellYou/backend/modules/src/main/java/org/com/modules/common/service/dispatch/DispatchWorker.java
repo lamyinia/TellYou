@@ -7,7 +7,6 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.service.retry.MessageRetryService;
 import org.com.modules.session.domain.vo.resp.MessageResp;
-import org.com.modules.session.utils.MessageConvertUtil;
 import org.com.modules.user.domain.vo.resp.ContactApplyResp;
 import org.com.tools.constant.MQConstant;
 import org.redisson.api.RTopic;
@@ -28,7 +27,6 @@ public class DispatchWorker implements RocketMQListener<SubscribedItem> {
 
     private final RedissonClient redissonClient;
     private final MessageRetryService messageRetryService;
-    private final MessageConvertUtil messageConvertUtil;
 
     @PostConstruct
     public void deliverOnSubscriber(){

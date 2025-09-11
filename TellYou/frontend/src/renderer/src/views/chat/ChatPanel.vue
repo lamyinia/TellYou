@@ -4,22 +4,32 @@ import type { Session } from '@renderer/status/session/session-class'
 import { useMessageStore } from '@renderer/status/message/message-store'
 import TextMessage from '@renderer/views/chat/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
+import { useUserStore } from '@main/store/persist/user-store'
 
 const message = ref('')
-const sendMessage = (): void => {
-  message.value = ''
+const sendMessage = async (): Promise<void> => {
+  const userStore = useUserStore()
+  const fromUId = userStore.myId
+  const current = props.currentContact
+  if (!fromUId || !current || !message.value) return
+
+  const payload = {
+    fromUId,
+    toUserId: current.contactId,
+    sessionId: current.sessionId,
+    content: message.value
+  }
+  const ok = await window.electronAPI.wsSend(payload)
+  if (ok) message.value = ''
 }
 
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
-
 const messageStore = useMessageStore()
-messageStore.init()
-
-const currentSessionId = computed(() => props.currentContact?.sessionId || 0)
-
+const currentSessionId = computed(() => props.currentContact?.sessionId || '')
 const listRef = ref<HTMLElement | null>(null)
 const isFirstLoad = ref(true)
+const preloadThreshold = 80
 
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
@@ -32,22 +42,22 @@ const scrollToBottom = async (): Promise<void> => {
 }
 
 watch(currentSessionId, (id) => {
-  if (id > 0) {
+  if (id) {
     isFirstLoad.value = true
-    messageStore.setCurrentSession(id)
+    messageStore.setCurrentSession(String(id))
   }
 }, { immediate: true })
 
 const messages = computed(() => {
   const id = currentSessionId.value
   if (!id) return []
-  return messageStore.getCurrentSessionMessages(id)
+  const msgs = messageStore.getCurrentSessionMessages(String(id))
+  console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
+  return msgs
 })
 
-// 显示顺序：底部是最新消息
 const displayedMessages = computed(() => [...messages.value].reverse())
 
-// 首次加载后滚动到底部
 watch(messages, async (val) => {
   if (!listRef.value) return
   if (isFirstLoad.value && val.length > 0) {
@@ -60,7 +70,6 @@ onMounted(async () => {
   await scrollToBottom()
 })
 
-const preloadThreshold = 80
 
 const onScroll = async (): Promise<void> => {
   const el = listRef.value
@@ -69,11 +78,10 @@ const onScroll = async (): Promise<void> => {
 
   const { scrollTop, scrollHeight, clientHeight } = el
 
-  // 触顶：加载更早的消息，保持视觉位置
   if (scrollTop <= preloadThreshold) {
     const prevScrollHeight = scrollHeight
     const prevTop = scrollTop
-    const loaded = await messageStore.loadOlderMessages(sessionId)
+    const loaded = await messageStore.loadOlderMessages(String(sessionId))
     if (loaded) {
       await nextTick()
       const diff = (listRef.value!.scrollHeight - prevScrollHeight)
@@ -81,7 +89,6 @@ const onScroll = async (): Promise<void> => {
     }
   }
 
-  // 触底：加载更新的消息（如果有）
   const distanceToBottom = scrollHeight - scrollTop - clientHeight
   if (distanceToBottom <= preloadThreshold) {
     await messageStore.loadNewerMessages(sessionId)

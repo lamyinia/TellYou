@@ -38,8 +38,6 @@ export const initTable =  async ()=> {
   await initTableColumnsMap()
 }
 
-/************************************************** 业务层意义的 sqlite 原子操作 *************************************************************/
-
 export const queryAll = (sql: string, params: unknown[]): Promise<Record<string, unknown>[]> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
@@ -146,7 +144,6 @@ export const update = (tableName: string, data: Record<string, unknown>, paramDa
   return sqliteRun(sql, params)
 }
 
-/************************************************** 业务辅助方法 *************************************************************/
 
 const toCamelCase = (str: string): string => {
   return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase())

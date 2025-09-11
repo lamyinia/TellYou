@@ -26,7 +26,7 @@ import java.util.List;
 public class DispatcherService {
     private final RedissonClient redissonClient;
     private final RocketMQTemplate rocketMQTemplate;
-    private Integer NEED_DELIVERY_BOUNDARY = 50;
+    private final Integer NEED_DELIVERY_BOUNDARY = 50;
 
     public void dispatch(DeliveryEnum deliveryEnum, Object message, List<Long> uidList){
         switch (deliveryEnum){
@@ -36,8 +36,8 @@ public class DispatcherService {
             case APPLY:
                 ContactApplyResp resp = new ContactApplyResp();
                 BeanUtils.copyProperties((ContactApply)message, resp);
-                resp.setAvatar("默认url");
-                resp.setTargetName("无名氏");
+                resp.setAvatar("默认url...");
+                resp.setTargetName("无名氏...");
 
                 dispatchApply(resp, uidList);
                 break;
@@ -45,20 +45,15 @@ public class DispatcherService {
     }
 
     private void dispatchMessage(MessageResp resp, List<Long> uidList){
-        boolean needDelivery = uidList.size() <= 5;  // 是否精准投递
-        uidList.forEach(uid -> {
-            MessageResp letter = resp;
-            letter.setToUserId(uid);
-            // TODO 写入消息信箱
-            if (needDelivery){
+        if (uidList.size() <= NEED_DELIVERY_BOUNDARY){
+            uidList.forEach(uid -> {
                 String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
                 if (node != null){
-                    redissonClient.getTopic(node).publish(letter);
+                    resp.setToUserId(uid);
+                    redissonClient.getTopic(node).publish(resp);
                 }
-            }
-        });
-
-        if (!needDelivery){
+            });
+        } else {
             rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, new SubscribedItem(uidList, resp));
         }
     }
@@ -66,7 +61,6 @@ public class DispatcherService {
         uidList.forEach(uid -> {
             ContactApplyResp letter = resp;
             letter.setDeliverId(uid);
-            // TODO 写入申请信箱
             String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
             if (node != null){
                 redissonClient.getTopic(node).publish(letter);
@@ -75,5 +69,4 @@ public class DispatcherService {
             }
         });
     }
-
 }

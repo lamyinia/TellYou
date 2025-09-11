@@ -76,10 +76,29 @@ instance.interceptors.response.use(
     return response
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // const userStore = useUserStore()
-      // userStore.clearAuthData()
-      // router.push('/login')
+    const status = error?.response?.status
+    const config = (error?.config || {}) as any
+
+    // 401/403：鉴权失败，清理并跳登录（或触发刷新逻辑，根据实际需要调整）
+    if (status === 401 || status === 403) {
+      try {
+        const userStore = useUserStore()
+        // 根据项目需要清理本地登录态
+        userStore.$reset()
+      } catch {}
+      router.push('/login')
+      return Promise.reject(error)
+    }
+
+    // 5xx：做有限次指数退避重试（仅建议用于幂等请求）
+    if (status >= 500) {
+      config.__retryCount = (config.__retryCount || 0) + 1
+      const maxRetries = 3
+      if (config.__retryCount <= maxRetries) {
+        const delays = [200, 800, 2000]
+        const delay = delays[Math.min(config.__retryCount - 1, delays.length - 1)]
+        return new Promise((resolve) => setTimeout(resolve, delay)).then(() => instance(config))
+      }
     }
 
     return Promise.reject(error)

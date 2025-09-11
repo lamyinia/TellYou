@@ -3,20 +3,18 @@ import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { instanceId, queryAll, sqliteRun } from './sqlite/sqlite-operation'
-import { initWs } from './websocket-client'
+import { initWs, sendText } from './client/websocket-client'
 import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { logger, LogLevel } from '../utils/log-util'
 import { test } from './test'
+import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
 
 const Store = __Store.default || __Store
 
-
-/************************************************** app 生命周期 *************************************************************/
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
 app.whenReady().then(() => {
-
   if (process.env.NODE_ENV === 'development') {
     logger.setLevel(LogLevel.DEBUG)
   } else {
@@ -46,7 +44,6 @@ app.on('window-all-closed', () => {
   }
 })
 
-/************************************************** app 构建逻辑 *************************************************************/
 const loginWidth: number = 596
 const loginHeight: number = 400
 const registerWidth: number = 596
@@ -184,6 +181,18 @@ const invokeHandle = ():void => {
     return true
   })
 
+  ipcMain.handle('ws-send', async (_, msg) => {
+    console.log(msg)
+    try {
+      sendText(msg)
+      console.log('发送成功')
+      return true;
+    } catch (error){
+      console.error('发送消息失败:', error)
+      return false
+    }
+  })
+
   ipcMain.handle('get-sessions-with-order', async () => {
     try {
       const sql = `
@@ -199,7 +208,7 @@ const invokeHandle = ():void => {
       return []
     }
   })
-  ipcMain.handle('update-session-last-message', async (_, sessionId: number, content: string, time: Date) => {
+  ipcMain.handle('update-session-last-message', async (_, sessionId: string | number, content: string, time: Date) => {
     try {
       const sql = `
         UPDATE sessions
@@ -208,91 +217,29 @@ const invokeHandle = ():void => {
             updated_at       = ?
         WHERE session_id = ?
       `
-      const result = await sqliteRun(sql, [content, time.toISOString(), new Date().toISOString(), sessionId])
+      const result = await sqliteRun(sql, [content, time.toISOString(), new Date().toISOString(), String(sessionId)])
       return result > 0
     } catch (error) {
       console.error('更新会话最后消息失败:', error)
       return false
     }
   })
-  ipcMain.handle('toggle-session-pin', async (_, sessionId: number) => {
+  ipcMain.handle('toggle-session-pin', async (_, sessionId: string | number) => {
     try {
       const sql = `
         UPDATE sessions
         SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
         WHERE session_id = ?
       `
-      const result = await sqliteRun(sql, [sessionId])
+      const result = await sqliteRun(sql, [String(sessionId)])
       return result > 0
     } catch (error) {
       console.error('切换置顶状态失败:', error)
       return false
     }
   })
-  ipcMain.handle('get-message-by-sessionId', async (_, sessionId: number, options: any) => {
-    try {
-      const limit = Math.max(1, Math.min(Number(options?.limit) || 50, 200))
-      const direction: 'newest' | 'older' | 'newer' = (options?.direction || 'newest')
-      const beforeId: number | undefined = options?.beforeId
-      const afterId: number | undefined = options?.afterId
-
-      let where = 'WHERE session_id = ?'
-      const params: any[] = [sessionId]
-
-      if (direction === 'older' && beforeId) {
-        where += ' AND id < ?'
-        params.push(beforeId)
-      }
-      if (direction === 'newer' && afterId) {
-        where += ' AND id > ?'
-        params.push(afterId)
-      }
-
-      const sql = `
-        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
-               text, ext_data, send_time, is_read
-        FROM messages
-        ${where}
-        ORDER BY send_time DESC, id DESC
-        LIMIT ${limit}
-      `
-
-      const rows = await queryAll(sql, params)
-
-      const messages = (rows as any[]).map((r) => ({
-        id: r.id,
-        sessionId: r.sessionId,
-        content: r.text ?? '',
-        messageType: ((): 'text' | 'image' | 'file' | 'system' => {
-          switch (r.msgType) {
-            case 1: return 'text'
-            case 2: return 'image'
-            case 5: return 'file'
-            default: return 'system'
-          }
-        })(),
-        senderId: r.senderId,
-        senderName: r.senderName || '',
-        senderAvatar: '',
-        timestamp: new Date(r.sendTime),
-        isRead: !!r.isRead
-      }))
-
-      const totalCountRow = await queryAll('SELECT COUNT(1) as total FROM messages WHERE session_id = ?', [sessionId])
-      const totalCount = (totalCountRow[0] as any)?.total || 0
-
-      let hasMore = false
-      if (messages.length > 0) {
-        const lastId = messages[messages.length - 1].id
-        const moreRow = await queryAll('SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND id < ?', [sessionId, lastId])
-        hasMore = ((moreRow[0] as any)?.cnt || 0) > 0
-      }
-
-      return { messages, hasMore, totalCount }
-    } catch (error) {
-      console.error('获取会话消息失败:', error)
-      return { messages: [], hasMore: false, totalCount: 0 }
-    }
+  ipcMain.handle('get-message-by-sessionId', (_, sessionId: string | number, options: any) => {
+    return getMessageBySessionId(String(sessionId), options)
   })
 }
 

@@ -32,6 +32,7 @@ const selectSessions = async (): Promise<Session[]> => {
   return result as unknown as Session[]
 }
 
+
 export {
   selectSessions
 }

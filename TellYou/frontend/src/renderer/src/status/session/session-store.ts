@@ -10,28 +10,29 @@ import { SessionManager, Session } from '@renderer/status/session/session-class'
 export const useSessionStore = defineStore('session', () => {
   const sessionManager = ref(new SessionManager())
   const isInitialized = ref(false)
-  let loadSessionFunction: ((_: Electron.IpcRendererEvent, sessions: Session[]) => void) | null = null
+  let loadSessionFunction: ((...args: unknown[]) => void) | null = null
 
   const sortedSessions = computed(() => sessionManager.value.getOrderedSessions())
 
   const init = ():void => {
+    console.log('sessionStore 开始初始化')
     if (isInitialized.value === true || loadSessionFunction) return
 
-    loadSessionFunction = (_: Electron.IpcRendererEvent, sessions: Session[]) => {
+    loadSessionFunction = (...args: unknown[]) => {
+      const [, sessions] = args as [Electron.IpcRendererEvent, Session[]]
       console.log('收到会话数据:', sessions.length, '条')
-      sessions.forEach(session => {
+      sessions.forEach((session) => {
         sessionManager.value.addSession(session)
       })
       console.log('会话数据已加载:', sessions.length, '条')
-
       console.log(sortedSessions.value)
     }
 
     window.electronAPI.on('loadSessionDataCallback', loadSessionFunction)
     window.electronAPI.send('loadSessionData')
 
-    this.isInitialized = true
-    console.log('session 数据初始化请求已发送')
+    isInitialized.value = true
+    console.log('sessionStore 初始化完成')
   }
 
   const exit = (): void => {
@@ -41,22 +42,22 @@ export const useSessionStore = defineStore('session', () => {
   }
 
 
-  const getSession = (sessionId: number) => {
-    return sessionManager.value.getSession(sessionId)
+  const getSession = (sessionId: string | number): Session | undefined => {
+    return sessionManager.value.getSession(String(sessionId))
   }
-  const updateSession = (sessionId: number, updates: Partial<Session>) => {
-    sessionManager.value.updateSession(sessionId, updates)
+  const updateSession = (sessionId: string | number, updates: Partial<Session>): void => {
+    sessionManager.value.updateSession(String(sessionId), updates)
   }
-  const togglePin = (sessionId: number) => {
-    sessionManager.value.togglePin(sessionId)
+  const togglePin = (sessionId: string | number): void => {
+    sessionManager.value.togglePin(String(sessionId))
   }
-  const toggleMute = (sessionId: number) => {
-    sessionManager.value.toggleMute(sessionId)
+  const toggleMute = (sessionId: string | number): void => {
+    sessionManager.value.toggleMute(String(sessionId))
   }
-  const markAsRead = (sessionId: number) => {
-    sessionManager.value.markSessionAsRead(sessionId)
+  const markAsRead = (sessionId: string | number): void => {
+    sessionManager.value.markSessionAsRead(String(sessionId))
   }
-  const searchSessions = (keyword: string) => {
+  const searchSessions = (keyword: string): Session[] => {
     return sessionManager.value.searchSessions(keyword)
   }
 

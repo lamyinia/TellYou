@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import {
   ChatMessage,
   MessageCacheConfig,
@@ -16,25 +16,28 @@ export const useMessageStore = defineStore('message', () => {
     cacheExpireTime: 30 * 60 * 1000
   }
 
-  const messageCache = ref<Map<number, ChatMessage[]>>(new Map())
-  const pageInfoCache = ref<Map<number, MessagePageInfo>>(new Map())
-  const sessionAccessTime = ref<Map<number, number>>(new Map())
+  const messageCache = reactive<Record<string, ChatMessage[]>>({})
+  const pageInfoCache = reactive<Record<string, MessagePageInfo>>({})
+  const sessionAccessTime = reactive<Record<string, number>>({})
   const isInitialized = ref(false)
   const isLoading = ref(false)
   const isLoadingOlder = ref(false)
   const isLoadingNewer = ref(false)
-  let loadMessageFunction: ((_: Electron.IpcRendererEvent, sessionId: number, messages: ChatMessage) => void) | null = null
+  let loadMessageFunction: ((...args: unknown[]) => void) | null = null
 
   const init = (): void => {
+    console.log('messageStore 开始初始化')
     if (isInitialized.value === true || loadMessageFunction) return
 
-    loadMessageFunction = (_: Electron.IpcRendererEvent, sessionId: number, message: ChatMessage): void => {
+    loadMessageFunction = (...args: unknown[]): void => {
+      const [, sessionId, message] = args as [Electron.IpcRendererEvent, string, ChatMessage]
+      console.log(message)
       addMessage(sessionId, message)
     }
 
     window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
     isInitialized.value = true
-    console.log('messageListener 初始化完成')
+    console.log('messageStore 初始化完成')
   }
   const exit = (): void => {
     clearAllCache()
@@ -42,29 +45,36 @@ export const useMessageStore = defineStore('message', () => {
     window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction!)
   }
 
-  const getCurrentSessionMessages = (sessionId: number): ChatMessage[] => {
-    if (!sessionId) return []
-    return messageCache.value.get(sessionId) || []
+  const getCurrentSessionMessages = (sessionId: string | number): ChatMessage[] => {
+    const key = String(sessionId)
+    if (!key) return []
+    const msgs = messageCache[key] || []
+    console.log(`getCurrentSessionMessages(${sessionId}):`, msgs.length, 'messages')
+    return msgs
   }
 
-  const getCurrentPageInfo = (sessionId: number): MessagePageInfo | null => {
-    if (!sessionId) return null
-    return pageInfoCache.value.get(sessionId) || null
+  const getCurrentPageInfo = (sessionId: string | number): MessagePageInfo | null => {
+    const key = String(sessionId)
+    if (!key) return null
+    return pageInfoCache[key] || null
   }
 
-  const getSessionMessages = (sessionId: number): ChatMessage[] => {
-    return messageCache.value.get(sessionId) || []
+  const getSessionMessages = (sessionId: string | number): ChatMessage[] => {
+    const key = String(sessionId)
+    return messageCache[key] || []
   }
 
-  const getSessionPageInfo = (sessionId: number): MessagePageInfo | null => {
-    return pageInfoCache.value.get(sessionId) || null
+  const getSessionPageInfo = (sessionId: string | number): MessagePageInfo | null => {
+    const key = String(sessionId)
+    return pageInfoCache[key] || null
   }
 
-  const setCurrentSession = (sessionId: number): void => {
-    sessionAccessTime.value.set(sessionId, Date.now())
+  const setCurrentSession = (sessionId: string | number): void => {
+    const key = String(sessionId)
+    sessionAccessTime[key] = Date.now()
 
-    if (!messageCache.value.has(sessionId)) {
-      loadMessagesById(sessionId)
+    if (!messageCache[key]) {
+      loadMessagesById(key)
     }
 
     cleanupExpiredCache()
@@ -72,54 +82,52 @@ export const useMessageStore = defineStore('message', () => {
 
   const cleanupExpiredCache = (): void => {
     const now = Date.now()
-    const sessions = Array.from(sessionAccessTime.value.entries())
+    const sessions = Object.entries(sessionAccessTime)
 
     sessions.sort(([, timeA], [, timeB]) => timeA - timeB)
 
     while (sessions.length > config.maxCachedSessions) {
       const [sessionId] = sessions.shift()!
 
-      messageCache.value.delete(sessionId)
-      pageInfoCache.value.delete(sessionId)
-      sessionAccessTime.value.delete(sessionId)
-
+      delete messageCache[String(sessionId)]
+      delete pageInfoCache[String(sessionId)]
+      delete sessionAccessTime[String(sessionId)]
       console.log(`清理过期缓存: 会话 ${sessionId}`)
     }
 
     sessions.forEach(([sessionId, lastAccessTime]) => {
       if (now - lastAccessTime > config.cacheExpireTime) {
-        messageCache.value.delete(sessionId)
-        pageInfoCache.value.delete(sessionId)
-        sessionAccessTime.value.delete(sessionId)
+        delete messageCache[String(sessionId)]
+        delete pageInfoCache[String(sessionId)]
+        delete sessionAccessTime[String(sessionId)]
         console.log(`清理过期缓存: 会话 ${sessionId}`)
       }
     })
   }
 
-  const loadMessagesById = async (sessionId: number): Promise<void> => {
+  const loadMessagesById = async (sessionId: string): Promise<void> => {
     if (isLoading.value) return
 
     isLoading.value = true
 
     try {
-      const result: MessagesResponse = await window.electronAPI.requestMessages(sessionId, {
+      const result = (await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         direction: 'newest'
-      })
+      })) as unknown as MessagesResponse
 
       console.log(result)
 
-      messageCache.value.set(sessionId, result.messages)
+      messageCache[String(sessionId)] = result.messages
 
-      pageInfoCache.value.set(sessionId, {
-        sessionId,
+      pageInfoCache[String(sessionId)] = {
+        sessionId: String(sessionId),
         hasMore: result.hasMore,
         hasMoreNewer: false,
         oldestMessageId: result.messages[result.messages.length - 1]?.id || null,
         newestMessageId: result.messages[0]?.id || null,
         totalCount: result.totalCount
-      })
-
+      }
     } catch (error) {
       console.error('加载初始消息失败:', error)
     } finally {
@@ -127,35 +135,35 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  const loadOlderMessages = async (sessionId: number): Promise<boolean> => {
+  const loadOlderMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingOlder.value) return false
 
-    const pageInfo = pageInfoCache.value.get(sessionId)
+    const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo?.hasMore) return false
 
     isLoadingOlder.value = true
     try {
-      const result = await window.electronAPI.requestMessages(sessionId, {
+      const result = (await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         beforeId: pageInfo.oldestMessageId,
         direction: 'older'
-      })
+      })) as unknown as MessagesResponse
 
       if (result.messages.length > 0) {
-        const currentMessages = messageCache.value.get(sessionId) || []
+        const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...currentMessages, ...result.messages]
 
         if (newMessages.length > config.maxMessagesPerSession) {
           newMessages.splice(0, newMessages.length - config.maxMessagesPerSession)
         }
 
-        messageCache.value.set(sessionId, newMessages)
+        messageCache[String(sessionId)] = newMessages
 
-        pageInfoCache.value.set(sessionId, {
+        pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMore: result.hasMore,
           oldestMessageId: newMessages[newMessages.length - 1]?.id || null
-        })
+        }
 
         return true
       }
@@ -169,35 +177,35 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  const loadNewerMessages = async (sessionId: number): Promise<boolean> => {
+  const loadNewerMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingNewer.value) return false
 
-    const pageInfo = pageInfoCache.value.get(sessionId)
+    const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo?.hasMoreNewer) return false
 
     isLoadingNewer.value = true
     try {
-      const result = await window.electronAPI.requestMessages(sessionId, {
+      const result = (await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         afterId: pageInfo.newestMessageId,
         direction: 'newer'
-      })
+      })) as unknown as MessagesResponse
 
       if (result.messages.length > 0) {
-        const currentMessages = messageCache.value.get(sessionId) || []
+        const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...result.messages, ...currentMessages]
 
         if (newMessages.length > config.maxMessagesPerSession) {
           newMessages.splice(config.maxMessagesPerSession)
         }
 
-        messageCache.value.set(sessionId, newMessages)
+        messageCache[String(sessionId)] = newMessages
 
-        pageInfoCache.value.set(sessionId, {
+        pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMoreNewer: result.hasMore,
           newestMessageId: newMessages[0]?.id || null
-        })
+        }
 
         return true
       }
@@ -211,50 +219,64 @@ export const useMessageStore = defineStore('message', () => {
     }
   }
 
-  const addMessage = (sessionId: number, message: ChatMessage): void => {
-    const currentMessages = messageCache.value.get(sessionId) || []
+  const addMessage = (sessionId: string | number, message: ChatMessage): void => {
+    const key = String(sessionId)
+    const currentMessages = messageCache[key] || []
     const newMessages = [message, ...currentMessages]
 
     if (newMessages.length > config.maxMessagesPerSession) {
       newMessages.splice(config.maxMessagesPerSession)
     }
 
-    messageCache.value.set(sessionId, newMessages)
+    messageCache[key] = newMessages
 
-    const pageInfo = pageInfoCache.value.get(sessionId)
+    const pageInfo = pageInfoCache[key]
     if (pageInfo) {
-      pageInfoCache.value.set(sessionId, {
+      pageInfoCache[key] = {
         ...pageInfo,
         newestMessageId: message.id,
         totalCount: pageInfo.totalCount + 1
-      })
+      }
     }
+
+    console.log(
+      `消息已添加到缓存: sessionId=${sessionId}, messageId=${message.id}, 当前消息数=${newMessages.length}`
+    )
   }
 
-  const checkPreload = (sessionId: number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {
-    const pageInfo = pageInfoCache.value.get(sessionId)
+  const checkPreload = (
+    sessionId: string | number,
+    scrollTop: number,
+    scrollHeight: number,
+    clientHeight: number
+  ): void => {
+    const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo) return
 
     if (pageInfo.hasMore && scrollTop < config.preloadThreshold) {
-      loadOlderMessages(sessionId)
+      loadOlderMessages(String(sessionId))
     }
 
-    if (pageInfo.hasMoreNewer && (scrollHeight - scrollTop - clientHeight) < config.preloadThreshold) {
-      loadNewerMessages(sessionId)
+    if (
+      pageInfo.hasMoreNewer &&
+      scrollHeight - scrollTop - clientHeight < config.preloadThreshold
+    ) {
+      loadNewerMessages(String(sessionId))
     }
   }
 
-  const clearSessionCache = (sessionId: number): void => {
-    messageCache.value.delete(sessionId)
-    pageInfoCache.value.delete(sessionId)
-    sessionAccessTime.value.delete(sessionId)
+  const clearSessionCache = (sessionId: string | number): void => {
+    const key = String(sessionId)
+    delete messageCache[key]
+    delete pageInfoCache[key]
+    delete sessionAccessTime[key]
     console.log(`手动清理缓存: 会话 ${sessionId}`)
   }
 
   const clearAllCache = (): void => {
-    messageCache.value.clear()
-    pageInfoCache.value.clear()
-    sessionAccessTime.value.clear()
+    Object.keys(messageCache).forEach((key) => delete messageCache[key])
+    Object.keys(pageInfoCache).forEach((key) => delete pageInfoCache[key])
+    Object.keys(sessionAccessTime).forEach((key) => delete sessionAccessTime[key])
     console.log('清理所有缓存')
   }
 
@@ -278,6 +300,6 @@ export const useMessageStore = defineStore('message', () => {
     addMessage,
     checkPreload,
     clearSessionCache,
-    clearAllCache,
+    clearAllCache
   }
 })

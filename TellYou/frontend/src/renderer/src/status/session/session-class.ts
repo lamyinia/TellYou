@@ -1,7 +1,7 @@
 export class SessionManager {
-  private sessions = new Map<number, Session>()
+  private sessions = new Map<string, Session>()
   private sortedSessions: SortedMap<SortKey, Session>
-  private sessionIdToSortKey = new Map<number, SortKey>()
+  private sessionIdToSortKey = new Map<string, SortKey>()
   private lastUpdateTime = 0
   private cacheExpireTime = 5 * 60 * 1000
 
@@ -13,7 +13,7 @@ export class SessionManager {
       if (a.lastMsgTime !== b.lastMsgTime) {
         return b.lastMsgTime - a.lastMsgTime
       }
-      return a.sessionId - b.sessionId
+      return a.sessionId.localeCompare(b.sessionId)
     })
   }
 
@@ -34,16 +34,16 @@ export class SessionManager {
   }
 
   addSessions(sessions: Session[]): void {
-    sessions.forEach(session => {
+    sessions.forEach((session) => {
       this.addSession(session)
     })
   }
 
-  getSession(sessionId: number): Session | undefined {
+  getSession(sessionId: string): Session | undefined {
     return this.sessions.get(sessionId)
   }
 
-  updateSession(sessionId: number, updates: Partial<Session>): void {
+  updateSession(sessionId: string, updates: Partial<Session>): void {
     const session = this.sessions.get(sessionId)
     if (!session) return
 
@@ -70,10 +70,10 @@ export class SessionManager {
     if (a.lastMsgTime !== b.lastMsgTime) {
       return b.lastMsgTime - a.lastMsgTime
     }
-    return a.sessionId - b.sessionId
+    return a.sessionId.localeCompare(b.sessionId)
   }
 
-  removeSession(sessionId: number): void {
+  removeSession(sessionId: string): void {
     const session = this.sessions.get(sessionId)
     if (!session) return
 
@@ -108,7 +108,7 @@ export class SessionManager {
 
   searchSessions(keyword: string): Session[] {
     const lowerKeyword = keyword.toLowerCase()
-    return this.getOrderedSessions().filter(session =>
+    return this.getOrderedSessions().filter((session) =>
       session.contactName.toLowerCase().includes(lowerKeyword) ||
       session.lastMsgContent.toLowerCase().includes(lowerKeyword)
     )
@@ -120,21 +120,21 @@ export class SessionManager {
     }, 0)
   }
 
-  markSessionAsRead(sessionId: number): void {
+  markSessionAsRead(sessionId: string): void {
     const session = this.sessions.get(sessionId)
     if (session && session.unreadCount > 0) {
       this.updateSession(sessionId, { unreadCount: 0 })
     }
   }
 
-  togglePin(sessionId: number): void {
+  togglePin(sessionId: string): void {
     const session = this.sessions.get(sessionId)
     if (session) {
       this.updateSession(sessionId, { isPinned: !session.isPinned })
     }
   }
 
-  toggleMute(sessionId: number): void {
+  toggleMute(sessionId: string): void {
     const session = this.sessions.get(sessionId)
     if (session) {
       this.updateSession(sessionId, { isMuted: !session.isMuted })
@@ -144,7 +144,7 @@ export class SessionManager {
 export interface SortKey {
   isPinned: boolean
   lastMsgTime: number // 时间戳
-  sessionId: number // 用于稳定排序
+  sessionId: string // 用于稳定排序
 }
 
 class SortedMap<K, V> {
@@ -179,7 +179,7 @@ class SortedMap<K, V> {
   }
 
   values(): V[] {
-    return this.sortedKeys.map(key => this.map.get(key)!)
+    return this.sortedKeys.map((key) => this.map.get(key)!)
   }
 
   keys(): K[] {
@@ -231,8 +231,8 @@ class SortedMap<K, V> {
 }
 
 export interface Session {
-  sessionId: number
-  contactId: number
+  sessionId: string
+  contactId: string
   contactType: number
   contactName: string
   contactAvatar: string

@@ -1,9 +1,9 @@
 export interface ChatMessage {
   id: number
-  sessionId: number
+  sessionId: string
   content: string
   messageType: 'text' | 'image' | 'file' | 'system'
-  senderId: number
+  senderId: string
   senderName: string
   senderAvatar: string
   timestamp: Date
@@ -11,7 +11,7 @@ export interface ChatMessage {
 }
 
 export interface MessagePageInfo {
-  sessionId: number
+  sessionId: string
   hasMore: boolean
   hasMoreNewer: boolean
   oldestMessageId: number | null
@@ -20,11 +20,11 @@ export interface MessagePageInfo {
 }
 
 export interface MessageCacheConfig {
-  maxMessagesPerSession: number  // 每个会话最大缓存消息数
-  maxCachedSessions: number       // 最大缓存会话数
-  pageSize: number              // 每次加载的消息数量
-  preloadThreshold: number      // 预加载阈值（距离底部多少条时开始加载）
-  cacheExpireTime: number       // 缓存过期时间（毫秒）
+  maxMessagesPerSession: number
+  maxCachedSessions: number
+  pageSize: number
+  preloadThreshold: number
+  cacheExpireTime: number
 }
 
 export interface MessagesResponse {
