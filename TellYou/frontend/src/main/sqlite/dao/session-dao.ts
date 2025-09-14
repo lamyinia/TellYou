@@ -1,7 +1,7 @@
 import { Session } from '@renderer/status/session/session-class'
-import { queryAll } from '../sqlite-operation'
+import { queryAll, update } from '../sqlite-operation'
 
-const selectSessions = async (): Promise<Session[]> => {
+export const selectSessions = async (): Promise<Session[]> => {
   const sql: string = `
     SELECT
       session_id,
@@ -32,7 +32,6 @@ const selectSessions = async (): Promise<Session[]> => {
   return result as unknown as Session[]
 }
 
-
-export {
-  selectSessions
+export const updateSessionByMessage = async (data: {content: string, sendTime: string, sessionId: string}): Promise<void> => {
+  await update('sessions', {lastMsgContent: data.content, lastMsgTime: data.sendTime}, {sessionId: data.sessionId})
 }

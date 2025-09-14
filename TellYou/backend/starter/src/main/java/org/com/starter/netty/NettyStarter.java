@@ -11,6 +11,7 @@ import io.netty.handler.codec.http.websocketx.WebSocketDecoderConfig;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,13 +45,6 @@ public class NettyStarter implements Runnable {
 
     @Override
     public void run() {
-
-        WebSocketDecoderConfig config = WebSocketDecoderConfig.newBuilder()
-                .maxFramePayloadLength(64 * 1024)
-                .allowMaskMismatch(true)
-                .closeOnProtocolViolation(true)  // 新增的推荐配置
-                .build();
-
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup);
         serverBootstrap.channel(NioServerSocketChannel.class)
@@ -62,8 +56,7 @@ public class NettyStarter implements Runnable {
                         pipeline.addLast(new HttpServerCodec());
                         pipeline.addLast(new HttpObjectAggregator(64 * 1024));
                         pipeline.addLast(new JwtAuthHandler(jwtUtil));
-//                        pipeline.addLast(new IdleStateHandler(30, 0, 0));
-
+                        pipeline.addLast(new IdleStateHandler(90, 0, 0));
                         pipeline.addLast(new WebSocketServerProtocolHandler("/ws", null, true, 64 * 1024, true, true, 10000L));
                         pipeline.addLast(baseHandler);
                     }

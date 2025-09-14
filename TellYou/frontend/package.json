@@ -26,6 +26,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@mdi/font": "^7.4.47",
     "axios": "1.10.0",
+    "electron-log": "^5.4.3",
     "electron-store": "^10.1.0",
     "js-cookie": "^3.0.5",
     "js-md5": "^0.8.3",
@@ -36,6 +37,7 @@
     "vue": "^3.5.17",
     "vue-cookies": "^1.8.6",
     "vue-router": "^4.5.1",
+    "vuejs3-logger": "^1.0.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {

@@ -19,6 +19,7 @@ import java.util.concurrent.*;
 
 /**
  * 用 redisson 重试实现的延迟队列
+ *
  * @author lanye
  * @date 2025/07/29
  */
@@ -39,7 +40,7 @@ public class MessageDelayQueue {
     private final ChannelManagerUtil channelManagerUtil;
 
     /**
-     * @letterCache：  信息重试的缓存，键值是 [messageId, vo]，和 uid 无关
+     * @letterCache： 信息重试的缓存，键值是 [messageId, vo]，和 uid 无关
      */
     ConcurrentHashMap<String, Object> letterCache = new ConcurrentHashMap<>();
 
@@ -59,15 +60,15 @@ public class MessageDelayQueue {
     private final ConcurrentHashMap<String, ScheduledFuture<?>> cleanupTasks = new ConcurrentHashMap<>();
 
 
-    public void initCache4Deliver(Long uid, Object vo){
+    public void initCache4Deliver(Long uid, Object vo) {
         String letterId = getLetterId(vo);
         letterCache.put(letterId, vo);
         scheduleCleanup(letterId);
 
         letterRetryCount.put(locating(uid, vo), 1);
     }
-    
-    public void initCache4Group(List<Long> uidList, Object vo){
+
+    public void initCache4Group(List<Long> uidList, Object vo) {
         String letterId = getLetterId(vo);
         letterCache.put(letterId, vo);
         scheduleCleanup(letterId);
@@ -77,11 +78,12 @@ public class MessageDelayQueue {
 
     /**
      * 提交延迟消息
-     * @param vo 消息vo
-     * @param delay 延迟时间
+     *
+     * @param vo       消息vo
+     * @param delay    延迟时间
      * @param timeUnit 时间单位
      */
-    public void submitWithDelay(Long uid, Object vo, long delay, TimeUnit timeUnit){
+    public void submitWithDelay(Long uid, Object vo, long delay, TimeUnit timeUnit) {
         RScoredSortedSet<String> scoredSortedSet = redissonClient.getScoredSortedSet(DELAY_SORTED_SET + node);
         scoredSortedSet.add(System.currentTimeMillis() + timeUnit.toMillis(delay), locating(uid, vo));
     }
@@ -101,10 +103,10 @@ public class MessageDelayQueue {
     }
 
     @Scheduled(fixedDelay = 1000)
-    public void processDelayedMessage(){
+    public void processDelayedMessage() {
         RBlockingQueue<String> queue = redissonClient.getBlockingQueue(DELAY_QUEUE + node);
 
-        for (int i = 0; i < 300; ++ i){
+        for (int i = 0; i < 300; ++i) {
             String locating = queue.poll();
             if (locating == null) break;
 
@@ -114,22 +116,16 @@ public class MessageDelayQueue {
 
             Object vo = letterCache.get(letterId);
 
-            if (vo != null){
+            if (vo != null) {
                 Integer count = letterRetryCount.get(locating);
                 if (count == null) continue;
 
-                if (count == 0){
-                    letterRetryCount.remove(locating);
-                    continue;  // 当收到 ack，会设置 count = 0
-                }
-
-                if (count > 3){
+                if (count > 3) {
                     log.info("{} 进入死信队列", locating);
                     letterRetryCount.remove(locating);
-                    // 进入死信队列，做最多 4 次发送，1 次正常发送， 3次重试
                 } else {
-                    log.info("第 {} 次向用户 {} 推送消息", count+1, uid);
-                    letterRetryCount.put(locating, count+1);
+                    log.info("第 {} 次向用户 {} 推送消息", count + 1, uid);
+                    letterRetryCount.put(locating, count + 1);
                     channelManagerUtil.doDeliver(uid, vo);
                     submitWithDelay(uid, vo, retryWaitingByCount[count], TimeUnit.SECONDS);
                 }
@@ -159,25 +155,30 @@ public class MessageDelayQueue {
                 log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
             }
         }, 1, TimeUnit.MINUTES);
-        
+
         cleanupTasks.put(messageId, cleanupTask);
     }
 
-    
-    private String locating(Long uid, Object vo){
+
+    private String locating(Long uid, Object vo) {
         return String.valueOf(uid) + ":" + getLetterId(vo);
     }
 
-    private String getLetterId(Object vo){
-        if (vo.getClass() == MessageResp.class){
+    private String getLetterId(Object vo) {
+        if (vo.getClass() == MessageResp.class) {
             return ((MessageResp) vo).getMessageId() + "-message";
         }
-        if (vo.getClass() == ContactApplyResp.class){
+        if (vo.getClass() == ContactApplyResp.class) {
             return ((ContactApplyResp) vo).getApplyId() + "-apply";
         }
         return null;
     }
-    
+
+    public void deliverConfirm(Long uid, String messageId){
+        log.info("删除键" + String.valueOf(uid) + ":" + messageId + "-message");
+        letterRetryCount.remove(String.valueOf(uid) + ":" + messageId + "-message");
+    }
+
     /**
      * 销毁方法，清理调度器资源
      */

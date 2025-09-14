@@ -1,6 +1,5 @@
 import { existsLocalDB, initTable, setCurrentFolder } from '@main/sqlite/sqlite-operation'
-import { connectWs } from '@main/client/websocket-client'
-import { logger } from '../../../utils/log-util'
+import { connectWs } from '@main/websocket/client'
 
 
 /************************************************** 数据访问层业务接口 *************************************************************/
@@ -16,10 +15,9 @@ export const initializeUserData = async (uid: string): Promise<void> => {
   }
 }
 
-
 /*************************************** 拉取服务 ***************************************/
 const pullStrongTransactionData = async (): Promise<void> => {
-  logger.info(`正在拉取强事务数据...`)
+  console.log(`正在拉取强事务数据...`)
   try {
     await pullFriendContact()
 
@@ -31,9 +29,9 @@ const pullStrongTransactionData = async (): Promise<void> => {
 
     await pullOfflineMessage()
 
-    logger.info(`拉取强事务数据完成`)
+    console.log(`拉取强事务数据完成`)
   } catch (error) {
-    logger.info(`拉取强事务数据失败:`, error)
+    console.error(`拉取强事务数据失败:`, error)
     throw error
   }
 }

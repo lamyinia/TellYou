@@ -6,6 +6,7 @@ import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.event.MessageSendEvent;
 import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.domain.document.MessageDoc;
+import org.com.modules.session.domain.document.UserInBoxDoc;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.modules.session.domain.vo.resp.MessageResp;
 import org.springframework.beans.BeanUtils;
@@ -16,6 +17,20 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MessageAdapter {
     private final MongoSessionDao mongoSessionDao;
+
+    public static MessageResp mailToMessageResp(UserInBoxDoc doc) {
+        MessageResp resp = new MessageResp();
+        resp.setMessageId(doc.getQuoteId());
+        resp.setSessionId(doc.getSessionId());
+        resp.setSequenceNumber(null);
+        resp.setMessageType(doc.getQuoteType());
+        resp.setSenderId(doc.getSenderId());
+        resp.setToUserId(doc.getUserId());
+        resp.setContent(doc.getContent());
+        resp.setAdjustedTimestamp(doc.getAdjustedTimestamp());
+        resp.setExtra(doc.getExtra());
+        return resp;
+    }
 
     public MessageDoc buildMessage(MessageReq req) {
         Long sequenceId = getSequenceIdFromSession(req.getSessionId());

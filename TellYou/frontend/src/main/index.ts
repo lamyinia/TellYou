@@ -3,24 +3,31 @@ import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { instanceId, queryAll, sqliteRun } from './sqlite/sqlite-operation'
-import { initWs, sendText } from './client/websocket-client'
+import { initWs, sendText } from '@main/websocket/client'
 import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
-import { logger, LogLevel } from '../utils/log-util'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
+import { pullOfflineMessages } from '@main/pull/service'
+import log from 'electron-log'
+import os from 'os'
 
 const Store = __Store.default || __Store
+log.transports.file.level = 'debug'
+log.transports.file.maxSize = 1002430
+log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}'
+log.transports.file.resolvePathFn = () => join(os.homedir(), '.tellyou', 'logs', 'main.log')
+console.log = log.log
+console.warn = log.warn
+console.error = log.error
+console.info = log.info
+console.debug = log.debug
 
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
 app.whenReady().then(() => {
-  if (process.env.NODE_ENV === 'development') {
-    logger.setLevel(LogLevel.DEBUG)
-  } else {
-    logger.setLevel(LogLevel.INFO)
-  }
-  logger.info('TellYou应用启动', {
+
+  console.info('TellYou应用启动', {
     version: app.getVersion(),
     platform: process.platform,
     arch: process.arch,
@@ -108,9 +115,7 @@ const createWindow = () => {
 
 const processIpc = (mainWindow: Electron.BrowserWindow): void => {
   invokeHandle()
-
   onLoadSessionData()
-
   onLoginOrRegister((isLogin: number) => {
     mainWindow.setResizable(true)
     if (isLogin === 0) {
@@ -120,17 +125,15 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     }
     mainWindow.setResizable(false)
   })
-
   onLoginSuccess((uid: string) => {
     mainWindow.setResizable(true)
     mainWindow.setSize(920, 740)
     mainWindow.setMaximizable(true)
     mainWindow.setMinimumSize(800, 600)
     mainWindow.center()
-
     initializeUserData(uid)
+    pullOfflineMessages()
   })
-
   onScreenChange((event: Electron.IpcMainEvent, status: number) => {
     const webContents = event.sender
     const win = BrowserWindow.fromWebContents(webContents)
@@ -158,13 +161,12 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
         break
     }
   })
-
   onTest(() => {
     test()
   })
 }
 
-const invokeHandle = ():void => {
+const invokeHandle = (): void => {
   ipcMain.handle('store-get', (_, key) => {
     return store.get(key)
   })
@@ -180,19 +182,17 @@ const invokeHandle = ():void => {
     store.clear()
     return true
   })
-
   ipcMain.handle('ws-send', async (_, msg) => {
     console.log(msg)
     try {
       sendText(msg)
       console.log('发送成功')
-      return true;
-    } catch (error){
+      return true
+    } catch (error) {
       console.error('发送消息失败:', error)
       return false
     }
   })
-
   ipcMain.handle('get-sessions-with-order', async () => {
     try {
       const sql = `

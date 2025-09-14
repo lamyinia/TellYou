@@ -35,7 +35,7 @@ export const useSessionStore = defineStore('session', () => {
     console.log('sessionStore 初始化完成')
   }
 
-  const exit = (): void => {
+  const destroy = (): void => {
     sessionManager.value.clear()
     isInitialized.value = false
     window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction!)
@@ -65,10 +65,8 @@ export const useSessionStore = defineStore('session', () => {
     sessionManager,
     sortedSessions,
     isInitialized,
-
     init,
-    exit,
-
+    destroy,
     getSession,
     updateSession,
     togglePin,

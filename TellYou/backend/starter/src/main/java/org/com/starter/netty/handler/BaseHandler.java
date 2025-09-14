@@ -44,9 +44,7 @@ public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame>
             log.warn("前端JSON错误 {}", e.getMessage());
         }
         if (json == null) return;
-
         Integer type = json.getType();
-
         if (type == 0) return;
 
         log.info("收到消息: {}", text);

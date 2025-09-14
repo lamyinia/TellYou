@@ -35,8 +35,6 @@ public class MessageRetryService {
         boolean success = channelManagerUtil.doDeliver(uid, vo);
         if (success){
             messageDelayQueue.initCache4Deliver(uid, vo);
-
-            channelManagerUtil.doDeliver(uid, vo);
             messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
         } else {
             throw new RuntimeException("路由表查不到");

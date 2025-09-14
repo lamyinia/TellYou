@@ -12,14 +12,11 @@ onMounted(async () => {
   sessionStore.init()
   messageStore.init()
 })
-
 onUnmounted(() => {
   console.log('Main.vue unmounted, 清理资源')
-  sessionStore.exit()
-  messageStore.exit()
+  sessionStore.destroy()
+  messageStore.destroy()
 })
-
-
 </script>
 
 <template>

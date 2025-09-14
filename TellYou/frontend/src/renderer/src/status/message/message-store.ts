@@ -39,7 +39,7 @@ export const useMessageStore = defineStore('message', () => {
     isInitialized.value = true
     console.log('messageStore 初始化完成')
   }
-  const exit = (): void => {
+  const destroy = (): void => {
     clearAllCache()
     isInitialized.value = false
     window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction!)
@@ -286,7 +286,7 @@ export const useMessageStore = defineStore('message', () => {
     isLoadingNewer,
 
     init,
-    exit,
+    destroy,
 
     getCurrentSessionMessages,
     getCurrentPageInfo,

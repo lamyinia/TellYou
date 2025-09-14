@@ -56,22 +56,18 @@ public class SessionConsumer implements RocketMQListener<String> {
    @Override
    public void onMessage(String text) {
       MessageReq req = JSON.parseObject(text, MessageReq.class);
-      if (req == null) return;
-
       Long uid = req.getFromUid();
       SessionConsumer proxy = (SessionConsumer) ApplicationContextProvider.currentProxy();
       proxy.consumeMessage(uid, req);
    }
 
-   @FlowControl(time = 10, count = 20, spEl = "#fromUid", target = FlowControl.Target.EL)
+//   @FlowControl(time = 10, count = 20, spEl = "#fromUid", target = FlowControl.Target.EL)
    public void consumeMessage(Long fromUid, MessageReq req){
       log.info("SessionConsumer 正在消费消息: {}", req.toString());
 
       MessageDoc messageDoc = messageAdapter.buildMessage(req);
       List<Long> uidList = getUidList(req);
-
       chatService.save(messageDoc, uidList);
-
       applicationEventPublisher.publishEvent(new MessageSendEvent(this, messageDoc, uidList));
    }
 

@@ -26,6 +26,11 @@ export class SessionManager {
   }
 
   addSession(session: Session): void {
+    if (this.sessions.has(session.sessionId)) {
+      this.updateSession(session.sessionId, session)
+      return
+    }
+
     this.sessions.set(session.sessionId, session)
     const sortKey = this.createSortKey(session)
     this.sessionIdToSortKey.set(session.sessionId, sortKey)
@@ -161,6 +166,7 @@ class SortedMap<K, V> {
     this.map.set(key, value)
 
     if (exists) {
+      console.log('删除', key)
       this.removeFromSorted(key)
     }
     this.insertSorted(key)

@@ -6,9 +6,10 @@ const utils = require("@electron-toolkit/utils");
 const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
-const child_process = require("child_process");
 const WebSocket = require("ws");
 const __Store = require("electron-store");
+const axios = require("axios");
+const log = require("electron-log");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
@@ -27,181 +28,6 @@ const add_indexes = [
   "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
   "create index if not exists idx_applications_status on contact_applications(status);"
 ];
-var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
-  LogLevel2[LogLevel2["DEBUG"] = 0] = "DEBUG";
-  LogLevel2[LogLevel2["INFO"] = 1] = "INFO";
-  LogLevel2[LogLevel2["WARN"] = 2] = "WARN";
-  LogLevel2[LogLevel2["ERROR"] = 3] = "ERROR";
-  LogLevel2[LogLevel2["FATAL"] = 4] = "FATAL";
-  return LogLevel2;
-})(LogLevel || {});
-const colors = {
-  reset: "\x1B[0m",
-  red: "\x1B[31m",
-  green: "\x1B[32m",
-  yellow: "\x1B[33m",
-  magenta: "\x1B[35m",
-  cyan: "\x1B[36m",
-  white: "\x1B[37m",
-  gray: "\x1B[90m"
-};
-class Logger {
-  static instance;
-  logLevel;
-  logDir;
-  logFile;
-  enableColors;
-  constructor() {
-    this.ensureConsoleEncoding();
-    this.logLevel = 1;
-    this.logDir = path.join(os.homedir(), ".tellyou", "logs");
-    this.logFile = path.join(this.logDir, `tellyou-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.log`);
-    this.enableColors = true;
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
-    }
-  }
-  ensureConsoleEncoding() {
-    if (process.platform === "win32") {
-      try {
-        child_process.execSync("reg add HKEY_CURRENT_USER\\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f", { stdio: "ignore" });
-      } catch {
-      }
-    }
-  }
-  static getInstance() {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
-    }
-    return Logger.instance;
-  }
-  setLevel(level) {
-    this.logLevel = level;
-  }
-  setEnableColors(enable) {
-    this.enableColors = enable;
-  }
-  colorize(text, color) {
-    return this.enableColors ? `${color}${text}${colors.reset}` : text;
-  }
-  getLevelColor(level) {
-    switch (level.toLowerCase()) {
-      case "debug":
-        return colors.gray;
-      case "info":
-        return colors.green;
-      case "warn":
-        return colors.yellow;
-      case "error":
-        return colors.red;
-      case "fatal":
-        return colors.magenta;
-      default:
-        return colors.white;
-    }
-  }
-  formatTimestamp() {
-    const now = /* @__PURE__ */ new Date();
-    const date = now.toISOString().split("T")[0];
-    const time = now.toTimeString().split(" ")[0];
-    return `${date} ${time}`;
-  }
-  writeLog(level, message, data) {
-    if (this.logLevel > this.getLogLevel(level)) {
-      return;
-    }
-    const timestamp = this.formatTimestamp();
-    const levelUpper = level.toUpperCase();
-    const levelColor = this.getLevelColor(level);
-    const consoleMessage = `${this.colorize(`[${timestamp}]`, colors.cyan)} ${this.colorize(levelUpper.padEnd(5), levelColor)} ${message}`;
-    if (data) {
-      console.log(consoleMessage, data);
-    } else {
-      console.log(consoleMessage);
-    }
-    const logEntry = {
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      level: levelUpper,
-      message,
-      data: data || null,
-      pid: process.pid
-    };
-    const logLine = JSON.stringify(logEntry, null, 2) + "\n";
-    try {
-      fs.appendFileSync(this.logFile, logLine, "utf8");
-    } catch (error) {
-      console.error("写入日志文件失败:", error);
-    }
-  }
-  getLogLevel(level) {
-    switch (level.toLowerCase()) {
-      case "debug":
-        return 0;
-      case "info":
-        return 1;
-      case "warn":
-        return 2;
-      case "error":
-        return 3;
-      case "fatal":
-        return 4;
-      default:
-        return 1;
-    }
-  }
-  debug(message, data) {
-    this.writeLog("debug", message, data);
-  }
-  info(message, data) {
-    this.writeLog("info", message, data);
-  }
-  warn(message, data) {
-    this.writeLog("warn", message, data);
-  }
-  error(message, error) {
-    this.writeLog("error", message, error);
-  }
-  fatal(message, error) {
-    this.writeLog("fatal", message, error);
-  }
-  // SQL查询专用日志
-  sql(sql, params, result) {
-    const message = `SQL执行: ${sql}`;
-    const data = { params, result };
-    this.writeLog("debug", message, data);
-  }
-  // 数据库操作专用日志
-  db(operation, table, data) {
-    const message = `数据库操作: ${operation} -> ${table}`;
-    this.writeLog("debug", message, data);
-  }
-  // 网络请求专用日志
-  network(method, url, status, data) {
-    const message = `${method} ${url}${status ? ` (${status})` : ""}`;
-    this.writeLog("info", message, data);
-  }
-  getLogFilePath() {
-    return this.logFile;
-  }
-  cleanOldLogs(daysToKeep = 7) {
-    try {
-      const files = fs.readdirSync(this.logDir);
-      const cutoffDate = /* @__PURE__ */ new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-      files.forEach((file) => {
-        const filePath = path.join(this.logDir, file);
-        const stats = fs.statSync(filePath);
-        if (stats.mtime < cutoffDate) {
-          fs.unlinkSync(filePath);
-          this.info(`删除旧日志文件: ${file}`);
-        }
-      });
-    } catch (error) {
-      this.error("清理日志文件失败", error);
-    }
-  }
-}
-const logger = Logger.getInstance();
 const globalColumnMap = {};
 const instanceId = process.env.ELECTRON_INSTANCE_ID || "";
 const NODE_ENV = process.env.NODE_ENV || "production";
@@ -211,7 +37,7 @@ let dataFolder = baseFolder;
 let dataBase;
 const setCurrentFolder = (userId) => {
   dataFolder = baseFolder + "_" + userId + "/";
-  logger.info("数据库操作目录 " + dataFolder);
+  console.info("数据库操作目录 " + dataFolder);
   if (!fs.existsSync(dataFolder)) {
     fs.mkdirSync(dataFolder);
   }
@@ -232,12 +58,12 @@ const queryAll = (sql, params) => {
     const stmt = dataBase.prepare(sql);
     stmt.all(params, function(err, rows) {
       if (err) {
-        logger.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
         resolve([]);
         return;
       }
       const result = rows.map((item) => convertDb2Biz(item));
-      logger.sql(sql, params, result);
+      console.info(sql, params, result);
       resolve(result);
     });
     stmt.finalize();
@@ -248,11 +74,11 @@ const sqliteRun = (sql, params) => {
     const stmt = dataBase.prepare(sql);
     stmt.run(params, function(err) {
       if (err) {
-        logger.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
         reject(-1);
         return;
       }
-      logger.sql(sql, params, this.changes);
+      console.info(sql, params, this.changes);
       resolve(this.changes);
     });
     stmt.finalize();
@@ -298,7 +124,7 @@ const update = (tableName, data, paramData) => {
   }
   const sql = `update ${tableName}
                set ${columns.join(",")} ${whereColumns.length > 0 ? " where " : ""}${whereColumns.join(" and ")}`;
-  logger.info(sql);
+  console.info(sql);
   return sqliteRun(sql, params);
 };
 const toCamelCase = (str) => {
@@ -432,147 +258,6 @@ const getMessageBySessionId = async (sessionId, options) => {
     return { messages: [], hasMore: false, totalCount: 0 };
   }
 };
-const handleMessage = async (msg) => {
-  console.log(msg);
-  const snap = Number(msg.adjustedTimestamp);
-  const insertId = await addLocalMessage({
-    sessionId: msg.sessionId,
-    sequenceId: msg.sequenceNumber,
-    senderId: msg.senderId,
-    messageId: msg.messageId,
-    senderName: msg.fromName ?? "",
-    msgType: 1,
-    text: String(msg.content ?? ""),
-    extData: JSON.stringify(msg.extra),
-    sendTime: new Date(snap).toISOString(),
-    isRead: 1
-  });
-  if (!insertId || insertId <= 0) {
-    return;
-  }
-  const chatMsg = {
-    id: Number(insertId) || 0,
-    sessionId: msg.sessionId,
-    content: String(msg.content ?? ""),
-    messageType: "text",
-    senderId: msg.senderId,
-    senderName: msg.fromName ?? "",
-    senderAvatar: "",
-    timestamp: new Date(snap),
-    isRead: true
-  };
-  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-  mainWindow?.webContents.send("loadMessageDataCallback", msg.sessionId, chatMsg);
-};
-let ws = null;
-let maxReConnectTimes = null;
-let lockReconnect = false;
-let needReconnect = null;
-let wsUrl = null;
-const initWs = () => {
-  wsUrl = "http://localhost:8082/ws";
-  logger.debug(`wsUrl 连接的url地址:  ${wsUrl}`);
-  needReconnect = true;
-  maxReConnectTimes = 20;
-};
-const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
-const sendText = (payload) => {
-  if (!isWsOpen()) {
-    logger.warn("WebSocket 未连接，发送取消");
-    throw new Error("WebSocket is not connected");
-  }
-  const fromUId = String(payload.fromUId || "");
-  const toUserId = String(payload.toUserId || "");
-  const sessionId = String(payload.sessionId || "");
-  const content = payload.content;
-  if (!fromUId || !sessionId) {
-    logger.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
-    throw new Error("Missing required fields: fromUId/sessionId");
-  }
-  const base = {
-    messageId: getMessageId(),
-    type: 1,
-    fromUId,
-    toUserId,
-    sessionId,
-    content,
-    timestamp: Date.now(),
-    extra: { platform: "desktop" }
-  };
-  ws.send(JSON.stringify(base));
-};
-const reconnect = () => {
-  if (!needReconnect) {
-    logger.info("不允许重试服务");
-    return;
-  }
-  logger.info("连接关闭，现在正在重试....");
-  if (ws != null) {
-    ws.close();
-  }
-  if (lockReconnect) {
-    return;
-  }
-  logger.info("重试请求发起");
-  lockReconnect = true;
-  if (maxReConnectTimes && maxReConnectTimes > 0) {
-    logger.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
-    --maxReConnectTimes;
-    setTimeout(function() {
-      connectWs();
-      lockReconnect = false;
-    }, 5e3);
-  } else {
-    logger.info("TCP 连接超时");
-  }
-};
-const connectWs = () => {
-  if (wsUrl == null) return;
-  const token = store.get("token");
-  if (token === null) {
-    logger.info("token 不满足条件");
-    return;
-  }
-  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
-  ws = new WebSocket(urlWithToken);
-  ws.on("open", () => {
-    logger.info("客户端连接成功");
-    maxReConnectTimes = 20;
-    setInterval(() => {
-      ws.send(JSON.stringify({
-        messageId: 1,
-        type: 0,
-        fromUserId: "2",
-        toUserId: 1,
-        sessionId: 1,
-        content: 1,
-        timestamp: Date.now(),
-        extra: {
-          something: "nothing"
-        }
-      }));
-    }, 1e3 * 5);
-    const mainWindow = electron.BrowserWindow.getFocusedWindow();
-    if (mainWindow) {
-      mainWindow.webContents.send("ws-connected");
-    }
-  });
-  ws.on("close", () => {
-    reconnect();
-  });
-  ws.on("error", () => {
-    reconnect();
-  });
-  ws.on("message", async (data) => {
-    console.log("收到消息:", data.toString());
-    const msg = JSON.parse(data);
-    switch (msg.messageType) {
-      case 1:
-        await handleMessage(msg);
-        break;
-    }
-  });
-};
 const selectSessions = async () => {
   const sql = `
     SELECT
@@ -602,6 +287,149 @@ const selectSessions = async () => {
   `;
   const result = await queryAll(sql, []);
   return result;
+};
+const updateSessionByMessage = async (data) => {
+  await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
+};
+const handleMessage = async (msg, ws2) => {
+  console.log(msg);
+  const snap = Number(msg.adjustedTimestamp);
+  const insertId = await addLocalMessage({
+    sessionId: msg.sessionId,
+    sequenceId: msg.sequenceNumber,
+    senderId: msg.senderId,
+    messageId: msg.messageId,
+    senderName: msg.fromName ?? "",
+    msgType: 1,
+    text: String(msg.content ?? ""),
+    extData: JSON.stringify(msg.extra),
+    sendTime: new Date(snap).toISOString(),
+    isRead: 1
+  });
+  if (!insertId || insertId <= 0) return;
+  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+  await updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
+  const chatMsg = {
+    id: Number(insertId) || 0,
+    sessionId: msg.sessionId,
+    content: String(msg.content ?? ""),
+    messageType: "text",
+    senderId: msg.senderId,
+    senderName: msg.fromName ?? "",
+    senderAvatar: "",
+    timestamp: new Date(snap),
+    isRead: true
+  };
+  ws2.send(JSON.stringify({
+    messageId: msg.messageId,
+    type: 101,
+    fromUid: store.get("currentId")
+  }));
+  const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
+  mainWindow?.webContents.send("loadMessageDataCallback", msg.sessionId, chatMsg);
+  mainWindow?.webContents.send("loadSessionDataCallback", [session]);
+};
+let ws = null;
+let maxReConnectTimes = null;
+let lockReconnect = false;
+let needReconnect = null;
+let wsUrl = null;
+const initWs = () => {
+  wsUrl = "http://localhost:8082/ws";
+  console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
+  needReconnect = true;
+  maxReConnectTimes = 20;
+};
+const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
+const sendText = (payload) => {
+  if (!isWsOpen()) {
+    console.warn("WebSocket 未连接，发送取消");
+    throw new Error("WebSocket is not connected");
+  }
+  const fromUId = String(payload.fromUId || "");
+  const toUserId = String(payload.toUserId || "");
+  const sessionId = String(payload.sessionId || "");
+  const content = payload.content;
+  if (!fromUId || !sessionId) {
+    console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
+    throw new Error("Missing required fields: fromUId/sessionId");
+  }
+  let base = {
+    messageId: getMessageId(),
+    type: 1,
+    fromUId,
+    toUserId,
+    sessionId,
+    content,
+    timestamp: Date.now(),
+    extra: { platform: "desktop" }
+  };
+  ws.send(JSON.stringify(base));
+};
+const reconnect = () => {
+  if (!needReconnect) {
+    console.info("不允许重试服务");
+    return;
+  }
+  console.info("连接关闭，现在正在重试....");
+  if (ws != null) {
+    ws.close();
+  }
+  if (lockReconnect) {
+    return;
+  }
+  console.info("重试请求发起");
+  lockReconnect = true;
+  if (maxReConnectTimes && maxReConnectTimes > 0) {
+    console.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
+    --maxReConnectTimes;
+    setTimeout(function() {
+      connectWs();
+      lockReconnect = false;
+    }, 5e3);
+  } else {
+    console.info("TCP 连接超时");
+  }
+};
+const connectWs = () => {
+  if (wsUrl == null) return;
+  const token = store.get("token");
+  if (token === null) {
+    console.info("token 不满足条件");
+    return;
+  }
+  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
+  ws = new WebSocket(urlWithToken);
+  ws.on("open", () => {
+    console.info("客户端连接成功");
+    maxReConnectTimes = 20;
+    setInterval(() => {
+      ws.send(JSON.stringify({
+        type: 0,
+        fromUid: "2",
+        timestamp: Date.now()
+      }));
+    }, 1e3 * 5);
+    const mainWindow = electron.BrowserWindow.getFocusedWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send("ws-connected");
+    }
+  });
+  ws.on("close", () => {
+    reconnect();
+  });
+  ws.on("error", () => {
+    reconnect();
+  });
+  ws.on("message", async (data) => {
+    console.log("收到消息:", data.toString());
+    const msg = JSON.parse(data);
+    switch (msg.messageType) {
+      case 1:
+        await handleMessage(msg, ws);
+        break;
+    }
+  });
 };
 const onLoadSessionData = () => {
   electron.ipcMain.on("loadSessionData", async (event) => {
@@ -642,16 +470,16 @@ const initializeUserData = async (uid) => {
   }
 };
 const pullStrongTransactionData = async () => {
-  logger.info(`正在拉取强事务数据...`);
+  console.log(`正在拉取强事务数据...`);
   try {
     await pullFriendContact();
     await pullApply();
     await pullGroup();
     await pullBlackList();
     await pullOfflineMessage();
-    logger.info(`拉取强事务数据完成`);
+    console.log(`拉取强事务数据完成`);
   } catch (error) {
-    logger.info(`拉取强事务数据失败:`, error);
+    console.error(`拉取强事务数据失败:`, error);
     throw error;
   }
 };
@@ -688,17 +516,136 @@ const test = async () => {
   }
   await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
   const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
-  logger.info("sessions:", sessions);
+  console.info("sessions:", sessions);
+};
+const mainAxios = axios.create({
+  timeout: 3e4,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+mainAxios.interceptors.request.use((config) => {
+  const token = store.get("token");
+  if (token) {
+    config.headers.token = token;
+  }
+  return config;
+});
+const pullOfflineMessages = async () => {
+  try {
+    console.info("开始拉取用户离线消息...");
+    const response = await mainAxios.get(
+      `${"http://localhost:8081"}/message/pullMailboxMessage`
+    );
+    console.log(response);
+    return;
+    if (!response.data.success) {
+      console.error("拉取离线消息失败:", response.data.errMsg);
+      return;
+    }
+    const pullResult = response.data.data;
+    if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
+      console.info("没有离线消息需要拉取");
+      return;
+    }
+    console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
+    const messageIds = [];
+    for (const message of pullResult.messageList) {
+      try {
+        const insertId = await addLocalMessage({
+          sessionId: String(message.sessionId),
+          sequenceId: message.sequenceNumber || 0,
+          senderId: String(message.senderId),
+          messageId: message.messageId,
+          senderName: "",
+          msgType: message.messageType,
+          text: message.content,
+          extData: JSON.stringify(message.extra || {}),
+          sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
+          isRead: 0
+        });
+        if (insertId && insertId > 0) {
+          await updateSessionByMessage({
+            content: message.content,
+            sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
+            sessionId: String(message.sessionId)
+          });
+          messageIds.push(message.messageId);
+          const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+          if (mainWindow) {
+            const chatMsg = {
+              id: Number(insertId),
+              sessionId: message.sessionId,
+              content: message.content,
+              messageType: "text",
+              senderId: message.senderId,
+              senderName: "",
+              senderAvatar: "",
+              timestamp: new Date(Number(message.adjustedTimestamp)),
+              isRead: false
+            };
+            const sessions = await queryAll("select * from sessions where session_id = ?", [String(message.sessionId)]);
+            if (sessions.length > 0) {
+              mainWindow.webContents.send("loadMessageDataCallback", message.sessionId, chatMsg);
+              mainWindow.webContents.send("loadSessionDataCallback", sessions);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`处理消息 ${message.messageId} 失败:`, error);
+      }
+    }
+    if (messageIds.length > 0) {
+      await ackConfirmMessages(messageIds);
+    }
+    if (pullResult.hasMore) {
+      console.info("还有更多离线消息，继续拉取...");
+      setTimeout(() => {
+        pullOfflineMessages();
+      }, 1e3);
+    } else {
+      console.info("离线消息拉取完成");
+    }
+  } catch (error) {
+    console.error("拉取离线消息异常:", error);
+  }
+};
+const ackConfirmMessages = async (messageIds) => {
+  try {
+    const token = store.get("token");
+    if (!token) {
+      console.warn("Token不存在，跳过消息确认");
+      return;
+    }
+    console.info(`确认 ${messageIds.length} 条消息`);
+    const response = await mainAxios.post(
+      `${"http://localhost:8082/ws"?.replace("ws://", "http://").replace("wss://", "https://")}/message/ackConfirm`,
+      {
+        messageIdList: messageIds
+      }
+    );
+    if (response.data.success) {
+      console.info("消息确认成功");
+    } else {
+      console.error("消息确认失败:", response.data.errMsg);
+    }
+  } catch (error) {
+    console.error("消息确认异常:", error);
+  }
 };
 const Store = __Store.default || __Store;
+log.transports.file.level = "debug";
+log.transports.file.maxSize = 1002430;
+log.transports.file.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}";
+log.transports.file.resolvePathFn = () => path.join(os.homedir(), ".tellyou", "logs", "main.log");
+console.log = log.log;
+console.warn = log.warn;
+console.error = log.error;
+console.info = log.info;
+console.debug = log.debug;
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
 electron.app.whenReady().then(() => {
-  if (process.env.NODE_ENV === "development") {
-    logger.setLevel(LogLevel.DEBUG);
-  } else {
-    logger.setLevel(LogLevel.INFO);
-  }
-  logger.info("TellYou应用启动", {
+  console.info("TellYou应用启动", {
     version: electron.app.getVersion(),
     platform: process.platform,
     arch: process.arch,
@@ -795,6 +742,7 @@ const processIpc = (mainWindow) => {
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
     initializeUserData(uid);
+    pullOfflineMessages();
   });
   onScreenChange((event, status) => {
     const webContents = event.sender;

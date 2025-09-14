@@ -31,7 +31,7 @@ export const addLocalMessage = async (data: {
     'SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1',
     [data.sessionId, String(data.sequenceId)]
   )) as Array<{ id: number }>
-  
+
   return rows[0]?.id ?? 0
 }
 

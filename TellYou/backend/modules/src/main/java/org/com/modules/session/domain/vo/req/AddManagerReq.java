@@ -13,7 +13,6 @@ import java.util.List;
 public class AddManagerReq {
     @NotNull
     @UnifyMark(target = UnifyMark.Target.USER_ID)
-    @Schema(description = "群主 id")
     private Long fromId;
 
     @NotNull

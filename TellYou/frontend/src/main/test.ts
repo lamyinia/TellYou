@@ -8,7 +8,6 @@ import {
   setCurrentFolder,
   update
 } from './sqlite/sqlite-operation'
-import { logger } from '../utils/log-util'
 
 export const test = async (): Promise<void> => {
   setCurrentFolder('1')
@@ -33,5 +32,5 @@ export const test = async (): Promise<void> => {
 
   await update('sessions', { contactName: '张三-已更新' }, { sessionId: 1 })
   const sessions = await queryAll('select * from sessions where session_id = ?', [1])
-  logger.info('sessions:', sessions)
+  console.info('sessions:', sessions)
 }

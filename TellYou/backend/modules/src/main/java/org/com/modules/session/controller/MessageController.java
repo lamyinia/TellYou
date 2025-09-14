@@ -5,6 +5,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.common.util.RequestHolder;
+import org.com.modules.session.domain.vo.req.AckBatchConfirmReq;
+import org.com.modules.session.domain.vo.resp.PullMessageResp;
+import org.com.modules.session.service.PullService;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -17,28 +21,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/message")
 @RequiredArgsConstructor
 public class MessageController {
+    private final PullService pullService;
 
     @GetMapping("/pullMailboxMessage")
     @Operation(summary = "拉取信箱消息")
-    public ApiResult<Void> pullMailboxMessage(){
-        return ApiResult.success();
+    public ApiResult<PullMessageResp> pullMailboxMessage(){
+        Long userId = RequestHolder.get().getUid();
+        return ApiResult.success(pullService.pullBox(userId));
     }
 
-    @GetMapping("/pullHistoryMessage")
-    @Operation(summary = "全量拉取历史消息")
-    public ApiResult<Void> pullHistoryMessage(){
-        return ApiResult.success();
-    }
-
-    @PutMapping("/withdrawMessage")
-    @Operation(summary = "撤回消息")
-    public ApiResult<Void> withdrawMessage(){
-        return ApiResult.success();
-    }
-
-    @PutMapping("/pullSessionMessage")
-    @Operation(summary = "拉取某个会话的消息")
-    public ApiResult<Void> pullSessionMessage(){
+    @PostMapping("/ackConfirm")
+    @Operation(summary = "ack 确认")
+    public ApiResult<Void> confirmMailboxMessage(AckBatchConfirmReq ackBatchConfirmReq){
+        pullService.ackBatchConfirm(RequestHolder.get().getUid(), ackBatchConfirmReq.getMessageIdList());
         return ApiResult.success();
     }
 }

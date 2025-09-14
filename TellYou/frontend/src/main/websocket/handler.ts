@@ -1,5 +1,9 @@
 import { addLocalMessage } from '../sqlite/dao/message-dao'
 import { BrowserWindow } from 'electron'
+import { updateSessionByMessage } from '@main/sqlite/dao/session-dao'
+import { queryAll } from '@main/sqlite/sqlite-operation'
+import { Session } from '@renderer/status/session/session-class'
+import { store } from '@main/index'
 
 type ServerMsg = {
   messageId: string
@@ -10,11 +14,11 @@ type ServerMsg = {
   type?: number
   fromName?: string
   content: string
-  adjustedTimestamp: string // 对标 System.currentTimeMillis()
+  adjustedTimestamp: string
   extra?: Record<string, unknown>
 }
 
-export const handleMessage = async (msg: ServerMsg): Promise<void> => {
+export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void> => {
   console.log(msg)
 
   const snap = Number(msg.adjustedTimestamp)
@@ -30,10 +34,10 @@ export const handleMessage = async (msg: ServerMsg): Promise<void> => {
     sendTime: new Date(snap).toISOString(),
     isRead: 1
   })
+  if (!insertId || insertId <= 0) return
 
-  if (!insertId || insertId <= 0) {
-    return
-  }
+  const mainWindow = BrowserWindow.getAllWindows()[0]
+  await updateSessionByMessage({content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId})
 
   const chatMsg = {
     id: Number(insertId) || 0,
@@ -47,7 +51,13 @@ export const handleMessage = async (msg: ServerMsg): Promise<void> => {
     isRead: true
   }
 
+  ws.send(JSON.stringify({
+    messageId: msg.messageId,
+    type: 101,
+    fromUid: store.get('currentId'),
+  }))
+  const session: Session = (await queryAll('select * from sessions where session_id = ?', [msg.sessionId]) as unknown as Session[])[0]
 
-  const mainWindow = BrowserWindow.getAllWindows()[0]
   mainWindow?.webContents.send('loadMessageDataCallback', msg.sessionId, chatMsg)
+  mainWindow?.webContents.send('loadSessionDataCallback', [session])
 }

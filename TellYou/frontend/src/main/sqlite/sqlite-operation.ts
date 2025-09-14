@@ -2,7 +2,6 @@ import fs from 'fs'
 import os from 'os'
 import sqlite3 from 'sqlite3'
 import { add_indexes, add_tables } from './sqlite-struct'
-import { logger } from '../../utils/log-util'
 
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }
@@ -15,12 +14,9 @@ const baseFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev
 let dataFolder: string = baseFolder
 let dataBase: sqlite3.Database
 
-
-/************************************************** 业务层接口 *************************************************************/
-
 export const setCurrentFolder = (userId: string): void => {
   dataFolder = baseFolder + '_' + userId + '/'
-  logger.info('数据库操作目录 ' + dataFolder)
+  console.info('数据库操作目录 ' + dataFolder)
   if (!fs.existsSync(dataFolder)) {
     fs.mkdirSync(dataFolder)
   }
@@ -43,12 +39,12 @@ export const queryAll = (sql: string, params: unknown[]): Promise<Record<string,
     const stmt = dataBase.prepare(sql)
     stmt.all(params, function(err: Error | null, rows: unknown[]) {
       if (err) {
-        logger.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
+        console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve([])
         return
       }
       const result = (rows as Record<string, unknown>[]).map(item => convertDb2Biz(item))
-      logger.sql(sql, params, result)
+      console.info(sql, params, result)
       resolve(result as Record<string, unknown>[])
     })
     stmt.finalize()
@@ -59,7 +55,7 @@ export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
     const stmt = dataBase.prepare(sql)
     stmt.get(params, function(err: Error | null, row: unknown) {
       if (err) {
-        logger.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
+        console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve(0)
         return
       }
@@ -73,7 +69,7 @@ export const queryOne = (sql: string, params: unknown[]): Promise<Record<string,
     const stmt = dataBase.prepare(sql)
     stmt.get(params, function(err: Error | null, row: unknown) {
       if (err) {
-        logger.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
+        console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve(null)
         return
       }
@@ -88,11 +84,11 @@ export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
     const stmt = dataBase.prepare(sql)
     stmt.run(params, function(err: Error | null) {
       if (err) {
-        logger.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
+        console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         reject(-1)
         return
       }
-      logger.sql(sql, params, this.changes)
+      console.info(sql, params, this.changes)
       resolve(this.changes)
     })
     stmt.finalize()
@@ -139,7 +135,7 @@ export const update = (tableName: string, data: Record<string, unknown>, paramDa
   const sql = `update ${tableName}
                set ${columns.join(',')} ${whereColumns.length > 0 ? ' where ' : ''}${whereColumns.join(' and ')}`
 
-  logger.info(sql)
+  console.info(sql)
 
   return sqliteRun(sql, params)
 }

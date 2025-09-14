@@ -22,7 +22,8 @@ public enum MessageTypeEnum {
     GROUP_IMAGE(7, MQConstant.SESSION_TOPIC, "图片"),
     GROUP_VIDEO(8, MQConstant.SESSION_TOPIC, "视频"),
     GROUP_VICE(9, MQConstant.SESSION_TOPIC, "语音"),
-    GROUP_PACKET(10, MQConstant.SESSION_TOPIC, "红包");
+    GROUP_PACKET(10, MQConstant.SESSION_TOPIC, "红包"),
+    ACK_CONFIRM(101, MQConstant.ACK_TOPIC, "ack确认");
 
     private final Integer type;
     private final String topic;

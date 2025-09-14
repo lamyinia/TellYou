@@ -1,9 +1,13 @@
 package org.com.modules.session.consumer;
 
 
+import com.alibaba.fastjson.JSON;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.com.modules.common.service.retry.MessageDelayQueue;
+import org.com.modules.session.dao.UserInBoxDocDao;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.tools.constant.MQConstant;
 import org.springframework.stereotype.Service;
@@ -31,12 +35,16 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @RocketMQMessageListener(topic = MQConstant.ACK_TOPIC, consumerGroup = MQConstant.ACK_MANAGER_GROUP)
-public class AckCycleConsumer implements RocketMQListener<MessageReq> {
+public class AckCycleConsumer implements RocketMQListener<String> {
+    private final MessageDelayQueue messageDelayQueue;
+    private final UserInBoxDocDao userInBoxDocDao;
 
     @Override
-    public void onMessage(MessageReq messageReq) {
-
+    public void onMessage(String text) {
+        MessageReq req = JSON.parseObject(text, MessageReq.class);
+        userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
+        messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId());
     }
-
 }

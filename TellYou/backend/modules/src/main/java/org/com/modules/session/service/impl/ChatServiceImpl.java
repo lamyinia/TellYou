@@ -2,6 +2,7 @@ package org.com.modules.session.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.session.dao.MessageDocDao;
 import org.com.modules.session.domain.document.MessageDoc;
 import org.com.modules.session.domain.document.UserInBoxDoc;
@@ -23,6 +24,8 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MessageDoc save(MessageDoc messageDoc, List<Long> uidList) {
+        messageDocDao.save(messageDoc);
+
         List<UserInBoxDoc> inboxList = uidList.stream().map(id -> {
             UserInBoxDoc userInBoxDoc = new UserInBoxDoc();
             BeanUtils.copyProperties(messageDoc, userInBoxDoc);
@@ -32,7 +35,6 @@ public class ChatServiceImpl implements ChatService {
             return userInBoxDoc;
         }).collect(Collectors.toList());
 
-        messageDocDao.save(messageDoc);
         messageDocDao.batchSave(inboxList);
 
         return messageDoc;

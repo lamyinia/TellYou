@@ -7,6 +7,38 @@ import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
 import { useUserStore } from '@main/store/persist/user-store'
 
 const message = ref('')
+const props = defineProps<{ currentContact: Session | null }>()
+const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
+const messageStore = useMessageStore()
+const currentSessionId = computed(() => props.currentContact?.sessionId || '')
+const listRef = ref<HTMLElement | null>(null)
+const isFirstLoad = ref(true)
+const preloadThreshold = 80
+const messages = computed(() => {
+  const id = currentSessionId.value
+  if (!id) return []
+  const msgs = messageStore.getCurrentSessionMessages(String(id))
+  console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
+  return msgs
+})
+const displayedMessages = computed(() => [...messages.value].reverse())
+
+watch(currentSessionId, (id) => {
+  if (id) {
+    isFirstLoad.value = true
+    messageStore.setCurrentSession(String(id))
+  }
+}, { immediate: true })
+watch(messages, async (val) => {
+  if (!listRef.value) return
+  if (isFirstLoad.value && val.length > 0) {
+    await scrollToBottom()
+    isFirstLoad.value = false
+  }
+}, { deep: true })
+onMounted(async () => {
+  await scrollToBottom()
+})
 const sendMessage = async (): Promise<void> => {
   const userStore = useUserStore()
   const fromUId = userStore.myId
@@ -22,15 +54,6 @@ const sendMessage = async (): Promise<void> => {
   const ok = await window.electronAPI.wsSend(payload)
   if (ok) message.value = ''
 }
-
-const props = defineProps<{ currentContact: Session | null }>()
-const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
-const messageStore = useMessageStore()
-const currentSessionId = computed(() => props.currentContact?.sessionId || '')
-const listRef = ref<HTMLElement | null>(null)
-const isFirstLoad = ref(true)
-const preloadThreshold = 80
-
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
   await nextTick()
@@ -40,37 +63,6 @@ const scrollToBottom = async (): Promise<void> => {
     resolve()
   }))
 }
-
-watch(currentSessionId, (id) => {
-  if (id) {
-    isFirstLoad.value = true
-    messageStore.setCurrentSession(String(id))
-  }
-}, { immediate: true })
-
-const messages = computed(() => {
-  const id = currentSessionId.value
-  if (!id) return []
-  const msgs = messageStore.getCurrentSessionMessages(String(id))
-  console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
-  return msgs
-})
-
-const displayedMessages = computed(() => [...messages.value].reverse())
-
-watch(messages, async (val) => {
-  if (!listRef.value) return
-  if (isFirstLoad.value && val.length > 0) {
-    await scrollToBottom()
-    isFirstLoad.value = false
-  }
-}, { deep: true })
-
-onMounted(async () => {
-  await scrollToBottom()
-})
-
-
 const onScroll = async (): Promise<void> => {
   const el = listRef.value
   const sessionId = currentSessionId.value
@@ -88,12 +80,12 @@ const onScroll = async (): Promise<void> => {
       listRef.value!.scrollTop = prevTop + diff
     }
   }
-
   const distanceToBottom = scrollHeight - scrollTop - clientHeight
   if (distanceToBottom <= preloadThreshold) {
     await messageStore.loadNewerMessages(sessionId)
   }
 }
+
 </script>
 
 <template>
@@ -170,6 +162,22 @@ const onScroll = async (): Promise<void> => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255,255,255,0.25) transparent; /* Firefox */
+}
+.star-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.star-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.star-messages::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
+}
+.star-messages::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.2));
 }
 .star-input-wrap {
   position: absolute;
