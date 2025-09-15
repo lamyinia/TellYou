@@ -30,9 +30,11 @@ export const useMessageStore = defineStore('message', () => {
     if (isInitialized.value === true || loadMessageFunction) return
 
     loadMessageFunction = (...args: unknown[]): void => {
-      const [, sessionId, message] = args as [Electron.IpcRendererEvent, string, ChatMessage]
-      console.log(message)
-      addMessage(sessionId, message)
+      const [, messages] = args as [Electron.IpcRendererEvent, ChatMessage[]]
+      messages.forEach((message) => {
+        console.log(message)
+        addMessage(message.sessionId, message)
+      })
     }
 
     window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
@@ -48,9 +50,9 @@ export const useMessageStore = defineStore('message', () => {
   const getCurrentSessionMessages = (sessionId: string | number): ChatMessage[] => {
     const key = String(sessionId)
     if (!key) return []
-    const msgs = messageCache[key] || []
-    console.log(`getCurrentSessionMessages(${sessionId}):`, msgs.length, 'messages')
-    return msgs
+    const result = messageCache[key] || []
+    console.log(`getCurrentSessionMessages(${sessionId}):`, result.length, 'messages')
+    return result
   }
 
   const getCurrentPageInfo = (sessionId: string | number): MessagePageInfo | null => {
@@ -140,6 +142,7 @@ export const useMessageStore = defineStore('message', () => {
 
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo?.hasMore) return false
+    console.log('缓存消息', pageInfo)
 
     isLoadingOlder.value = true
     try {
@@ -182,7 +185,6 @@ export const useMessageStore = defineStore('message', () => {
 
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo?.hasMoreNewer) return false
-
     isLoadingNewer.value = true
     try {
       const result = (await window.electronAPI.requestMessages(sessionId, {
@@ -221,15 +223,13 @@ export const useMessageStore = defineStore('message', () => {
 
   const addMessage = (sessionId: string | number, message: ChatMessage): void => {
     const key = String(sessionId)
-    const currentMessages = messageCache[key] || []
+    if (messageCache[key] === null) return
+    const currentMessages = messageCache[key]
     const newMessages = [message, ...currentMessages]
-
     if (newMessages.length > config.maxMessagesPerSession) {
       newMessages.splice(config.maxMessagesPerSession)
     }
-
     messageCache[key] = newMessages
-
     const pageInfo = pageInfoCache[key]
     if (pageInfo) {
       pageInfoCache[key] = {
@@ -238,7 +238,6 @@ export const useMessageStore = defineStore('message', () => {
         totalCount: pageInfo.totalCount + 1
       }
     }
-
     console.log(
       `消息已添加到缓存: sessionId=${sessionId}, messageId=${message.id}, 当前消息数=${newMessages.length}`
     )
@@ -284,13 +283,10 @@ export const useMessageStore = defineStore('message', () => {
     isLoading,
     isLoadingOlder,
     isLoadingNewer,
-
     init,
     destroy,
-
     getCurrentSessionMessages,
     getCurrentPageInfo,
-
     getSessionMessages,
     getSessionPageInfo,
     setCurrentSession,

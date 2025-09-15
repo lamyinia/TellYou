@@ -64,7 +64,6 @@ public class MessageDelayQueue {
         String letterId = getLetterId(vo);
         letterCache.put(letterId, vo);
         scheduleCleanup(letterId);
-
         letterRetryCount.put(locating(uid, vo), 1);
     }
 

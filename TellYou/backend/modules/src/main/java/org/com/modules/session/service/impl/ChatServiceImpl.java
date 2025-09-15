@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +34,11 @@ public class ChatServiceImpl implements ChatService {
             userInBoxDoc.setQuoteId(messageDoc.getMessageId());
             userInBoxDoc.setQuoteType(messageDoc.getMessageType());
             userInBoxDoc.setUserId(id);
+            Map<String, Object> extra = userInBoxDoc.getExtra();
+            if (extra == null) extra = new HashMap<>();
+            extra.put("sequenceId", messageDoc.getSequenceNumber());
+            userInBoxDoc.setExtra(extra);
+
             return userInBoxDoc;
         }).collect(Collectors.toList());
 

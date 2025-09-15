@@ -28,7 +28,7 @@ import java.util.Map;
 @ToString
 @Document(collection = "user_inbox")
 @CompoundIndexes({
-        @CompoundIndex(name = "idx_user_session", def = "{'userId': 1, 'adjustedTimestamp': 1}"),
+        @CompoundIndex(name = "idx_user_adjustedTimestamp", def = "{'userId': 1, 'adjustedTimestamp': 1}"),
         @CompoundIndex(name = "idx_uid_qid", def = "{'userId': 1, 'quoteId': 1}", unique = true)
     })
 public class UserInBoxDoc {

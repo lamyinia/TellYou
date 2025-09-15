@@ -115,6 +115,57 @@ export const insertOrReplace = (tableName: string, data: Record<string, unknown>
 export const insertOrIgnore = (tableName: string, data: Record<string, unknown>): Promise<number> => {
   return insert('insert or ignore into', tableName, data)
 }
+export const batchInsert = (tableName: string, dataList: Record<string,unknown>[]): Promise<number> => {
+  const columnMap = globalColumnMap[tableName]
+  const firstData = dataList[0]
+  const columns: string[] = []
+  for (const item in firstData){
+    if (firstData[item] != undefined && columnMap[item] != undefined){
+      columns.push(columnMap[item])
+    }
+  }
+  const placeholders = Array(columns.length).fill('?').join(',')
+  const valuesPlaceholders = dataList.map(() => `(${placeholders})`).join(',')
+  const sql = `INSERT OR IGNORE INTO ${tableName}(${columns.join(',')}) VALUES ${valuesPlaceholders}`
+  const params: unknown[] = []
+  for (const data of dataList) {
+    for (const column of columns) {
+      const bizField = Object.keys(columnMap).find(key => columnMap[key] === column)
+      params.push(data[bizField!])
+    }
+  }
+  console.log('sql语句', sql, params)
+
+  return sqliteRun(sql, params)
+}
+export const batchInsertWithIds = async (tableName: string, dataList: Record<string,unknown>[]):Promise<number[]> => {
+  if (dataList.length === 0) return []
+  await batchInsert(tableName, dataList)
+  const columnMap = globalColumnMap[tableName]
+  const whereConditions: string[] = []
+  const params: unknown[] = []
+
+  for (const data of dataList) {
+    const conditions: string[] = []
+    for (const item in data) {
+      if (data[item] != undefined && columnMap[item] != undefined) {
+        if (item === 'messageId') {
+          conditions.push(`${columnMap[item]} = ?`)
+          params.push(data[item])
+        }
+      }
+    }
+    if (conditions.length > 0) {
+      whereConditions.push(`(${conditions.join(' AND ')})`)
+    }
+  }
+
+  if (whereConditions.length === 0) return []
+  const sql = `SELECT id FROM ${tableName} WHERE ${whereConditions.join(' OR ')}`
+  const results = await queryAll(sql, params)
+  return results.map(r => r.id as number)
+}
+
 export const update = (tableName: string, data: Record<string, unknown>, paramData: Record<string, unknown>): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const columns: string[] = []

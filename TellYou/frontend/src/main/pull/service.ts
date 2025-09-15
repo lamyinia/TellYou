@@ -26,8 +26,7 @@ export const pullOfflineMessages = async (): Promise<void> => {
     const response = await mainAxios.get(
       `${import.meta.env.VITE_REQUEST_URL}/message/pullMailboxMessage`
     )
-    console.log(response)
-    return
+
     if (!response.data.success) {
       console.error('拉取离线消息失败:', response.data.errMsg)
       return
@@ -42,69 +41,100 @@ export const pullOfflineMessages = async (): Promise<void> => {
     console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`)
 
     const messageIds: string[] = []
+    const sessionUpdates = new Map<string, { content: string; sendTime: string }>()
+    const chatMessages: unknown[] = []
+
     for (const message of pullResult.messageList) {
-      try {
-        const insertId = await addLocalMessage({
-          sessionId: String(message.sessionId),
-          sequenceId: message.sequenceNumber || 0,
-          senderId: String(message.senderId),
-          messageId: message.messageId,
-          senderName: '',
-          msgType: message.messageType,
-          text: message.content,
-          extData: JSON.stringify(message.extra || {}),
-          sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
-          isRead: 0
+      const date = new Date(Number(message.adjustedTimestamp)).toISOString()
+      console.log(message)
+      const messageData = {
+        sessionId: String(message.sessionId),
+        sequenceId: message.sequenceNumber,
+        senderId: String(message.senderId),
+        messageId: message.messageId,
+        senderName: '',
+        msgType: message.messageType,
+        text: message.content,
+        extData: JSON.stringify(message.extra),
+        sendTime: date,
+        isRead: 0
+      }
+      const insertId = await addLocalMessage(messageData)
+      messageIds.push(message.messageId)
+      if (insertId <= 0) continue
+
+      const sessionId = String(message.sessionId)
+      const existingSession = sessionUpdates.get(sessionId)
+      if (!existingSession || date > existingSession.sendTime) {
+        sessionUpdates.set(sessionId, {
+          content: message.content,
+          sendTime: date
         })
+      }
 
-        if (insertId && insertId > 0) {
-          await updateSessionByMessage({
-            content: message.content,
-            sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
-            sessionId: String(message.sessionId)
-          })
+      chatMessages.push({
+        id: insertId,
+        sessionId: message.sessionId,
+        content: message.content,
+        messageType: 'text' as const,
+        senderId: message.senderId,
+        senderName: '',
+        senderAvatar: '',
+        timestamp: new Date(Number(message.adjustedTimestamp)),
+        isRead: false
+      })
+    }
+    const sessionUpdatePromises: unknown[] = []
+    for (const [sessionId, updateData] of sessionUpdates) {
+      sessionUpdatePromises.push(
+        updateSessionByMessage({
+          content: updateData.content,
+          sendTime: updateData.sendTime,
+          sessionId: sessionId
+        })
+      )
+    }
 
-          messageIds.push(message.messageId)
-
-          const mainWindow = BrowserWindow.getAllWindows()[0]
-          if (mainWindow) {
-            const chatMsg = {
-              id: Number(insertId),
-              sessionId: message.sessionId,
-              content: message.content,
-              messageType: 'text' as const,
-              senderId: message.senderId,
-              senderName: '',
-              senderAvatar: '',
-              timestamp: new Date(Number(message.adjustedTimestamp)),
-              isRead: false
-            }
-
-            const sessions = await queryAll('select * from sessions where session_id = ?', [String(message.sessionId)]) as unknown[]
-            if (sessions.length > 0) {
-              mainWindow.webContents.send('loadMessageDataCallback', message.sessionId, chatMsg)
-              mainWindow.webContents.send('loadSessionDataCallback', sessions)
-            }
-          }
-        }
+    if (sessionUpdatePromises.length > 0) {
+      try {
+        await Promise.all(sessionUpdatePromises)
+        console.info(`批量更新 ${sessionUpdatePromises.length} 个会话`)
       } catch (error) {
-        console.error(`处理消息 ${message.messageId} 失败:`, error)
+        console.error('批量更新会话失败:', error)
+      }
+    }
+
+
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    if (mainWindow && chatMessages.length > 0) {
+      try {
+        const sessionIds = Array.from(sessionUpdates.keys())
+        const sessions = await queryAll(
+          `SELECT *
+           FROM sessions
+           WHERE session_id IN (${sessionIds.map(() => '?').join(',')})`,
+          sessionIds
+        )
+
+        mainWindow.webContents.send('loadMessageDataCallback', chatMessages)
+        mainWindow.webContents.send('loadSessionDataCallback', sessions)
+        console.info(`发送 ${chatMessages.length} 条消息到渲染进程`)
+      } catch (error) {
+        console.error('发送消息到渲染进程失败:', error)
       }
     }
 
     if (messageIds.length > 0) {
       await ackConfirmMessages(messageIds)
     }
-
     if (pullResult.hasMore) {
       console.info('还有更多离线消息，继续拉取...')
       setTimeout(() => {
         pullOfflineMessages()
-      }, 1000)
+      }, 0)
     } else {
       console.info('离线消息拉取完成')
     }
-
   } catch (error) {
     console.error('拉取离线消息异常:', error)
   }
@@ -112,20 +142,13 @@ export const pullOfflineMessages = async (): Promise<void> => {
 
 const ackConfirmMessages = async (messageIds: string[]): Promise<void> => {
   try {
-    const token = store.get('token')
-    if (!token) {
-      console.warn('Token不存在，跳过消息确认')
-      return
+    console.info(`确认 ${messageIds.length} 条消息`, messageIds)
+    const requestData = {
+      messageIdList: messageIds
     }
-
-    console.info(`确认 ${messageIds.length} 条消息`)
-
-    // 使用POST请求确认消息
     const response = await mainAxios.post(
-      `${import.meta.env.VITE_REQUEST_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://')}/message/ackConfirm`,
-      {
-        messageIdList: messageIds
-      }
+      `${import.meta.env.VITE_REQUEST_URL}/message/ackConfirm`,
+      requestData
     )
 
     if (response.data.success) {

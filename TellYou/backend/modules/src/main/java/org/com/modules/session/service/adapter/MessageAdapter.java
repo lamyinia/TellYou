@@ -22,7 +22,11 @@ public class MessageAdapter {
         MessageResp resp = new MessageResp();
         resp.setMessageId(doc.getQuoteId());
         resp.setSessionId(doc.getSessionId());
-        resp.setSequenceNumber(null);
+
+        Long sequenceId  = (Long) doc.getExtra().get("sequenceId");
+        if (sequenceId != null) resp.setSequenceNumber(sequenceId);
+        else resp.setSequenceNumber(System.currentTimeMillis());
+
         resp.setMessageType(doc.getQuoteType());
         resp.setSenderId(doc.getSenderId());
         resp.setToUserId(doc.getUserId());

@@ -1,6 +1,7 @@
 import { insertOrIgnore, queryAll } from '../sqlite-operation'
+import { rawMessageToBeInserted } from '@main/sqlite/adapter'
 
-export const addLocalMessage = async (data: {
+export type rawMessage = {
   sessionId: string
   sequenceId: string | number
   senderId: string
@@ -11,37 +12,13 @@ export const addLocalMessage = async (data: {
   extData?: string
   sendTime: string
   isRead?: number
-}): Promise<number> => {
-  const changes = await insertOrIgnore('messages', {
-    sessionId: data.sessionId,
-    sequenceId: String(data.sequenceId),
-    senderId: data.senderId,
-    msgId: data.messageId,
-    senderName: data.senderName ?? '',
-    msgType: data.msgType,
-    isRecalled: 0,
-    text: data.text ?? '',
-    extData: data.extData ?? '',
-    sendTime: data.sendTime,
-    isRead: data.isRead ?? 1
-  })
-  if (!changes) return 0
-
-  const rows = (await queryAll(
-    'SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1',
-    [data.sessionId, String(data.sequenceId)]
-  )) as Array<{ id: number }>
-
-  return rows[0]?.id ?? 0
 }
-
 type MessageQueryOptions = {
   limit?: number
   direction?: 'newest' | 'older' | 'newer'
   beforeId?: number
   afterId?: number
 }
-
 type MessageRow = {
   id: number
   sessionId: string
@@ -56,12 +33,19 @@ type MessageRow = {
   isRead: number
 }
 
-export const getMessageBySessionId = async (
-  sessionId: string,
-  options: MessageQueryOptions
+export const addLocalMessage = async (data: rawMessage): Promise<number> => {
+  const changes = await insertOrIgnore('messages', rawMessageToBeInserted(data))
+  if (!changes) return 0
+  const rows = (await queryAll(
+    'SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1',
+    [data.sessionId, String(data.sequenceId)]
+  )) as Array<{ id: number }>
+  return rows[0].id
+}
+export const getMessageBySessionId = async (sessionId: string, options: MessageQueryOptions
 ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> => {
   try {
-    const limit = Math.max(1, Math.min(Number(options?.limit) || 50, 200))
+    const limit = Number(options?.limit) || 50
     const direction: 'newest' | 'older' | 'newer' = options?.direction || 'newest'
     const beforeId: number | undefined = options?.beforeId
     const afterId: number | undefined = options?.afterId
@@ -70,12 +54,24 @@ export const getMessageBySessionId = async (
     const params: unknown[] = [sessionId]
 
     if (direction === 'older' && beforeId) {
-      where += ' AND id < ?'
-      params.push(beforeId)
-    }
-    if (direction === 'newer' && afterId) {
-      where += ' AND id > ?'
-      params.push(afterId)
+      const beforeMessage = await queryAll(
+        'SELECT send_time FROM messages WHERE id = ?',
+        [beforeId]
+      ) as Array<{ sendTime: string }>
+      if (beforeMessage.length > 0) {
+        where += ' AND send_time < ?'
+        params.push(beforeMessage[0].sendTime)
+      }
+    } else if (direction === 'newer' && afterId) {
+      const afterMessage = await queryAll(
+        'SELECT send_time FROM messages WHERE id = ?',
+        [afterId]
+      ) as Array<{ sendTime: string }>
+
+      if (afterMessage.length > 0) {
+        where += ' AND send_time > ?'
+        params.push(afterMessage[0].sendTime)
+      }
     }
 
     const sql = `
@@ -116,14 +112,15 @@ export const getMessageBySessionId = async (
 
     let hasMore = false
     if (messages.length > 0) {
-      const lastId = messages[messages.length - 1].id
+      const lastMessage = messages[messages.length - 1]
       const moreRow = (await queryAll(
-        'SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND id < ?',
-        [sessionId, lastId]
+        'SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?',
+        [sessionId, lastMessage.timestamp.toISOString()]
       )) as Array<{ cnt: number }>
       hasMore = (moreRow[0]?.cnt || 0) > 0
     }
 
+    console.log('查询参数:', options, '返回消息数:', messages.length, 'hasMore:', hasMore)
     return { messages, hasMore, totalCount }
   } catch (error) {
     console.error('获取会话消息失败:', error)

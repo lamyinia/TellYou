@@ -14,6 +14,7 @@ const currentSessionId = computed(() => props.currentContact?.sessionId || '')
 const listRef = ref<HTMLElement | null>(null)
 const isFirstLoad = ref(true)
 const preloadThreshold = 80
+
 const messages = computed(() => {
   const id = currentSessionId.value
   if (!id) return []
@@ -21,6 +22,8 @@ const messages = computed(() => {
   console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
   return msgs
 })
+
+
 const displayedMessages = computed(() => [...messages.value].reverse())
 
 watch(currentSessionId, (id) => {
@@ -29,6 +32,7 @@ watch(currentSessionId, (id) => {
     messageStore.setCurrentSession(String(id))
   }
 }, { immediate: true })
+
 watch(messages, async (val) => {
   if (!listRef.value) return
   if (isFirstLoad.value && val.length > 0) {
@@ -36,9 +40,11 @@ watch(messages, async (val) => {
     isFirstLoad.value = false
   }
 }, { deep: true })
+
 onMounted(async () => {
   await scrollToBottom()
 })
+
 const sendMessage = async (): Promise<void> => {
   const userStore = useUserStore()
   const fromUId = userStore.myId
@@ -54,6 +60,7 @@ const sendMessage = async (): Promise<void> => {
   const ok = await window.electronAPI.wsSend(payload)
   if (ok) message.value = ''
 }
+
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
   await nextTick()
@@ -63,6 +70,7 @@ const scrollToBottom = async (): Promise<void> => {
     resolve()
   }))
 }
+
 const onScroll = async (): Promise<void> => {
   const el = listRef.value
   const sessionId = currentSessionId.value
@@ -70,6 +78,7 @@ const onScroll = async (): Promise<void> => {
 
   const { scrollTop, scrollHeight, clientHeight } = el
 
+  // 滚动到顶部时加载更早的消息
   if (scrollTop <= preloadThreshold) {
     const prevScrollHeight = scrollHeight
     const prevTop = scrollTop
@@ -80,12 +89,13 @@ const onScroll = async (): Promise<void> => {
       listRef.value!.scrollTop = prevTop + diff
     }
   }
+
+  // 滚动到底部时加载更新的消息
   const distanceToBottom = scrollHeight - scrollTop - clientHeight
   if (distanceToBottom <= preloadThreshold) {
     await messageStore.loadNewerMessages(sessionId)
   }
 }
-
 </script>
 
 <template>
@@ -190,7 +200,7 @@ const onScroll = async (): Promise<void> => {
   background: linear-gradient(0deg, rgba(13,19,61,0.95) 80%, rgba(13,19,61,0.0) 100%);
   z-index: 3;
   border-radius: 0 0 0 18px;
-  min-height: 88px; /* 固定最小高度便于上方留白计算 */
+  min-height: 88px;
 }
 .star-input {
   flex: 1;

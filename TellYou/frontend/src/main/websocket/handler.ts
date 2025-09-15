@@ -39,7 +39,7 @@ export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void
   const mainWindow = BrowserWindow.getAllWindows()[0]
   await updateSessionByMessage({content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId})
 
-  const chatMsg = {
+  const vo = {
     id: Number(insertId) || 0,
     sessionId: msg.sessionId,
     content: String(msg.content ?? ''),
@@ -58,6 +58,6 @@ export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void
   }))
   const session: Session = (await queryAll('select * from sessions where session_id = ?', [msg.sessionId]) as unknown as Session[])[0]
 
-  mainWindow?.webContents.send('loadMessageDataCallback', msg.sessionId, chatMsg)
+  mainWindow?.webContents.send('loadMessageDataCallback', [vo])
   mainWindow?.webContents.send('loadSessionDataCallback', [session])
 }

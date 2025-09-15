@@ -32,7 +32,7 @@ public class MessageController {
 
     @PostMapping("/ackConfirm")
     @Operation(summary = "ack 确认")
-    public ApiResult<Void> confirmMailboxMessage(AckBatchConfirmReq ackBatchConfirmReq){
+    public ApiResult<Void> confirmMailboxMessage(@RequestBody AckBatchConfirmReq ackBatchConfirmReq){
         pullService.ackBatchConfirm(RequestHolder.get().getUid(), ackBatchConfirmReq.getMessageIdList());
         return ApiResult.success();
     }

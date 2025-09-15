@@ -9,7 +9,6 @@ import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
-import { pullOfflineMessages } from '@main/pull/service'
 import log from 'electron-log'
 import os from 'os'
 
@@ -65,7 +64,7 @@ const contextMenu = [
 ]
 const menu = Menu.buildFromTemplate(contextMenu)
 
-const createWindow = () => {
+const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     icon: icon,
     width: loginWidth,
@@ -132,7 +131,6 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     mainWindow.setMinimumSize(800, 600)
     mainWindow.center()
     initializeUserData(uid)
-    pullOfflineMessages()
   })
   onScreenChange((event: Electron.IpcMainEvent, status: number) => {
     const webContents = event.sender

@@ -170,8 +170,8 @@ const getMessageId = () => {
   const rand = BigInt(Math.floor(Math.random() * 1e6));
   return (time << 20n | rand).toString();
 };
-const addLocalMessage = async (data) => {
-  const changes = await insertOrIgnore("messages", {
+const rawMessageToBeInserted = (data) => {
+  return {
     sessionId: data.sessionId,
     sequenceId: String(data.sequenceId),
     senderId: data.senderId,
@@ -183,29 +183,43 @@ const addLocalMessage = async (data) => {
     extData: data.extData ?? "",
     sendTime: data.sendTime,
     isRead: data.isRead ?? 1
-  });
+  };
+};
+const addLocalMessage = async (data) => {
+  const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
   if (!changes) return 0;
   const rows = await queryAll(
     "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
     [data.sessionId, String(data.sequenceId)]
   );
-  return rows[0]?.id ?? 0;
+  return rows[0].id;
 };
 const getMessageBySessionId = async (sessionId, options) => {
   try {
-    const limit = Math.max(1, Math.min(Number(options?.limit) || 50, 200));
+    const limit = Number(options?.limit) || 50;
     const direction = options?.direction || "newest";
     const beforeId = options?.beforeId;
     const afterId = options?.afterId;
     let where = "WHERE session_id = ?";
     const params = [sessionId];
     if (direction === "older" && beforeId) {
-      where += " AND id < ?";
-      params.push(beforeId);
-    }
-    if (direction === "newer" && afterId) {
-      where += " AND id > ?";
-      params.push(afterId);
+      const beforeMessage = await queryAll(
+        "SELECT send_time FROM messages WHERE id = ?",
+        [beforeId]
+      );
+      if (beforeMessage.length > 0) {
+        where += " AND send_time < ?";
+        params.push(beforeMessage[0].sendTime);
+      }
+    } else if (direction === "newer" && afterId) {
+      const afterMessage = await queryAll(
+        "SELECT send_time FROM messages WHERE id = ?",
+        [afterId]
+      );
+      if (afterMessage.length > 0) {
+        where += " AND send_time > ?";
+        params.push(afterMessage[0].sendTime);
+      }
     }
     const sql = `
         SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
@@ -245,13 +259,14 @@ const getMessageBySessionId = async (sessionId, options) => {
     const totalCount = totalCountRow[0]?.total || 0;
     let hasMore = false;
     if (messages.length > 0) {
-      const lastId = messages[messages.length - 1].id;
+      const lastMessage = messages[messages.length - 1];
       const moreRow = await queryAll(
-        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND id < ?",
-        [sessionId, lastId]
+        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
+        [sessionId, lastMessage.timestamp.toISOString()]
       );
       hasMore = (moreRow[0]?.cnt || 0) > 0;
     }
+    console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
     return { messages, hasMore, totalCount };
   } catch (error) {
     console.error("获取会话消息失败:", error);
@@ -309,7 +324,7 @@ const handleMessage = async (msg, ws2) => {
   if (!insertId || insertId <= 0) return;
   const mainWindow = electron.BrowserWindow.getAllWindows()[0];
   await updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
-  const chatMsg = {
+  const vo = {
     id: Number(insertId) || 0,
     sessionId: msg.sessionId,
     content: String(msg.content ?? ""),
@@ -326,7 +341,7 @@ const handleMessage = async (msg, ws2) => {
     fromUid: store.get("currentId")
   }));
   const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
-  mainWindow?.webContents.send("loadMessageDataCallback", msg.sessionId, chatMsg);
+  mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
   mainWindow?.webContents.send("loadSessionDataCallback", [session]);
 };
 let ws = null;
@@ -459,15 +474,152 @@ const onTest = (callback) => {
     callback();
   });
 };
+const mainAxios = axios.create({
+  timeout: 3e4,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+mainAxios.interceptors.request.use((config) => {
+  const token = store.get("token");
+  if (token) {
+    config.headers.token = token;
+  }
+  return config;
+});
+const pullOfflineMessages = async () => {
+  try {
+    console.info("开始拉取用户离线消息...");
+    const response = await mainAxios.get(
+      `${"http://localhost:8081"}/message/pullMailboxMessage`
+    );
+    if (!response.data.success) {
+      console.error("拉取离线消息失败:", response.data.errMsg);
+      return;
+    }
+    const pullResult = response.data.data;
+    if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
+      console.info("没有离线消息需要拉取");
+      return;
+    }
+    console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
+    const messageIds = [];
+    const sessionUpdates = /* @__PURE__ */ new Map();
+    const chatMessages = [];
+    for (const message of pullResult.messageList) {
+      const date = new Date(Number(message.adjustedTimestamp)).toISOString();
+      console.log(message);
+      const messageData = {
+        sessionId: String(message.sessionId),
+        sequenceId: message.sequenceNumber,
+        senderId: String(message.senderId),
+        messageId: message.messageId,
+        senderName: "",
+        msgType: message.messageType,
+        text: message.content,
+        extData: JSON.stringify(message.extra),
+        sendTime: date,
+        isRead: 0
+      };
+      const insertId = await addLocalMessage(messageData);
+      messageIds.push(message.messageId);
+      if (insertId <= 0) continue;
+      const sessionId = String(message.sessionId);
+      const existingSession = sessionUpdates.get(sessionId);
+      if (!existingSession || date > existingSession.sendTime) {
+        sessionUpdates.set(sessionId, {
+          content: message.content,
+          sendTime: date
+        });
+      }
+      chatMessages.push({
+        id: insertId,
+        sessionId: message.sessionId,
+        content: message.content,
+        messageType: "text",
+        senderId: message.senderId,
+        senderName: "",
+        senderAvatar: "",
+        timestamp: new Date(Number(message.adjustedTimestamp)),
+        isRead: false
+      });
+    }
+    const sessionUpdatePromises = [];
+    for (const [sessionId, updateData] of sessionUpdates) {
+      sessionUpdatePromises.push(
+        updateSessionByMessage({
+          content: updateData.content,
+          sendTime: updateData.sendTime,
+          sessionId
+        })
+      );
+    }
+    if (sessionUpdatePromises.length > 0) {
+      try {
+        await Promise.all(sessionUpdatePromises);
+        console.info(`批量更新 ${sessionUpdatePromises.length} 个会话`);
+      } catch (error) {
+        console.error("批量更新会话失败:", error);
+      }
+    }
+    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+    if (mainWindow && chatMessages.length > 0) {
+      try {
+        const sessionIds = Array.from(sessionUpdates.keys());
+        const sessions = await queryAll(
+          `SELECT *
+           FROM sessions
+           WHERE session_id IN (${sessionIds.map(() => "?").join(",")})`,
+          sessionIds
+        );
+        mainWindow.webContents.send("loadMessageDataCallback", chatMessages);
+        mainWindow.webContents.send("loadSessionDataCallback", sessions);
+        console.info(`发送 ${chatMessages.length} 条消息到渲染进程`);
+      } catch (error) {
+        console.error("发送消息到渲染进程失败:", error);
+      }
+    }
+    if (messageIds.length > 0) {
+      await ackConfirmMessages(messageIds);
+    }
+    if (pullResult.hasMore) {
+      console.info("还有更多离线消息，继续拉取...");
+      setTimeout(() => {
+        pullOfflineMessages();
+      }, 0);
+    } else {
+      console.info("离线消息拉取完成");
+    }
+  } catch (error) {
+    console.error("拉取离线消息异常:", error);
+  }
+};
+const ackConfirmMessages = async (messageIds) => {
+  try {
+    console.info(`确认 ${messageIds.length} 条消息`, messageIds);
+    const requestData = {
+      messageIdList: messageIds
+    };
+    const response = await mainAxios.post(
+      `${"http://localhost:8081"}/message/ackConfirm`,
+      requestData
+    );
+    if (response.data.success) {
+      console.info("消息确认成功");
+    } else {
+      console.error("消息确认失败:", response.data.errMsg);
+    }
+  } catch (error) {
+    console.error("消息确认异常:", error);
+  }
+};
 const initializeUserData = async (uid) => {
   connectWs();
   setCurrentFolder(uid);
-  const everCreated = existsLocalDB();
+  existsLocalDB();
   await initTable();
   await pullStrongTransactionData();
-  if (!everCreated) {
-    await pullHistoryMessage();
-  }
+  await pullOfflineMessages();
 };
 const pullStrongTransactionData = async () => {
   console.log(`正在拉取强事务数据...`);
@@ -476,7 +628,6 @@ const pullStrongTransactionData = async () => {
     await pullApply();
     await pullGroup();
     await pullBlackList();
-    await pullOfflineMessage();
     console.log(`拉取强事务数据完成`);
   } catch (error) {
     console.error(`拉取强事务数据失败:`, error);
@@ -490,11 +641,6 @@ const pullApply = async () => {
 const pullGroup = async () => {
 };
 const pullBlackList = async () => {
-};
-const pullOfflineMessage = async () => {
-};
-const pullHistoryMessage = async () => {
-  console.log(`正在拉取历史消息...`);
 };
 const test = async () => {
   setCurrentFolder("1");
@@ -517,121 +663,6 @@ const test = async () => {
   await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
   const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
   console.info("sessions:", sessions);
-};
-const mainAxios = axios.create({
-  timeout: 3e4,
-  headers: {
-    "Content-Type": "application/json"
-  }
-});
-mainAxios.interceptors.request.use((config) => {
-  const token = store.get("token");
-  if (token) {
-    config.headers.token = token;
-  }
-  return config;
-});
-const pullOfflineMessages = async () => {
-  try {
-    console.info("开始拉取用户离线消息...");
-    const response = await mainAxios.get(
-      `${"http://localhost:8081"}/message/pullMailboxMessage`
-    );
-    console.log(response);
-    return;
-    if (!response.data.success) {
-      console.error("拉取离线消息失败:", response.data.errMsg);
-      return;
-    }
-    const pullResult = response.data.data;
-    if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
-      console.info("没有离线消息需要拉取");
-      return;
-    }
-    console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
-    const messageIds = [];
-    for (const message of pullResult.messageList) {
-      try {
-        const insertId = await addLocalMessage({
-          sessionId: String(message.sessionId),
-          sequenceId: message.sequenceNumber || 0,
-          senderId: String(message.senderId),
-          messageId: message.messageId,
-          senderName: "",
-          msgType: message.messageType,
-          text: message.content,
-          extData: JSON.stringify(message.extra || {}),
-          sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
-          isRead: 0
-        });
-        if (insertId && insertId > 0) {
-          await updateSessionByMessage({
-            content: message.content,
-            sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
-            sessionId: String(message.sessionId)
-          });
-          messageIds.push(message.messageId);
-          const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-          if (mainWindow) {
-            const chatMsg = {
-              id: Number(insertId),
-              sessionId: message.sessionId,
-              content: message.content,
-              messageType: "text",
-              senderId: message.senderId,
-              senderName: "",
-              senderAvatar: "",
-              timestamp: new Date(Number(message.adjustedTimestamp)),
-              isRead: false
-            };
-            const sessions = await queryAll("select * from sessions where session_id = ?", [String(message.sessionId)]);
-            if (sessions.length > 0) {
-              mainWindow.webContents.send("loadMessageDataCallback", message.sessionId, chatMsg);
-              mainWindow.webContents.send("loadSessionDataCallback", sessions);
-            }
-          }
-        }
-      } catch (error) {
-        console.error(`处理消息 ${message.messageId} 失败:`, error);
-      }
-    }
-    if (messageIds.length > 0) {
-      await ackConfirmMessages(messageIds);
-    }
-    if (pullResult.hasMore) {
-      console.info("还有更多离线消息，继续拉取...");
-      setTimeout(() => {
-        pullOfflineMessages();
-      }, 1e3);
-    } else {
-      console.info("离线消息拉取完成");
-    }
-  } catch (error) {
-    console.error("拉取离线消息异常:", error);
-  }
-};
-const ackConfirmMessages = async (messageIds) => {
-  try {
-    const token = store.get("token");
-    if (!token) {
-      console.warn("Token不存在，跳过消息确认");
-      return;
-    }
-    console.info(`确认 ${messageIds.length} 条消息`);
-    const response = await mainAxios.post(
-      `${"http://localhost:8082/ws"?.replace("ws://", "http://").replace("wss://", "https://")}/message/ackConfirm`,
-      {
-        messageIdList: messageIds
-      }
-    );
-    if (response.data.success) {
-      console.info("消息确认成功");
-    } else {
-      console.error("消息确认失败:", response.data.errMsg);
-    }
-  } catch (error) {
-    console.error("消息确认异常:", error);
-  }
 };
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
@@ -742,7 +773,6 @@ const processIpc = (mainWindow) => {
     mainWindow.setMinimumSize(800, 600);
     mainWindow.center();
     initializeUserData(uid);
-    pullOfflineMessages();
   });
   onScreenChange((event, status) => {
     const webContents = event.sender;
