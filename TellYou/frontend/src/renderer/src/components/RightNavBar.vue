@@ -6,12 +6,12 @@ const router = useRouter()
 const route = useRoute()
 
 const menuList = ref([
-  { name: '聊天', icon: 'icon-liaotian', path: '/chat' },
-  { name: '联系管理', icon: 'icon-lianxirenguanli', path: '/contactManagement' },
-  { name: '设置', icon: 'icon-more2', path: '/setting' }
+  { name: '聊天', icon: 'icon-liaotian', font: 'iconfont2', path: '/chat' },
+  { name: '联系管理', icon: 'icon-lianxirenguanli', font: 'iconfont2', path: '/contactManagement' },
+  { name: '设置', icon: 'icon-more2', font: 'iconfont', path: '/setting' }
 ])
 
-const goTo = (path: string) => {
+const goTo = (path: string): void => {
   if (route.path !== path) {
     router.push(path)
   }
@@ -26,7 +26,7 @@ const goTo = (path: string) => {
       :class="['nav-item', { active: $route.path === item.path }]"
       @click="goTo(item.path)"
     >
-      <i :class="['iconfont', item.icon]"></i>
+      <i :class="[item.font, item.icon]"></i>
       <span class="nav-label">{{ item.name }}</span>
     </div>
   </div>

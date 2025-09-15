@@ -23,6 +23,9 @@ tell-you:
     accessKey: ${value.minio.accessKey}
     secretKey: ${value.minio.secretKey}
     bucket: ${value.minio.bucket}
+  pull:
+    pullSize: ${value.pull.pullSize}
+    isCompress: ${value.pull.isCompress}
 
 spring:
   profiles:

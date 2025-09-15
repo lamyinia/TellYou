@@ -10,6 +10,7 @@ import { SessionManager, Session } from '@renderer/status/session/session-class'
 export const useSessionStore = defineStore('session', () => {
   const sessionManager = ref(new SessionManager())
   const isInitialized = ref(false)
+  const currentSessionId = ref<string>('')
   let loadSessionFunction: ((...args: unknown[]) => void) | null = null
 
   const sortedSessions = computed(() => sessionManager.value.getOrderedSessions())
@@ -61,10 +62,15 @@ export const useSessionStore = defineStore('session', () => {
     return sessionManager.value.searchSessions(keyword)
   }
 
+  const setCurrentSessionId = (sessionId: string | number): void => {
+    currentSessionId.value = String(sessionId)
+  }
+
   return {
     sessionManager,
     sortedSessions,
     isInitialized,
+    currentSessionId,
     init,
     destroy,
     getSession,
@@ -72,6 +78,7 @@ export const useSessionStore = defineStore('session', () => {
     togglePin,
     toggleMute,
     markAsRead,
-    searchSessions
+    searchSessions,
+    setCurrentSessionId
   }
 })

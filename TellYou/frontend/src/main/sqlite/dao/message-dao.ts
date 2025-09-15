@@ -1,4 +1,4 @@
-import { insertOrIgnore, queryAll } from '../sqlite-operation'
+import { insertOrIgnore, queryAll } from '../atom'
 import { rawMessageToBeInserted } from '@main/sqlite/adapter'
 
 export type rawMessage = {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatMessage } from '@renderer/status/message/message-class'
-import { useUserStore } from '@main/store/persist/user-store'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 import { computed } from 'vue'
 import Avatar from '@renderer/components/Avatar.vue'
 

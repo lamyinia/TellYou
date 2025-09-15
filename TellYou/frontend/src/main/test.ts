@@ -7,7 +7,7 @@ import {
   queryAll,
   setCurrentFolder,
   update
-} from './sqlite/sqlite-operation'
+} from './sqlite/atom'
 
 export const test = async (): Promise<void> => {
   setCurrentFolder('1')

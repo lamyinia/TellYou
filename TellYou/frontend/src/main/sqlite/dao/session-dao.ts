@@ -1,5 +1,5 @@
 import { Session } from '@renderer/status/session/session-class'
-import { queryAll, update } from '../sqlite-operation'
+import { queryAll, update } from '../atom'
 
 export const selectSessions = async (): Promise<Session[]> => {
   const sql: string = `

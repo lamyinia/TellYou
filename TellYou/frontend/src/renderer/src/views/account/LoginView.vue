@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { instance } from '../../utils/request'
 import { api } from '@renderer/utils/api'
-import { useUserStore } from '@main/store/persist/user-store'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const userStore = useUserStore()
 const username = ref('')
@@ -12,7 +12,6 @@ const formRef = ref()
 const router = useRouter()
 const loading = ref(false)
 const error = ref(0)
-
 
 const handleWsConnected = () => {
   console.log('WebSocket连接成功，跳转到主页面')
@@ -28,7 +27,6 @@ onUnmounted(() => {
   console.log("监听器移除 handleWsConnected")
   window.electronAPI.offWsConnected(handleWsConnected)
 })
-
 const onLogin = async () => {
   try {
     loading.value = true
@@ -57,7 +55,6 @@ const onLogin = async () => {
     console.error('登录失败:', error)
   }
 }
-
 const goRegister = () => {
   window.electronAPI.send('LoginOrRegister', 1)
   router.push('/register')

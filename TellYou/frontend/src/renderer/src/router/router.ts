@@ -14,7 +14,7 @@ const routes: Array<RouteRecordRaw> = [
 
   {
     path: "/main",
-    redirect: "/setting",
+    redirect: "/contactManagement",
     name: "主窗口",
     component: () => import("@renderer/views/Main.vue"),
     children: [

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import sqlite3 from 'sqlite3'
-import { add_indexes, add_tables } from './sqlite-struct'
+import { add_indexes, add_tables } from './table'
 
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }

@@ -1,4 +1,4 @@
-import { existsLocalDB, initTable, setCurrentFolder } from '@main/sqlite/sqlite-operation'
+import { existsLocalDB, initTable, setCurrentFolder } from '@main/sqlite/atom'
 import { connectWs } from '@main/websocket/client'
 import { pullOfflineMessages } from '@main/pull/service'
 

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, shell, Tray } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { instanceId, queryAll, sqliteRun } from './sqlite/sqlite-operation'
+import { instanceId, queryAll, sqliteRun } from './sqlite/atom'
 import { initWs, sendText } from '@main/websocket/client'
 import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
@@ -25,7 +25,6 @@ console.debug = log.debug
 
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
 app.whenReady().then(() => {
-
   console.info('TellYou应用启动', {
     version: app.getVersion(),
     platform: process.platform,

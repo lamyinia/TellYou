@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, ResponseType } from 'axios'
 import Message from './message'
 import router from '../router/router'
-import { useUserStore } from '@main/store/persist/user-store'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 
 interface ApiResponse {
   code: number;

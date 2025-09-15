@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron'
 import axios from 'axios'
 import { addLocalMessage } from '../sqlite/dao/message-dao'
 import { updateSessionByMessage } from '../sqlite/dao/session-dao'
-import { queryAll } from '../sqlite/sqlite-operation'
+import { queryAll } from '../sqlite/atom'
 
 const mainAxios = axios.create({
   timeout: 30000,

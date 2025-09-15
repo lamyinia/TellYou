@@ -1,7 +1,7 @@
 import { addLocalMessage } from '../sqlite/dao/message-dao'
 import { BrowserWindow } from 'electron'
 import { updateSessionByMessage } from '@main/sqlite/dao/session-dao'
-import { queryAll } from '@main/sqlite/sqlite-operation'
+import { queryAll } from '@main/sqlite/atom'
 import { Session } from '@renderer/status/session/session-class'
 import { store } from '@main/index'
 

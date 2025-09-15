@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useUserStore } from '@main/store/persist/user-store'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const userStore = useUserStore()
 const showWindowControls = computed(() => userStore.isLogin)

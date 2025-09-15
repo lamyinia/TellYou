@@ -4,7 +4,7 @@ import type { Session } from '@renderer/status/session/session-class'
 import { useMessageStore } from '@renderer/status/message/message-store'
 import TextMessage from '@renderer/views/chat/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
-import { useUserStore } from '@main/store/persist/user-store'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const message = ref('')
 const props = defineProps<{ currentContact: Session | null }>()
@@ -22,8 +22,6 @@ const messages = computed(() => {
   console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
   return msgs
 })
-
-
 const displayedMessages = computed(() => [...messages.value].reverse())
 
 watch(currentSessionId, (id) => {
