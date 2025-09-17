@@ -99,6 +99,6 @@ onMounted(() => {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
   display: flex;
   align-items: flex-start;
-  padding-top: 32px;
+  padding-top: 2px; /* 移除顶部空隙 */
 }
 </style>

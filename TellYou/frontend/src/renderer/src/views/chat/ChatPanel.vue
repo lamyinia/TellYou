@@ -4,9 +4,8 @@ import type { Session } from '@renderer/status/session/class'
 import { useMessageStore } from '@renderer/status/message/store'
 import TextMessage from '@renderer/views/chat/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import MessageSendBox from './MessageSendBox.vue'
 
-const message = ref('')
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
 const messageStore = useMessageStore()
@@ -43,21 +42,8 @@ onMounted(async () => {
   await scrollToBottom()
 })
 
-const sendMessage = async (): Promise<void> => {
-  const userStore = useUserStore()
-  const fromUId = userStore.myId
-  const current = props.currentContact
-  if (!fromUId || !current || !message.value) return
-
-  const payload = {
-    fromUId,
-    toUserId: current.contactId,
-    sessionId: current.sessionId,
-    content: message.value
-  }
-  const ok = await window.electronAPI.wsSend(payload)
-  if (ok) message.value = ''
-}
+// 发送后滚到底部
+const onSent = async (): Promise<void> => { await scrollToBottom() }
 
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
@@ -115,24 +101,7 @@ const onScroll = async (): Promise<void> => {
       </template>
     </div>
 
-    <div class="star-input-wrap">
-      <v-btn icon><v-icon>mdi-paperclip</v-icon></v-btn>
-      <v-btn icon><v-icon>mdi-image</v-icon></v-btn>
-      <v-btn icon><v-icon>mdi-emoticon-outline</v-icon></v-btn>
-      <v-textarea
-        v-model="message"
-        auto-grow
-        rows="1"
-        max-rows="4"
-        placeholder="输入消息..."
-        class="star-input"
-        hide-details
-        solo
-      />
-      <v-btn color="primary" :disabled="!message" @click="sendMessage" class="star-send-btn">
-        <v-icon>mdi-send</v-icon>
-      </v-btn>
-    </div>
+    <MessageSendBox :currentContact="currentContact" @sent="onSent" />
   </div>
 </template>
 
@@ -187,33 +156,5 @@ const onScroll = async (): Promise<void> => {
 .star-messages::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.2));
 }
-.star-input-wrap {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 32px 24px 32px;
-  background: linear-gradient(0deg, rgba(13,19,61,0.95) 80%, rgba(13,19,61,0.0) 100%);
-  z-index: 3;
-  border-radius: 0 0 0 18px;
-  min-height: 88px;
-}
-.star-input {
-  flex: 1;
-  min-width: 0;
-  margin: 0 12px;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  border-radius: 22px;
-  box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.08);
-  transition: background 0.3s;
-}
-.star-send-btn {
-  border-radius: 22px;
-  height: 44px;
-  min-width: 44px;
-  box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.18);
-}
+/* 输入区域样式已迁移到 MessageSendBox.vue */
 </style>
