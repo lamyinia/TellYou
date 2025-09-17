@@ -22,7 +22,12 @@ if (process.contextIsolated) {
       toggleSessionPin: (sessionId) => electron.ipcRenderer.invoke("toggle-session-pin", sessionId),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-message-by-sessionId", sessionId, obj),
-      wsSend: (msg) => electron.ipcRenderer.invoke("ws-send", msg)
+      wsSend: (msg) => electron.ipcRenderer.invoke("ws-send", msg),
+      // Avatar cache APIs
+      getAvatar: (params) => electron.ipcRenderer.invoke("avatar:get", params),
+      preloadAvatars: (params) => electron.ipcRenderer.invoke("avatar:preload", params),
+      clearAvatarCache: (userId) => electron.ipcRenderer.invoke("avatar:clear", { userId }),
+      getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats")
     });
   } catch (error) {
     console.error(error);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import type { Session } from '@renderer/status/session/session-class'
-import { useMessageStore } from '@renderer/status/message/message-store'
+import type { Session } from '@renderer/status/session/class'
+import { useMessageStore } from '@renderer/status/message/store'
 import TextMessage from '@renderer/views/chat/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
 import { useUserStore } from '@main/electron-store/persist/user-store'

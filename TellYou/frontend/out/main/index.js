@@ -1,14 +1,15 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const electron = require("electron");
+const fs = require("fs");
 const path = require("path");
 const utils = require("@electron-toolkit/utils");
-const fs = require("fs");
 const os = require("os");
 const sqlite3 = require("sqlite3");
 const WebSocket = require("ws");
 const __Store = require("electron-store");
 const axios = require("axios");
+const crypto = require("crypto");
 const log = require("electron-log");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
@@ -248,7 +249,7 @@ const getMessageBySessionId = async (sessionId, options) => {
       })(),
       senderId: r.senderId,
       senderName: r.senderName || "",
-      senderAvatar: "",
+      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg",
       timestamp: new Date(r.sendTime),
       isRead: !!r.isRead
     }));
@@ -487,6 +488,27 @@ mainAxios.interceptors.request.use((config) => {
   }
   return config;
 });
+const pullStrongTransactionData = async () => {
+  console.log(`正在拉取强事务数据...`);
+  try {
+    await pullFriendContact();
+    await pullApply();
+    await pullGroup();
+    await pullBlackList();
+    console.log(`拉取强事务数据完成`);
+  } catch (error) {
+    console.error(`拉取强事务数据失败:`, error);
+    throw error;
+  }
+};
+const pullFriendContact = async () => {
+};
+const pullApply = async () => {
+};
+const pullGroup = async () => {
+};
+const pullBlackList = async () => {
+};
 const pullOfflineMessages = async () => {
   try {
     console.info("开始拉取用户离线消息...");
@@ -621,27 +643,6 @@ const initializeUserData = async (uid) => {
   await pullStrongTransactionData();
   await pullOfflineMessages();
 };
-const pullStrongTransactionData = async () => {
-  console.log(`正在拉取强事务数据...`);
-  try {
-    await pullFriendContact();
-    await pullApply();
-    await pullGroup();
-    await pullBlackList();
-    console.log(`拉取强事务数据完成`);
-  } catch (error) {
-    console.error(`拉取强事务数据失败:`, error);
-    throw error;
-  }
-};
-const pullFriendContact = async () => {
-};
-const pullApply = async () => {
-};
-const pullGroup = async () => {
-};
-const pullBlackList = async () => {
-};
 const test = async () => {
   setCurrentFolder("1");
   existsLocalDB();
@@ -664,6 +665,239 @@ const test = async () => {
   const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
   console.info("sessions:", sessions);
 };
+class AvatarCacheService {
+  cacheIndex = {};
+  downloading = /* @__PURE__ */ new Set();
+  // 防止重复下载
+  maxCacheSize = 200 * 1024 * 1024;
+  // 200MB
+  maxCacheFiles = 1e3;
+  cacheExpireTime = 7 * 24 * 60 * 60 * 1e3;
+  // 7天
+  constructor() {
+    this.ensureCacheDir();
+    this.loadIndex();
+    this.startCleanupTimer();
+  }
+  getCacheDir() {
+    return path.join(electron.app.getPath("userData"), ".tellyou", "cache", "avatar");
+  }
+  getIndexFile() {
+    return path.join(this.getCacheDir(), "index.json");
+  }
+  ensureCacheDir() {
+    const dir = this.getCacheDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+  loadIndex() {
+    try {
+      const indexFile = this.getIndexFile();
+      if (fs.existsSync(indexFile)) {
+        const data = fs.readFileSync(indexFile, "utf-8");
+        this.cacheIndex = JSON.parse(data) || {};
+        log.info("Avatar cache index loaded:", Object.keys(this.cacheIndex).length, "users");
+      }
+    } catch (error) {
+      log.error("Failed to load avatar cache index:", error);
+      this.cacheIndex = {};
+    }
+  }
+  saveIndex() {
+    try {
+      console.log("缓存映射", this.getIndexFile());
+      fs.writeFileSync(this.getIndexFile(), JSON.stringify(this.cacheIndex, null, 2));
+    } catch (error) {
+      log.error("Failed to save avatar cache index:", error);
+    }
+  }
+  getCacheKey(userId, hash, size) {
+    return `${userId}_${size}_${hash}`;
+  }
+  getFilePath(userId, hash, size) {
+    const hashPrefix = hash.substring(0, 2);
+    const subDir = path.join(this.getCacheDir(), hashPrefix);
+    if (!fs.existsSync(subDir)) {
+      fs.mkdirSync(subDir, { recursive: true });
+    }
+    return path.join(subDir, `avatar_${userId}_${size}_${hash}.jpg`);
+  }
+  extractHashFromUrl(url) {
+    const urlObj = new URL(url);
+    const version = urlObj.searchParams.get("v");
+    if (version) return version;
+    const pathParts = urlObj.pathname.split("/");
+    const filename = pathParts[pathParts.length - 1];
+    const match = filename.match(/([a-f0-9]{8,})/);
+    return match ? match[1] : crypto.createHash("md5").update(url).digest("hex").substring(0, 8);
+  }
+  async downloadAvatar(url, filePath) {
+    try {
+      const response = await axios.get(url, {
+        responseType: "arraybuffer",
+        timeout: 1e4,
+        headers: {
+          "User-Agent": "TellYou-Client/1.0"
+        }
+      });
+      if (response.status === 200 && response.data) {
+        fs.writeFileSync(filePath, response.data);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error("Failed to download avatar:", url, error);
+      return false;
+    }
+  }
+  cleanupOldCache() {
+    try {
+      const now = Date.now();
+      const files = [];
+      const scanDir = (dir) => {
+        if (!fs.existsSync(dir)) return;
+        const items = fs.readdirSync(dir);
+        for (const item of items) {
+          const itemPath = path.join(dir, item);
+          const stat = fs.statSync(itemPath);
+          if (stat.isDirectory()) {
+            scanDir(itemPath);
+          } else if (item.startsWith("avatar_") && item.endsWith(".jpg")) {
+            files.push({ path: itemPath, mtime: stat.mtime.getTime(), size: stat.size });
+          }
+        }
+      };
+      scanDir(this.getCacheDir());
+      files.sort((a, b) => a.mtime - b.mtime);
+      let totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      let deletedCount = 0;
+      for (const file of files) {
+        if (totalSize <= this.maxCacheSize && files.length - deletedCount <= this.maxCacheFiles) {
+          break;
+        }
+        try {
+          fs.unlinkSync(file.path);
+          totalSize -= file.size;
+          deletedCount++;
+        } catch (error) {
+          log.warn("Failed to delete cache file:", file.path, error);
+        }
+      }
+      for (const [userId, info] of Object.entries(this.cacheIndex)) {
+        if (now - info.updatedAt > this.cacheExpireTime) {
+          delete this.cacheIndex[userId];
+        }
+      }
+      if (deletedCount > 0) {
+        log.info("Avatar cache cleanup:", deletedCount, "files deleted");
+        this.saveIndex();
+      }
+    } catch (error) {
+      log.error("Avatar cache cleanup failed:", error);
+    }
+  }
+  startCleanupTimer() {
+    setInterval(() => {
+      this.cleanupOldCache();
+    }, 60 * 60 * 1e3);
+  }
+  async getAvatar(userId, avatarUrl, size = 48) {
+    if (!avatarUrl || !userId) return null;
+    const hash = this.extractHashFromUrl(avatarUrl);
+    const cacheKey = this.getCacheKey(userId, hash, size);
+    const filePath = this.getFilePath(userId, hash, size);
+    if (fs.existsSync(filePath)) {
+      const info = this.cacheIndex[userId];
+      if (info && info.hash === hash && info.localPaths[size] === filePath) {
+        info.updatedAt = Date.now();
+        this.saveIndex();
+        return filePath;
+      }
+    }
+    if (this.downloading.has(cacheKey)) {
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (!this.downloading.has(cacheKey)) {
+            clearInterval(checkInterval);
+            resolve(fs.existsSync(filePath) ? filePath : null);
+          }
+        }, 100);
+      });
+    }
+    this.downloading.add(cacheKey);
+    try {
+      const success = await this.downloadAvatar(avatarUrl, filePath);
+      if (success) {
+        if (!this.cacheIndex[userId]) {
+          this.cacheIndex[userId] = {
+            userId,
+            hash,
+            localPaths: {},
+            updatedAt: Date.now()
+          };
+        }
+        this.cacheIndex[userId].hash = hash;
+        this.cacheIndex[userId].localPaths[size] = filePath;
+        this.cacheIndex[userId].updatedAt = Date.now();
+        this.saveIndex();
+        return filePath;
+      }
+    } catch (error) {
+      log.error("Avatar download failed:", userId, avatarUrl, error);
+    } finally {
+      this.downloading.delete(cacheKey);
+    }
+    return null;
+  }
+  async preloadAvatars(avatarMap, size = 48) {
+    const promises = Object.entries(avatarMap).map(
+      ([userId, avatarUrl]) => this.getAvatar(userId, avatarUrl, size)
+    );
+    await Promise.allSettled(promises);
+  }
+  clearUserCache(userId) {
+    const info = this.cacheIndex[userId];
+    if (info) {
+      Object.values(info.localPaths).forEach((filePath) => {
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (error) {
+          log.warn("Failed to delete avatar file:", filePath, error);
+        }
+      });
+      delete this.cacheIndex[userId];
+      this.saveIndex();
+    }
+  }
+  getCacheStats() {
+    let totalFiles = 0;
+    let totalSize = 0;
+    const scanDir = (dir) => {
+      if (!fs.existsSync(dir)) return;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const itemPath = path.join(dir, item);
+        const stat = fs.statSync(itemPath);
+        if (stat.isDirectory()) {
+          scanDir(itemPath);
+        } else if (item.startsWith("avatar_") && item.endsWith(".jpg")) {
+          totalFiles++;
+          totalSize += stat.size;
+        }
+      }
+    };
+    scanDir(this.getCacheDir());
+    return {
+      totalUsers: Object.keys(this.cacheIndex).length,
+      totalFiles,
+      totalSize
+    };
+  }
+}
+const avatarCacheService = new AvatarCacheService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -675,6 +909,7 @@ console.error = log.error;
 console.info = log.info;
 console.debug = log.debug;
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
+electron.protocol.registerSchemesAsPrivileged([{ scheme: "tellyou", privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } }]);
 electron.app.whenReady().then(() => {
   console.info("TellYou应用启动", {
     version: electron.app.getVersion(),
@@ -682,6 +917,39 @@ electron.app.whenReady().then(() => {
     arch: process.arch,
     nodeEnv: process.env.NODE_ENV
   });
+  try {
+    const getCacheRoot = () => path.join(electron.app.getPath("userData"), ".tellyou", "cache", "avatar");
+    const mimeByExt = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".gif": "image/gif"
+    };
+    electron.protocol.handle("tellyou", async (request) => {
+      try {
+        const url = new URL(request.url);
+        if (url.hostname !== "avatar") return new Response("", { status: 403 });
+        const filePath = decodeURIComponent(url.searchParams.get("path") || "");
+        const normalized = path.resolve(filePath);
+        const rootResolved = path.resolve(getCacheRoot());
+        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) || normalized.toLowerCase() === rootResolved.toLowerCase();
+        if (!hasAccess) {
+          console.error("tellyou protocol denied:", { normalized, rootResolved });
+          return new Response("", { status: 403 });
+        }
+        const ext = path.extname(normalized).toLowerCase();
+        const mime = mimeByExt[ext] || "application/octet-stream";
+        const data = await fs.promises.readFile(normalized);
+        return new Response(data, { headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" } });
+      } catch (e) {
+        console.error("tellyou protocol error:", e);
+        return new Response("", { status: 500 });
+      }
+    });
+  } catch (e) {
+    console.error("register protocol failed", e);
+  }
   initWs();
   utils.electronApp.setAppUserModelId("com.electron");
   electron.app.on("browser-window-created", (_, window) => {
@@ -755,7 +1023,7 @@ const createWindow = () => {
   }
 };
 const processIpc = (mainWindow) => {
-  invokeHandle();
+  dataHandle();
   onLoadSessionData();
   onLoginOrRegister((isLogin) => {
     mainWindow.setResizable(true);
@@ -805,7 +1073,7 @@ const processIpc = (mainWindow) => {
     test();
   });
 };
-const invokeHandle = () => {
+const dataHandle = () => {
   electron.ipcMain.handle("store-get", (_, key) => {
     return store.get(key);
   });
@@ -880,5 +1148,78 @@ const invokeHandle = () => {
   electron.ipcMain.handle("get-message-by-sessionId", (_, sessionId, options) => {
     return getMessageBySessionId(String(sessionId), options);
   });
+  electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
+    const { loadIncomingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    const data = await loadIncomingApplications(pageNo, pageSize);
+    event.sender.send("application:incoming:loaded", data);
+  });
+  electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
+    const { loadOutgoingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    const data = await loadOutgoingApplications(pageNo, pageSize);
+    event.sender.send("application:outgoing:loaded", data);
+  });
+  electron.ipcMain.on("application:incoming:approve", async (event, { ids }) => {
+    const { approveIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    await approveIncoming(ids || []);
+  });
+  electron.ipcMain.on("application:incoming:reject", async (event, { ids }) => {
+    const { rejectIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    await rejectIncoming(ids || []);
+  });
+  electron.ipcMain.on("application:outgoing:cancel", async (event, { ids }) => {
+    const { cancelOutgoing } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    await cancelOutgoing(ids || []);
+  });
+  electron.ipcMain.on("application:send", async (event, { toUserId, remark }) => {
+    const { insertApplication } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+    await insertApplication("", toUserId, remark);
+  });
+  electron.ipcMain.on("black:list:load", async (event, { pageNo, pageSize }) => {
+    const { loadBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
+    const data = await loadBlacklist(pageNo, pageSize);
+    event.sender.send("black:list:loaded", data);
+  });
+  electron.ipcMain.on("black:list:remove", async (event, { userIds }) => {
+    const { removeFromBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
+    await removeFromBlacklist(userIds || []);
+  });
+  electron.ipcMain.handle("avatar:get", async (_, { userId, avatarUrl, size }) => {
+    try {
+      const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size);
+      if (!filePath) return null;
+      return `tellyou://avatar?path=${encodeURIComponent(filePath)}`;
+    } catch (error) {
+      console.error("Failed to get avatar:", error);
+      return null;
+    }
+  });
+  electron.ipcMain.handle("avatar:preload", async (_, { avatarMap, size }) => {
+    try {
+      await avatarCacheService.preloadAvatars(avatarMap, size);
+      return true;
+    } catch (error) {
+      console.error("Failed to preload avatars:", error);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("avatar:clear", async (_, { userId }) => {
+    try {
+      avatarCacheService.clearUserCache(userId);
+      return true;
+    } catch (error) {
+      console.error("Failed to clear avatar cache:", error);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("avatar:stats", async () => {
+    try {
+      return avatarCacheService.getCacheStats();
+    } catch (error) {
+      console.error("Failed to get avatar cache stats:", error);
+      return { totalUsers: 0, totalFiles: 0, totalSize: 0 };
+    }
+  });
 };
+exports.queryAll = queryAll;
+exports.sqliteRun = sqliteRun;
 exports.store = store;

@@ -2,21 +2,17 @@
 import { ref } from 'vue'
 import ContactDial from './ContactDial.vue'
 import ContactDetail from './ContactDetail.vue'
-import ContactApplicaion from './ContactApplicaion.vue'
+import ContactApplication from './ContactApplication.vue'
+import CreatedGroup from './CreatedGroup.vue'
+import ContactBlack from './ContactBlack.vue'
 
-// 预留：后续接入联系人数据与选中状态
 interface SimpleContact {
   id: string
   name: string
   avatar?: string
+  sessionId: string
 }
 const selectedContact = ref<SimpleContact | null>(null)
-
-// 操作：发消息 -> 跳转到 /chat 并设置当前会话
-// 详情行为已移至 ContactDetail.vue
-
-// 删除右侧拨号逻辑，改为子组件承担
-
 const selectContact = (c: SimpleContact): void => {
   selectedContact.value = c
 }
@@ -31,7 +27,9 @@ const selectContact = (c: SimpleContact): void => {
         </div>
       </div>
       <ContactDial @select="selectContact" />
-      <ContactApplicaion />
+      <ContactApplication />
+      <CreatedGroup />
+      <ContactBlack />
     </div>
   </div>
 </template>

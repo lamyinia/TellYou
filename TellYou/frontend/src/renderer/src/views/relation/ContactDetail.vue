@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessageStore } from '@renderer/status/message/message-store'
-import { useSessionStore } from '@renderer/status/session/session-store'
+import { useMessageStore } from '@renderer/status/message/store'
+import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
+import { useSessionStore } from '@renderer/status/session/store'
 
 interface SimpleContact {
   id: string
   name: string
   avatar?: string
+  sessionId: string
 }
 
 const props = defineProps<{ contact: SimpleContact | null }>()
@@ -19,8 +21,7 @@ const sessionStore = useSessionStore()
 
 const handleSendMessage = (): void => {
   if (!contact.value) return
-  const sessionId = contact.value.id
-  // 同时设置两个 store 的当前会话
+  const sessionId = contact.value.sessionId
   messageStore.setCurrentSession(sessionId)
   sessionStore.setCurrentSessionId(sessionId)
   router.push('/chat')
@@ -35,9 +36,9 @@ const handleDelete = (): void => {
 </script>
 
 <template>
-  <div class="cm-detail" v-if="contact">
+  <div v-if="contact" class="cm-detail">
     <div class="cm-header">
-      <div class="cm-avatar-lg"></div>
+      <img class="cm-avatar-lg" :src="resolveAvatar(contact.avatar)" @error="onAvatarError" />
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
         <div class="cm-remark">备注：{{ contact.name }}</div>
@@ -72,7 +73,7 @@ const handleDelete = (): void => {
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #5c6bc0, #7986cb);
+  object-fit: cover;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 .cm-summary {

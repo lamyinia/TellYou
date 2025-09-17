@@ -30,7 +30,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class NettyStarter implements Runnable {
-
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
     private EventLoopGroup workerGroup = new NioEventLoopGroup();
     private final NettyProperties nettyProperties;
@@ -61,7 +60,6 @@ public class NettyStarter implements Runnable {
                         pipeline.addLast(baseHandler);
                     }
                 });
-
         try {
             ChannelFuture sync = serverBootstrap.bind(nettyProperties.getServerPort()).sync();
             log.info("Netty 服务端启动成功, 端口:{}", nettyProperties.getServerPort());

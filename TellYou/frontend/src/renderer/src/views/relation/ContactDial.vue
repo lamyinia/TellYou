@@ -1,60 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useSessionStore } from '@renderer/status/session/store'
+import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
 
 interface SimpleContact {
   id: string
   name: string
   avatar?: string
+  sessionId: string
 }
 
 const emit = defineEmits<{ (e: 'select', contact: SimpleContact): void }>()
 
-// 模拟数据（后续由父层或接口替换）
-const contacts = ref<SimpleContact[]>([
-  { id: '1', name: 'Alice' },
-  { id: '2', name: 'Aaron' },
-  { id: '3', name: 'Bob' },
-  { id: '4', name: 'Becky' },
-  { id: '5', name: 'Cindy' },
-  { id: '6', name: 'Catherine' },
-  { id: '7', name: 'David' },
-  { id: '8', name: 'Dylan' },
-  { id: '9', name: 'Ethan' },
-  { id: '10', name: 'Emma' },
-  { id: '11', name: 'Frank' },
-  { id: '12', name: 'Fiona' },
-  { id: '13', name: 'Grace' },
-  { id: '14', name: 'George' },
-  { id: '15', name: 'Henry' },
-  { id: '16', name: 'Helen' },
-  { id: '17', name: 'Iris' },
-  { id: '18', name: 'Jack' },
-  { id: '19', name: 'Jason' },
-  { id: '20', name: 'Kate' },
-  { id: '21', name: 'Kevin' },
-  { id: '22', name: 'Lucy' },
-  { id: '23', name: 'Lily' },
-  { id: '24', name: 'Maggie' },
-  { id: '25', name: 'Mia' },
-  { id: '26', name: 'Nancy' },
-  { id: '27', name: 'Oliver' },
-  { id: '28', name: 'Olivia' },
-  { id: '29', name: 'Peter' },
-  { id: '30', name: 'Queen' },
-  { id: '31', name: 'Ruby' },
-  { id: '32', name: 'Rose' },
-  { id: '33', name: 'Steve' },
-  { id: '34', name: 'Sophia' },
-  { id: '35', name: 'Tom' },
-  { id: '36', name: 'Tony' },
-  { id: '37', name: 'Uma' },
-  { id: '38', name: 'Victor' },
-  { id: '39', name: 'Wendy' },
-  { id: '40', name: 'Will' },
-  { id: '41', name: 'Xavier' },
-  { id: '42', name: 'Yasmine' },
-  { id: '43', name: 'Zack' }
-])
+// 从 session store 派生联系人视图数据
+const sessionStore = useSessionStore()
+const contacts = computed<SimpleContact[]>(() => {
+  return sessionStore.sortedSessions.map((s) => ({
+    id: s.contactId,
+    name: s.contactName,
+    avatar: s.contactAvatar,
+    sessionId: s.sessionId
+  }))
+})
 
 type Group = { letter: string; items: SimpleContact[] }
 const grouped = computed<Group[]>(() => {
@@ -110,7 +77,7 @@ const onSelect = (c: SimpleContact): void => emit('select', c)
       <div class="group-header" :data-letter="g.letter">{{ g.letter }}</div>
       <div class="list">
         <div v-for="item in g.items" :key="item.id" class="item" @click="onSelect(item)">
-          <div class="avatar"></div>
+          <img class="avatar" :src="resolveAvatar(item.avatar)" @error="onAvatarError" />
           <div class="name">{{ item.name }}</div>
         </div>
       </div>
@@ -202,7 +169,7 @@ const onSelect = (c: SimpleContact): void => emit('select', c)
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3949ab, #5c6bc0);
+  object-fit: cover;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 .name {

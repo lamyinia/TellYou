@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { Session } from '@renderer/status/session/session-class'
+import { Session } from '@renderer/status/session/class'
 
 declare global {
   interface Window {
@@ -32,6 +32,12 @@ declare global {
         sessionId: string | number,
         obj: Record<string, unknown>
       ) => Promise<unknown>
+
+      // Avatar cache APIs
+      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) => Promise<string | null>
+      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => Promise<boolean>
+      clearAvatarCache: (userId: string) => Promise<boolean>
+      getAvatarCacheStats: () => Promise<{ totalUsers: number; totalFiles: number; totalSize: number }>
     }
   }
   interface ImportMetaEnv {

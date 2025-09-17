@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage } from '@renderer/status/message/message-class'
+import type { ChatMessage } from '@renderer/status/message/class'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 import { computed } from 'vue'
 import Avatar from '@renderer/components/Avatar.vue'
@@ -12,7 +12,7 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
 <template>
   <div class="msg-row" :class="{ other: !isSelf }">
     <template v-if="isSelf">
-      <Avatar :url="props.message.senderAvatar" :name="props.message.senderName" side="left" />
+      <Avatar :url="props.message.senderAvatar" :name="props.message.senderName" :userId="props.message.senderId" side="left" />
       <div class="bubble left">{{ props.message.content }}</div>
     </template>
     <template v-else>

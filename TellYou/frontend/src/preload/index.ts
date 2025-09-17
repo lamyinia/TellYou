@@ -30,7 +30,17 @@ if (process.contextIsolated) {
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
       requestMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj),
 
-      wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg)
+      wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg),
+
+      // Avatar cache APIs
+      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) => 
+        ipcRenderer.invoke('avatar:get', params),
+      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => 
+        ipcRenderer.invoke('avatar:preload', params),
+      clearAvatarCache: (userId: string) => 
+        ipcRenderer.invoke('avatar:clear', { userId }),
+      getAvatarCacheStats: () => 
+        ipcRenderer.invoke('avatar:stats')
     })
   } catch (error) {
     console.error(error)

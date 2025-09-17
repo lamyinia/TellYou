@@ -1,4 +1,6 @@
-import { app, BrowserWindow, ipcMain, Menu, shell, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, Tray, protocol } from 'electron'
+import fs from 'fs'
+import path from 'path'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -9,6 +11,7 @@ import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
+import { avatarCacheService } from './avatar-cache'
 import log from 'electron-log'
 import os from 'os'
 
@@ -24,6 +27,9 @@ console.info = log.info
 console.debug = log.debug
 
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
+// 注册自定义 scheme 为受信任（早于 app.whenReady 推荐在 app.on('ready') 前调用，但此处放在 whenReady 前也能生效）
+protocol.registerSchemesAsPrivileged([{ scheme: 'tellyou', privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } }])
+
 app.whenReady().then(() => {
   console.info('TellYou应用启动', {
     version: app.getVersion(),
@@ -31,6 +37,47 @@ app.whenReady().then(() => {
     arch: process.arch,
     nodeEnv: process.env.NODE_ENV
   })
+
+  // 注册自定义协议: tellyou://avatar?path=<absPath> （使用 protocol.handle）
+  try {
+    // 与 avatar-cache.ts 的逻辑保持一致，实时获取目录
+    const getCacheRoot = () => join(app.getPath('userData'), '.tellyou', 'cache', 'avatar')
+    const mimeByExt: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif'
+    }
+    protocol.handle('tellyou', async (request) => {
+      try {
+        const url = new URL(request.url)
+        if (url.hostname !== 'avatar') return new Response('', { status: 403 })
+        const filePath = decodeURIComponent(url.searchParams.get('path') || '')
+        // 只允许访问头像缓存目录
+        const normalized = path.resolve(filePath)
+        const rootResolved = path.resolve(getCacheRoot())
+        // 统一小写比较并确保以 root 目录 + 分隔符 为前缀，防止相似前缀绕过
+        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase())
+          || normalized.toLowerCase() === rootResolved.toLowerCase()
+
+        if (!hasAccess) {
+          console.error('tellyou protocol denied:', { normalized, rootResolved })
+          return new Response('', { status: 403 })
+        }
+
+        const ext = path.extname(normalized).toLowerCase()
+        const mime = mimeByExt[ext] || 'application/octet-stream'
+        const data = await fs.promises.readFile(normalized)
+        return new Response(data, { headers: { 'content-type': mime, 'Access-Control-Allow-Origin': '*' } })
+      } catch (e) {
+        console.error('tellyou protocol error:', e)
+        return new Response('', { status: 500 })
+      }
+    })
+  } catch (e) {
+    console.error('register protocol failed', e)
+  }
 
   initWs()
   electronApp.setAppUserModelId('com.electron')
@@ -112,7 +159,7 @@ const createWindow = (): void => {
 }
 
 const processIpc = (mainWindow: Electron.BrowserWindow): void => {
-  invokeHandle()
+  dataHandle()
   onLoadSessionData()
   onLoginOrRegister((isLogin: number) => {
     mainWindow.setResizable(true)
@@ -163,7 +210,7 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
   })
 }
 
-const invokeHandle = (): void => {
+const dataHandle = (): void => {
   ipcMain.handle('store-get', (_, key) => {
     return store.get(key)
   })
@@ -237,6 +284,86 @@ const invokeHandle = (): void => {
   })
   ipcMain.handle('get-message-by-sessionId', (_, sessionId: string | number, options: any) => {
     return getMessageBySessionId(String(sessionId), options)
+  })
+  // application IPC
+  ipcMain.on('application:incoming:load', async (event, { pageNo, pageSize }) => {
+    const { loadIncomingApplications } = await import('@main/sqlite/dao/application-dao')
+    const data = await loadIncomingApplications(pageNo, pageSize)
+    event.sender.send('application:incoming:loaded', data)
+  })
+  ipcMain.on('application:outgoing:load', async (event, { pageNo, pageSize }) => {
+    const { loadOutgoingApplications } = await import('@main/sqlite/dao/application-dao')
+    const data = await loadOutgoingApplications(pageNo, pageSize)
+    event.sender.send('application:outgoing:loaded', data)
+  })
+  ipcMain.on('application:incoming:approve', async (event, { ids }) => {
+    const { approveIncoming } = await import('@main/sqlite/dao/application-dao')
+    await approveIncoming(ids || [])
+  })
+  ipcMain.on('application:incoming:reject', async (event, { ids }) => {
+    const { rejectIncoming } = await import('@main/sqlite/dao/application-dao')
+    await rejectIncoming(ids || [])
+  })
+  ipcMain.on('application:outgoing:cancel', async (event, { ids }) => {
+    const { cancelOutgoing } = await import('@main/sqlite/dao/application-dao')
+    await cancelOutgoing(ids || [])
+  })
+  ipcMain.on('application:send', async (event, { toUserId, remark }) => {
+    const { insertApplication } = await import('@main/sqlite/dao/application-dao')
+    // TODO: 当前登录用户ID从 store 获取，这里先置空或从全局配置读取
+    await insertApplication('', toUserId, remark)
+  })
+
+  ipcMain.on('black:list:load', async (event, { pageNo, pageSize }) => {
+    const { loadBlacklist } = await import('@main/sqlite/dao/black-dao')
+    const data = await loadBlacklist(pageNo, pageSize)
+    event.sender.send('black:list:loaded', data)
+  })
+  ipcMain.on('black:list:remove', async (event, { userIds }) => {
+    const { removeFromBlacklist } = await import('@main/sqlite/dao/black-dao')
+    await removeFromBlacklist(userIds || [])
+  })
+
+  // Avatar cache IPC handlers
+  ipcMain.handle('avatar:get', async (_, { userId, avatarUrl, size }) => {
+    try {
+      const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size)
+      if (!filePath) return null
+      // 返回自定义协议地址，避免 file:// 受限
+      return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
+    } catch (error) {
+      console.error('Failed to get avatar:', error)
+      return null
+    }
+  })
+
+  ipcMain.handle('avatar:preload', async (_, { avatarMap, size }) => {
+    try {
+      await avatarCacheService.preloadAvatars(avatarMap, size)
+      return true
+    } catch (error) {
+      console.error('Failed to preload avatars:', error)
+      return false
+    }
+  })
+
+  ipcMain.handle('avatar:clear', async (_, { userId }) => {
+    try {
+      avatarCacheService.clearUserCache(userId)
+      return true
+    } catch (error) {
+      console.error('Failed to clear avatar cache:', error)
+      return false
+    }
+  })
+
+  ipcMain.handle('avatar:stats', async () => {
+    try {
+      return avatarCacheService.getCacheStats()
+    } catch (error) {
+      console.error('Failed to get avatar cache stats:', error)
+      return { totalUsers: 0, totalFiles: 0, totalSize: 0 }
+    }
   })
 }
 

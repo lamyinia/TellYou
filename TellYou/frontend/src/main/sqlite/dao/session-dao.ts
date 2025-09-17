@@ -1,4 +1,4 @@
-import { Session } from '@renderer/status/session/session-class'
+import { Session } from '@renderer/status/session/class'
 import { queryAll, update } from '../atom'
 
 export const selectSessions = async (): Promise<Session[]> => {

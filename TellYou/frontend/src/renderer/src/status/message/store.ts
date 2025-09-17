@@ -5,7 +5,7 @@ import {
   MessageCacheConfig,
   MessagePageInfo,
   MessagesResponse
-} from '@renderer/status/message/message-class'
+} from '@renderer/status/message/class'
 
 export const useMessageStore = defineStore('message', () => {
   const config: MessageCacheConfig = {

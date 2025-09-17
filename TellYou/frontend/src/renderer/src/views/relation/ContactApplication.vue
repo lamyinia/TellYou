@@ -1,42 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useApplicationStore } from '@renderer/status/application/store'
+import IncomingList from './page/IncomingList.vue'
+import OutcomingList from './page/OutcomingList.vue'
 
-// 悬浮按钮显示/隐藏抽屉
 const open = ref(false)
 const toggle = (): void => {
   open.value = !open.value
 }
 
-// Tabs：好友申请、我发起的、搜索加好友
+
 const activeTab = ref<'incoming' | 'outgoing' | 'search'>('incoming')
 
-// 批量选择占位
-// const selectedIds = ref<string[]>([])
-const allChecked = ref(false)
-const toggleAll = (): void => {
-  allChecked.value = !allChecked.value
-  // 真实数据接入后填充 selectedIds
-}
-
-// Snackbar 提示
-const snackbar = ref({ show: false, text: '', color: 'success' as 'success' | 'error' | 'info' })
+const snackbar = ref({ show: false, text: '创建成功', color: 'info' as 'success' | 'error' | 'info' })
 const notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): void => {
   snackbar.value = { show: true, text, color }
 }
 
-// 提交/操作占位
-const approveSelected = (): void => notify('已同意所选申请')
-const rejectSelected = (): void => notify('已拒绝所选申请')
-const cancelSelected = (): void => notify('已撤回所选申请')
-const sendRequest = (): void => notify('已发送好友申请')
+const appStore = useApplicationStore()
+onMounted(() => appStore.init())
 
-// 搜索占位
+const sendRequest = (): void => {
+  appStore.sendRequest('target-user-id', remark.value)
+  notify('已发送好友申请')
+}
+
+
 const keyword = ref('')
 const remark = ref('')
 </script>
 
 <template>
-  <!-- 悬浮按钮：左上固定，绿色，波纹 -->
   <v-btn
     class="fab"
     color="#b8c5ed"
@@ -49,11 +43,10 @@ const remark = ref('')
     <v-icon icon="mdi-bell-outline" size="24"></v-icon>
   </v-btn>
 
-  <!-- 自定义抽屉：不覆盖悬浮按钮，边界留 16px，左->右滑入 -->
   <transition name="slide-in">
     <div v-if="open" class="drawer-wrap" @click.self="toggle">
       <div class="drawer-panel" @click.stop>
-        <div class="drawer-inner">
+        <div class="drawer-inner drawer-theme">
           <div class="drawer-header">
             <div class="tabs">
               <v-btn
@@ -77,48 +70,13 @@ const remark = ref('')
             <v-btn icon="mdi-close" variant="text" @click="toggle" />
           </div>
 
-          <div class="drawer-content">
-            <!-- Tab: 好友申请（批量处理 + 分页占位） -->
+          <div class="drawer-content list-surface">
             <div v-if="activeTab === 'incoming'">
-              <div class="toolbar">
-                <v-checkbox
-                  v-model="allChecked"
-                  label="全选"
-                  hide-details
-                  density="compact"
-                  @change="toggleAll"
-                />
-                <div class="ml-2"></div>
-                <v-btn size="small" color="primary" @click="approveSelected">同意</v-btn>
-                <v-btn
-                  class="ml-2"
-                  size="small"
-                  color="error"
-                  variant="tonal"
-                  @click="rejectSelected"
-                >拒绝</v-btn>
-              </div>
-              <div class="list-placeholder">待接入接口，显示别人对我的申请，支持分页</div>
+              <IncomingList />
             </div>
-
-            <!-- Tab: 我发起的申请（批量撤回 + 分页占位） -->
             <div v-else-if="activeTab === 'outgoing'">
-              <div class="toolbar">
-                <v-checkbox
-                  v-model="allChecked"
-                  label="全选"
-                  hide-details
-                  density="compact"
-                  @change="toggleAll"
-                />
-                <v-btn class="ml-2" size="small" color="warning" @click="cancelSelected"
-                  >撤回申请</v-btn
-                >
-              </div>
-              <div class="list-placeholder">待接入接口，显示我对别人的申请，支持分页</div>
+              <OutcomingList />
             </div>
-
-            <!-- Tab: 搜索加好友（备注输入） -->
             <div v-else>
               <div class="search-box">
                 <v-text-field
@@ -146,7 +104,7 @@ const remark = ref('')
     </div>
   </transition>
 
-  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="2000">
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="5000">
     {{ snackbar.text }}
   </v-snackbar>
 </template>
@@ -178,7 +136,7 @@ const remark = ref('')
   top: 30px; /* 下移，避免遮挡 tabs 与按钮 */
   left: 80px; /* 不覆盖悬浮按钮 */
   bottom: 16px;
-  right: 16px;
+  right: 80px;
   display: flex;
 }
 .drawer-inner {
@@ -190,6 +148,11 @@ const remark = ref('')
   margin-left: 0; /* 靠左展开 */
   padding: 16px 16px 24px;
   color: #e0e6f0;
+}
+.drawer-theme {
+  background: linear-gradient(180deg, rgba(12,14,32,0.98) 0%, rgba(16,18,40,0.98) 100%);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 /* 左->右滑入 */
 .slide-in-enter-from,
@@ -220,6 +183,16 @@ const remark = ref('')
 }
 .drawer-content {
   margin-top: 16px;
+}
+.list-surface :deep(.v-list),
+.list-surface :deep(.v-list-item) {
+  background: transparent !important;
+  color: #e0e6f0;
+}
+.list-surface :deep(.v-checkbox-btn),
+.list-surface :deep(.v-btn),
+.list-surface :deep(.v-chip) {
+  --v-theme-on-surface: #e0e6f0;
 }
 .toolbar {
   display: flex;

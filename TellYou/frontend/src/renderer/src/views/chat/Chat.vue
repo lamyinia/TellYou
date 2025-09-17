@@ -2,13 +2,25 @@
 import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
 import ContactList from '@renderer/views/chat/ContactList.vue'
 import { randomStarStyle } from '@renderer/assets/StarFlink'
-import { ref } from 'vue'
-import type { Session } from '@renderer/status/session/session-class'
+import { ref, computed, onMounted } from 'vue'
+import type { Session } from '@renderer/status/session/class'
+import { useSessionStore } from '@renderer/status/session/store'
+
+const sessionStore = useSessionStore()
 
 const selectedContact = ref<Session | null>(null)
 const handleContactSelected = (contact: Session): void => {
   selectedContact.value = contact
 }
+const currentSessionId = computed(() => sessionStore.currentSessionId)
+
+onMounted(() => {
+  if (currentSessionId.value) {
+    const s = sessionStore.getSession(currentSessionId.value)
+    if (s) selectedContact.value = s
+  }
+})
+
 </script>
 
 <template>

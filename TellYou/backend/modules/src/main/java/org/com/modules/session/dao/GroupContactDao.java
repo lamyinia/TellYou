@@ -7,8 +7,6 @@ import org.com.modules.session.mapper.GroupContactMapper;
 import org.com.tools.constant.ValueConstant;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-
 @Service
 public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact> {
 
