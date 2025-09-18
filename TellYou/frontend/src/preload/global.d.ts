@@ -33,11 +33,18 @@ declare global {
         obj: Record<string, unknown>
       ) => Promise<unknown>
 
-      // Avatar cache APIs
-      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) => Promise<string | null>
-      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => Promise<boolean>
-      clearAvatarCache: (userId: string) => Promise<boolean>
-      getAvatarCacheStats: () => Promise<{ totalUsers: number; totalFiles: number; totalSize: number }>
+    // Avatar cache APIs
+    getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) => Promise<string | null>
+    preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => Promise<boolean>
+    clearAvatarCache: (userId: string) => Promise<boolean>
+    getAvatarCacheStats: () => Promise<{ totalUsers: number; totalFiles: number; totalSize: number }>
+    
+    // Media task APIs
+    startMediaTask: (params: { type: string; filePath: string; fileName: string; mimeType: string }) => Promise<{ taskId: string; success: boolean; error?: string }>
+    cancelMediaTask: (taskId: string) => Promise<boolean>
+    retryMediaTask: (taskId: string) => Promise<boolean>
+    getMediaTaskStatus: (taskId: string) => Promise<any>
+    getAllMediaTasks: () => Promise<any[]>
     }
   }
   interface ImportMetaEnv {

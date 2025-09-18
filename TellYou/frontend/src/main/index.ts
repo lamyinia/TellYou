@@ -12,6 +12,7 @@ import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
 import { avatarCacheService } from './avatar-cache'
+import { mediaTaskService } from './media-service'
 import log from 'electron-log'
 import os from 'os'
 
@@ -54,7 +55,7 @@ app.whenReady().then(() => {
         const url = new URL(request.url)
         if (url.hostname !== 'avatar') return new Response('', { status: 403 })
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
-        // 只允许访问头像缓存目录
+
         const normalized = path.resolve(filePath)
         const rootResolved = path.resolve(getCacheRoot())
         // 统一小写比较并确保以 root 目录 + 分隔符 为前缀，防止相似前缀绕过

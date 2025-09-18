@@ -27,7 +27,13 @@ if (process.contextIsolated) {
       getAvatar: (params) => electron.ipcRenderer.invoke("avatar:get", params),
       preloadAvatars: (params) => electron.ipcRenderer.invoke("avatar:preload", params),
       clearAvatarCache: (userId) => electron.ipcRenderer.invoke("avatar:clear", { userId }),
-      getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats")
+      getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats"),
+      // Media task APIs
+      startMediaTask: (params) => electron.ipcRenderer.invoke("media:send:start", params),
+      cancelMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:cancel", taskId),
+      retryMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:retry", taskId),
+      getMediaTaskStatus: (taskId) => electron.ipcRenderer.invoke("media:send:status", taskId),
+      getAllMediaTasks: () => electron.ipcRenderer.invoke("media:send:list")
     });
   } catch (error) {
     console.error(error);

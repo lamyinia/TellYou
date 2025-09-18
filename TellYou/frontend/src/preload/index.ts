@@ -32,15 +32,27 @@ if (process.contextIsolated) {
 
       wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg),
 
-      // Avatar cache APIs
-      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) => 
-        ipcRenderer.invoke('avatar:get', params),
-      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => 
-        ipcRenderer.invoke('avatar:preload', params),
-      clearAvatarCache: (userId: string) => 
-        ipcRenderer.invoke('avatar:clear', { userId }),
-      getAvatarCacheStats: () => 
-        ipcRenderer.invoke('avatar:stats')
+    // Avatar cache APIs
+    getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) =>
+      ipcRenderer.invoke('avatar:get', params),
+    preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) =>
+      ipcRenderer.invoke('avatar:preload', params),
+    clearAvatarCache: (userId: string) =>
+      ipcRenderer.invoke('avatar:clear', { userId }),
+    getAvatarCacheStats: () =>
+      ipcRenderer.invoke('avatar:stats'),
+
+    // Media task APIs
+    startMediaTask: (params: { type: string; filePath: string; fileName: string; mimeType: string }) =>
+      ipcRenderer.invoke('media:send:start', params),
+    cancelMediaTask: (taskId: string) =>
+      ipcRenderer.invoke('media:send:cancel', taskId),
+    retryMediaTask: (taskId: string) =>
+      ipcRenderer.invoke('media:send:retry', taskId),
+    getMediaTaskStatus: (taskId: string) =>
+      ipcRenderer.invoke('media:send:status', taskId),
+    getAllMediaTasks: () =>
+      ipcRenderer.invoke('media:send:list')
     })
   } catch (error) {
     console.error(error)

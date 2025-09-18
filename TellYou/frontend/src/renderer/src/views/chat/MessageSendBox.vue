@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, watch } from 'vue'
 import type { Session } from '@renderer/status/session/class'
 import { useUserStore } from '@main/electron-store/persist/user-store'
+import MediaSendBox from '@renderer/components/MediaSendBox.vue'
 
 const props = defineProps<{ currentContact: Session | null }>()
 const emit = defineEmits<{ (e: 'sent'): void }>()
@@ -9,6 +10,7 @@ const emit = defineEmits<{ (e: 'sent'): void }>()
 const message = ref('')
 const disabled = computed(() => !message.value || !props.currentContact)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const showMediaBox = ref(false)
 
 // 自动调整高度
 const adjustHeight = (): void => {
@@ -46,16 +48,33 @@ const onKeydown = async (e: KeyboardEvent): Promise<void> => {
   }
 }
 
+// 切换媒体发送框
+const toggleMediaBox = (): void => {
+  showMediaBox.value = !showMediaBox.value
+}
+
+// 处理媒体发送完成
+const handleMediaSent = (): void => {
+  showMediaBox.value = false
+  emit('sent')
+}
+
 // 监听输入变化，自动调整高度
-watch(message, () => {
-  nextTick(() => adjustHeight())
-}, { immediate: true })
+watch(
+  message,
+  () => {
+    nextTick(() => adjustHeight())
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
   <div class="sendbox">
     <v-btn icon class="icon-btn"><v-icon>mdi-paperclip</v-icon></v-btn>
-    <v-btn icon class="icon-btn"><v-icon>mdi-image</v-icon></v-btn>
+    <v-btn icon class="icon-btn" @click="toggleMediaBox">
+      <v-icon>mdi-image</v-icon>
+    </v-btn>
     <v-btn icon class="icon-btn"><v-icon>mdi-emoticon-outline</v-icon></v-btn>
 
     <div class="input-wrap">
@@ -74,6 +93,13 @@ watch(message, () => {
       <v-icon>mdi-send</v-icon>
     </v-btn>
   </div>
+
+  <!-- 媒体发送框 -->
+  <MediaSendBox
+    v-if="showMediaBox"
+    :current-contact="currentContact"
+    @sent="handleMediaSent"
+  />
 </template>
 
 <style scoped>
