@@ -20,7 +20,7 @@ public class MinioConfig {
     @SneakyThrows
     @ConditionalOnMissingBean(MinioClient.class)
     public MinioClient minioClient(MinioProperties minioProperties){
-        log.info("minio 服务正在配置");
+        log.info("minio 服务正在配置: " + minioProperties.getEndpoint());
         return MinioClient.builder()
                 .endpoint(minioProperties.getEndpoint())
                 .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())

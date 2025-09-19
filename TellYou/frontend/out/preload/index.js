@@ -33,7 +33,10 @@ if (process.contextIsolated) {
       cancelMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:cancel", taskId),
       retryMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:retry", taskId),
       getMediaTaskStatus: (taskId) => electron.ipcRenderer.invoke("media:send:status", taskId),
-      getAllMediaTasks: () => electron.ipcRenderer.invoke("media:send:list")
+      getAllMediaTasks: () => electron.ipcRenderer.invoke("media:send:list"),
+      // Avatar upload APIs
+      selectAvatarFile: () => electron.ipcRenderer.invoke("avatar:select-file"),
+      uploadAvatar: (params) => electron.ipcRenderer.invoke("avatar:upload", params)
     });
   } catch (error) {
     console.error(error);

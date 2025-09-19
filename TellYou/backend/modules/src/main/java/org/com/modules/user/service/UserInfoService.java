@@ -10,10 +10,8 @@ import org.com.modules.user.domain.vo.resp.LoginResp;
 * @createDate 2025-07-22 20:27:43
 */
 public interface UserInfoService {
-
     void getCheckCode(String emailAddress);
-
     void register(RegisterReq registerReq);
-
     LoginResp login(LoginReq loginReq);
+    void confirmAvatarUpload(Long uid);
 }

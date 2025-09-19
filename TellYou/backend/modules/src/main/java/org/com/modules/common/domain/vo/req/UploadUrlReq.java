@@ -19,7 +19,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UploadUrlReq {
-
     @NotBlank
     @Schema(description = "文件名（带后缀）")
     private String fileName;
@@ -27,5 +26,4 @@ public class UploadUrlReq {
     @Schema(description = "上传场景1.聊天室,2.表情包")
     @NotNull
     private Integer scene;
-
 }

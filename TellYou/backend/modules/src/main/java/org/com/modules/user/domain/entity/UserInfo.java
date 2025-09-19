@@ -102,8 +102,8 @@ public class UserInfo implements Serializable {
     /**
     * ip信息
     */
-    @Schema(description = "ip信息")
-    private Object ipInfo;
+    @Schema(description = "额外信息")
+    private Object extInfo;
     /**
     * 最后离开时间
     */

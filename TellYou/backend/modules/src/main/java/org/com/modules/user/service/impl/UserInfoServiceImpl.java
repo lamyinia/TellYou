@@ -1,10 +1,14 @@
 package org.com.modules.user.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.com.modules.common.annotation.FlowControl;
+import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
@@ -39,12 +43,13 @@ public class UserInfoServiceImpl implements UserInfoService {
     private final JavaMailSender javaMailSender;
     private final RedisTemplate redisTemplate;
     private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper;
 
     private static final String REDIS_CODE_PREFIX = "register:code:";
     private static final int CODE_EXPIRE_MINUTES = 5;
 
-    // TODO 流量控制
     @Override
+//    @FlowControl(time = 1, unit = TimeUnit.MINUTES, count = 1, target = FlowControl.Target.UID)
     public LoginResp login(LoginReq loginReq) {
         UserInfo user = userInfoDao.getByEmail(loginReq.getEmail());
         if (Objects.isNull(user) || !user.getPassword().equals( SecurityUtil.encode(loginReq.getPassword()) )){
@@ -116,6 +121,65 @@ public class UserInfoServiceImpl implements UserInfoService {
         } catch (MessagingException e) {
             log.error("邮件发送失败: {}", email, e);
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    @RedissonLocking(prefixKey = "user:setting", key="#uid")
+    public void confirmAvatarUpload(Long uid) {
+        try {
+            UserInfo userInfo = userInfoDao.getById(uid);
+            if (userInfo == null) {
+                throw new BusinessException(20005, "用户不存在");
+            }
+            Map<String, Object> extInfoMap = parseExtInfo(userInfo.getExtInfo());
+            Integer currentAvatarVersion = (Integer) extInfoMap.getOrDefault("avatarVersion", 1);
+            extInfoMap.put("avatarVersion", currentAvatarVersion + 1);
+            String updatedExtInfo = objectMapper.writeValueAsString(extInfoMap);
+
+            userInfoDao.lambdaUpdate()
+                    .eq(UserInfo::getUserId, uid)
+                    .set(UserInfo::getExtInfo, updatedExtInfo)
+                    .update();
+
+            log.info("用户 {} 头像版本号已更新: {} -> {}", uid, currentAvatarVersion, currentAvatarVersion + 1);
+
+        } catch (Exception e) {
+            log.error("确认头像上传失败，用户ID: {}", uid, e);
+            throw new BusinessException(20006, "头像上传确认失败");
+        }
+    }
+
+    /**
+     * 解析extInfo字段
+     * @param extInfo 扩展信息对象
+     * @return 解析后的Map
+     */
+    private Map<String, Object> parseExtInfo(Object extInfo) {
+        try {
+            if (extInfo == null) {
+                Map<String, Object> defaultExtInfo = new HashMap<>();
+                defaultExtInfo.put("nameVersion", 1);
+                defaultExtInfo.put("avatarVersion", 1);
+                return defaultExtInfo;
+            }
+
+            if (extInfo instanceof String) {
+                return objectMapper.readValue((String) extInfo, new TypeReference<Map<String, Object>>() {});
+            } else if (extInfo instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) extInfo;
+                return map;
+            } else {
+                String jsonStr = objectMapper.writeValueAsString(extInfo);
+                return objectMapper.readValue(jsonStr, new TypeReference<Map<String, Object>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("解析extInfo失败，使用默认值: {}", e.getMessage());
+            Map<String, Object> defaultExtInfo = new HashMap<>();
+            defaultExtInfo.put("nameVersion", 1);
+            defaultExtInfo.put("avatarVersion", 1);
+            return defaultExtInfo;
         }
     }
 }

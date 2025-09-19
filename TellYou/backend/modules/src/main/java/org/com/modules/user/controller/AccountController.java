@@ -30,6 +30,7 @@ public class AccountController {
     private final MongoTemplate mongoTemplate;
     private final MinioProperties minioProperties;
 
+    // todo ip 限流、userId 限流
     @PostMapping("/login")
     @Operation(summary = "登录")
     public ApiResult<LoginResp> login(@Valid @RequestBody LoginReq loginReq) {

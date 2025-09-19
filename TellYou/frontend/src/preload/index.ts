@@ -52,7 +52,13 @@ if (process.contextIsolated) {
     getMediaTaskStatus: (taskId: string) =>
       ipcRenderer.invoke('media:send:status', taskId),
     getAllMediaTasks: () =>
-      ipcRenderer.invoke('media:send:list')
+      ipcRenderer.invoke('media:send:list'),
+
+    // Avatar upload APIs
+    selectAvatarFile: () =>
+      ipcRenderer.invoke('avatar:select-file'),
+    uploadAvatar: (params: { filePath: string; fileName: string; fileSize: number; fileSuffix: string }) =>
+      ipcRenderer.invoke('avatar:upload', params)
     })
   } catch (error) {
     console.error(error)

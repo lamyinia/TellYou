@@ -45,6 +45,17 @@ declare global {
     retryMediaTask: (taskId: string) => Promise<boolean>
     getMediaTaskStatus: (taskId: string) => Promise<any>
     getAllMediaTasks: () => Promise<any[]>
+    
+    // Avatar upload APIs
+    selectAvatarFile: () => Promise<{
+      filePath: string
+      fileName: string
+      fileSize: number
+      fileSuffix: string
+      mimeType: string
+      dataUrl: string
+    } | null>
+    uploadAvatar: (params: { filePath: string; fileName: string; fileSize: number; fileSuffix: string }) => Promise<{ success: boolean }>
     }
   }
   interface ImportMetaEnv {

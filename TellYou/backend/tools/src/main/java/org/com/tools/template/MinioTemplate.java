@@ -13,7 +13,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.domain.OssReq;
-import org.com.tools.template.domain.OssResp;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
@@ -33,12 +32,12 @@ public class MinioTemplate {
     /**
      * MinIO 客户端
      */
-    MinioClient minioClient;
+    private MinioClient minioClient;
 
     /**
      * MinIO 配置类
      */
-    MinioProperties minioProperties;
+    private MinioProperties minioProperties;
 
     /**
      * 查询所有存储桶
@@ -84,39 +83,62 @@ public class MinioTemplate {
     }
 
     /**
-     * 返回临时带签名、过期时间一天、PUT请求方式的访问URL
+     * 生成预签名上传URL（PUT方法）
+     *
+     * @param path 对象路径
+     * @return 预签名URL
      */
     @SneakyThrows
-    public OssResp getPreSignedObjectUrl(OssReq req) {
-        String absolutePath = req.isAutoPath() ? generateAutoPath(req) : req.getFilePath() + StrUtil.SLASH + req.getFileName();
-        String url = minioClient.getPresignedObjectUrl(
-                GetPresignedObjectUrlArgs.builder()
-                        .method(Method.PUT)
-                        .bucket(minioProperties.getBucket())
-                        .object(absolutePath)
-                        .expiry(60 * 60 * 24)
-                        .build());
-        return OssResp.builder()
-                .uploadUrl(url)
-                .downloadUrl(getDownloadUrl(minioProperties.getBucket(), absolutePath))
-                .build();
+    public String getPreSignedObjectUrl(String path) {
+        return getPreSignedObjectUrl(path, Method.PUT, 3600); // 默认1小时
     }
 
+    /**
+     * 生成预签名下载URL（GET方法）
+     *
+     * @param bucket 存储桶名称
+     * @param pathFile 文件路径
+     * @return 预签名下载URL
+     */
     private String getDownloadUrl(String bucket, String pathFile) {
         try {
-            return minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucket)
-                            .object(pathFile)
-                            .expiry(60 * 60 * 24) // 24小时过期
-                            .build());
+            return getPreSignedObjectUrl(pathFile, Method.GET, 86400); // 24小时过期
         } catch (Exception e) {
-            log.error("生成下载URL失败", e);
+            log.error("生成下载URL失败，存储桶: {}, 文件路径: {}", bucket, pathFile, e);
             return "";
         }
     }
 
+    /**
+     * 生成预签名URL
+     *
+     * @param path 对象路径
+     * @param method HTTP方法
+     * @param expirySeconds 过期时间（秒）
+     * @return 预签名URL
+     */
+    @SneakyThrows
+    public String getPreSignedObjectUrl(String path, Method method, int expirySeconds) {
+        if (StrUtil.isBlank(path)) {
+            throw new IllegalArgumentException("对象路径不能为空");
+        }
+        if (expirySeconds <= 0 || expirySeconds > 604800) { // 最大7天
+            throw new IllegalArgumentException("过期时间必须在1秒到7天之间");
+        }
+
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(method)
+                            .bucket(minioProperties.getBucket())
+                            .object(path)
+                            .expiry(expirySeconds)
+                            .build());
+        } catch (Exception e) {
+            log.error("生成预签名URL失败，路径: {}, 方法: {}, 过期时间: {}秒", path, method, expirySeconds, e);
+            throw e;
+        }
+    }
     /**
      * GetObject接口用于获取某个文件（Object）。此操作需要对此Object具有读权限。
      *

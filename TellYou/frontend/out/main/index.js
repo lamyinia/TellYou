@@ -1,4 +1,26 @@
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const electron = require("electron");
 const fs = require("fs");
@@ -898,6 +920,29 @@ class AvatarCacheService {
   }
 }
 const avatarCacheService = new AvatarCacheService();
+const getMimeType = (ext) => {
+  const mimeTypes = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp"
+  };
+  return mimeTypes[ext] || "application/octet-stream";
+};
+const generateThumbnail = async (filePath) => {
+  try {
+    const sharp = await import("sharp");
+    const thumbnailBuffer = await sharp.default(filePath).resize(200, 200, {
+      fit: "cover",
+      position: "center"
+    }).jpeg({ quality: 80 }).toBuffer();
+    return thumbnailBuffer;
+  } catch (error) {
+    console.error("生成缩略图失败:", error);
+    return await fs.promises.readFile(filePath);
+  }
+};
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -994,7 +1039,12 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       sandbox: false,
-      contextIsolation: true
+      contextIsolation: true,
+      webSecurity: false,
+      // 禁用 web 安全限制
+      allowRunningInsecureContent: true,
+      // 允许运行不安全内容
+      experimentalFeatures: true
     }
   });
   const tray = new electron.Tray(icon);
@@ -1016,6 +1066,16 @@ const createWindow = () => {
     electron.shell.openExternal(details.url);
     return { action: "deny" };
   });
+  if (utils.is.dev) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": ["default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"]
+        }
+      });
+    });
+  }
   if (utils.is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
@@ -1217,6 +1277,72 @@ const dataHandle = () => {
     } catch (error) {
       console.error("Failed to get avatar cache stats:", error);
       return { totalUsers: 0, totalFiles: 0, totalSize: 0 };
+    }
+  });
+  electron.ipcMain.handle("avatar:select-file", async () => {
+    try {
+      const { dialog } = await import("electron");
+      const result = await dialog.showOpenDialog({
+        title: "选择头像文件",
+        filters: [
+          {
+            name: "图片文件",
+            extensions: ["png", "jpg", "jpeg", "gif", "webp"]
+          }
+        ],
+        properties: ["openFile"]
+      });
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+      const filePath = result.filePaths[0];
+      const stats = await fs.promises.stat(filePath);
+      const maxSize = 10 * 1024 * 1024;
+      if (stats.size > maxSize) {
+        throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+      if (!allowedExts.includes(ext)) {
+        throw new Error("只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片");
+      }
+      const fileBuffer = await fs.promises.readFile(filePath);
+      const base64Data = fileBuffer.toString("base64");
+      const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`;
+      return {
+        filePath,
+        fileName: path.basename(filePath),
+        fileSize: stats.size,
+        fileSuffix: ext,
+        mimeType: getMimeType(ext),
+        dataUrl
+        // 添加base64数据URL用于预览
+      };
+    } catch (error) {
+      console.error("Failed to select avatar file:", error);
+      throw error;
+    }
+  });
+  electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
+    try {
+      const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-DWqeiHqY.js"));
+      console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
+      const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
+      console.log("获取到上传URLs:", uploadUrls);
+      const originalFileBuffer = await fs.promises.readFile(filePath);
+      console.log("读取原始文件完成，大小:", originalFileBuffer.length);
+      await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix));
+      console.log("原始文件上传完成");
+      const thumbnailBuffer = await generateThumbnail(filePath);
+      console.log("生成缩略图完成，大小:", thumbnailBuffer.length);
+      await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, "image/jpeg");
+      console.log("缩略图上传完成");
+      await confirmUpload();
+      console.log("确认上传完成");
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to upload avatar:", error);
+      throw error;
     }
   });
 };
