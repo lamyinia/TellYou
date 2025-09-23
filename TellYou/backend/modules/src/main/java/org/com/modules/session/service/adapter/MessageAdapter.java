@@ -9,14 +9,19 @@ import org.com.modules.session.domain.document.MessageDoc;
 import org.com.modules.session.domain.document.UserInBoxDoc;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.modules.session.domain.vo.resp.MessageResp;
+import org.com.modules.user.dao.UserInfoDao;
+import org.com.tools.utils.JsonUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageAdapter {
     private final MongoSessionDao mongoSessionDao;
+    private final UserInfoDao userInfoDao;
 
     public static MessageResp mailToMessageResp(UserInBoxDoc doc) {
         MessageResp resp = new MessageResp();
@@ -38,7 +43,13 @@ public class MessageAdapter {
 
     public MessageDoc buildMessage(MessageReq req) {
         Long sequenceId = getSequenceIdFromSession(req.getSessionId());
-        long currentTime = System.currentTimeMillis();
+        Long currentTime = System.currentTimeMillis();
+        Map<String, Object> identifier = JsonUtils.toMap(userInfoDao.getIdentifierById(req.getFromUid()));
+        if (identifier != null){
+            identifier.forEach((key, value) -> {
+                req.getExtra().put(key, value);
+            });
+        }
 
         return MessageDoc.builder()
                 .sessionId(req.getSessionId())

@@ -98,13 +98,13 @@ export const connectWs = (): void => {
     console.info('客户端连接成功')
     maxReConnectTimes = 20
 
-    setInterval(() => {
-      ws.send(JSON.stringify({
-        type: 0,
-        fromUid: "2",
-        timestamp: Date.now(),
-      }))
-    }, 1000 * 5)
+    // setInterval(() => {
+    //   ws.send(JSON.stringify({
+    //     type: 0,
+    //     fromUid: "2",
+    //     timestamp: Date.now(),
+    //   }))
+    // }, 1000 * 5)
 
     const mainWindow = BrowserWindow.getFocusedWindow()
     if (mainWindow){

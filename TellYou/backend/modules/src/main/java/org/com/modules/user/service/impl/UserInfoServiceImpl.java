@@ -14,11 +14,11 @@ import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.exception.BusinessException;
+import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.JwtUtil;
 import org.com.tools.utils.SecurityUtil;
 import org.springframework.data.redis.core.RedisTemplate;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -30,8 +30,8 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
-* @author lanyo
-* @description 针对表【user_info(用户信息)】的数据库操作Service实现
+* @author lanye
+* @description 针对表user_info(用户信息)的数据库操作Service实现
 * @createDate 2025-07-22 20:27:43
 */
 @Slf4j
@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 public class UserInfoServiceImpl implements UserInfoService {
     private final UserInfoDao userInfoDao;
     private final JavaMailSender javaMailSender;
+    private final MinioTemplate minioTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
 

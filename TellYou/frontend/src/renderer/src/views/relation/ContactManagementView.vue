@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import ContactDial from './ContactDial.vue'
 import ContactDetail from './ContactDetail.vue'
 import ContactApplication from './ContactApplication.vue'
@@ -16,6 +16,7 @@ const selectedContact = ref<SimpleContact | null>(null)
 const selectContact = (c: SimpleContact): void => {
   selectedContact.value = c
 }
+
 </script>
 
 <template>

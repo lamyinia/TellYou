@@ -16,29 +16,29 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @Tag(name = "用户信息管理接口")
 @RestController("userInfoController")
-@RequestMapping("/userInfo")
+@RequestMapping("/user-info")
 @RequiredArgsConstructor
 public class UserInfoController {
 
-    @PutMapping("/modifyNickName")
+    @PutMapping("/modify-nickname")
     @Operation(summary = "名字修改")
     public ApiResult<Void> modifyNickName(){
         return ApiResult.success();
     }
 
-    @PutMapping("/modifySignature")
+    @PutMapping("/modify-signature")
     @Operation(summary = "签名修改")
     public ApiResult<Void> modifySignature(){
         return ApiResult.success();
     }
 
-    @PutMapping("/modifyPassword")
+    @PutMapping("/modify-password")
     @Operation(summary = "密码修改")
     public ApiResult<Void> modifyPassword(){
         return ApiResult.success();
     }
 
-    @GetMapping("/SearchUid")
+    @GetMapping("/search-uid")
     @Operation(summary = "查询用户")
     public ApiResult<Void> SearchUid(){
         return ApiResult.success();

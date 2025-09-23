@@ -1,5 +1,6 @@
 package org.com.modules.user.service.adapter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.RegisterReq;
@@ -7,8 +8,6 @@ import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.SecurityUtil;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,8 +24,8 @@ public class UserInfoAdapter {
                 .password(SecurityUtil.encode(registerReq.getPassword()))
                 .personalSignature(ValueConstant.DEFAULT_SIGNATURE)
                 .avatar(ValueConstant.DEFAULT_AVATAR)
-                .identifier(getDefaultIdentifier())
-                .residues(getDefaultResidues())
+                .identifier(JsonUtils.toStr(getDefaultIdentifier()))
+                .residues(JsonUtils.toStr(getDefaultResidues()))
                 .build();
     }
     public static LoginResp buildVo(UserInfo userInfo, String token){
@@ -52,14 +51,8 @@ public class UserInfoAdapter {
      */
     public static Map<String, Object> parseIdentifier(Object identifier) {
         try {
-            if (identifier == null) {
-                return getDefaultIdentifier();
-            }
-            if (identifier instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) identifier;
-                return map;
-            } else if (identifier instanceof String) {
+            if (identifier == null) return getDefaultIdentifier();
+            if (identifier instanceof String) {
                 return JsonUtils.toMap((String) identifier);
             } else {
                 log.warn("identifier 类型不支持，使用默认值: {}", identifier.getClass().getSimpleName());
@@ -77,14 +70,8 @@ public class UserInfoAdapter {
      */
     public static Map<String, Object> parseResidues(Object residues) {
         try {
-            if (residues == null) {
-                return getDefaultResidues();
-            }
-            if (residues instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) residues;
-                return map;
-            } else if (residues instanceof String) {
+            if (residues == null) return getDefaultResidues();
+            if (residues instanceof String) {
                 return JsonUtils.toMap((String) residues);
             } else {
                 log.warn("residues 类型不支持，使用默认值: {}", residues.getClass().getSimpleName());

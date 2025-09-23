@@ -24,8 +24,8 @@ public class CacheConfig {
                 .expireAfterWrite(30, TimeUnit.MINUTES)
                 .recordStats());
 
-        cacheManager.registerCustomCache("userCache", Caffeine.newBuilder()
-                .maximumSize(500)
+        cacheManager.registerCustomCache("identifierCache", Caffeine.newBuilder()
+                .maximumSize(5000)
                 .expireAfterWrite(1, TimeUnit.HOURS)
                 .build());
         cacheManager.registerCustomCache("productCache", Caffeine.newBuilder()

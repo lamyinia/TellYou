@@ -1,15 +1,19 @@
 package org.com.modules.user.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.ibatis.type.JdbcType;
+import org.apache.ibatis.type.StringTypeHandler;
 import org.hibernate.validator.constraints.Length;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
 * 用户信息
@@ -105,15 +109,15 @@ public class UserInfo implements Serializable {
     @Schema(description = "额外信息")
     private Object identifier;
     /**
-    * 最后离开时间
-    */
-    @NotNull(message="[最后离开时间]不能为空")
-    @Schema(description = "最后离开时间")
-    private LocalDateTime lastOffTime;
-    /**
     * 剩余改名次数
     */
     @NotNull(message="剩余改名、改性别、改签名、改头像次数")
     @Schema(description = "剩余改名次数")
     private Object residues;
+    /**
+     * 最后离开时间
+     */
+    @NotNull(message="[最后离开时间]不能为空")
+    @Schema(description = "最后离开时间")
+    private LocalDateTime lastOffTime;
 }

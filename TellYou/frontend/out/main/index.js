@@ -443,13 +443,6 @@ const connectWs = () => {
   ws.on("open", () => {
     console.info("客户端连接成功");
     maxReConnectTimes = 20;
-    setInterval(() => {
-      ws.send(JSON.stringify({
-        type: 0,
-        fromUid: "2",
-        timestamp: Date.now()
-      }));
-    }, 1e3 * 5);
     const mainWindow = electron.BrowserWindow.getFocusedWindow();
     if (mainWindow) {
       mainWindow.webContents.send("ws-connected");
