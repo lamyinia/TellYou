@@ -23,18 +23,15 @@ if (process.contextIsolated) {
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("get-message-by-sessionId", sessionId, obj),
       wsSend: (msg) => electron.ipcRenderer.invoke("ws-send", msg),
-      // Avatar cache APIs
       getAvatar: (params) => electron.ipcRenderer.invoke("avatar:get", params),
       preloadAvatars: (params) => electron.ipcRenderer.invoke("avatar:preload", params),
       clearAvatarCache: (userId) => electron.ipcRenderer.invoke("avatar:clear", { userId }),
       getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats"),
-      // Media task APIs
       startMediaTask: (params) => electron.ipcRenderer.invoke("media:send:start", params),
       cancelMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:cancel", taskId),
       retryMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:retry", taskId),
       getMediaTaskStatus: (taskId) => electron.ipcRenderer.invoke("media:send:status", taskId),
       getAllMediaTasks: () => electron.ipcRenderer.invoke("media:send:list"),
-      // Avatar upload APIs
       selectAvatarFile: () => electron.ipcRenderer.invoke("avatar:select-file"),
       uploadAvatar: (params) => electron.ipcRenderer.invoke("avatar:upload", params)
     });

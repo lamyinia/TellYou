@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Avatar from './Avatar.vue'
 import UserInfoDrawer from './UserInfoDrawer.vue'
+import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const menuList = ref([
   { name: '聊天', icon: 'icon-liaotian', font: 'iconfont2', path: '/chat' },
@@ -17,20 +19,32 @@ const goTo = (path: string): void => {
     router.push(path)
   }
 }
-const openUser = ref(false)
-// TODO: 从用户 store 读取
-const uid = ref<string>('u123456')
-const name = ref<string>('未命名')
-const signature = ref<string>('这个人很神秘，还没有签名~')
-const avatarUrl = ref<string>('http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg')
 
-const onSaveProfile = (payload: { uid?: string; name?: string; avatarFile?: File | null; signature?: string }): void => {
-  if (payload.name) name.value = payload.name
-  if (payload.signature) signature.value = payload.signature
+const openUser = ref(false)
+
+// 从 userStore 获取用户数据
+const uid = computed(() => userStore.myId)
+const name = computed(() => userStore.nickname || '未命名')
+const signature = computed(() => userStore.signature || '这个人很神秘，还没有签名~')
+const avatarUrl = computed(() => userStore.avatarUrl || '')
+
+const onSaveProfile = async (payload: {
+  uid?: string
+  name?: string
+  avatarFile?: File | null
+  signature?: string
+}): Promise<void> => {
+  if (payload.name) {
+    await userStore.updateUserField('nickname', payload.name)
+  }
+  if (payload.signature) {
+    await userStore.updateUserField('signature', payload.signature)
+  }
   openUser.value = false
 }
 
-const onLogout = (): void => {
+const onLogout = async (): Promise<void> => {
+  await userStore.clearUserData()
   router.push('/login')
 }
 
@@ -41,6 +55,11 @@ const openUserDrawer = async (): Promise<void> => {
   await nextTick()
   openUser.value = true
 }
+
+// 组件挂载时初始化用户数据
+onMounted(async () => {
+  await userStore.initStore()
+})
 
 </script>
 

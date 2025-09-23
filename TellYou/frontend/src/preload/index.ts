@@ -28,37 +28,34 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
       toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
-      requestMessages: (sessionId:number, obj:object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj),
+      requestMessages: (sessionId: number, obj: object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj),
 
       wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg),
 
-    // Avatar cache APIs
-    getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) =>
-      ipcRenderer.invoke('avatar:get', params),
-    preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) =>
-      ipcRenderer.invoke('avatar:preload', params),
-    clearAvatarCache: (userId: string) =>
-      ipcRenderer.invoke('avatar:clear', { userId }),
-    getAvatarCacheStats: () =>
-      ipcRenderer.invoke('avatar:stats'),
+      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) =>
+        ipcRenderer.invoke('avatar:get', params),
+      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) =>
+        ipcRenderer.invoke('avatar:preload', params),
+      clearAvatarCache: (userId: string) =>
+        ipcRenderer.invoke('avatar:clear', { userId }),
+      getAvatarCacheStats: () =>
+        ipcRenderer.invoke('avatar:stats'),
 
-    // Media task APIs
-    startMediaTask: (params: { type: string; filePath: string; fileName: string; mimeType: string }) =>
-      ipcRenderer.invoke('media:send:start', params),
-    cancelMediaTask: (taskId: string) =>
-      ipcRenderer.invoke('media:send:cancel', taskId),
-    retryMediaTask: (taskId: string) =>
-      ipcRenderer.invoke('media:send:retry', taskId),
-    getMediaTaskStatus: (taskId: string) =>
-      ipcRenderer.invoke('media:send:status', taskId),
-    getAllMediaTasks: () =>
-      ipcRenderer.invoke('media:send:list'),
+      startMediaTask: (params: { type: string; filePath: string; fileName: string; mimeType: string }) =>
+        ipcRenderer.invoke('media:send:start', params),
+      cancelMediaTask: (taskId: string) =>
+        ipcRenderer.invoke('media:send:cancel', taskId),
+      retryMediaTask: (taskId: string) =>
+        ipcRenderer.invoke('media:send:retry', taskId),
+      getMediaTaskStatus: (taskId: string) =>
+        ipcRenderer.invoke('media:send:status', taskId),
+      getAllMediaTasks: () =>
+        ipcRenderer.invoke('media:send:list'),
 
-    // Avatar upload APIs
-    selectAvatarFile: () =>
-      ipcRenderer.invoke('avatar:select-file'),
-    uploadAvatar: (params: { filePath: string; fileName: string; fileSize: number; fileSuffix: string }) =>
-      ipcRenderer.invoke('avatar:upload', params)
+      selectAvatarFile: () =>
+        ipcRenderer.invoke('avatar:select-file'),
+      uploadAvatar: (params: { filePath: string; fileName: string; fileSize: number; fileSuffix: string }) =>
+        ipcRenderer.invoke('avatar:upload', params)
     })
   } catch (error) {
     console.error(error)

@@ -31,8 +31,8 @@ const sqlite3 = require("sqlite3");
 const WebSocket = require("ws");
 const __Store = require("electron-store");
 const axios = require("axios");
-const crypto = require("crypto");
 const log = require("electron-log");
+const crypto = require("crypto");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
@@ -329,6 +329,8 @@ const selectSessions = async () => {
 const updateSessionByMessage = async (data) => {
   await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
 };
+const uidKey = "newest:user:uid";
+const tokenKey = "newest:user:token";
 const handleMessage = async (msg, ws2) => {
   console.log(msg);
   const snap = Number(msg.adjustedTimestamp);
@@ -361,7 +363,7 @@ const handleMessage = async (msg, ws2) => {
   ws2.send(JSON.stringify({
     messageId: msg.messageId,
     type: 101,
-    fromUid: store.get("currentId")
+    fromUid: store.get(uidKey)
   }));
   const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
   mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
@@ -372,7 +374,7 @@ let maxReConnectTimes = null;
 let lockReconnect = false;
 let needReconnect = null;
 let wsUrl = null;
-const initWs = () => {
+const wsConfigInit = () => {
   wsUrl = "http://localhost:8082/ws";
   console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
   needReconnect = true;
@@ -431,7 +433,7 @@ const reconnect = () => {
 };
 const connectWs = () => {
   if (wsUrl == null) return;
-  const token = store.get("token");
+  const token = store.get(tokenKey);
   if (token === null) {
     console.info("token 不满足条件");
     return;
@@ -504,7 +506,7 @@ const mainAxios = axios.create({
   }
 });
 mainAxios.interceptors.request.use((config) => {
-  const token = store.get("token");
+  const token = store.get(tokenKey);
   if (token) {
     config.headers.token = token;
   }
@@ -943,6 +945,302 @@ const generateThumbnail = async (filePath) => {
     return await fs.promises.readFile(filePath);
   }
 };
+class MediaTaskService {
+  tasks = /* @__PURE__ */ new Map();
+  tempDir;
+  CHUNK_SIZE = 5 * 1024 * 1024;
+  // 5MB 分块
+  MAX_CONCURRENT = 3;
+  // 最大并发上传数
+  RETRY_TIMES = 3;
+  // 重试次数
+  constructor() {
+    this.tempDir = path.join(electron.app.getPath("userData"), ".tellyou", "media", "temp");
+    this.ensureTempDir();
+    this.setupIpcHandlers();
+  }
+  ensureTempDir() {
+    if (!fs.existsSync(this.tempDir)) {
+      fs.mkdirSync(this.tempDir, { recursive: true });
+    }
+  }
+  setupIpcHandlers() {
+    electron.ipcMain.handle("media:send:start", async (event, params) => {
+      return this.startTask(params);
+    });
+    electron.ipcMain.handle("media:send:cancel", async (event, taskId) => {
+      return this.cancelTask(taskId);
+    });
+    electron.ipcMain.handle("media:send:retry", async (event, taskId) => {
+      return this.retryTask(taskId);
+    });
+    electron.ipcMain.handle("media:send:status", async (event, taskId) => {
+      return this.getTaskStatus(taskId);
+    });
+    electron.ipcMain.handle("media:send:list", async () => {
+      return this.getAllTasks();
+    });
+    electron.ipcMain.handle("avatar:get", async (_, { userId, avatarUrl, size }) => {
+      try {
+        const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size);
+        if (!filePath) return null;
+        return `tellyou://avatar?path=${encodeURIComponent(filePath)}`;
+      } catch (error) {
+        console.error("Failed to get avatar:", error);
+        return null;
+      }
+    });
+    electron.ipcMain.handle("avatar:preload", async (_, { avatarMap, size }) => {
+      try {
+        await avatarCacheService.preloadAvatars(avatarMap, size);
+        return true;
+      } catch (error) {
+        console.error("Failed to preload avatars:", error);
+        return false;
+      }
+    });
+    electron.ipcMain.handle("avatar:clear", async (_, { userId }) => {
+      try {
+        avatarCacheService.clearUserCache(userId);
+        return true;
+      } catch (error) {
+        console.error("Failed to clear avatar cache:", error);
+        return false;
+      }
+    });
+    electron.ipcMain.handle("avatar:stats", async () => {
+      try {
+        return avatarCacheService.getCacheStats();
+      } catch (error) {
+        console.error("Failed to get avatar cache stats:", error);
+        return { totalUsers: 0, totalFiles: 0, totalSize: 0 };
+      }
+    });
+    electron.ipcMain.handle("avatar:select-file", async () => {
+      try {
+        const { dialog } = await import("electron");
+        const result = await dialog.showOpenDialog({
+          title: "选择头像文件",
+          filters: [{ name: "图片文件", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }],
+          properties: ["openFile"]
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+          return null;
+        }
+        const filePath = result.filePaths[0];
+        const stats = await fs.promises.stat(filePath);
+        const maxSize = 10 * 1024 * 1024;
+        if (stats.size > maxSize) {
+          throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
+        }
+        const ext = path.extname(filePath).toLowerCase();
+        const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+        if (!allowedExts.includes(ext)) {
+          throw new Error("只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片");
+        }
+        const fileBuffer = await fs.promises.readFile(filePath);
+        const base64Data = fileBuffer.toString("base64");
+        const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`;
+        return {
+          filePath,
+          fileName: path.basename(filePath),
+          fileSize: stats.size,
+          fileSuffix: ext,
+          mimeType: getMimeType(ext),
+          dataUrl
+        };
+      } catch (error) {
+        console.error("Failed to select avatar file:", error);
+        throw error;
+      }
+    });
+    electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
+      try {
+        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-B8eW_eML.js"));
+        console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
+        const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
+        const originalFileBuffer = await fs.promises.readFile(filePath);
+        const thumbnailBuffer = await generateThumbnail(filePath);
+        await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix));
+        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, "image/jpeg");
+        await confirmUpload();
+        console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl);
+        return {
+          success: true,
+          avatarUrl: uploadUrls.originalUploadUrl.split("?")[0]
+        };
+      } catch (error) {
+        console.error("Failed to upload avatar:", error);
+        throw error;
+      }
+    });
+  }
+  async startTask(params) {
+    try {
+      const taskId = this.generateTaskId();
+      const fileStats = fs.statSync(params.filePath);
+      const task = {
+        id: taskId,
+        type: params.type,
+        filePath: params.filePath,
+        fileName: params.fileName,
+        fileSize: fileStats.size,
+        mimeType: params.mimeType,
+        status: "pending",
+        progress: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      this.tasks.set(taskId, task);
+      this.processTask(taskId).catch((err) => {
+        log.error("Media task processing failed:", err);
+      });
+      return { taskId, success: true };
+    } catch (error) {
+      log.error("Failed to start media task:", error);
+      return {
+        taskId: "",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  async processTask(taskId) {
+    const task = this.tasks.get(taskId);
+    if (!task) return;
+    try {
+      await this.getUploadUrls(task);
+      await this.uploadFile(task);
+      await this.commitUpload(task);
+      task.status = "completed";
+      task.progress = 100;
+      task.updatedAt = Date.now();
+      this.notifyRenderer("media:send:result", {
+        taskId,
+        success: true,
+        result: task.result
+      });
+    } catch (error) {
+      task.status = "failed";
+      task.error = error instanceof Error ? error.message : "Upload failed";
+      task.updatedAt = Date.now();
+      this.notifyRenderer("media:send:result", {
+        taskId,
+        success: false,
+        error: task.error
+      });
+    }
+  }
+  async getUploadUrls(task) {
+    const response = await axios.post("/api/media/upload-token", {
+      fileName: task.fileName,
+      fileSize: task.fileSize,
+      mimeType: task.mimeType,
+      type: task.type
+    });
+    task.uploadUrls = {
+      origin: response.data.originUrl,
+      thumbnail: response.data.thumbnailUrl
+    };
+  }
+  async uploadFile(task) {
+    if (!task.uploadUrls) {
+      throw new Error("Upload URLs not available");
+    }
+    task.status = "uploading";
+    this.notifyRenderer("media:send:state", {
+      taskId: task.id,
+      status: task.status,
+      progress: task.progress
+    });
+    const fileSize = task.fileSize;
+    const chunkSize = this.CHUNK_SIZE;
+    const totalChunks = Math.ceil(fileSize / chunkSize);
+    for (let i = 0; i < totalChunks; i++) {
+      if (task.status === "cancelled") {
+        throw new Error("Upload cancelled");
+      }
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, fileSize);
+      const chunk = fs.createReadStream(task.filePath, { start, end });
+      await this.uploadChunk(task, chunk, i, totalChunks);
+      task.progress = Math.round((i + 1) / totalChunks * 80);
+      task.chunkCursor = i + 1;
+      task.updatedAt = Date.now();
+      this.notifyRenderer("media:send:progress", {
+        taskId: task.id,
+        progress: task.progress,
+        chunkCursor: task.chunkCursor
+      });
+    }
+  }
+  async uploadChunk(task, chunk, chunkIndex, totalChunks) {
+    const formData = new FormData();
+    formData.append("file", chunk, `${task.fileName}.part${chunkIndex}`);
+    formData.append("chunkIndex", chunkIndex.toString());
+    formData.append("totalChunks", totalChunks.toString());
+    await axios.post(task.uploadUrls.origin, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      },
+      timeout: 3e4
+    });
+  }
+  async commitUpload(task) {
+    const response = await axios.post("/api/media/commit", {
+      fileName: task.fileName,
+      fileSize: task.fileSize,
+      mimeType: task.mimeType,
+      type: task.type
+    });
+    task.result = {
+      originUrl: response.data.originUrl,
+      thumbnailUrl: response.data.thumbnailUrl,
+      fileId: response.data.fileId
+    };
+  }
+  async cancelTask(taskId) {
+    const task = this.tasks.get(taskId);
+    if (!task) return false;
+    task.status = "cancelled";
+    task.updatedAt = Date.now();
+    this.notifyRenderer("media:send:state", {
+      taskId,
+      status: task.status,
+      progress: task.progress
+    });
+    return true;
+  }
+  // 重试任务
+  async retryTask(taskId) {
+    const task = this.tasks.get(taskId);
+    if (!task) return false;
+    task.status = "pending";
+    task.progress = 0;
+    task.error = void 0;
+    task.updatedAt = Date.now();
+    this.processTask(taskId).catch((err) => {
+      log.error("Retry task failed:", err);
+    });
+    return true;
+  }
+  // 获取任务状态
+  getTaskStatus(taskId) {
+    return this.tasks.get(taskId) || null;
+  }
+  // 获取所有任务
+  getAllTasks() {
+    return Array.from(this.tasks.values());
+  }
+  // 通知渲染进程
+  notifyRenderer(channel, data) {
+    log.info(`Notifying renderer: ${channel}`, data);
+  }
+  // 生成任务ID
+  generateTaskId() {
+    return `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -995,7 +1293,6 @@ electron.app.whenReady().then(() => {
   } catch (e) {
     console.error("register protocol failed", e);
   }
-  initWs();
   utils.electronApp.setAppUserModelId("com.electron");
   electron.app.on("browser-window-created", (_, window) => {
     utils.optimizer.watchWindowShortcuts(window);
@@ -1040,10 +1337,6 @@ const createWindow = () => {
       preload: path.join(__dirname, "../preload/index.js"),
       sandbox: false,
       contextIsolation: true,
-      webSecurity: false,
-      // 禁用 web 安全限制
-      allowRunningInsecureContent: true,
-      // 允许运行不安全内容
       experimentalFeatures: true
     }
   });
@@ -1054,6 +1347,7 @@ const createWindow = () => {
     mainWindow.setSkipTaskbar(false);
     mainWindow.show();
   });
+  new MediaTaskService();
   processIpc(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
@@ -1095,6 +1389,7 @@ const processIpc = (mainWindow) => {
     mainWindow.setResizable(false);
   });
   onLoginSuccess((uid) => {
+    wsConfigInit();
     mainWindow.setResizable(true);
     mainWindow.setSize(920, 740);
     mainWindow.setMaximizable(true);
@@ -1243,109 +1538,8 @@ const dataHandle = () => {
     const { removeFromBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
     await removeFromBlacklist(userIds || []);
   });
-  electron.ipcMain.handle("avatar:get", async (_, { userId, avatarUrl, size }) => {
-    try {
-      const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size);
-      if (!filePath) return null;
-      return `tellyou://avatar?path=${encodeURIComponent(filePath)}`;
-    } catch (error) {
-      console.error("Failed to get avatar:", error);
-      return null;
-    }
-  });
-  electron.ipcMain.handle("avatar:preload", async (_, { avatarMap, size }) => {
-    try {
-      await avatarCacheService.preloadAvatars(avatarMap, size);
-      return true;
-    } catch (error) {
-      console.error("Failed to preload avatars:", error);
-      return false;
-    }
-  });
-  electron.ipcMain.handle("avatar:clear", async (_, { userId }) => {
-    try {
-      avatarCacheService.clearUserCache(userId);
-      return true;
-    } catch (error) {
-      console.error("Failed to clear avatar cache:", error);
-      return false;
-    }
-  });
-  electron.ipcMain.handle("avatar:stats", async () => {
-    try {
-      return avatarCacheService.getCacheStats();
-    } catch (error) {
-      console.error("Failed to get avatar cache stats:", error);
-      return { totalUsers: 0, totalFiles: 0, totalSize: 0 };
-    }
-  });
-  electron.ipcMain.handle("avatar:select-file", async () => {
-    try {
-      const { dialog } = await import("electron");
-      const result = await dialog.showOpenDialog({
-        title: "选择头像文件",
-        filters: [
-          {
-            name: "图片文件",
-            extensions: ["png", "jpg", "jpeg", "gif", "webp"]
-          }
-        ],
-        properties: ["openFile"]
-      });
-      if (result.canceled || result.filePaths.length === 0) {
-        return null;
-      }
-      const filePath = result.filePaths[0];
-      const stats = await fs.promises.stat(filePath);
-      const maxSize = 10 * 1024 * 1024;
-      if (stats.size > maxSize) {
-        throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
-      }
-      const ext = path.extname(filePath).toLowerCase();
-      const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
-      if (!allowedExts.includes(ext)) {
-        throw new Error("只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片");
-      }
-      const fileBuffer = await fs.promises.readFile(filePath);
-      const base64Data = fileBuffer.toString("base64");
-      const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`;
-      return {
-        filePath,
-        fileName: path.basename(filePath),
-        fileSize: stats.size,
-        fileSuffix: ext,
-        mimeType: getMimeType(ext),
-        dataUrl
-        // 添加base64数据URL用于预览
-      };
-    } catch (error) {
-      console.error("Failed to select avatar file:", error);
-      throw error;
-    }
-  });
-  electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
-    try {
-      const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-DWqeiHqY.js"));
-      console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
-      const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
-      console.log("获取到上传URLs:", uploadUrls);
-      const originalFileBuffer = await fs.promises.readFile(filePath);
-      console.log("读取原始文件完成，大小:", originalFileBuffer.length);
-      await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix));
-      console.log("原始文件上传完成");
-      const thumbnailBuffer = await generateThumbnail(filePath);
-      console.log("生成缩略图完成，大小:", thumbnailBuffer.length);
-      await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, "image/jpeg");
-      console.log("缩略图上传完成");
-      await confirmUpload();
-      console.log("确认上传完成");
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to upload avatar:", error);
-      throw error;
-    }
-  });
 };
 exports.queryAll = queryAll;
 exports.sqliteRun = sqliteRun;
 exports.store = store;
+exports.tokenKey = tokenKey;

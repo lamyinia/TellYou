@@ -83,6 +83,29 @@ public class MinioTemplate {
     }
 
     /**
+     * 检查对象是否存在
+     *
+     * @param path 对象路径
+     * @return 是否存在
+     */
+    @SneakyThrows
+    public boolean objectExists(String path) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(minioProperties.getBucket())
+                            .object(path)
+                            .build());
+            return true;
+        } catch (Exception e) {
+            if (e.getMessage().contains("does not exist")) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
      * 生成预签名上传URL（PUT方法）
      *
      * @param path 对象路径

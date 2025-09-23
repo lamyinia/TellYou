@@ -2,6 +2,7 @@ package org.com.modules.session.domain.vo.resp;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -23,6 +24,7 @@ public class MessageResp implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long sequenceNumber;
 
+    @Schema(description="消息类型：1文本 2图片 3语音 4视频 5文件 6红包")
     private Integer messageType;
 
     @JsonSerialize(using = ToStringSerializer.class)

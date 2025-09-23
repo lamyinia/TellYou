@@ -5,15 +5,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.com.modules.common.annotation.FlowControl;
+import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
-import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.tools.properties.MinioProperties;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author lanye
@@ -26,13 +27,11 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AccountController {
     private final UserInfoService userInfoService;
-    private final RocketMQTemplate rocketMQTemplate;
-    private final MongoTemplate mongoTemplate;
     private final MinioProperties minioProperties;
 
-    // todo ip 限流、userId 限流
     @PostMapping("/login")
     @Operation(summary = "登录")
+    @FlowControl(time = 1, unit = TimeUnit.MINUTES, count = 1, target = FlowControl.Target.IP)
     public ApiResult<LoginResp> login(@Valid @RequestBody LoginReq loginReq) {
         LoginResp loginResp = userInfoService.login(loginReq);
         return ApiResult.success(loginResp);

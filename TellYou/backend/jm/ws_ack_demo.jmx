@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="WS ACK Demo">
+      <stringProp name="TestPlan.comments">WebSocket: send N messages - read - extract messageId - ACK</stringProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">REPLACE_WITH_YOUR_TOKEN</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">1948031012053333361</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">1948031012054159361</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">1001</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">goTobetter</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">500</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">localhost</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">8082</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">ws</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Argument">
+            <stringProp name="Argument.value">/ws?token=${token}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Users">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <eu.luminis.jmeter.wssampler.OpenWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.OpenWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.OpenWebSocketSampler" testname="WebSocket Open Connection">
+          <boolProp name="TLS">false</boolProp>
+          <stringProp name="server">localhost</stringProp>
+          <stringProp name="port">8082</stringProp>
+          <stringProp name="path">/ws?token=${__P(token,)}</stringProp>
+          <stringProp name="connectTimeout">20000</stringProp>
+          <stringProp name="readTimeout">6000</stringProp>
+        </eu.luminis.jmeter.wssampler.OpenWebSocketSampler>
+        <hashTree/>
+        <LoopController guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Send ${__P(MSG_COUNT,5)}">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(MSG_COUNT,5)}</stringProp>
+        </LoopController>
+        <hashTree>
+          <eu.luminis.jmeter.wssampler.PingPongSampler guiclass="eu.luminis.jmeter.wssampler.PingPongSamplerGui" testclass="eu.luminis.jmeter.wssampler.PingPongSampler" testname="WebSocket Ping/Pong">
+            <stringProp name="type">PingPong</stringProp>
+            <stringProp name="readTimeout">6000</stringProp>
+          </eu.luminis.jmeter.wssampler.PingPongSampler>
+          <hashTree/>
+          <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Build Send Payload">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">def messageId = String.valueOf(System.currentTimeMillis())
+def ts = System.currentTimeMillis()
+def V = { k, d=null -&gt; vars.get(k) ?: props.get(k) ?: d }
+
+def payload = [
+  messageId: messageId,
+  type     : 1,
+  fromUId  : V(&apos;fromUId&apos;),
+  toUserId : V(&apos;toUserId&apos;),
+  sessionId: V(&apos;sessionId&apos;),
+  content  : V(&apos;content&apos;,&apos;goTobetter&apos;),
+  timestamp: ts,
+  extra    : [platform:&apos;desktop&apos;]
+]
+vars.put(&apos;payload&apos;, new groovy.json.JsonBuilder(payload).toString())</stringProp>
+          </JSR223PreProcessor>
+          <hashTree/>
+          <eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler" testname="WebSocket Single Write Sampler">
+            <boolProp name="TLS">false</boolProp>
+            <stringProp name="server"></stringProp>
+            <stringProp name="port">80</stringProp>
+            <stringProp name="path"></stringProp>
+            <stringProp name="connectTimeout">20000</stringProp>
+            <stringProp name="payloadType">Text</stringProp>
+            <stringProp name="requestData">${payload}</stringProp>
+            <boolProp name="createNewConnection">false</boolProp>
+            <boolProp name="loadDataFromFile">false</boolProp>
+            <stringProp name="dataFile"></stringProp>
+          </eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler>
+          <hashTree/>
+          <eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.SingleReadWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler" testname="WebSocket Single Read Sampler">
+            <boolProp name="TLS">false</boolProp>
+            <stringProp name="server"></stringProp>
+            <stringProp name="port">80</stringProp>
+            <stringProp name="path"></stringProp>
+            <stringProp name="connectTimeout">20000</stringProp>
+            <stringProp name="dataType">Text</stringProp>
+            <boolProp name="createNewConnection">false</boolProp>
+            <stringProp name="readTimeout">3000</stringProp>
+            <boolProp name="optional">false</boolProp>
+          </eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler>
+          <hashTree>
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON提取器">
+              <stringProp name="JSONPostProcessor.referenceNames">resp_mid</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.messageId</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+            </JSONPostProcessor>
+            <hashTree/>
+          </hashTree>
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If resp_mid present → ACK">
+            <stringProp name="IfController.condition">${__groovy(vars.get(&apos;resp_mid&apos;) &amp;&amp; vars.get(&apos;resp_mid&apos;) != &apos;NOT_FOUND&apos;)}</stringProp>
+            <boolProp name="IfController.evaluateAll">false</boolProp>
+            <boolProp name="IfController.useExpression">false</boolProp>
+          </IfController>
+          <hashTree>
+            <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Build ACK Payload">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="script">def V = { k, d=null -&gt; vars.get(k) ?: props.get(k) ?: d }
+
+def ack = [
+  messageId: V(&apos;resp_mid&apos;),
+  type: 101,
+  fromUid: V(&apos;fromUId&apos;)
+]
+vars.put(&apos;ackPayload&apos;, new groovy.json.JsonBuilder(ack).toString())
+              </stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="cacheKey">false</stringProp>
+            </JSR223PreProcessor>
+            <hashTree/>
+            <eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler" testname="WebSocket Single Write Sampler">
+              <boolProp name="TLS">false</boolProp>
+              <stringProp name="server"></stringProp>
+              <stringProp name="port">80</stringProp>
+              <stringProp name="path"></stringProp>
+              <stringProp name="connectTimeout">20000</stringProp>
+              <stringProp name="payloadType">Text</stringProp>
+              <stringProp name="requestData">${ackPayload}</stringProp>
+              <boolProp name="createNewConnection">false</boolProp>
+              <boolProp name="loadDataFromFile">false</boolProp>
+              <stringProp name="dataFile"></stringProp>
+            </eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <WhileController guiclass="WhileControllerGui" testclass="WhileController" testname="While Controller">
+          <stringProp name="WhileController.condition">${__groovy(vars.get(&apos;break_loop&apos;) != &apos;true&apos;)}</stringProp>
+        </WhileController>
+        <hashTree>
+          <eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.SingleReadWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler" testname="WebSocket Single Read Sampler">
+            <boolProp name="TLS">false</boolProp>
+            <stringProp name="server"></stringProp>
+            <stringProp name="port">80</stringProp>
+            <stringProp name="path"></stringProp>
+            <stringProp name="connectTimeout">20000</stringProp>
+            <stringProp name="dataType">Text</stringProp>
+            <boolProp name="createNewConnection">false</boolProp>
+            <stringProp name="readTimeout">3000</stringProp>
+            <boolProp name="optional">false</boolProp>
+          </eu.luminis.jmeter.wssampler.SingleReadWebSocketSampler>
+          <hashTree>
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON提取器">
+              <stringProp name="JSONPostProcessor.referenceNames">resp_mid</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.messageId</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+            </JSONPostProcessor>
+            <hashTree/>
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="JSR223 PostProcessor">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="script">vars.put(&apos;ws_read_ok&apos;, String.valueOf(prev.isSuccessful()))
+</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223PostProcessor>
+            <hashTree/>
+          </hashTree>
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If over">
+            <stringProp name="IfController.condition">${__groovy(vars.get(&apos;ws_read_ok&apos;)==&apos;false&apos;)}</stringProp>
+            <boolProp name="IfController.evaluateAll">false</boolProp>
+            <boolProp name="IfController.useExpression">true</boolProp>
+          </IfController>
+          <hashTree>
+            <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="JSR223 Sampler">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">vars.put(&apos;break_loop&apos;, &apos;true&apos;)</stringProp>
+            </JSR223Sampler>
+            <hashTree/>
+          </hashTree>
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If resp_mid present → ACK">
+            <stringProp name="IfController.condition">${__groovy(vars.get(&apos;resp_mid&apos;) &amp;&amp; vars.get(&apos;resp_mid&apos;) != &apos;NOT_FOUND&apos;)}</stringProp>
+            <boolProp name="IfController.evaluateAll">false</boolProp>
+            <boolProp name="IfController.useExpression">false</boolProp>
+          </IfController>
+          <hashTree>
+            <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Build ACK Payload">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="script">def V = { k, d=null -&gt; vars.get(k) ?: props.get(k) ?: d }
+
+def ack = [
+  messageId: V(&apos;resp_mid&apos;),
+  type: 101,
+  fromUid: V(&apos;fromUId&apos;)
+]
+vars.put(&apos;ackPayload&apos;, new groovy.json.JsonBuilder(ack).toString())
+              </stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="cacheKey">false</stringProp>
+            </JSR223PreProcessor>
+            <hashTree/>
+            <eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler" testname="WebSocket Single Write Sampler">
+              <boolProp name="TLS">false</boolProp>
+              <stringProp name="server"></stringProp>
+              <stringProp name="port">80</stringProp>
+              <stringProp name="path"></stringProp>
+              <stringProp name="connectTimeout">20000</stringProp>
+              <stringProp name="payloadType">Text</stringProp>
+              <stringProp name="requestData">${ackPayload}</stringProp>
+              <boolProp name="createNewConnection">false</boolProp>
+              <boolProp name="loadDataFromFile">false</boolProp>
+              <stringProp name="dataFile"></stringProp>
+            </eu.luminis.jmeter.wssampler.SingleWriteWebSocketSampler>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <eu.luminis.jmeter.wssampler.CloseWebSocketSampler guiclass="eu.luminis.jmeter.wssampler.CloseWebSocketSamplerGui" testclass="eu.luminis.jmeter.wssampler.CloseWebSocketSampler" testname="WebSocket Close">
+          <stringProp name="statusCode">1000</stringProp>
+          <stringProp name="readTimeout">6000</stringProp>
+        </eu.luminis.jmeter.wssampler.CloseWebSocketSampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree (调试用)">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>false</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>true</responseDataOnError>
+              <saveAssertionResultsFailureMessage>false</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

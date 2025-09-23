@@ -5,47 +5,18 @@ import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { instanceId, queryAll, sqliteRun } from './sqlite/atom'
-import { initWs, sendText } from '@main/websocket/client'
+import { wsConfigInit, sendText } from '@main/websocket/client'
 import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
-import { avatarCacheService } from './avatar-cache'
-// import { mediaTaskService } from './media-service'
+import { avatarCacheService } from './cache/avatar-cache'
 import log from 'electron-log'
 import os from 'os'
+import { MediaTaskService } from '@main/service/media-service'
 
-// 辅助函数
-const getMimeType = (ext: string): string => {
-  const mimeTypes: Record<string, string> = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp'
-  }
-  return mimeTypes[ext] || 'application/octet-stream'
-}
-
-const generateThumbnail = async (filePath: string): Promise<Buffer> => {
-  try {
-    const sharp = await import('sharp')
-    const thumbnailBuffer = await sharp.default(filePath)
-      .resize(200, 200, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .jpeg({ quality: 80 })
-      .toBuffer()
-    return thumbnailBuffer
-  } catch (error) {
-    console.error('生成缩略图失败:', error)
-    // 如果生成缩略图失败，返回原文件
-    return await fs.promises.readFile(filePath)
-  }
-}
-
+let mediaService: MediaTaskService|null = null
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'
 log.transports.file.maxSize = 1002430
@@ -58,7 +29,6 @@ console.info = log.info
 console.debug = log.debug
 
 app.setPath('userData', app.getPath('userData') + '_' + instanceId)
-// 注册自定义 scheme 为受信任（早于 app.whenReady 推荐在 app.on('ready') 前调用，但此处放在 whenReady 前也能生效）
 protocol.registerSchemesAsPrivileged([{ scheme: 'tellyou', privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } }])
 
 app.whenReady().then(() => {
@@ -69,9 +39,7 @@ app.whenReady().then(() => {
     nodeEnv: process.env.NODE_ENV
   })
 
-  // 注册自定义协议: tellyou://avatar?path=<absPath> （使用 protocol.handle）
   try {
-    // 与 avatar-cache.ts 的逻辑保持一致，实时获取目录
     const getCacheRoot = () => join(app.getPath('userData'), '.tellyou', 'cache', 'avatar')
     const mimeByExt: Record<string, string> = {
       '.jpg': 'image/jpeg',
@@ -85,10 +53,8 @@ app.whenReady().then(() => {
         const url = new URL(request.url)
         if (url.hostname !== 'avatar') return new Response('', { status: 403 })
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
-
         const normalized = path.resolve(filePath)
         const rootResolved = path.resolve(getCacheRoot())
-        // 统一小写比较并确保以 root 目录 + 分隔符 为前缀，防止相似前缀绕过
         const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase())
           || normalized.toLowerCase() === rootResolved.toLowerCase()
 
@@ -110,7 +76,6 @@ app.whenReady().then(() => {
     console.error('register protocol failed', e)
   }
 
-  initWs()
   electronApp.setAppUserModelId('com.electron')
 
   app.on('browser-window-created', (_, window) => {
@@ -157,8 +122,6 @@ const createWindow = (): void => {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      webSecurity: false, // 禁用 web 安全限制
-      allowRunningInsecureContent: true, // 允许运行不安全内容
       experimentalFeatures: true
     }
   })
@@ -170,6 +133,7 @@ const createWindow = (): void => {
     mainWindow.show()
   })
 
+  mediaService = new MediaTaskService()
   processIpc(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
@@ -185,7 +149,6 @@ const createWindow = (): void => {
     return { action: 'deny' }
   })
 
-  // 完全禁用 CSP（仅用于开发环境）
   if (is.dev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
       callback({
@@ -217,6 +180,7 @@ const processIpc = (mainWindow: Electron.BrowserWindow): void => {
     mainWindow.setResizable(false)
   })
   onLoginSuccess((uid: string) => {
+    wsConfigInit()
     mainWindow.setResizable(true)
     mainWindow.setSize(920, 740)
     mainWindow.setMaximizable(true)
@@ -368,134 +332,6 @@ const dataHandle = (): void => {
   ipcMain.on('black:list:remove', async (event, { userIds }) => {
     const { removeFromBlacklist } = await import('@main/sqlite/dao/black-dao')
     await removeFromBlacklist(userIds || [])
-  })
-
-  // Avatar cache IPC handlers
-  ipcMain.handle('avatar:get', async (_, { userId, avatarUrl, size }) => {
-    try {
-      const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size)
-      if (!filePath) return null
-      // 返回自定义协议地址，避免 file:// 受限
-      return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
-    } catch (error) {
-      console.error('Failed to get avatar:', error)
-      return null
-    }
-  })
-
-  ipcMain.handle('avatar:preload', async (_, { avatarMap, size }) => {
-    try {
-      await avatarCacheService.preloadAvatars(avatarMap, size)
-      return true
-    } catch (error) {
-      console.error('Failed to preload avatars:', error)
-      return false
-    }
-  })
-
-  ipcMain.handle('avatar:clear', async (_, { userId }) => {
-    try {
-      avatarCacheService.clearUserCache(userId)
-      return true
-    } catch (error) {
-      console.error('Failed to clear avatar cache:', error)
-      return false
-    }
-  })
-
-  ipcMain.handle('avatar:stats', async () => {
-    try {
-      return avatarCacheService.getCacheStats()
-    } catch (error) {
-      console.error('Failed to get avatar cache stats:', error)
-      return { totalUsers: 0, totalFiles: 0, totalSize: 0 }
-    }
-  })
-
-  // Avatar upload IPC handlers
-  ipcMain.handle('avatar:select-file', async () => {
-    try {
-      const { dialog } = await import('electron')
-      const result = await dialog.showOpenDialog({
-        title: '选择头像文件',
-        filters: [
-          {
-            name: '图片文件',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp']
-          }
-        ],
-        properties: ['openFile']
-      })
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return null
-      }
-
-      const filePath = result.filePaths[0]
-      const stats = await fs.promises.stat(filePath)
-
-      // 验证文件大小 (10MB)
-      const maxSize = 10 * 1024 * 1024
-      if (stats.size > maxSize) {
-        throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`)
-      }
-
-      // 验证文件扩展名
-      const ext = path.extname(filePath).toLowerCase()
-      const allowedExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-      if (!allowedExts.includes(ext)) {
-        throw new Error('只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片')
-      }
-
-      // 读取文件内容并转换为base64
-      const fileBuffer = await fs.promises.readFile(filePath)
-      const base64Data = fileBuffer.toString('base64')
-      const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`
-
-      return {
-        filePath,
-        fileName: path.basename(filePath),
-        fileSize: stats.size,
-        fileSuffix: ext,
-        mimeType: getMimeType(ext),
-        dataUrl // 添加base64数据URL用于预览
-      }
-    } catch (error) {
-      console.error('Failed to select avatar file:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
-    try {
-      const { getUploadUrl, uploadFile, confirmUpload } = await import('./avatar-upload-service')
-
-      console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
-      
-      const uploadUrls = await getUploadUrl(fileSize, fileSuffix)
-      console.log('获取到上传URLs:', uploadUrls)
-      
-      const originalFileBuffer = await fs.promises.readFile(filePath)
-      console.log('读取原始文件完成，大小:', originalFileBuffer.length)
-      
-      await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix))
-      console.log('原始文件上传完成')
-      
-      const thumbnailBuffer = await generateThumbnail(filePath)
-      console.log('生成缩略图完成，大小:', thumbnailBuffer.length)
-      
-      // 缩略图总是JPEG格式
-      await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, 'image/jpeg')
-      console.log('缩略图上传完成')
-
-      await confirmUpload()
-      console.log('确认上传完成')
-
-      return { success: true }
-    } catch (error) {
-      console.error('Failed to upload avatar:', error)
-      throw error
-    }
   })
 }
 

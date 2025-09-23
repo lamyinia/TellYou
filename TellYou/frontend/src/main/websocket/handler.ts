@@ -4,6 +4,7 @@ import { updateSessionByMessage } from '@main/sqlite/dao/session-dao'
 import { queryAll } from '@main/sqlite/atom'
 import { Session } from '@renderer/status/session/class'
 import { store } from '@main/index'
+import { uidKey } from '@main/electron-store/key'
 
 type ServerMsg = {
   messageId: string
@@ -54,7 +55,7 @@ export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void
   ws.send(JSON.stringify({
     messageId: msg.messageId,
     type: 101,
-    fromUid: store.get('currentId'),
+    fromUid: store.get(uidKey),
   }))
   const session: Session = (await queryAll('select * from sessions where session_id = ?', [msg.sessionId]) as unknown as Session[])[0]
 

@@ -21,19 +21,14 @@ interface AvatarStats {
 export const useAvatarStore = defineStore('avatar', () => {
   // 内存缓存：userId+size -> AvatarCacheItem
   const memoryCache = reactive<Map<string, AvatarCacheItem>>(new Map())
-
-  // 缓存统计
   const stats = ref<AvatarStats>({ totalUsers: 0, totalFiles: 0, totalSize: 0 })
-
-  // 最大内存缓存数量
   const maxMemoryCache = 200
 
-  // 生成缓存键
+
   const getCacheKey = (userId: string, size: number): string => {
     return `${userId}_${size}`
   }
 
-  // 提取URL中的hash
   const extractHashFromUrl = (url: string): string => {
     try {
       const urlObj = new URL(url)
@@ -48,8 +43,6 @@ export const useAvatarStore = defineStore('avatar', () => {
       return ''
     }
   }
-
-  // 清理过期内存缓存
   const cleanupMemoryCache = (): void => {
     if (memoryCache.size <= maxMemoryCache) return
 
@@ -63,21 +56,20 @@ export const useAvatarStore = defineStore('avatar', () => {
     })
   }
 
-  // 获取头像（主要接口）
   const getAvatar = async (userId: string, avatarUrl: string, size: number = 48): Promise<string | null> => {
     if (!userId || !avatarUrl) return null
 
     const cacheKey = getCacheKey(userId, size)
     const hash = extractHashFromUrl(avatarUrl)
 
-    // 检查内存缓存
     const cached = memoryCache.get(cacheKey)
+    console.log('缓存哈希：', hash)
     if (cached && cached.hash === hash && cached.localPath) {
+      console.log('缓存命中：', cached)
       cached.lastAccessed = Date.now()
       return cached.localPath
     }
 
-    // 如果正在加载，等待完成
     if (cached?.loading) {
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
@@ -90,7 +82,6 @@ export const useAvatarStore = defineStore('avatar', () => {
       })
     }
 
-    // 创建缓存项
     const cacheItem: AvatarCacheItem = {
       userId,
       avatarUrl,
@@ -104,9 +95,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     memoryCache.set(cacheKey, cacheItem)
 
     try {
-      // 调用主进程获取头像
       const localPath = await window.electronAPI.getAvatar({ userId, avatarUrl, size })
-
       if (localPath) {
         cacheItem.localPath = localPath
         cacheItem.loading = false

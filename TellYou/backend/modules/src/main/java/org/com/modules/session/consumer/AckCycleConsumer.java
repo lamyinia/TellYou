@@ -36,15 +36,19 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@RocketMQMessageListener(topic = MQConstant.ACK_TOPIC, consumerGroup = MQConstant.ACK_MANAGER_GROUP)
+@RocketMQMessageListener(topic = MQConstant.ACK_TOPIC, consumerGroup = MQConstant.ACK_MANAGER_GROUP, maxReconsumeTimes = 3)
 public class AckCycleConsumer implements RocketMQListener<String> {
     private final MessageDelayQueue messageDelayQueue;
     private final UserInBoxDocDao userInBoxDocDao;
 
     @Override
     public void onMessage(String text) {
-        MessageReq req = JSON.parseObject(text, MessageReq.class);
-        userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
-        messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId());
+        try {
+            MessageReq req = JSON.parseObject(text, MessageReq.class);
+            userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
+            messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId());
+        } catch (Exception e){
+            throw e;
+        }
     }
 }

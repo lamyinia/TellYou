@@ -4,7 +4,7 @@ const electron = require("electron");
 const index = require("./index.js");
 const getApiConfig = () => {
   const baseUrl = "http://localhost:8081";
-  const token = index.store.get("token", "");
+  const token = index.store.get(index.tokenKey);
   return { baseUrl, token };
 };
 const getUploadUrl = async (fileSize, fileSuffix) => {
@@ -17,8 +17,6 @@ const getUploadUrl = async (fileSize, fileSuffix) => {
       "Content-Type": "application/json"
     }
   });
-  console.log("请求URL:", `${baseUrl}/media/avatar/upload-url?fileSize=${fileSize}&fileSuffix=${fileSuffix}`);
-  console.log("请求头:", { token, "Content-Type": "application/json" });
   return new Promise((resolve, reject) => {
     let responseData = "";
     request.on("response", (response) => {
@@ -26,7 +24,6 @@ const getUploadUrl = async (fileSize, fileSuffix) => {
         responseData += chunk.toString();
       });
       response.on("end", () => {
-        console.log("响应数据:", responseData);
         try {
           const data = JSON.parse(responseData);
           if (response.statusCode === 200 && data.success === true) {
@@ -91,12 +88,10 @@ const confirmUpload = async () => {
   return new Promise((resolve, reject) => {
     let responseData = "";
     request.on("response", (response) => {
-      console.log("确认上传响应状态码:", response.statusCode);
       response.on("data", (chunk) => {
         responseData += chunk.toString();
       });
       response.on("end", () => {
-        console.log("确认上传响应数据:", responseData);
         try {
           if (response.statusCode === 200) {
             if (responseData) {

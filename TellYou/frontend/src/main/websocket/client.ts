@@ -3,6 +3,7 @@ import { store } from '../index'
 import { BrowserWindow } from 'electron'
 import { getMessageId } from '../../utils/process'
 import { handleMessage } from '@main/websocket/handler'
+import { tokenKey } from '@main/electron-store/key'
 
 let ws: WebSocket|null = null
 let maxReConnectTimes: number | null = null;
@@ -10,7 +11,7 @@ let lockReconnect = false;
 let needReconnect: null|boolean = null;
 let wsUrl: string | null = null;
 
-export const initWs = (): void => {
+export const wsConfigInit = (): void => {
   wsUrl = import.meta.env.VITE_REQUEST_WS_URL
   console.info(`wsUrl 连接的url地址:  ${wsUrl}`)
   needReconnect = true
@@ -84,7 +85,7 @@ const reconnect = (): void => {
 
 export const connectWs = (): void => {
   if (wsUrl == null) return
-  const token: string = store.get('token')
+  const token: string = store.get(tokenKey)
   if (token === null){
     console.info('token 不满足条件')
     return
@@ -126,7 +127,5 @@ export const connectWs = (): void => {
         await handleMessage(msg, ws)
         break;
     }
-
   })
-
 }

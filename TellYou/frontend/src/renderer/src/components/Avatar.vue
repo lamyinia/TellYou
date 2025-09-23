@@ -21,31 +21,26 @@ const avatarStore = useAvatarStore()
 const localPath = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
-
 const initials = computed(() => {
   if (props.fallbackText && props.fallbackText !== '?') {
     return props.fallbackText.slice(0, 1).toUpperCase()
   }
   return (props.name || '?').slice(0, 1).toUpperCase()
 })
-
 const avatarSrc = computed(() => {
   if (localPath.value) return localPath.value
   return props.url || null
 })
-
 const isLoading = computed(() => loading.value && props.showLoading)
-
 const loadAvatar = async () => {
   if (!props.userId || !props.url) {
     localPath.value = null
     return
   }
-
   loading.value = true
   error.value = null
-
   try {
+    console.log('要加载的头像url', props.url)
     const path = await avatarStore.getAvatar(props.userId, props.url, props.size)
     localPath.value = path
   } catch (err) {
@@ -55,17 +50,14 @@ const loadAvatar = async () => {
     loading.value = false
   }
 }
-
 const handleImageError = () => {
   localPath.value = null
   error.value = 'Image load failed'
 }
 
-// 监听props变化
 watch([() => props.userId, () => props.url, () => props.size], () => {
   loadAvatar()
 }, { immediate: true })
-
 onMounted(() => {
   loadAvatar()
 })
@@ -73,12 +65,9 @@ onMounted(() => {
 
 <template>
   <div class="avatar" :class="side" :style="{ width: size + 'px', height: size + 'px' }">
-    <!-- 加载状态 -->
     <div v-if="isLoading" class="loading">
       <div class="loading-spinner"></div>
     </div>
-
-    <!-- 头像图片 -->
     <img
       v-else-if="avatarSrc"
       :src="avatarSrc"
@@ -86,8 +75,6 @@ onMounted(() => {
       alt="avatar"
       @error="handleImageError"
     />
-
-    <!-- 回退显示 -->
     <div v-else class="fallback">{{ initials }}</div>
   </div>
 </template>

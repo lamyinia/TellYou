@@ -146,10 +146,10 @@ public class MessageDelayQueue {
 
         ScheduledFuture<?> cleanupTask = scheduler.schedule(() -> {
             try {
-                log.info("开始执行缓存清理任务，消息ID: {}", messageId);
+//                log.info("开始执行缓存清理任务，消息ID: {}", messageId);
                 letterCache.remove(messageId);
                 cleanupTasks.remove(messageId);
-                log.info("清理任务完成，消息ID: {}", messageId);
+//                log.info("清理任务完成，消息ID: {}", messageId);
             } catch (Exception e) {
                 log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
             }

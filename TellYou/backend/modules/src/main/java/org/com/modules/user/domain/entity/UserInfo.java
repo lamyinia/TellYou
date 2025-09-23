@@ -103,7 +103,7 @@ public class UserInfo implements Serializable {
     * ip信息
     */
     @Schema(description = "额外信息")
-    private Object extInfo;
+    private Object identifier;
     /**
     * 最后离开时间
     */
@@ -113,7 +113,7 @@ public class UserInfo implements Serializable {
     /**
     * 剩余改名次数
     */
-    @NotNull(message="[剩余改名次数]不能为空")
+    @NotNull(message="剩余改名、改性别、改签名、改头像次数")
     @Schema(description = "剩余改名次数")
-    private Integer remainingNameChange;
+    private Object residues;
 }

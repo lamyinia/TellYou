@@ -38,10 +38,10 @@ class UserInfoServiceTest {
         // 准备测试数据
         Long uid = 123L;
         String extInfoJson = "{\"nameVersion\": 1, \"avatarVersion\": 2}";
-        
+
         UserInfo userInfo = UserInfo.builder()
                 .userId(uid)
-                .extInfo(extInfoJson)
+                .identifier(extInfoJson)
                 .build();
 
         Map<String, Object> extInfoMap = new HashMap<>();
@@ -71,7 +71,7 @@ class UserInfoServiceTest {
         verify(objectMapper).readValue(extInfoJson, any());
         verify(objectMapper).writeValueAsString(updatedExtInfoMap);
         verify(userInfoDao.lambdaUpdate()).eq(eq(UserInfo::getUserId), eq(uid));
-        verify(userInfoDao.lambdaUpdate()).set(eq(UserInfo::getExtInfo), eq(updatedExtInfoJson));
+        verify(userInfoDao.lambdaUpdate()).set(eq(UserInfo::getIdentifier), eq(updatedExtInfoJson));
         verify(userInfoDao.lambdaUpdate()).update();
     }
 
@@ -79,10 +79,10 @@ class UserInfoServiceTest {
     void testConfirmAvatarUpload_WithNullExtInfo() throws Exception {
         // 准备测试数据
         Long uid = 123L;
-        
+
         UserInfo userInfo = UserInfo.builder()
                 .userId(uid)
-                .extInfo(null)
+                .identifier(null)
                 .build();
 
         Map<String, Object> defaultExtInfoMap = new HashMap<>();
@@ -122,7 +122,7 @@ class UserInfoServiceTest {
 
         // 执行测试并验证异常
         assertThrows(Exception.class, () -> userInfoService.confirmAvatarUpload(uid));
-        
+
         verify(userInfoDao).getById(uid);
         verifyNoMoreInteractions(userInfoDao);
     }

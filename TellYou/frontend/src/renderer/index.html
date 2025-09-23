@@ -1,16 +1,22 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>通彼</title>
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https: blob: tellyou: file:; media-src 'self' data: http: https: tellyou: file:; connect-src 'self' http: https: ws: wss: data: file:; font-src 'self' data: https:"
-    />
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <title>通彼</title>
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-eval';
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data: http: https: blob: tellyou: file:;
+             media-src 'self' data: http: https: tellyou: file:;
+             connect-src 'self' http: https: ws: wss: data: file:;
+             font-src 'self' data: https:"
+  />
+</head>
 
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>

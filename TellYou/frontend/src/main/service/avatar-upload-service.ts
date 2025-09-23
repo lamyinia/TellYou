@@ -1,15 +1,12 @@
 import { net } from 'electron'
-import { store } from './index'
+import { store } from '../index'
+import { tokenKey } from '@main/electron-store/key'
 
-// 从环境变量和store获取API基础URL和认证信息
 const getApiConfig = (): { baseUrl: string; token: string } => {
-  // 优先使用环境变量，如果没有则使用store中的值，最后使用默认值
-  const baseUrl = import.meta.env.VITE_REQUEST_URL || (store.get('apiBaseUrl', 'http://localhost:8081') as string)
-  const token = store.get('token', '') as string
+  const baseUrl = import.meta.env.VITE_REQUEST_URL
+  const token = store.get(tokenKey) as string
   return { baseUrl, token }
 }
-
-// 获取上传预签名URL
 export const getUploadUrl = async (fileSize: number, fileSuffix: string): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> => {
   const { baseUrl, token } = getApiConfig()
 
@@ -21,21 +18,13 @@ export const getUploadUrl = async (fileSize: number, fileSuffix: string): Promis
       'Content-Type': 'application/json'
     }
   })
-
-  console.log('请求URL:', `${baseUrl}/media/avatar/upload-url?fileSize=${fileSize}&fileSuffix=${fileSuffix}`)
-  console.log('请求头:', { token, 'Content-Type': 'application/json' })
-
   return new Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }>((resolve, reject) => {
     let responseData = ''
-
     request.on('response', (response) => {
-
       response.on('data', (chunk) => {
         responseData += chunk.toString()
       })
-
       response.on('end', () => {
-        console.log('响应数据:', responseData)
         try {
           const data = JSON.parse(responseData)
           if (response.statusCode === 200 && data.success === true) {
@@ -49,30 +38,23 @@ export const getUploadUrl = async (fileSize: number, fileSuffix: string): Promis
         }
       })
     })
-
     request.on('error', (error) => {
       reject(error)
     })
-
     request.end()
   })
 }
 
-// 上传文件到MinIO
 export const uploadFile = async (uploadUrl: string, fileBuffer: Buffer, mimeType: string): Promise<void> => {
   console.log('上传URL:', uploadUrl)
   console.log('文件大小:', fileBuffer.length)
   console.log('MIME类型:', mimeType)
-  
-  // 验证URL格式
   try {
     new URL(uploadUrl)
   } catch {
     throw new Error(`无效的上传URL: ${uploadUrl}`)
   }
-  
   try {
-    // 使用fetch API替代net.request
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
@@ -80,10 +62,10 @@ export const uploadFile = async (uploadUrl: string, fileBuffer: Buffer, mimeType
       },
       body: fileBuffer
     })
-    
+
     console.log('上传响应状态码:', response.status)
     console.log('上传响应头:', Object.fromEntries(response.headers.entries()))
-    
+
     if (response.ok) {
       console.log('上传成功')
       return
@@ -97,8 +79,6 @@ export const uploadFile = async (uploadUrl: string, fileBuffer: Buffer, mimeType
     throw error
   }
 }
-
-// 确认上传完成
 export const confirmUpload = async (): Promise<void> => {
   const { baseUrl, token } = getApiConfig()
 
@@ -115,14 +95,10 @@ export const confirmUpload = async (): Promise<void> => {
     let responseData = ''
 
     request.on('response', (response) => {
-      console.log('确认上传响应状态码:', response.statusCode)
-
       response.on('data', (chunk) => {
         responseData += chunk.toString()
       })
-
       response.on('end', () => {
-        console.log('确认上传响应数据:', responseData)
         try {
           if (response.statusCode === 200) {
             if (responseData) {

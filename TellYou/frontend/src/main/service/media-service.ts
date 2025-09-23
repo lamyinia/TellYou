@@ -1,12 +1,10 @@
-import { app } from 'electron'
-import { join } from 'path'
-import { existsSync, mkdirSync, readFileSync, statSync, createReadStream } from 'fs'
-import { createHash } from 'crypto'
+import { app, ipcMain } from 'electron'
+import path, { join } from 'path'
+import fs, { createReadStream, existsSync, mkdirSync, statSync } from 'fs'
 import axios from 'axios'
 import log from 'electron-log'
-import { ipcMain } from 'electron'
+import { avatarCacheService } from '@main/cache/avatar-cache'
 
-// 媒体任务状态
 export enum MediaTaskStatus {
   PENDING = 'pending',
   UPLOADING = 'uploading',
@@ -15,7 +13,6 @@ export enum MediaTaskStatus {
   CANCELLED = 'cancelled'
 }
 
-// 媒体类型
 export enum MediaType {
   IMAGE = 'image',
   VIDEO = 'video',
@@ -23,7 +20,6 @@ export enum MediaType {
   FILE = 'file'
 }
 
-// 媒体任务接口
 export interface MediaTask {
   id: string
   type: MediaType
@@ -48,8 +44,35 @@ export interface MediaTask {
   chunkCursor?: number // 分块上传游标
 }
 
+const getMimeType = (ext: string): string => {
+  const mimeTypes: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp'
+  }
+  return mimeTypes[ext] || 'application/octet-stream'
+}
+const generateThumbnail = async (filePath: string): Promise<Buffer> => {
+  try {
+    const sharp = await import('sharp')
+    const thumbnailBuffer = await sharp.default(filePath)
+      .resize(200, 200, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .jpeg({ quality: 80 })
+      .toBuffer()
+    return thumbnailBuffer
+  } catch (error) {
+    console.error('生成缩略图失败:', error)
+    return await fs.promises.readFile(filePath)
+  }
+}
+
 // 媒体任务服务类
-class MediaTaskService {
+export class MediaTaskService {
   private tasks = new Map<string, MediaTask>()
   private tempDir: string
   private readonly CHUNK_SIZE = 5 * 1024 * 1024 // 5MB 分块
@@ -69,7 +92,6 @@ class MediaTaskService {
   }
 
   private setupIpcHandlers(): void {
-    // 开始媒体任务
     ipcMain.handle('media:send:start', async (event, params: {
       type: MediaType
       filePath: string
@@ -78,29 +100,115 @@ class MediaTaskService {
     }) => {
       return this.startTask(params)
     })
-
-    // 取消媒体任务
     ipcMain.handle('media:send:cancel', async (event, taskId: string) => {
       return this.cancelTask(taskId)
     })
-
-    // 重试媒体任务
     ipcMain.handle('media:send:retry', async (event, taskId: string) => {
       return this.retryTask(taskId)
     })
-
-    // 获取任务状态
     ipcMain.handle('media:send:status', async (event, taskId: string) => {
       return this.getTaskStatus(taskId)
     })
-
-    // 获取所有任务
     ipcMain.handle('media:send:list', async () => {
       return this.getAllTasks()
     })
+
+    ipcMain.handle('avatar:get', async (_, { userId, avatarUrl, size }) => {
+      try {
+        const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size)
+        if (!filePath) return null
+        return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
+      } catch (error) {
+        console.error('Failed to get avatar:', error)
+        return null
+      }
+    })
+    ipcMain.handle('avatar:preload', async (_, { avatarMap, size }) => {
+      try {
+        await avatarCacheService.preloadAvatars(avatarMap, size)
+        return true
+      } catch (error) {
+        console.error('Failed to preload avatars:', error)
+        return false
+      }
+    })
+    ipcMain.handle('avatar:clear', async (_, { userId }) => {
+      try {
+        avatarCacheService.clearUserCache(userId)
+        return true
+      } catch (error) {
+        console.error('Failed to clear avatar cache:', error)
+        return false
+      }
+    })
+    ipcMain.handle('avatar:stats', async () => {
+      try {
+        return avatarCacheService.getCacheStats()
+      } catch (error) {
+        console.error('Failed to get avatar cache stats:', error)
+        return { totalUsers: 0, totalFiles: 0, totalSize: 0 }
+      }
+    })
+    ipcMain.handle('avatar:select-file', async () => {
+      try {
+        const { dialog } = await import('electron')
+        const result = await dialog.showOpenDialog({
+          title: '选择头像文件',
+          filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
+          properties: ['openFile']
+        })
+        if (result.canceled || result.filePaths.length === 0) {
+          return null
+        }
+        const filePath = result.filePaths[0]
+        const stats = await fs.promises.stat(filePath)
+        const maxSize = 10 * 1024 * 1024
+        if (stats.size > maxSize) {
+          throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`)
+        }
+        const ext = path.extname(filePath).toLowerCase()
+        const allowedExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+        if (!allowedExts.includes(ext)) {
+          throw new Error('只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片')
+        }
+        const fileBuffer = await fs.promises.readFile(filePath)
+        const base64Data = fileBuffer.toString('base64')
+        const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`
+        return {
+          filePath,
+          fileName: path.basename(filePath),
+          fileSize: stats.size,
+          fileSuffix: ext,
+          mimeType: getMimeType(ext),
+          dataUrl
+        }
+      } catch (error) {
+        console.error('Failed to select avatar file:', error)
+        throw error
+      }
+    })
+    ipcMain.handle('avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
+      try {
+        const { getUploadUrl, uploadFile, confirmUpload } = await import('./avatar-upload-service')
+        console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
+        const uploadUrls = await getUploadUrl(fileSize, fileSuffix)
+        const originalFileBuffer = await fs.promises.readFile(filePath)
+        const thumbnailBuffer = await generateThumbnail(filePath)
+        await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix))
+        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, 'image/jpeg')
+        await confirmUpload()
+        console.log('确认上传完成头像URL:', uploadUrls.originalUploadUrl)
+        return {
+          success: true,
+          avatarUrl: uploadUrls.originalUploadUrl.split('?')[0]
+        }
+      } catch (error) {
+        console.error('Failed to upload avatar:', error)
+        throw error
+      }
+    })
   }
 
-  // 开始新的媒体任务
   async startTask(params: {
     type: MediaType
     filePath: string
@@ -110,7 +218,6 @@ class MediaTaskService {
     try {
       const taskId = this.generateTaskId()
       const fileStats = statSync(params.filePath)
-      
       const task: MediaTask = {
         id: taskId,
         type: params.type,
@@ -123,10 +230,7 @@ class MediaTaskService {
         createdAt: Date.now(),
         updatedAt: Date.now()
       }
-
       this.tasks.set(taskId, task)
-      
-      // 异步开始上传
       this.processTask(taskId).catch(err => {
         log.error('Media task processing failed:', err)
       })
@@ -134,32 +238,25 @@ class MediaTaskService {
       return { taskId, success: true }
     } catch (error) {
       log.error('Failed to start media task:', error)
-      return { 
-        taskId: '', 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        taskId: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
   }
 
-  // 处理媒体任务
   private async processTask(taskId: string): Promise<void> {
     const task = this.tasks.get(taskId)
     if (!task) return
-
     try {
-      // 1. 获取上传URL
       await this.getUploadUrls(task)
-      
-      // 2. 生成缩略图（如果需要）
-      if (task.type === MediaType.IMAGE || task.type === MediaType.VIDEO) {
-        await this.generateThumbnail(task)
-      }
 
-      // 3. 开始上传
+      // if (task.type === MediaType.IMAGE || task.type === MediaType.VIDEO) {
+      //   await this.generateThumbnail(task)
+      // }
+
       await this.uploadFile(task)
-
-      // 4. 提交到后端
       await this.commitUpload(task)
 
       task.status = MediaTaskStatus.COMPLETED
@@ -185,9 +282,7 @@ class MediaTaskService {
     }
   }
 
-  // 获取上传URL
   private async getUploadUrls(task: MediaTask): Promise<void> {
-    // 调用后端API获取预签名URL
     const response = await axios.post('/api/media/upload-token', {
       fileName: task.fileName,
       fileSize: task.fileSize,
@@ -201,14 +296,6 @@ class MediaTaskService {
     }
   }
 
-  // 生成缩略图
-  private async generateThumbnail(task: MediaTask): Promise<void> {
-    // 这里可以集成ffmpeg或其他图像处理库
-    // 暂时跳过，假设后端会处理
-    log.info(`Generating thumbnail for ${task.fileName}`)
-  }
-
-  // 上传文件
   private async uploadFile(task: MediaTask): Promise<void> {
     if (!task.uploadUrls) {
       throw new Error('Upload URLs not available')
@@ -221,7 +308,6 @@ class MediaTaskService {
       progress: task.progress
     })
 
-    // 分块上传
     const fileSize = task.fileSize
     const chunkSize = this.CHUNK_SIZE
     const totalChunks = Math.ceil(fileSize / chunkSize)
@@ -235,9 +321,8 @@ class MediaTaskService {
       const end = Math.min(start + chunkSize, fileSize)
       const chunk = createReadStream(task.filePath, { start, end })
 
-      // 上传分块
       await this.uploadChunk(task, chunk, i, totalChunks)
-      
+
       // 更新进度
       task.progress = Math.round(((i + 1) / totalChunks) * 80) // 80% for upload
       task.chunkCursor = i + 1
@@ -251,7 +336,6 @@ class MediaTaskService {
     }
   }
 
-  // 上传单个分块
   private async uploadChunk(task: MediaTask, chunk: any, chunkIndex: number, totalChunks: number): Promise<void> {
     const formData = new FormData()
     formData.append('file', chunk, `${task.fileName}.part${chunkIndex}`)
@@ -266,7 +350,6 @@ class MediaTaskService {
     })
   }
 
-  // 提交上传
   private async commitUpload(task: MediaTask): Promise<void> {
     const response = await axios.post('/api/media/commit', {
       fileName: task.fileName,
@@ -282,7 +365,6 @@ class MediaTaskService {
     }
   }
 
-  // 取消任务
   async cancelTask(taskId: string): Promise<boolean> {
     const task = this.tasks.get(taskId)
     if (!task) return false
@@ -339,5 +421,3 @@ class MediaTaskService {
     return `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 }
-
-export const mediaTaskService = new MediaTaskService()

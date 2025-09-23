@@ -101,7 +101,6 @@ class AvatarCacheService {
           'User-Agent': 'TellYou-Client/1.0'
         }
       })
-
       if (response.status === 200 && response.data) {
         writeFileSync(filePath, response.data)
         return true
@@ -161,7 +160,6 @@ class AvatarCacheService {
           delete this.cacheIndex[userId]
         }
       }
-
       if (deletedCount > 0) {
         log.info('Avatar cache cleanup:', deletedCount, 'files deleted')
         this.saveIndex()
@@ -180,25 +178,19 @@ class AvatarCacheService {
 
   async getAvatar(userId: string, avatarUrl: string, size: number = 48): Promise<string | null> {
     if (!avatarUrl || !userId) return null
-
     const hash = this.extractHashFromUrl(avatarUrl)
     const cacheKey = this.getCacheKey(userId, hash, size)
     const filePath = this.getFilePath(userId, hash, size)
-
-    // 检查本地缓存
     if (existsSync(filePath)) {
       const info = this.cacheIndex[userId]
       if (info && info.hash === hash && info.localPaths[size] === filePath) {
-        // 更新访问时间
         info.updatedAt = Date.now()
         this.saveIndex()
         return filePath
       }
     }
-
     // 防止重复下载
     if (this.downloading.has(cacheKey)) {
-      // 等待下载完成
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           if (!this.downloading.has(cacheKey)) {
@@ -208,13 +200,10 @@ class AvatarCacheService {
         }, 100)
       })
     }
-
     this.downloading.add(cacheKey)
-
     try {
       const success = await this.downloadAvatar(avatarUrl, filePath)
       if (success) {
-        // 更新索引
         if (!this.cacheIndex[userId]) {
           this.cacheIndex[userId] = {
             userId,
@@ -235,7 +224,6 @@ class AvatarCacheService {
     } finally {
       this.downloading.delete(cacheKey)
     }
-
     return null
   }
 

@@ -1,25 +1,24 @@
 package org.com.modules.user.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.user.dao.UserInfoDao;
+import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
-import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.constant.ValueConstant;
+import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.exception.BusinessException;
+import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.JwtUtil;
 import org.com.tools.utils.SecurityUtil;
 import org.springframework.data.redis.core.RedisTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -41,44 +40,38 @@ import java.util.concurrent.TimeUnit;
 public class UserInfoServiceImpl implements UserInfoService {
     private final UserInfoDao userInfoDao;
     private final JavaMailSender javaMailSender;
-    private final RedisTemplate redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
-    private final ObjectMapper objectMapper;
 
     private static final String REDIS_CODE_PREFIX = "register:code:";
     private static final int CODE_EXPIRE_MINUTES = 5;
 
     @Override
-//    @FlowControl(time = 1, unit = TimeUnit.MINUTES, count = 1, target = FlowControl.Target.UID)
     public LoginResp login(LoginReq loginReq) {
-        UserInfo user = userInfoDao.getByEmail(loginReq.getEmail());
-        if (Objects.isNull(user) || !user.getPassword().equals( SecurityUtil.encode(loginReq.getPassword()) )){
+        UserInfo userInfo = userInfoDao.getByEmail(loginReq.getEmail());
+        if (Objects.isNull(userInfo) || !userInfo.getPassword().equals( SecurityUtil.encode(loginReq.getPassword()) )){
             throw new BusinessException(20003, "用户密码错误");  // TODO 错误枚举类完善
         }
-        if (user.getStatus().equals(0)){
+        if (userInfo.getStatus().equals(0)){
             throw new BusinessException(20004, "改用户已被封号处理");
         }
 
         Map <String, Object> claims = new HashMap<>();
-        claims.put(jwtUtil.getJwtProperties().getUidKey(), user.getUserId());
+        claims.put(jwtUtil.getJwtProperties().getUidKey(), userInfo.getUserId());
         String token = jwtUtil.createJwt(claims);
 
-        return new LoginResp(token, user.getUserId());
+        return UserInfoAdapter.buildVo(userInfo, token);
     }
 
     @Override
-    public void register(RegisterReq dto) {
-        String key = REDIS_CODE_PREFIX + dto.getEmail();
+    public void register(RegisterReq registerReq) {
+        String key = REDIS_CODE_PREFIX + registerReq.getEmail();
         String code = (String) redisTemplate.opsForValue().get(key);
-        if (StringUtils.isEmpty(code) || !StringUtils.equals(code, dto.getCode())){
+        if (StringUtils.isEmpty(code) || !StringUtils.equals(code, registerReq.getCode())){
             throw new BusinessException(20002, "验证码校验错误");
         }
 
-        UserInfo user = UserInfo.builder().email(dto.getEmail()).nickName(dto.getNickName()).sex(dto.getSex())
-                .password(SecurityUtil.encode(dto.getPassword()))
-                .personalSignature(ValueConstant.DEFAULT_SIGNATURE)
-                .avatar(ValueConstant.DEFAULT_AVATAR)
-                .build();
+        UserInfo user = UserInfoAdapter.buildUserInfo(registerReq);
 
         userInfoDao.save(user);
         redisTemplate.delete(code);
@@ -132,17 +125,28 @@ public class UserInfoServiceImpl implements UserInfoService {
             if (userInfo == null) {
                 throw new BusinessException(20005, "用户不存在");
             }
-            Map<String, Object> extInfoMap = parseExtInfo(userInfo.getExtInfo());
-            Integer currentAvatarVersion = (Integer) extInfoMap.getOrDefault("avatarVersion", 1);
-            extInfoMap.put("avatarVersion", currentAvatarVersion + 1);
-            String updatedExtInfo = objectMapper.writeValueAsString(extInfoMap);
+            Map<String, Object> identifier = UserInfoAdapter.parseIdentifier(userInfo.getIdentifier());
+            Map<String, Object> residues = UserInfoAdapter.parseResidues(userInfo.getResidues());
+            Integer avatarResidue = (Integer) residues.getOrDefault("avatarResidue", 3);
+
+            if (avatarResidue <= 0) throw new RuntimeException("次数不够");
+
+            Integer currentAvatarVersion = (Integer) identifier.getOrDefault("avatarVersion", 1);
+
+            identifier.put("avatarVersion", currentAvatarVersion + 1);
+            residues.put("avatarResidue", avatarResidue - 1);
+
+            String identifierJson = JsonUtils.toStr(identifier);
+            String residuesJson = JsonUtils.toStr(residues);
 
             userInfoDao.lambdaUpdate()
                     .eq(UserInfo::getUserId, uid)
-                    .set(UserInfo::getExtInfo, updatedExtInfo)
+                    .set(UserInfo::getIdentifier, identifierJson)
+                    .set(UserInfo::getResidues, residuesJson)
                     .update();
 
             log.info("用户 {} 头像版本号已更新: {} -> {}", uid, currentAvatarVersion, currentAvatarVersion + 1);
+            log.info("用户 {} 头像剩余更换次数: {} -> {}", uid, avatarResidue, avatarResidue - 1);
 
         } catch (Exception e) {
             log.error("确认头像上传失败，用户ID: {}", uid, e);
@@ -150,38 +154,6 @@ public class UserInfoServiceImpl implements UserInfoService {
         }
     }
 
-    /**
-     * 解析extInfo字段
-     * @param extInfo 扩展信息对象
-     * @return 解析后的Map
-     */
-    private Map<String, Object> parseExtInfo(Object extInfo) {
-        try {
-            if (extInfo == null) {
-                Map<String, Object> defaultExtInfo = new HashMap<>();
-                defaultExtInfo.put("nameVersion", 1);
-                defaultExtInfo.put("avatarVersion", 1);
-                return defaultExtInfo;
-            }
-
-            if (extInfo instanceof String) {
-                return objectMapper.readValue((String) extInfo, new TypeReference<Map<String, Object>>() {});
-            } else if (extInfo instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) extInfo;
-                return map;
-            } else {
-                String jsonStr = objectMapper.writeValueAsString(extInfo);
-                return objectMapper.readValue(jsonStr, new TypeReference<Map<String, Object>>() {});
-            }
-        } catch (Exception e) {
-            log.warn("解析extInfo失败，使用默认值: {}", e.getMessage());
-            Map<String, Object> defaultExtInfo = new HashMap<>();
-            defaultExtInfo.put("nameVersion", 1);
-            defaultExtInfo.put("avatarVersion", 1);
-            return defaultExtInfo;
-        }
-    }
 }
 
 

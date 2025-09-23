@@ -26,12 +26,6 @@ public class UserInfoController {
         return ApiResult.success();
     }
 
-    @PutMapping("/modifyAvatar")
-    @Operation(summary = "头像修改")
-    public ApiResult<Void> modifyAvatar(){
-        return ApiResult.success();
-    }
-
     @PutMapping("/modifySignature")
     @Operation(summary = "签名修改")
     public ApiResult<Void> modifySignature(){
@@ -49,7 +43,6 @@ public class UserInfoController {
     public ApiResult<Void> SearchUid(){
         return ApiResult.success();
     }
-
 
     @PostMapping("/test")
     @Operation(summary = "测试")

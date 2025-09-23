@@ -11,9 +11,9 @@ const password = ref('')
 const formRef = ref()
 const router = useRouter()
 const loading = ref(false)
-const error = ref(0)
+const errorMessage = ref('')
 
-const handleWsConnected = () => {
+const handleWsConnected = (): void => {
   console.log('WebSocket连接成功，跳转到主页面')
   router.push('/main')
   userStore.setLoginStatus(true)
@@ -27,39 +27,47 @@ onUnmounted(() => {
   console.log("监听器移除 handleWsConnected")
   window.electronAPI.offWsConnected(handleWsConnected)
 })
-const onLogin = async () => {
+const onLogin = async (): Promise<void> => {
   try {
     loading.value = true
+    errorMessage.value = '' // 清空之前的错误信息
 
     const res = await instance.post(api.login, {
       email: username.value,
       password: password.value
     })
-    const token:string = res.data.data?.token
+    console.log(res)
+    const data = res.data.data
+    const uid = data?.uid
 
-    if (token !== null){
-      await userStore.setToken(token)
-
-      const uid: string = res.data.data?.uid;
-      if (uid !== null){
-        await userStore.setId(uid)
-        console.log(res.data)
-        console.log(uid + ":" + userStore.token)
-        window.electronAPI.send('LoginSuccess', uid)
-      }
+    if (data?.token && uid){
+      await userStore.setUserData(data)
+      window.electronAPI.send('LoginSuccess', uid)
     } else {
-      throw new Error(res.data)
+      throw new Error(res.data?.message || '登录失败')
     }
   } catch (error: unknown) {
     loading.value = false
     console.error('登录失败:', error)
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { data?: { errMsg?: string } } }
+      if (axiosError.response?.data?.errMsg) {
+        errorMessage.value = axiosError.response.data.errMsg
+      } else {
+        errorMessage.value = '登录失败，请检查网络连接或稍后重试'
+      }
+    } else if (error instanceof Error) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = '登录失败，请检查网络连接或稍后重试'
+    }
   }
 }
-const goRegister = () => {
+const goRegister = (): void => {
   window.electronAPI.send('LoginOrRegister', 1)
   router.push('/register')
 }
-const goTotest = () => {
+const goTotest = (): void => {
   window.electronAPI.send('test', 'ping')
 }
 
@@ -73,7 +81,7 @@ const goTotest = () => {
       <v-col cols="12" sm="8" md="4">
         <v-card>
           <v-card-title class="text-h5">登录 - Tell-You</v-card-title>
-          <v-alert type="success" closable> display </v-alert>
+<!--          <v-alert type="success" closable> display </v-alert>-->
           <v-card-text>
             <v-form @submit.prevent="onLogin" ref="formRef">
               <v-text-field
@@ -95,7 +103,7 @@ const goTotest = () => {
               <img src="@renderer/assets/img/wifi.gif" alt="loading" />
             </div>
 
-            <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>
+            <v-alert v-if="errorMessage" type="error" class="mt-2" closable @click:close="errorMessage = ''">{{ errorMessage }}</v-alert>
             <v-btn variant="text" @click="goRegister" class="mt-2" block>没有账号？去注册</v-btn>
             <v-btn variant="text" @click="goTotest" class="mt-2" block>测试按钮</v-btn>
           </v-card-text>

@@ -12,7 +12,6 @@ const disabled = computed(() => !message.value || !props.currentContact)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const showMediaBox = ref(false)
 
-// 自动调整高度
 const adjustHeight = (): void => {
   if (!textareaRef.value) return
   textareaRef.value.style.height = 'auto'
@@ -20,7 +19,6 @@ const adjustHeight = (): void => {
   const maxHeight = 5 * 1.6 * 14 + 20 // 5行 * 行高 * 字体大小 + 内边距
   textareaRef.value.style.height = Math.min(scrollHeight, maxHeight) + 'px'
 }
-
 const sendMessage = async (): Promise<void> => {
   const userStore = useUserStore()
   const fromUId = userStore.myId
@@ -40,26 +38,19 @@ const sendMessage = async (): Promise<void> => {
     emit('sent')
   }
 }
-
 const onKeydown = async (e: KeyboardEvent): Promise<void> => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     await sendMessage()
   }
 }
-
-// 切换媒体发送框
 const toggleMediaBox = (): void => {
   showMediaBox.value = !showMediaBox.value
 }
-
-// 处理媒体发送完成
 const handleMediaSent = (): void => {
   showMediaBox.value = false
   emit('sent')
 }
-
-// 监听输入变化，自动调整高度
 watch(
   message,
   () => {
@@ -93,8 +84,6 @@ watch(
       <v-icon>mdi-send</v-icon>
     </v-btn>
   </div>
-
-  <!-- 媒体发送框 -->
   <MediaSendBox
     v-if="showMediaBox"
     :current-contact="currentContact"

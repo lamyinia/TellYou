@@ -1,9 +1,10 @@
-import { store } from '../index'
+import { store } from '../../index'
 import { BrowserWindow } from 'electron'
 import axios from 'axios'
-import { addLocalMessage } from '../sqlite/dao/message-dao'
-import { updateSessionByMessage } from '../sqlite/dao/session-dao'
-import { queryAll } from '../sqlite/atom'
+import { addLocalMessage } from '../../sqlite/dao/message-dao'
+import { updateSessionByMessage } from '../../sqlite/dao/session-dao'
+import { queryAll } from '../../sqlite/atom'
+import { tokenKey } from '@main/electron-store/key'
 
 const mainAxios = axios.create({
   timeout: 30000,
@@ -12,7 +13,7 @@ const mainAxios = axios.create({
   }
 })
 mainAxios.interceptors.request.use((config) => {
-  const token = store.get('token')
+  const token = store.get(tokenKey)
   if (token) {
     config.headers.token = token
   }
