@@ -6,20 +6,18 @@ import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.StrUtil;
 import io.minio.*;
 import io.minio.http.Method;
-import io.minio.messages.Bucket;
-import io.minio.messages.Item;
+import io.minio.messages.*;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.domain.OssReq;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * @author lanye
@@ -116,21 +114,6 @@ public class MinioTemplate {
         return getPreSignedObjectUrl(path, Method.PUT, 3600); // 默认1小时
     }
 
-    /**
-     * 生成预签名下载URL（GET方法）
-     *
-     * @param bucket 存储桶名称
-     * @param pathFile 文件路径
-     * @return 预签名下载URL
-     */
-    private String getDownloadUrl(String bucket, String pathFile) {
-        try {
-            return getPreSignedObjectUrl(pathFile, Method.GET, 86400); // 24小时过期
-        } catch (Exception e) {
-            log.error("生成下载URL失败，存储桶: {}, 文件路径: {}", bucket, pathFile, e);
-            return "";
-        }
-    }
 
     /**
      * 生成预签名URL
@@ -219,4 +202,148 @@ public class MinioTemplate {
         return minioClient.getPresignedPostFormData(policy);
     }
 
+    /**
+     * 上传文件到MinIO
+     *
+     * @param bucketName 存储桶名称
+     * @param objectName 对象名称（包含路径）
+     * @param inputStream 文件输入流
+     * @param contentType 文件类型
+     */
+    @SneakyThrows
+    public void putObject(String bucketName, String objectName, InputStream inputStream, String contentType) {
+        minioClient.putObject(
+                PutObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .stream(inputStream, inputStream.available(), -1)
+                        .contentType(contentType)
+                        .build());
+    }
+
+    /**
+     * 上传JSON文件到MinIO（使用默认配置的存储桶）
+     *
+     * @param objectName 对象名称（包含路径）
+     * @param jsonContent JSON内容字符串
+     */
+    @SneakyThrows
+    public void putJsonObject(String objectName, String jsonContent) {
+        try (InputStream inputStream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8))) {
+            putObject(minioProperties.getBucket(), objectName, inputStream, "application/json");
+        }
+    }
+
+    /**
+     * 删除MinIO中的对象（文件）
+     *
+     * @param bucketName 存储桶名称
+     * @param objectName 对象名称（包含路径）
+     */
+    @SneakyThrows
+    public void removeObject(String bucketName, String objectName) {
+        if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName)) {
+            throw new IllegalArgumentException("存储桶名称和对象名称不能为空");
+        }
+        
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .build()
+            );
+            log.info("成功删除对象: {}/{}", bucketName, objectName);
+        } catch (Exception e) {
+            log.error("删除对象失败: {}/{}, 错误: {}", bucketName, objectName, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * 删除MinIO中的对象（使用默认配置的存储桶）
+     *
+     * @param objectName 对象名称（包含路径）
+     */
+    @SneakyThrows
+    public void removeObject(String objectName) {
+        removeObject(minioProperties.getBucket(), objectName);
+    }
+
+    /**
+     * 批量删除MinIO中的对象
+     *
+     * @param bucketName 存储桶名称
+     * @param objectNames 对象名称列表
+     */
+    @SneakyThrows
+    public void removeObjects(String bucketName, List<String> objectNames) {
+        if (StrUtil.isBlank(bucketName) || objectNames == null || objectNames.isEmpty()) {
+            throw new IllegalArgumentException("存储桶名称和对象名称列表不能为空");
+        }
+        
+        try {
+            List<DeleteObject> objects = objectNames.stream()
+                    .map(DeleteObject::new)
+                    .collect(java.util.stream.Collectors.toList());
+            
+            Iterable<Result<DeleteError>> results = minioClient.removeObjects(
+                    RemoveObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .objects(objects)
+                            .build()
+            );
+            
+            // 检查删除结果
+            for (Result<DeleteError> result : results) {
+                DeleteError error = result.get();
+                if (error != null) {
+                    log.error("删除对象失败: {}, 错误: {}", error.objectName(), error.message());
+                }
+            }
+            
+            log.info("批量删除完成，共删除 {} 个对象", objectNames.size());
+        } catch (Exception e) {
+            log.error("批量删除对象失败: {}, 错误: {}", bucketName, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * 批量删除MinIO中的对象（使用默认配置的存储桶）
+     *
+     * @param objectNames 对象名称列表
+     */
+    @SneakyThrows
+    public void removeObjects(List<String> objectNames) {
+        removeObjects(minioProperties.getBucket(), objectNames);
+    }
+
+    /**
+     * 删除MinIO中的对象（带版本控制）
+     *
+     * @param bucketName 存储桶名称
+     * @param objectName 对象名称
+     * @param versionId 版本ID
+     */
+    @SneakyThrows
+    public void removeObject(String bucketName, String objectName, String versionId) {
+        if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName) || StrUtil.isBlank(versionId)) {
+            throw new IllegalArgumentException("存储桶名称、对象名称和版本ID不能为空");
+        }
+        
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .versionId(versionId)
+                            .build()
+            );
+            log.info("成功删除对象版本: {}/{}, 版本ID: {}", bucketName, objectName, versionId);
+        } catch (Exception e) {
+            log.error("删除对象版本失败: {}/{}, 版本ID: {}, 错误: {}", bucketName, objectName, versionId, e.getMessage(), e);
+            throw e;
+        }
+    }
 }

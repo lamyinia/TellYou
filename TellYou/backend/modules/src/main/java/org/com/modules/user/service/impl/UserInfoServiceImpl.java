@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.com.modules.common.annotation.RedissonLocking;
+import org.com.modules.common.domain.vo.req.AvatarUploadConfirmReq;
+import org.com.modules.common.service.upload.UploadFileService;
+import org.com.modules.common.util.UrlUtil;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.LoginReq;
@@ -13,6 +16,7 @@ import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
+import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
@@ -41,6 +45,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     private final UserInfoDao userInfoDao;
     private final JavaMailSender javaMailSender;
     private final MinioTemplate minioTemplate;
+    private final UploadFileService uploadFileService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
 
@@ -68,12 +73,13 @@ public class UserInfoServiceImpl implements UserInfoService {
     public void register(RegisterReq registerReq) {
         String key = REDIS_CODE_PREFIX + registerReq.getEmail();
         String code = (String) redisTemplate.opsForValue().get(key);
-        if (StringUtils.isEmpty(code) || !StringUtils.equals(code, registerReq.getCode())){
-            throw new BusinessException(20002, "验证码校验错误");
+        if (!ValueConstant.IS_DEVELOPMENT){
+            if (StringUtils.isEmpty(code) || !StringUtils.equals(code, registerReq.getCode())){
+                throw new BusinessException(20002, "验证码校验错误");
+            }
         }
 
         UserInfo user = UserInfoAdapter.buildUserInfo(registerReq);
-
         userInfoDao.save(user);
         redisTemplate.delete(code);
     }
@@ -120,22 +126,27 @@ public class UserInfoServiceImpl implements UserInfoService {
 
     @Override
     @RedissonLocking(prefixKey = "user:setting", key="#uid")
-    public void confirmAvatarUpload(Long uid) {
+    public void confirmAvatarUpload(Long uid, AvatarUploadConfirmReq req) {
         try {
-            UserInfo userInfo = userInfoDao.getById(uid);
+            UserInfo userInfo = userInfoDao.getById(uid);  // TODO check 查不到会抛出异常吗
             if (userInfo == null) {
                 throw new BusinessException(20005, "用户不存在");
             }
+
             Map<String, Object> identifier = UserInfoAdapter.parseIdentifier(userInfo.getIdentifier());
             Map<String, Object> residues = UserInfoAdapter.parseResidues(userInfo.getResidues());
-            Integer avatarResidue = (Integer) residues.getOrDefault("avatarResidue", 3);
+            Integer avatarResidue = (Integer) residues.getOrDefault(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, 3);
+            Integer currentAvatarVersion = (Integer) identifier.getOrDefault(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, 1);
 
-            if (avatarResidue <= 0) throw new RuntimeException("次数不够");
+            if (avatarResidue <= 0) throw new BusinessException(20006, "头像修改次数不够");
+            if (!minioTemplate.objectExists(req.getOriginalUploadUrl()) || !minioTemplate.objectExists(req.getThumbnailUploadUrl())
+                    || UrlUtil.extractVersionFromUrl(req.getOriginalUploadUrl()) != currentAvatarVersion + 1
+            || UrlUtil.extractVersionFromUrl(req.getThumbnailUploadUrl()) != currentAvatarVersion + 1){
+                throw new BusinessException(20007, "url 路径不合法");
+            }
 
-            Integer currentAvatarVersion = (Integer) identifier.getOrDefault("avatarVersion", 1);
-
-            identifier.put("avatarVersion", currentAvatarVersion + 1);
-            residues.put("avatarResidue", avatarResidue - 1);
+            residues.put(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, avatarResidue - 1);
+            identifier.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
 
             String identifierJson = JsonUtils.toStr(identifier);
             String residuesJson = JsonUtils.toStr(residues);
@@ -145,13 +156,16 @@ public class UserInfoServiceImpl implements UserInfoService {
                     .set(UserInfo::getIdentifier, identifierJson)
                     .set(UserInfo::getResidues, residuesJson)
                     .update();
+            uploadFileService.writeAtomJson(String.valueOf(uid), identifier);
 
             log.info("用户 {} 头像版本号已更新: {} -> {}", uid, currentAvatarVersion, currentAvatarVersion + 1);
             log.info("用户 {} 头像剩余更换次数: {} -> {}", uid, avatarResidue, avatarResidue - 1);
 
+        } catch (BusinessException e){
+            throw e;
         } catch (Exception e) {
             log.error("确认头像上传失败，用户ID: {}", uid, e);
-            throw new BusinessException(20006, "头像上传确认失败");
+            throw new BusinessException(20008, "头像上传确认失败");
         }
     }
 

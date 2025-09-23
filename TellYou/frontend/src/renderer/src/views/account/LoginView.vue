@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { instance } from '../../utils/request'
+import { ApiError, axio } from '../../utils/request'
 import { api } from '@renderer/utils/api'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
@@ -32,31 +32,24 @@ const onLogin = async (): Promise<void> => {
     loading.value = true
     errorMessage.value = '' // 清空之前的错误信息
 
-    const res = await instance.post(api.login, {
+    const data: any = await axio.post(api.login, {
       email: username.value,
       password: password.value
     })
-    console.log(res)
-    const data = res.data.data
+    console.log(data)
+
     const uid = data?.uid
 
     if (data?.token && uid){
       await userStore.setUserData(data)
       window.electronAPI.send('LoginSuccess', uid)
     } else {
-      throw new Error(res.data?.message || '登录失败')
+      throw new Error("响应被拦截")
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     loading.value = false
     console.error('登录失败:', error)
-    if (error && typeof error === 'object' && 'response' in error) {
-      const axiosError = error as { response?: { data?: { errMsg?: string } } }
-      if (axiosError.response?.data?.errMsg) {
-        errorMessage.value = axiosError.response.data.errMsg
-      } else {
-        errorMessage.value = '登录失败，请检查网络连接或稍后重试'
-      }
-    } else if (error instanceof Error) {
+    if (error?.message){
       errorMessage.value = error.message
     } else {
       errorMessage.value = '登录失败，请检查网络连接或稍后重试'

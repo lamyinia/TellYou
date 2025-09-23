@@ -1,5 +1,6 @@
 package org.com.modules.user.service;
 
+import org.com.modules.common.domain.vo.req.AvatarUploadConfirmReq;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
@@ -13,5 +14,5 @@ public interface UserInfoService {
     void getCheckCode(String emailAddress);
     void register(RegisterReq registerReq);
     LoginResp login(LoginReq loginReq);
-    void confirmAvatarUpload(Long uid);
+    void confirmAvatarUpload(Long uid, AvatarUploadConfirmReq req);
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import AvatarUpload from './AvatarUpload.vue'
-import { instance } from '../utils/request'
+import { axio } from '../utils/request'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const props = withDefaults(
@@ -197,7 +197,7 @@ const saveSignature = async (): Promise<void> => {
 }
 const updateUserInfo = async (data: { name?: string; signature?: string }): Promise<unknown> => {
   try {
-    const response = await instance.put('/user/update', data)
+    const response = await axio.put('/user/update', data)
     return response.data
   } catch (error) {
     console.error('更新用户信息失败:', error)

@@ -6,16 +6,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.com.modules.common.annotation.UnifyMark;
+import org.com.modules.common.annotation.CheckMark;
 
 @Data
 @Builder
-@UnifyMark(target = UnifyMark.Target.NORMAL)
+@CheckMark(target = CheckMark.Target.NORMAL)
 @AllArgsConstructor
 @NoArgsConstructor
 public class AcceptFriendApplyReq {
     @NotNull
-    @UnifyMark(target = UnifyMark.Target.USER_ID)
+    @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
     private Long fromUid;
 

@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.common.annotation.Unify;
+import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
@@ -28,34 +28,34 @@ public class UserContactController {
 
     @PostMapping("/applySend")
     @Operation(description = "发送好友申请")
-    public ApiResult<Void> applySend(@Unify @Valid @RequestBody FriendApplyReq friendApplyReq){
+    public ApiResult<Void> applySend(@Check @Valid @RequestBody FriendApplyReq friendApplyReq){
         userContactService.friendApplySend(friendApplyReq.getFromUid(), friendApplyReq);
         return ApiResult.success();
     }
 
     @PutMapping("/applyAccept")
     @Operation(summary = "接受申请")
-    public ApiResult<Void> applyAccept(@Unify @Valid @RequestBody AcceptFriendApplyReq req){
+    public ApiResult<Void> applyAccept(@Check @Valid @RequestBody AcceptFriendApplyReq req){
         userContactService.applyAccept(req);
         return ApiResult.success();
     }
 
     @PutMapping("/pullBlackList")
     @Operation(summary = "拉入黑名单")
-    public ApiResult<Void> pullBlackList(@Unify @Valid @RequestBody PullBlackListReq req){
+    public ApiResult<Void> pullBlackList(@Check @Valid @RequestBody PullBlackListReq req){
         userContactService.pullBlackList(req);
         return ApiResult.success();
     }
     @DeleteMapping("/removeBlackList")
     @Operation(summary = "移除黑名单")
-    public ApiResult<Void> removeBlackList(@Unify @Valid @RequestBody RemoveBlackListReq req){
+    public ApiResult<Void> removeBlackList(@Check @Valid @RequestBody RemoveBlackListReq req){
         userContactService.removeBlackList(req);
         return ApiResult.success();
     }
 
     @DeleteMapping("/deleteContact")
     @Operation(summary = "删除好友")
-    public ApiResult<Void> deleteContact(@Unify @Valid @RequestBody DeleteContactReq req){
+    public ApiResult<Void> deleteContact(@Check @Valid @RequestBody DeleteContactReq req){
         userContactService.deleContact(req);
         return ApiResult.success();
     }

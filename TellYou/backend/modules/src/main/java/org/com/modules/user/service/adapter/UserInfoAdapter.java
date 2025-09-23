@@ -1,6 +1,7 @@
 package org.com.modules.user.service.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.RegisterReq;
@@ -50,18 +51,12 @@ public class UserInfoAdapter {
      * @return 解析后的Map
      */
     public static Map<String, Object> parseIdentifier(Object identifier) {
-        try {
-            if (identifier == null) return getDefaultIdentifier();
-            if (identifier instanceof String) {
-                return JsonUtils.toMap((String) identifier);
-            } else {
-                log.warn("identifier 类型不支持，使用默认值: {}", identifier.getClass().getSimpleName());
-                return getDefaultIdentifier();
-            }
-        } catch (Exception e) {
-            log.warn("解析 identifier 失败，使用默认值: {}", e.getMessage());
-            return getDefaultIdentifier();
-        }
+        return Try.of(() -> identifier)
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .map(JsonUtils::toMap)
+                .onFailure(e -> log.warn("解析 identifier 失败: {}", e.getMessage()))
+                .getOrElse(getDefaultIdentifier());
     }
     /**
      * 解析 residues 字段
@@ -69,18 +64,12 @@ public class UserInfoAdapter {
      * @return 解析后的Map
      */
     public static Map<String, Object> parseResidues(Object residues) {
-        try {
-            if (residues == null) return getDefaultResidues();
-            if (residues instanceof String) {
-                return JsonUtils.toMap((String) residues);
-            } else {
-                log.warn("residues 类型不支持，使用默认值: {}", residues.getClass().getSimpleName());
-                return getDefaultResidues();
-            }
-        } catch (Exception e) {
-            log.warn("解析 residues 失败，使用默认值: {}", e.getMessage());
-            return getDefaultResidues();
-        }
+        return Try.of(() -> residues)
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .map(JsonUtils::toMap)
+                .onFailure(e -> log.warn("解析 residues 失败: {}", e.getMessage()))
+                .getOrElse(UserInfoAdapter::getDefaultResidues);
     }
     public static Map<String, Object> getDefaultIdentifier() {
         Map<String, Object> defaultIdentifier = new HashMap<>();

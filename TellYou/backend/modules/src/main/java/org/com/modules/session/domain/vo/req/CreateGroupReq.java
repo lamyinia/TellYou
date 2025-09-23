@@ -4,15 +4,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.com.modules.common.annotation.UnifyMark;
+import org.com.modules.common.annotation.CheckMark;
 import org.hibernate.validator.constraints.Length;
 
 @Data
-@UnifyMark(target = UnifyMark.Target.NORMAL)
+@CheckMark(target = CheckMark.Target.NORMAL)
 @Schema(description = "创建群组传参")
 public class CreateGroupReq {
     @NotNull
-    @UnifyMark(target = UnifyMark.Target.USER_ID)
+    @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "群主")
     private Long fromUid;
 

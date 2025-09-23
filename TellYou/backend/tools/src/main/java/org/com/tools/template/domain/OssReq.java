@@ -17,7 +17,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OssReq {
-
     @Schema(description = "文件存储路径")
     private String filePath;
 

@@ -6,8 +6,8 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.com.modules.common.annotation.Unify;
-import org.com.modules.common.annotation.UnifyMark;
+import org.com.modules.common.annotation.Check;
+import org.com.modules.common.annotation.CheckMark;
 import org.com.modules.common.exception.UnifyException;
 import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.dao.GroupContactDao;
@@ -24,10 +24,10 @@ import java.lang.reflect.Parameter;
 @Aspect
 @Component
 @RequiredArgsConstructor
-public class UnifyAspect {
+public class CheckAspect {
     private final GroupContactDao groupContactDao;
 
-    @Before("within(org.com..*) && @args(org.com.modules.common.annotation.UnifyMark)")
+    @Before("within(org.com..*) && @args(org.com.modules.common.annotation.CheckMark)")
     public void unify(JoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Parameter[] parameters = signature.getMethod().getParameters();
@@ -37,7 +37,7 @@ public class UnifyAspect {
             Parameter parameter = parameters[i];
             Object arg = args[i];
 
-            if (parameter.isAnnotationPresent(Unify.class) && parameter.getType().isAnnotationPresent(UnifyMark.class) && arg != null) {
+            if (parameter.isAnnotationPresent(Check.class) && parameter.getType().isAnnotationPresent(CheckMark.class) && arg != null) {
                 validate(arg);
             }
         }
@@ -47,16 +47,16 @@ public class UnifyAspect {
         try {
             Class<?> clazz = obj.getClass();
             Field[] fields = clazz.getDeclaredFields();
-            UnifyMark role = clazz.getAnnotation(UnifyMark.class);
+            CheckMark role = clazz.getAnnotation(CheckMark.class);
 
             Long fromId = null, groupId = null;
 
             for (Field field : fields) {
-                if (field.isAnnotationPresent(UnifyMark.class)) {
+                if (field.isAnnotationPresent(CheckMark.class)) {
                     field.setAccessible(true);
-                    UnifyMark anno = field.getAnnotation(UnifyMark.class);
+                    CheckMark anno = field.getAnnotation(CheckMark.class);
 
-                    if (UnifyMark.Target.USER_ID.equals(anno.target())) {
+                    if (CheckMark.Target.USER_ID.equals(anno.target())) {
                         fromId = (Long) field.get(obj);
                         Long currentUid = RequestHolder.get().getUid();
                         if (fromId == null || currentUid == null) return;
@@ -65,23 +65,23 @@ public class UnifyAspect {
                             throw new UnifyException(CommonErrorEnum.UNIFY_ERROR);
                         }
                     }
-                    if (UnifyMark.Target.GROUP_ID.equals(anno.target())) {
+                    if (CheckMark.Target.GROUP_ID.equals(anno.target())) {
                         groupId = (Long) field.get(obj);
                     }
                 }
             }
 
-            if (UnifyMark.Target.NORMAL.equals(role.target())) return;
+            if (CheckMark.Target.NORMAL.equals(role.target())) return;
             if (fromId == null || groupId == null) return;
 
             boolean validation = true;
-            if (UnifyMark.Target.MEMBER_AUTHORITY.equals(role.target())){
+            if (CheckMark.Target.MEMBER_AUTHORITY.equals(role.target())){
                 validation &= groupContactDao.validatePower(fromId, groupId, GroupRoleEnum.MEMBER.getRole());
             }
-            if (UnifyMark.Target.MANAGER_AUTHORITY.equals(role.target())){
+            if (CheckMark.Target.MANAGER_AUTHORITY.equals(role.target())){
                 validation &= groupContactDao.validatePower(fromId, groupId, GroupRoleEnum.MANAGER.getRole());
             }
-            if (UnifyMark.Target.OWNER_AUTHORITY.equals(role.target())){
+            if (CheckMark.Target.OWNER_AUTHORITY.equals(role.target())){
                 validation &= groupContactDao.validatePower(fromId, groupId, GroupRoleEnum.OWNER.getRole());
             }
 

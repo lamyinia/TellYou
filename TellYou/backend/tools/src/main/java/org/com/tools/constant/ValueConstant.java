@@ -14,7 +14,10 @@ public class ValueConstant {
     public static final String DEFAULT_SIGNATURE_RESIDUE_KEY = "signatureResidue";
     public static final String DEFAULT_SEX_RESIDUE_KEY = "sexResidue";
 
+    public static final String SINGLE_FILE = "index";
 
+
+    public static final Boolean IS_DEVELOPMENT = true;
 
     public static final Date getDefaultDate(){
         return new Date(System.currentTimeMillis());

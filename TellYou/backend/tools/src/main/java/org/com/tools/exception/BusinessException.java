@@ -44,11 +44,6 @@ public class BusinessException extends RuntimeException {
     }
 
     @Override
-    public String getMessage() {
-        return errorMsg;
-    }
-
-    @Override
     public synchronized Throwable fillInStackTrace() {
         return this;
     }

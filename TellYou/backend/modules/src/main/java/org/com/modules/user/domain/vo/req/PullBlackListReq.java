@@ -6,16 +6,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
-import org.com.modules.common.annotation.UnifyMark;
+import org.com.modules.common.annotation.CheckMark;
 
 @Data
 @Builder
 @AllArgsConstructor
 @ToString
-@UnifyMark(target = UnifyMark.Target.NORMAL)
+@CheckMark(target = CheckMark.Target.NORMAL)
 public class PullBlackListReq {
     @NotNull
-    @UnifyMark(target = UnifyMark.Target.USER_ID)
+    @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发起者 id")
     private Long fromId;
 

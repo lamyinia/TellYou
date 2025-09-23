@@ -1,12 +1,21 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, ResponseType } from 'axios'
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import Message from './message'
-import router from '../router/router'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
-interface ApiResponse {
+interface ApiResponse<T = unknown> {
   code: number;
-  info: string;
-  data?: unknown;
+  data: T;
+  message: string;
+}
+export class ApiError extends Error {
+  constructor(
+    public code: number,
+    public message: string,
+    public response?: AxiosResponse
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
@@ -15,23 +24,22 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
   showError?: boolean;
 }
 
-
-const instance: AxiosInstance = axios.create({
+const axio: AxiosInstance = axios.create({
   withCredentials: true,
   baseURL: import.meta.env.VITE_BASE_URL,
-  timeout: 10 * 1000
+  timeout: 10 * 1000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
 })
 
-instance.interceptors.request.use(
+axio.interceptors.request.use(
   (config: CustomAxiosRequestConfig) => {
     const token: string = useUserStore().token
     if (token) {
       config.headers.token = token
     }
-
-    if (config.showLoading) {
-
-    }
+    // console.log('请求体配置', config)
     return config
   },
   (error: AxiosError) => {
@@ -39,49 +47,49 @@ instance.interceptors.request.use(
     if (config?.showLoading && loading) {
       loading.close()
     }
+  /*
+      axios.get('/api/data', {
+        showLoading: true, // 自定义属性
+        timeout: 5000     // 标准属性
+      } as CustomAxiosRequestConfig)
+  */
     Message.error('请求发送失败')
     return Promise.reject('请求发送失败')
   }
 )
 
-instance.interceptors.response.use(
-  (response) => {
-    if (response.data.status === 401) {
-      alert('权限不足')
-      router.push('/login')
+axio.interceptors.response.use(
+  (response: AxiosResponse<ApiResponse>) => {
+    const { data, errCode, errMsg, success } = response.data
+    if (success) {
+      return data
+    } else {
+      throw new ApiError(errCode, errMsg, response)
     }
-    // response.config.url = response.config.url.replace('/api', '')
-
-    return response
   },
-  (error) => {
-    const status = error?.response?.status
-    const config = (error?.config || {}) as any
+  (error: AxiosError) => {
+    if (error.response){
+      const status = error.status
+      console.log('request.ts 里的 AxiosError', error)
 
-    // 401/403：鉴权失败，清理并跳登录（或触发刷新逻辑，根据实际需要调整）
-    if (status === 401 || status === 403) {
-      try {
-        const userStore = useUserStore()
-        userStore.$reset()
-      } catch {}
-      router.push('/login')
-      return Promise.reject(error)
-    }
-
-    if (status >= 500) {
-      config.__retryCount = (config.__retryCount || 0) + 1
-      const maxRetries = 3
-      if (config.__retryCount <= maxRetries) {
-        const delays = [200, 800, 2000]
-        const delay = delays[Math.min(config.__retryCount - 1, delays.length - 1)]
-        return new Promise((resolve) => setTimeout(resolve, delay)).then(() => instance(config))
+      switch (status) {
+        case 401:
+          break
+        case 403:
+          break
+        case 404:
+          break
+        case 500:
+          break
       }
-    }
 
-    return Promise.reject(error)
+      throw new ApiError(status, error.response.data.errMsg, error.response)
+    } else {
+      throw new ApiError(-1, '网络连接异常');
+    }
   }
 )
 
 
-export { instance, getRequest }
+export { axio, getRequest }
 export type { ApiResponse, RequestConfig }
