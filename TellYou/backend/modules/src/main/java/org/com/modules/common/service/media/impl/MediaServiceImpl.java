@@ -2,14 +2,14 @@ package org.com.modules.common.service.media.impl;
 
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
-import org.com.modules.common.domain.vo.req.AvatarUploadReq;
-import org.com.modules.common.domain.vo.resp.AvatarUploadResp;
+import org.com.modules.common.domain.vo.req.*;
+import org.com.modules.common.domain.vo.resp.*;
 import org.com.modules.common.service.media.MediaService;
 import org.com.modules.common.util.RequestHolder;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
-import org.com.tools.constant.UploadUrlConstant;
+import org.com.tools.constant.UrlConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
@@ -39,12 +39,52 @@ public class MediaServiceImpl implements MediaService {
         String next = String.valueOf((Integer) identifier.get(ValueConstant.DEFAULT_AVATAR_VERSION_KEY) + 1);
 
         String originalUploadUrl = minioTemplate
-                .getPreSignedObjectUrl(UploadUrlConstant.originalAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
+                .getPreSignedObjectUrl(UrlConstant.originalAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
                         + ValueConstant.SINGLE_FILE + req.getFileSuffix());
         String thumbnailUploadUrl = minioTemplate
-                .getPreSignedObjectUrl(UploadUrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
+                .getPreSignedObjectUrl(UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
                         + ValueConstant.SINGLE_FILE + req.getFileSuffix());
 
         return new AvatarUploadResp(originalUploadUrl, thumbnailUploadUrl);
+    }
+
+    @Override
+    public PictureUploadResp getPictureUploadResp(PictureUploadReq req) {
+        return null;
+    }
+
+    @Override
+    public FileUploadResp getFileUploadResp(FileUploadReq req) {
+        return null;
+    }
+
+    @Override
+    public VideoUploadResp getVideoUploadResp(VideoUploadReq req) {
+        return null;
+    }
+
+    @Override
+    public VoiceUploadResp getVoiceUploadResp(VoiceUploadReq req) {
+        return null;
+    }
+
+    @Override
+    public void confirmPictureUpload(PictureUploadConfirmReq req) {
+
+    }
+
+    @Override
+    public void confirmVoiceUpload(VoiceUploadConfirmReq req) {
+
+    }
+
+    @Override
+    public void confirmVideoUpload(VideoUploadConfirmReq req) {
+
+    }
+
+    @Override
+    public void confirmFileUpload(FileUploadConfirmReq req) {
+
     }
 }

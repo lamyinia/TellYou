@@ -6,18 +6,25 @@ import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.StrUtil;
 import io.minio.*;
 import io.minio.http.Method;
-import io.minio.messages.*;
+import io.minio.messages.Bucket;
+import io.minio.messages.DeleteError;
+import io.minio.messages.DeleteObject;
+import io.minio.messages.Item;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.domain.OssReq;
+import org.com.tools.utils.JsonUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author lanye
@@ -36,6 +43,10 @@ public class MinioTemplate {
      * MinIO 配置类
      */
     private MinioProperties minioProperties;
+
+    public String getHost(){
+        return minioProperties.getEndpoint() + StrUtil.SLASH + minioProperties.getBucket() + StrUtil.SLASH;
+    }
 
     /**
      * 查询所有存储桶
@@ -68,16 +79,6 @@ public class MinioTemplate {
         if (!bucketExists(bucketName)) {
             minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
         }
-    }
-
-    /**
-     * 删除一个空桶 如果存储桶存在对象不为空时，删除会报错。
-     *
-     * @param bucketName 桶名
-     */
-    @SneakyThrows
-    public void removeBucket(String bucketName) {
-        minioClient.removeBucket(RemoveBucketArgs.builder().bucket(bucketName).build());
     }
 
     /**
@@ -142,17 +143,6 @@ public class MinioTemplate {
             throw e;
         }
     }
-    /**
-     * GetObject接口用于获取某个文件（Object）。此操作需要对此Object具有读权限。
-     *
-     * @param bucketName  桶名
-     * @param ossFilePath Oss文件路径
-     */
-    @SneakyThrows
-    public InputStream getObject(String bucketName, String ossFilePath) {
-        return minioClient.getObject(
-                GetObjectArgs.builder().bucket(bucketName).object(ossFilePath).build());
-    }
 
     /**
      * 查询桶的对象信息
@@ -166,7 +156,6 @@ public class MinioTemplate {
         return minioClient.listObjects(
                 ListObjectsArgs.builder().bucket(bucketName).recursive(recursive).build());
     }
-
     /**
      * 生成随机文件名，防止重复
      *
@@ -200,6 +189,19 @@ public class MinioTemplate {
     }
 
     /**
+     * 上传JSON文件到MinIO（使用默认配置的存储桶）
+     *
+     * @param objectName 对象名称（包含路径）
+     * @param jsonContent JSON内容字符串
+     */
+    @SneakyThrows
+    public void putJsonObject(String objectName, String jsonContent) {
+        try (InputStream inputStream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8))) {
+            putObject(minioProperties.getBucket(), objectName, inputStream, "application/json");
+        }
+    }
+
+    /**
      * 上传文件到MinIO
      *
      * @param bucketName 存储桶名称
@@ -219,17 +221,31 @@ public class MinioTemplate {
     }
 
     /**
-     * 上传JSON文件到MinIO（使用默认配置的存储桶）
+     * 从MinIO获取JSON对象并解析为Map
      *
      * @param objectName 对象名称（包含路径）
-     * @param jsonContent JSON内容字符串
+     * @return 解析后的JSON Map，如果对象不存在抛出异常
      */
     @SneakyThrows
-    public void putJsonObject(String objectName, String jsonContent) {
-        try (InputStream inputStream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8))) {
-            putObject(minioProperties.getBucket(), objectName, inputStream, "application/json");
-        }
+    public Map<String, Object> getJsonObject(String objectName) {
+        InputStream stream = getObject(minioProperties.getBucket(), objectName);
+        String jsonContent = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        return JsonUtils.toMap(jsonContent);
     }
+
+    /**
+     * GetObject接口用于获取某个文件（Object）。此操作需要对此Object具有读权限。
+     *
+     * @param bucketName  桶名
+     * @param objectName 文件路径
+     */
+    @SneakyThrows
+    public InputStream getObject(String bucketName, String objectName) {
+        return minioClient.getObject(
+                GetObjectArgs.builder().bucket(bucketName).object(objectName).build());
+    }
+
+
 
     /**
      * 删除MinIO中的对象（文件）
@@ -258,6 +274,16 @@ public class MinioTemplate {
     }
 
     /**
+     * 删除一个空桶 如果存储桶存在对象不为空时，删除会报错。
+     *
+     * @param bucketName 桶名
+     */
+    @SneakyThrows
+    public void removeBucket(String bucketName) {
+        minioClient.removeBucket(RemoveBucketArgs.builder().bucket(bucketName).build());
+    }
+
+    /**
      * 删除MinIO中的对象（使用默认配置的存储桶）
      *
      * @param objectName 对象名称（包含路径）
@@ -265,6 +291,44 @@ public class MinioTemplate {
     @SneakyThrows
     public void removeObject(String objectName) {
         removeObject(minioProperties.getBucket(), objectName);
+    }
+
+    /**
+     * 批量删除MinIO中的对象（使用默认配置的存储桶）
+     *
+     * @param objectNames 对象名称列表
+     */
+    @SneakyThrows
+    public void removeObjects(List<String> objectNames) {
+        removeObjects(minioProperties.getBucket(), objectNames);
+    }
+
+    /**
+     * 删除MinIO中的对象（带版本控制）
+     *
+     * @param bucketName 存储桶名称
+     * @param objectName 对象名称
+     * @param versionId 版本ID
+     */
+    @SneakyThrows
+    public void removeObject(String bucketName, String objectName, String versionId) {
+        if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName) || StrUtil.isBlank(versionId)) {
+            throw new IllegalArgumentException("存储桶名称、对象名称和版本ID不能为空");
+        }
+
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .versionId(versionId)
+                            .build()
+            );
+            log.info("成功删除对象版本: {}/{}, 版本ID: {}", bucketName, objectName, versionId);
+        } catch (Exception e) {
+            log.error("删除对象版本失败: {}/{}, 版本ID: {}, 错误: {}", bucketName, objectName, versionId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -302,44 +366,6 @@ public class MinioTemplate {
             log.info("批量删除完成，共删除 {} 个对象", objectNames.size());
         } catch (Exception e) {
             log.error("批量删除对象失败: {}, 错误: {}", bucketName, e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    /**
-     * 批量删除MinIO中的对象（使用默认配置的存储桶）
-     *
-     * @param objectNames 对象名称列表
-     */
-    @SneakyThrows
-    public void removeObjects(List<String> objectNames) {
-        removeObjects(minioProperties.getBucket(), objectNames);
-    }
-
-    /**
-     * 删除MinIO中的对象（带版本控制）
-     *
-     * @param bucketName 存储桶名称
-     * @param objectName 对象名称
-     * @param versionId 版本ID
-     */
-    @SneakyThrows
-    public void removeObject(String bucketName, String objectName, String versionId) {
-        if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName) || StrUtil.isBlank(versionId)) {
-            throw new IllegalArgumentException("存储桶名称、对象名称和版本ID不能为空");
-        }
-
-        try {
-            minioClient.removeObject(
-                    RemoveObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .versionId(versionId)
-                            .build()
-            );
-            log.info("成功删除对象版本: {}/{}, 版本ID: {}", bucketName, objectName, versionId);
-        } catch (Exception e) {
-            log.error("删除对象版本失败: {}/{}, 版本ID: {}, 错误: {}", bucketName, objectName, versionId, e.getMessage(), e);
             throw e;
         }
     }

@@ -7,7 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.domain.vo.req.AvatarUploadConfirmReq;
-import org.com.modules.common.service.upload.UploadFileService;
+import org.com.modules.common.service.file.minio.DownloadService;
+import org.com.modules.common.service.file.minio.UploadFileService;
 import org.com.modules.common.util.UrlUtil;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
@@ -18,6 +19,7 @@ import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
+import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.JwtUtil;
@@ -42,11 +44,12 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class UserInfoServiceImpl implements UserInfoService {
-    private final UserInfoDao userInfoDao;
-    private final JavaMailSender javaMailSender;
     private final MinioTemplate minioTemplate;
-    private final UploadFileService uploadFileService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final UploadFileService uploadFileService;
+    private final UserInfoDao userInfoDao;
+    private final DownloadService downloadService;
+    private final JavaMailSender javaMailSender;
     private final JwtUtil jwtUtil;
 
     private static final String REDIS_CODE_PREFIX = "register:code:";
@@ -128,7 +131,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     @RedissonLocking(prefixKey = "user:setting", key="#uid")
     public void confirmAvatarUpload(Long uid, AvatarUploadConfirmReq req) {
         try {
-            UserInfo userInfo = userInfoDao.getById(uid);  // TODO check 查不到会抛出异常吗
+            UserInfo userInfo = userInfoDao.getById(uid);
             if (userInfo == null) {
                 throw new BusinessException(20005, "用户不存在");
             }
@@ -145,8 +148,10 @@ public class UserInfoServiceImpl implements UserInfoService {
                 throw new BusinessException(20007, "url 路径不合法");
             }
 
+            Map <String, Object> atomFile = downloadService.getAtomJson(String.valueOf(uid));
             residues.put(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, avatarResidue - 1);
             identifier.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
+            atomFile.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
 
             String identifierJson = JsonUtils.toStr(identifier);
             String residuesJson = JsonUtils.toStr(residues);
@@ -155,9 +160,9 @@ public class UserInfoServiceImpl implements UserInfoService {
                     .eq(UserInfo::getUserId, uid)
                     .set(UserInfo::getIdentifier, identifierJson)
                     .set(UserInfo::getResidues, residuesJson)
-                    .set(UserInfo::getAvatar, req.getOriginalUploadUrl())
+                    .set(UserInfo::getAvatar, minioTemplate.getHost() + req.getOriginalUploadUrl())
                     .update();
-            uploadFileService.writeAtomJson(String.valueOf(uid), identifier);
+            uploadFileService.writeAtomJson(String.valueOf(uid), atomFile);
 
             log.info("用户 {} 头像版本号已更新: {} -> {}", uid, currentAvatarVersion, currentAvatarVersion + 1);
             log.info("用户 {} 头像剩余更换次数: {} -> {}", uid, avatarResidue, avatarResidue - 1);
@@ -174,7 +179,8 @@ public class UserInfoServiceImpl implements UserInfoService {
     @RedissonLocking(prefixKey = "user:setting", key="#req.fromUid")
     public void modifyNickname(ModifyNicknameReq req) {
         try {
-            UserInfo userInfo = userInfoDao.getById(req.getFromUid());  // TODO check 查不到会抛出异常吗
+            String uid = String.valueOf(req.getFromUid());
+            UserInfo userInfo = userInfoDao.getById(req.getFromUid());
             if (userInfo == null) {
                 throw new BusinessException(20005, "用户不存在");
             }
@@ -184,21 +190,21 @@ public class UserInfoServiceImpl implements UserInfoService {
             Integer currentNicknameVersion = (Integer) identifier.getOrDefault(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, 1);
             Integer nicknameResidue = (Integer) residues.getOrDefault(ValueConstant.DEFAULT_NICKNAME_RESIDUE_KEY, 3);
 
-            if (nicknameResidue <= 0) throw new BusinessException(20009, "头像修改次数不够");
+            if (nicknameResidue <= 0) throw new BusinessException(20009, "昵称修改次数不够");
+
+            Map <String, Object> atomFile = downloadService.getAtomJson(uid);
 
             identifier.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, currentNicknameVersion + 1);
             residues.put(ValueConstant.DEFAULT_NICKNAME_RESIDUE_KEY, nicknameResidue - 1);
-
-            String identifierJson = JsonUtils.toStr(identifier);
-            String residuesJson = JsonUtils.toStr(residues);
+            atomFile.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, currentNicknameVersion + 1);
 
             userInfoDao.lambdaUpdate()
                     .eq(UserInfo::getUserId, req.getFromUid())
-                    .set(UserInfo::getIdentifier, identifierJson)
-                    .set(UserInfo::getResidues, residuesJson)
+                    .set(UserInfo::getIdentifier, JsonUtils.toStr(identifier))
+                    .set(UserInfo::getResidues, JsonUtils.toStr(residues))
                     .set(UserInfo::getNickName, req.getNewNickname())
                     .update();
-            uploadFileService.writeAtomJson(String.valueOf(req.getFromUid()), identifier);
+            uploadFileService.writeAtomJson(uid, atomFile);
 
             log.info("用户 {} 名称版本号已更新: {} -> {}", req.getFromUid(), currentNicknameVersion, currentNicknameVersion + 1);
             log.info("用户 {} 名称剩余更换次数: {} -> {}", req.getFromUid(), nicknameResidue, nicknameResidue - 1);
@@ -213,9 +219,9 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
-    @RedissonLocking(prefixKey = "user:setting", key="#uid")
+    @RedissonLocking(prefixKey = "user:setting", key="#req.fromUid")
     public void modifySignature(ModifySignatureReq req) {
-        UserInfo userInfo = userInfoDao.getById(req.getFromUId());  // TODO check 查不到会抛出异常吗
+        UserInfo userInfo = userInfoDao.getById(req.getFromUid());
         if (userInfo == null) {
             throw new BusinessException(20005, "用户不存在");
         }
@@ -223,16 +229,17 @@ public class UserInfoServiceImpl implements UserInfoService {
         Map<String, Object> residues = UserInfoAdapter.parseResidues(userInfo.getResidues());
         Integer signatureResidue = (Integer) residues.getOrDefault(ValueConstant.DEFAULT_SIGNATURE_RESIDUE_KEY, 3);
 
-        if (signatureResidue <= 0) throw new BusinessException(20011, "头像修改次数不够");
+        if (signatureResidue <= 0) throw new BusinessException(20011, "签名修改次数不够");
+
         residues.put(ValueConstant.DEFAULT_SIGNATURE_RESIDUE_KEY, signatureResidue - 1);
 
         userInfoDao.lambdaUpdate()
-                .eq(UserInfo::getUserId, req.getFromUId())
+                .eq(UserInfo::getUserId, req.getFromUid())
                 .set(UserInfo::getResidues, JsonUtils.toStr(residues))
                 .set(UserInfo::getPersonalSignature, req.getNewSignature())
                 .update();
 
-        log.info("用户 {} 新名字: {}", req.getFromUId(), req.getNewSignature());
+        log.info("用户 {} 新签名: {}", req.getFromUid(), req.getNewSignature());
     }
 
     @Override

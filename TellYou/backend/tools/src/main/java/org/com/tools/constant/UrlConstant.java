@@ -2,7 +2,7 @@ package org.com.tools.constant;
 
 import cn.hutool.core.util.StrUtil;
 
-public class UploadUrlConstant {
+public class UrlConstant {
     public static String slash = StrUtil.SLASH;
     public static String originalAvatarPath = "avatar" + slash + "original" + slash;
     public static String thumbedAvatarPath = "avatar" + slash + "thumb" + slash;

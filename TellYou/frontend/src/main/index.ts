@@ -14,8 +14,7 @@ import log from 'electron-log'
 import os from 'os'
 import { MediaTaskService } from '@main/service/media-service'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let mediaService: MediaTaskService|null = null
+let _mediaService: MediaTaskService|null = null
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'
 log.transports.file.maxSize = 1002430
@@ -132,7 +131,7 @@ const createWindow = (): void => {
     mainWindow.show()
   })
 
-  mediaService = new MediaTaskService()
+  _mediaService = new MediaTaskService()
   processIpc(mainWindow)
 
   mainWindow.on('ready-to-show', () => {

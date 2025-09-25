@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 /**
 * @author lanye
-* @description 针对表【user_info(用户信息)】的数据库操作Service实现
+* @description 针对表 user_info(用户信息) 的数据库操作Service实现
 * @createDate 2025-07-22 20:27:43
 */
 @Service
@@ -24,6 +24,7 @@ public class UserInfoDao extends ServiceImpl<UserInfoMapper, UserInfo> {
     public String getIdentifierById(Long id){
         UserInfo one = lambdaQuery()
                 .eq(UserInfo::getUserId, id)
+                .select(UserInfo::getIdentifier)
                 .one();
         return one != null ? one.getIdentifier() : null;
     }

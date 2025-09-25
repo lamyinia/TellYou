@@ -7,18 +7,17 @@ import org.com.modules.common.annotation.CheckMark;
 
 @Data
 @CheckMark(target = CheckMark.Target.NORMAL)
-@Schema(description = "头像上传确认请求体")
-public class AvatarUploadConfirmReq {
+@Schema(description = "语音上传确认请求体")
+public class VoiceUploadConfirmReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
     private Long fromId;
 
-    @NotNull
-    @Schema(description = "原图 url")
-    private String originalUploadUrl;
+    @Schema(description = "会话 id")
+    private Long sessionId;
 
     @NotNull
-    @Schema(description = "缩略图 url")
-    private String thumbnailUploadUrl;
+    @Schema(description = "上传的语音 url")
+    private String fileUploadUrl;
 }

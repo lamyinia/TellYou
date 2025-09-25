@@ -8,15 +8,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.domain.vo.resp.ApiResult;
-import org.com.modules.common.service.upload.UploadFileService;
+import org.com.modules.common.service.file.minio.DownloadService;
+import org.com.modules.common.service.file.minio.UploadFileService;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.constant.UploadUrlConstant;
 import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.MinioTemplate;
-import org.com.tools.utils.JsonUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -35,7 +34,9 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AccountController {
     private final UserInfoService userInfoService;
+    private final DownloadService downloadService;
     private final UploadFileService uploadFileService;
+
     private final MinioTemplate minioTemplate;
     private final MinioProperties minioProperties;
 
@@ -66,8 +67,16 @@ public class AccountController {
     @Operation(summary = "测试")
     public ApiResult<Void> test(Long uid){
         String path = URLUtil.getPath("http://113.44.158.255:32788/lanye/avatar/thumb/1948031012053333361/1/index.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256");
-        log.info(path);
-        log.info(Arrays.toString(path.split("/")));
+        log.info(path);  // info: /lanye/avatar/thumb/1948031012053333361/1/index.jpg
+
+//        Map<String, Object> map = new HashMap<>();
+//        map.put("avatarVersion", 5);
+//        map.put("nicknameVersion", 3);
+//        uploadFileService.writeAtomJson(String.valueOf(uid), map);
+
+        Map<String, Object> map = downloadService.getAtomJson(String.valueOf(uid));
+        log.info(map.toString());
+
         return ApiResult.success();
     }
 }

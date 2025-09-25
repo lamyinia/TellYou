@@ -14,7 +14,7 @@ public class ModifySignatureReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发起者 id")
-    private Long fromUId;
+    private Long fromUid;
 
     @NotBlank
     @Length(max = 50, message = "签名长度不能超过 50")

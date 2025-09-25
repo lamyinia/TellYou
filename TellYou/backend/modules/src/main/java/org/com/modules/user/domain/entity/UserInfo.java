@@ -20,6 +20,9 @@ import java.time.LocalDateTime;
 * @TableName user_info
 */
 @Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Schema(description = "用户信息")
 public class UserInfo implements Serializable {
     /**

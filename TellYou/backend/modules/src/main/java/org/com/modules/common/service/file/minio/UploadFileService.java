@@ -1,9 +1,8 @@
-package org.com.modules.common.service.upload;
+package org.com.modules.common.service.file.minio;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.constant.UploadUrlConstant;
+import org.com.tools.constant.UrlConstant;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.template.domain.OssReq;
 import org.com.tools.utils.JsonUtils;
@@ -18,7 +17,7 @@ public class UploadFileService {
     private final MinioTemplate minioTemplate;
 
     public void writeAtomJson(String uid, Map<String, Object> data){
-        uploadJsonFile(UploadUrlConstant.staticPath, uid, JsonUtils.toStr(data));
+        uploadJsonFile(UrlConstant.staticPath, uid, JsonUtils.toStr(data));
     }
 
     /**
@@ -29,11 +28,10 @@ public class UploadFileService {
      * @param jsonData 要写入的JSON数据
      * @return 文件在MinIO中的完整路径
      */
-    public void uploadJsonFile(String path, String fileName, Object jsonData) {
+    public void uploadJsonFile(String path, String fileName, String jsonData) {
         try {
             String objectName = path + fileName + ".json";
-            String jsonContent = JsonUtils.toStr(jsonData);
-            minioTemplate.putJsonObject(objectName, jsonContent);
+            minioTemplate.putJsonObject(objectName, jsonData);
         } catch (Exception e) {
             throw new RuntimeException("上传JSON文件失败", e);
         }
