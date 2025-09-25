@@ -96,10 +96,7 @@ public class MinioTemplate {
                             .build());
             return true;
         } catch (Exception e) {
-            if (e.getMessage().contains("does not exist")) {
-                return false;
-            }
-            throw e;
+            return false;
         }
     }
 
@@ -245,7 +242,7 @@ public class MinioTemplate {
         if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName)) {
             throw new IllegalArgumentException("存储桶名称和对象名称不能为空");
         }
-        
+
         try {
             minioClient.removeObject(
                     RemoveObjectArgs.builder()
@@ -281,19 +278,19 @@ public class MinioTemplate {
         if (StrUtil.isBlank(bucketName) || objectNames == null || objectNames.isEmpty()) {
             throw new IllegalArgumentException("存储桶名称和对象名称列表不能为空");
         }
-        
+
         try {
             List<DeleteObject> objects = objectNames.stream()
                     .map(DeleteObject::new)
                     .collect(java.util.stream.Collectors.toList());
-            
+
             Iterable<Result<DeleteError>> results = minioClient.removeObjects(
                     RemoveObjectsArgs.builder()
                             .bucket(bucketName)
                             .objects(objects)
                             .build()
             );
-            
+
             // 检查删除结果
             for (Result<DeleteError> result : results) {
                 DeleteError error = result.get();
@@ -301,7 +298,7 @@ public class MinioTemplate {
                     log.error("删除对象失败: {}, 错误: {}", error.objectName(), error.message());
                 }
             }
-            
+
             log.info("批量删除完成，共删除 {} 个对象", objectNames.size());
         } catch (Exception e) {
             log.error("批量删除对象失败: {}, 错误: {}", bucketName, e.getMessage(), e);
@@ -331,7 +328,7 @@ public class MinioTemplate {
         if (StrUtil.isBlank(bucketName) || StrUtil.isBlank(objectName) || StrUtil.isBlank(versionId)) {
             throw new IllegalArgumentException("存储桶名称、对象名称和版本ID不能为空");
         }
-        
+
         try {
             minioClient.removeObject(
                     RemoveObjectArgs.builder()

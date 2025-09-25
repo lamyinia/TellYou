@@ -33,8 +33,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -115,7 +113,7 @@ public class UserContactServiceImpl implements UserContactService {
     @Override
     public void removeBlackList(RemoveBlackListReq req) {
         Black black = blackDao.getById(req.getBlackId());
-        AssertUtil.isTrue(black != null && black.getFromId().equals(req.getFromId()), "参数错误");
+        AssertUtil.isTrue(black != null && black.getFromId().equals(req.getFromUid()), "参数错误");
         AssertUtil.isTrue(black.getIsDeleted() == YesOrNoEnum.NO.getStatus(), "对象已经移除黑名单了");
 
         black.setIsDeleted(YesOrNoEnum.YES.getStatus());

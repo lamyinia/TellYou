@@ -42,8 +42,8 @@ export const useUserStore = defineStore('user', {
   }),
   actions: {
     async initStore() {
-      this.isLogin = (await window.electronAPI.storeGet(isLoginKey)) || false
-      this.token = (await window.electronAPI.storeGet(tokenKey)) || ''
+      this.isLogin = (await window.electronAPI.storeGet(isLoginKey) as boolean) || false
+      this.token = (await window.electronAPI.storeGet(tokenKey) as string) || ''
       this.myId = (await window.electronAPI.storeGet(uidKey)) || ''
       this.nickname = (await window.electronAPI.storeGet(nicknameKey)) || ''
       this.nicknameResidue = (await window.electronAPI.storeGet(nicknameResidueKey)) || 0

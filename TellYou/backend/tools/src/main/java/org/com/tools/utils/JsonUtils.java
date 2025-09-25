@@ -3,9 +3,10 @@ package org.com.tools.utils;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,7 @@ public class JsonUtils {
     }
 
     public static Map<String, Object> toMap(String str) {
+        if (str == null) return null;
         return toObj(str, new TypeReference<Map<String, Object>>() {});
     }
 

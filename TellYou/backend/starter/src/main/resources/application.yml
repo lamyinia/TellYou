@@ -37,7 +37,7 @@ spring:
   datasource:
     username: ${value.datasource.username}
     password: ${value.datasource.password}
-    url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false
+    url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&connectionCollation=utf8mb4_unicode_ci
     driver-class-name: ${value.datasource.driver-class-name}
   data:
     redis:
@@ -66,8 +66,11 @@ spring:
 
 mybatis-plus:
   configuration:
+    auto-mapping-behavior: full
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    default-fetch-size: 100
+    default-statement-timeout: 30
   mapper-locations: classpath*:mapper/*.xml
 
 logging:

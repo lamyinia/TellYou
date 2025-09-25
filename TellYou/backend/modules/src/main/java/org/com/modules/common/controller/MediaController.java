@@ -36,6 +36,13 @@ public class MediaController {
         userInfoService.confirmAvatarUpload(RequestHolder.get().getUid(), req);
         return ApiResult.success();
     }
+    /*
+    上传示例 ：{
+        "fromId": 1948031012053333361,
+        "originalUploadUrl": "avatar/original/1948031012053333361/5/index.png",
+        "thumbnailUploadUrl": "avatar/thumb/1948031012053333361/5/index.png"
+    }
+    */
 
 
 }

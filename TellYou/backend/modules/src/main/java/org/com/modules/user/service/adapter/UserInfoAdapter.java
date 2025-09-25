@@ -1,11 +1,11 @@
 package org.com.modules.user.service.adapter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
+import org.com.modules.user.domain.vo.resp.SearchByUidResp;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.SecurityUtil;
@@ -15,19 +15,18 @@ import java.util.Map;
 
 @Slf4j
 public class UserInfoAdapter {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static UserInfo buildUserInfo(RegisterReq registerReq){
-        return UserInfo.builder()
-                .email(registerReq.getEmail())
-                .nickName(registerReq.getNickName())
-                .sex(registerReq.getSex())
-                .password(SecurityUtil.encode(registerReq.getPassword()))
-                .personalSignature(ValueConstant.DEFAULT_SIGNATURE)
-                .avatar(ValueConstant.DEFAULT_AVATAR)
-                .identifier(JsonUtils.toStr(getDefaultIdentifier()))
-                .residues(JsonUtils.toStr(getDefaultResidues()))
-                .build();
+        UserInfo userInfo = new UserInfo();
+        userInfo.setEmail(registerReq.getEmail());
+        userInfo.setPassword(registerReq.getPassword());
+        userInfo.setNickName(registerReq.getNickName());
+        userInfo.setSex(registerReq.getSex());
+        userInfo.setPassword(ValueConstant.DEFAULT_SIGNATURE);
+        userInfo.setAvatar(ValueConstant.DEFAULT_AVATAR);
+        userInfo.setIdentifier(JsonUtils.toStr(getDefaultIdentifier()));
+        userInfo.setResidues(JsonUtils.toStr(getDefaultResidues()));
+        return userInfo;
     }
     public static LoginResp buildVo(UserInfo userInfo, String token){
         Map<String, Object> residues = parseResidues(userInfo.getResidues());
@@ -51,12 +50,14 @@ public class UserInfoAdapter {
      * @return 解析后的Map
      */
     public static Map<String, Object> parseIdentifier(Object identifier) {
-        return Try.of(() -> identifier)
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .map(JsonUtils::toMap)
-                .onFailure(e -> log.warn("解析 identifier 失败: {}", e.getMessage()))
-                .getOrElse(getDefaultIdentifier());
+        try {
+            if (identifier instanceof String) {
+                return JsonUtils.toMap((String) identifier);
+            }
+        } catch (Exception e) {
+            log.warn("解析 identifier 失败: {}", e.getMessage());
+        }
+        return getDefaultIdentifier();
     }
     /**
      * 解析 residues 字段
@@ -64,12 +65,14 @@ public class UserInfoAdapter {
      * @return 解析后的Map
      */
     public static Map<String, Object> parseResidues(Object residues) {
-        return Try.of(() -> residues)
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .map(JsonUtils::toMap)
-                .onFailure(e -> log.warn("解析 residues 失败: {}", e.getMessage()))
-                .getOrElse(UserInfoAdapter::getDefaultResidues);
+        try {
+            if (residues instanceof String) {
+                return JsonUtils.toMap((String) residues);
+            }
+        } catch (Exception e) {
+            log.warn("解析 residues 失败: {}", e.getMessage());
+        }
+        return getDefaultResidues();
     }
     public static Map<String, Object> getDefaultIdentifier() {
         Map<String, Object> defaultIdentifier = new HashMap<>();
@@ -84,5 +87,25 @@ public class UserInfoAdapter {
         defaultResidues.put(ValueConstant.DEFAULT_SIGNATURE_RESIDUE_KEY, 3);
         defaultResidues.put(ValueConstant.DEFAULT_SEX_RESIDUE_KEY, 3);
         return defaultResidues;
+    }
+
+    /**
+     * 将 UserInfo 转换为 SearchByUidResp
+     * @param userInfo 用户信息实体
+     * @return 搜索响应对象
+     */
+    public static SearchByUidResp buildSearchByUidResp(UserInfo userInfo) {
+        SearchByUidResp resp = new SearchByUidResp();
+        if (userInfo == null) {
+            resp.setUserId(-1L);
+        } else {
+            resp.setUserId(userInfo.getUserId());
+            resp.setNickname(userInfo.getNickName());
+            resp.setAvatar(userInfo.getAvatar());
+            resp.setSex(userInfo.getSex());
+            resp.setSignature(userInfo.getPersonalSignature());
+        }
+
+        return resp;
     }
 }

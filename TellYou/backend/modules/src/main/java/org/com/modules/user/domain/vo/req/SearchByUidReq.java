@@ -2,25 +2,18 @@ package org.com.modules.user.domain.vo.req;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.ToString;
 import org.com.modules.common.annotation.CheckMark;
 
 @Data
-@Builder
-@AllArgsConstructor
-@ToString
 @CheckMark(target = CheckMark.Target.NORMAL)
-public class RemoveBlackListReq {
-
+public class SearchByUidReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发起者 id")
-    private Long fromUid;
+    private Long fromUId;
 
     @NotNull
-    @Schema(description = "黑名单 id")
-    private Long blackId;
+    @Schema(description = "被查询的 id")
+    private Long searchedId;
 }

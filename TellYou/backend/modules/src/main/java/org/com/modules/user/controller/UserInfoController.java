@@ -5,8 +5,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.com.modules.common.annotation.Check;
+import org.com.modules.user.domain.vo.req.ModifyNicknameReq;
+import org.com.modules.user.domain.vo.req.ModifySignatureReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.user.domain.vo.req.SearchByUidReq;
+import org.com.modules.user.domain.vo.resp.SearchByUidResp;
+import org.com.modules.user.service.UserInfoService;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -19,16 +25,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/user-info")
 @RequiredArgsConstructor
 public class UserInfoController {
+    private final UserInfoService userInfoService;
 
     @PutMapping("/modify-nickname")
     @Operation(summary = "名字修改")
-    public ApiResult<Void> modifyNickName(){
+    public ApiResult<Void> modifyNickname(@Check @Valid @RequestBody ModifyNicknameReq req){
+        userInfoService.modifyNickname(req);
         return ApiResult.success();
     }
 
     @PutMapping("/modify-signature")
     @Operation(summary = "签名修改")
-    public ApiResult<Void> modifySignature(){
+    public ApiResult<Void> modifySignature(@Check @Valid @RequestBody ModifySignatureReq req){
+        userInfoService.modifySignature(req);
         return ApiResult.success();
     }
 
@@ -40,8 +49,8 @@ public class UserInfoController {
 
     @GetMapping("/search-uid")
     @Operation(summary = "查询用户")
-    public ApiResult<Void> SearchUid(){
-        return ApiResult.success();
+    public ApiResult<SearchByUidResp> SearchByUid(@Check @Valid @RequestBody SearchByUidReq req){
+        return ApiResult.success(userInfoService.SearchByUidResp(req));
     }
 
     @PostMapping("/test")

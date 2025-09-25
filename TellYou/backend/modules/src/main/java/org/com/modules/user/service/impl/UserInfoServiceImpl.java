@@ -11,9 +11,9 @@ import org.com.modules.common.service.upload.UploadFileService;
 import org.com.modules.common.util.UrlUtil;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
-import org.com.modules.user.domain.vo.req.LoginReq;
-import org.com.modules.user.domain.vo.req.RegisterReq;
+import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.LoginResp;
+import org.com.modules.user.domain.vo.resp.SearchByUidResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.constant.ValueConstant;
@@ -155,6 +155,7 @@ public class UserInfoServiceImpl implements UserInfoService {
                     .eq(UserInfo::getUserId, uid)
                     .set(UserInfo::getIdentifier, identifierJson)
                     .set(UserInfo::getResidues, residuesJson)
+                    .set(UserInfo::getAvatar, req.getOriginalUploadUrl())
                     .update();
             uploadFileService.writeAtomJson(String.valueOf(uid), identifier);
 
@@ -167,6 +168,76 @@ public class UserInfoServiceImpl implements UserInfoService {
             log.error("确认头像上传失败，用户ID: {}", uid, e);
             throw new BusinessException(20008, "头像上传确认失败");
         }
+    }
+
+    @Override
+    @RedissonLocking(prefixKey = "user:setting", key="#req.fromUid")
+    public void modifyNickname(ModifyNicknameReq req) {
+        try {
+            UserInfo userInfo = userInfoDao.getById(req.getFromUid());  // TODO check 查不到会抛出异常吗
+            if (userInfo == null) {
+                throw new BusinessException(20005, "用户不存在");
+            }
+
+            Map<String, Object> identifier = UserInfoAdapter.parseIdentifier(userInfo.getIdentifier());
+            Map<String, Object> residues = UserInfoAdapter.parseResidues(userInfo.getResidues());
+            Integer currentNicknameVersion = (Integer) identifier.getOrDefault(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, 1);
+            Integer nicknameResidue = (Integer) residues.getOrDefault(ValueConstant.DEFAULT_NICKNAME_RESIDUE_KEY, 3);
+
+            if (nicknameResidue <= 0) throw new BusinessException(20009, "头像修改次数不够");
+
+            identifier.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, currentNicknameVersion + 1);
+            residues.put(ValueConstant.DEFAULT_NICKNAME_RESIDUE_KEY, nicknameResidue - 1);
+
+            String identifierJson = JsonUtils.toStr(identifier);
+            String residuesJson = JsonUtils.toStr(residues);
+
+            userInfoDao.lambdaUpdate()
+                    .eq(UserInfo::getUserId, req.getFromUid())
+                    .set(UserInfo::getIdentifier, identifierJson)
+                    .set(UserInfo::getResidues, residuesJson)
+                    .set(UserInfo::getNickName, req.getNewNickname())
+                    .update();
+            uploadFileService.writeAtomJson(String.valueOf(req.getFromUid()), identifier);
+
+            log.info("用户 {} 名称版本号已更新: {} -> {}", req.getFromUid(), currentNicknameVersion, currentNicknameVersion + 1);
+            log.info("用户 {} 名称剩余更换次数: {} -> {}", req.getFromUid(), nicknameResidue, nicknameResidue - 1);
+
+        } catch (BusinessException e){
+            throw e;
+        } catch (Exception e) {
+            log.error("修改名字失败，用户ID: {}", req.getFromUid(), e);
+            throw new BusinessException(20010, "修改名字失败");
+        }
+
+    }
+
+    @Override
+    @RedissonLocking(prefixKey = "user:setting", key="#uid")
+    public void modifySignature(ModifySignatureReq req) {
+        UserInfo userInfo = userInfoDao.getById(req.getFromUId());  // TODO check 查不到会抛出异常吗
+        if (userInfo == null) {
+            throw new BusinessException(20005, "用户不存在");
+        }
+
+        Map<String, Object> residues = UserInfoAdapter.parseResidues(userInfo.getResidues());
+        Integer signatureResidue = (Integer) residues.getOrDefault(ValueConstant.DEFAULT_SIGNATURE_RESIDUE_KEY, 3);
+
+        if (signatureResidue <= 0) throw new BusinessException(20011, "头像修改次数不够");
+        residues.put(ValueConstant.DEFAULT_SIGNATURE_RESIDUE_KEY, signatureResidue - 1);
+
+        userInfoDao.lambdaUpdate()
+                .eq(UserInfo::getUserId, req.getFromUId())
+                .set(UserInfo::getResidues, JsonUtils.toStr(residues))
+                .set(UserInfo::getPersonalSignature, req.getNewSignature())
+                .update();
+
+        log.info("用户 {} 新名字: {}", req.getFromUId(), req.getNewSignature());
+    }
+
+    @Override
+    public SearchByUidResp SearchByUidResp(SearchByUidReq req) {
+        return userInfoDao.getBaseInfo(req.getSearchedId());
     }
 
 }

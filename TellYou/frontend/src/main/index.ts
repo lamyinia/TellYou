@@ -1,21 +1,20 @@
-import { app, BrowserWindow, ipcMain, Menu, shell, Tray, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, protocol, shell, Tray } from 'electron'
 import fs from 'fs'
-import path from 'path'
-import { join } from 'path'
+import path, { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { instanceId, queryAll, sqliteRun } from './sqlite/atom'
-import { wsConfigInit, sendText } from '@main/websocket/client'
+import { sendText, wsConfigInit } from '@main/websocket/client'
 import { onLoadSessionData, onLoginOrRegister, onLoginSuccess, onScreenChange, onTest } from './ipc-center'
 import __Store from 'electron-store'
 import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { test } from './test'
 import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
-import { avatarCacheService } from './cache/avatar-cache'
 import log from 'electron-log'
 import os from 'os'
 import { MediaTaskService } from '@main/service/media-service'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let mediaService: MediaTaskService|null = null
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'

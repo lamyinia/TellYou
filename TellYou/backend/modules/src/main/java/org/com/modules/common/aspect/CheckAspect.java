@@ -59,8 +59,8 @@ public class CheckAspect {
                     if (CheckMark.Target.USER_ID.equals(anno.target())) {
                         fromId = (Long) field.get(obj);
                         Long currentUid = RequestHolder.get().getUid();
-                        if (fromId == null || currentUid == null) return;
-                        if (!fromId.equals(currentUid)) {
+                        if (currentUid == null) return;
+                        if (fromId == null || !fromId.equals(currentUid)) {
                             log.warn("UID 不匹配: 请求 UID = {}, 当前用户 UID = {}", fromId, currentUid);
                             throw new UnifyException(CommonErrorEnum.UNIFY_ERROR);
                         }

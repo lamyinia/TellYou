@@ -1,26 +1,23 @@
 package org.com.modules.user.domain.vo.req;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.ToString;
 import org.com.modules.common.annotation.CheckMark;
+import org.hibernate.validator.constraints.Length;
 
 @Data
-@Builder
-@AllArgsConstructor
-@ToString
 @CheckMark(target = CheckMark.Target.NORMAL)
-public class RemoveBlackListReq {
-
+@Schema(description = "签名修改请求 id")
+public class ModifySignatureReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发起者 id")
-    private Long fromUid;
+    private Long fromUId;
 
-    @NotNull
-    @Schema(description = "黑名单 id")
-    private Long blackId;
+    @NotBlank
+    @Length(max = 50, message = "签名长度不能超过 50")
+    @Schema(description = "新签名")
+    private String newSignature;
 }
