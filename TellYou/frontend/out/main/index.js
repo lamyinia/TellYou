@@ -28,11 +28,12 @@ const path = require("path");
 const utils = require("@electron-toolkit/utils");
 const os = require("os");
 const sqlite3 = require("sqlite3");
-const WebSocket = require("ws");
 const __Store = require("electron-store");
-const axios = require("axios");
 const log = require("electron-log");
+const axios = require("axios");
 const crypto = require("crypto");
+const pinia = require("pinia");
+const WebSocket = require("ws");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
@@ -188,506 +189,309 @@ const initTableColumnsMap = async () => {
     globalColumnMap[tables[i].name] = columnsMapItem;
   }
 };
-const getMessageId = () => {
-  const time = BigInt(Date.now());
-  const rand = BigInt(Math.floor(Math.random() * 1e6));
-  return (time << 20n | rand).toString();
-};
-const rawMessageToBeInserted = (data) => {
-  return {
-    sessionId: data.sessionId,
-    sequenceId: String(data.sequenceId),
-    senderId: data.senderId,
-    msgId: data.messageId,
-    senderName: data.senderName ?? "",
-    msgType: data.msgType,
-    isRecalled: 0,
-    text: data.text ?? "",
-    extData: data.extData ?? "",
-    sendTime: data.sendTime,
-    isRead: data.isRead ?? 1
-  };
-};
-const addLocalMessage = async (data) => {
-  const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
-  if (!changes) return 0;
-  const rows = await queryAll(
-    "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
-    [data.sessionId, String(data.sequenceId)]
-  );
-  return rows[0].id;
-};
-const getMessageBySessionId = async (sessionId, options) => {
-  try {
-    const limit = Number(options?.limit) || 50;
-    const direction = options?.direction || "newest";
-    const beforeId = options?.beforeId;
-    const afterId = options?.afterId;
-    let where = "WHERE session_id = ?";
-    const params = [sessionId];
-    if (direction === "older" && beforeId) {
-      const beforeMessage = await queryAll(
-        "SELECT send_time FROM messages WHERE id = ?",
-        [beforeId]
-      );
-      if (beforeMessage.length > 0) {
-        where += " AND send_time < ?";
-        params.push(beforeMessage[0].sendTime);
-      }
-    } else if (direction === "newer" && afterId) {
-      const afterMessage = await queryAll(
-        "SELECT send_time FROM messages WHERE id = ?",
-        [afterId]
-      );
-      if (afterMessage.length > 0) {
-        where += " AND send_time > ?";
-        params.push(afterMessage[0].sendTime);
-      }
-    }
-    const sql = `
-        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
-               text, ext_data, send_time, is_read
-        FROM messages
-        ${where}
-        ORDER BY send_time DESC, id DESC
-        LIMIT ${limit}
-      `;
-    const rows = await queryAll(sql, params);
-    const messages = rows.map((r) => ({
-      id: r.id,
-      sessionId: r.sessionId,
-      content: r.text ?? "",
-      messageType: (() => {
-        switch (r.msgType) {
-          case 1:
-            return "text";
-          case 2:
-            return "image";
-          case 5:
-            return "file";
-          default:
-            return "system";
-        }
-      })(),
-      senderId: r.senderId,
-      senderName: r.senderName || "",
-      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg",
-      timestamp: new Date(r.sendTime),
-      isRead: !!r.isRead
-    }));
-    const totalCountRow = await queryAll(
-      "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
-      [sessionId]
-    );
-    const totalCount = totalCountRow[0]?.total || 0;
-    let hasMore = false;
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      const moreRow = await queryAll(
-        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
-        [sessionId, lastMessage.timestamp.toISOString()]
-      );
-      hasMore = (moreRow[0]?.cnt || 0) > 0;
-    }
-    console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
-    return { messages, hasMore, totalCount };
-  } catch (error) {
-    console.error("获取会话消息失败:", error);
-    return { messages: [], hasMore: false, totalCount: 0 };
-  }
-};
-const selectSessions = async () => {
-  const sql = `
-    SELECT
-      session_id,
-      contact_id,
-      contact_type,
-      contact_name,
-      contact_avatar,
-      contact_signature,
-      last_msg_content,
-      last_msg_time,
-      unread_count,
-      is_pinned,
-      is_muted,
-      created_at,
-      updated_at,
-      member_count,
-      max_members,
-      join_mode,
-      msg_mode,
-      group_card,
-      group_notification,
-      my_role,
-      join_time,
-      last_active
-    FROM sessions
-  `;
-  const result = await queryAll(sql, []);
-  return result;
-};
-const updateSessionByMessage = async (data) => {
-  await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
-};
 const uidKey = "newest:user:uid";
+const isLoginKey = "newest:user:is-login";
 const tokenKey = "newest:user:token";
-const handleMessage = async (msg, ws2) => {
-  console.log(msg);
-  const snap = Number(msg.adjustedTimestamp);
-  const insertId = await addLocalMessage({
-    sessionId: msg.sessionId,
-    sequenceId: msg.sequenceNumber,
-    senderId: msg.senderId,
-    messageId: msg.messageId,
-    senderName: msg.fromName ?? "",
-    msgType: 1,
-    text: String(msg.content ?? ""),
-    extData: JSON.stringify(msg.extra),
-    sendTime: new Date(snap).toISOString(),
-    isRead: 1
-  });
-  if (!insertId || insertId <= 0) return;
-  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-  await updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
-  const vo = {
-    id: Number(insertId) || 0,
-    sessionId: msg.sessionId,
-    content: String(msg.content ?? ""),
-    messageType: "text",
-    senderId: msg.senderId,
-    senderName: msg.fromName ?? "",
-    senderAvatar: "",
-    timestamp: new Date(snap),
-    isRead: true
-  };
-  ws2.send(JSON.stringify({
-    messageId: msg.messageId,
-    type: 101,
-    fromUid: store.get(uidKey)
-  }));
-  const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
-  mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
-  mainWindow?.webContents.send("loadSessionDataCallback", [session]);
-};
-let ws = null;
-let maxReConnectTimes = null;
-let lockReconnect = false;
-let needReconnect = null;
-let wsUrl = null;
-const wsConfigInit = () => {
-  wsUrl = "http://localhost:8082/ws";
-  console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
-  needReconnect = true;
-  maxReConnectTimes = 20;
-};
-const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
-const sendText = (payload) => {
-  if (!isWsOpen()) {
-    console.warn("WebSocket 未连接，发送取消");
-    throw new Error("WebSocket is not connected");
-  }
-  const fromUId = String(payload.fromUId || "");
-  const toUserId = String(payload.toUserId || "");
-  const sessionId = String(payload.sessionId || "");
-  const content = payload.content;
-  if (!fromUId || !sessionId) {
-    console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
-    throw new Error("Missing required fields: fromUId/sessionId");
-  }
-  let base = {
-    messageId: getMessageId(),
-    type: 1,
-    fromUId,
-    toUserId,
-    sessionId,
-    content,
-    timestamp: Date.now(),
-    extra: { platform: "desktop" }
-  };
-  ws.send(JSON.stringify(base));
-};
-const reconnect = () => {
-  if (!needReconnect) {
-    console.info("不允许重试服务");
-    return;
-  }
-  console.info("连接关闭，现在正在重试....");
-  if (ws != null) {
-    ws.close();
-  }
-  if (lockReconnect) {
-    return;
-  }
-  console.info("重试请求发起");
-  lockReconnect = true;
-  if (maxReConnectTimes && maxReConnectTimes > 0) {
-    console.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
-    --maxReConnectTimes;
-    setTimeout(function() {
-      connectWs();
-      lockReconnect = false;
-    }, 5e3);
-  } else {
-    console.info("TCP 连接超时");
-  }
-};
-const connectWs = () => {
-  if (wsUrl == null) return;
-  const token = store.get(tokenKey);
-  if (token === null) {
-    console.info("token 不满足条件");
-    return;
-  }
-  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
-  ws = new WebSocket(urlWithToken);
-  ws.on("open", () => {
-    console.info("客户端连接成功");
-    maxReConnectTimes = 20;
-    const mainWindow = electron.BrowserWindow.getFocusedWindow();
-    if (mainWindow) {
-      mainWindow.webContents.send("ws-connected");
+const nicknameKey = "newest:user:nickname";
+const nicknameResidueKey = "newest:user:nickname-residue";
+const signatureKey = "newest:user:signature";
+const signatureResidueKey = "newest:user:signature-residue";
+const sexKey = "newest:user:sex";
+const sexResidue = "newest:user:sex-residue";
+const avatarUrlKey = "newest:user:avatar:url";
+const avatarResidueKey = "newest:user:avatar-residue";
+const useUserStore = pinia.defineStore("user", {
+  state: () => ({
+    isLogin: false,
+    token: "",
+    myId: "",
+    nickname: "",
+    nicknameResidue: 0,
+    sex: "",
+    sexResidue: 0,
+    signature: "",
+    signatureResidue: 0,
+    avatarUrl: "",
+    avatarResidue: 0
+  }),
+  actions: {
+    async initStore() {
+      this.isLogin = await window.electronAPI.storeGet(isLoginKey) || false;
+      this.token = await window.electronAPI.storeGet(tokenKey) || "";
+      this.myId = await window.electronAPI.storeGet(uidKey) || "";
+      this.nickname = await window.electronAPI.storeGet(nicknameKey) || "";
+      this.nicknameResidue = await window.electronAPI.storeGet(nicknameResidueKey) || 0;
+      this.sex = await window.electronAPI.storeGet(sexKey) || "";
+      this.sexResidue = await window.electronAPI.storeGet(sexResidue) || 0;
+      this.signature = await window.electronAPI.storeGet(signatureKey) || "";
+      this.signatureResidue = await window.electronAPI.storeGet(signatureResidueKey) || 0;
+      this.avatarUrl = await window.electronAPI.storeGet(avatarUrlKey) || "";
+      this.avatarResidue = await window.electronAPI.storeGet(avatarResidueKey) || 0;
+    },
+    async setUserData(data) {
+      if (data?.token) {
+        await window.electronAPI.storeSet(tokenKey, data.token);
+        this.token = data.token;
+      }
+      if (data?.uid) {
+        await window.electronAPI.storeSet(uidKey, data.uid);
+        this.myId = data.uid;
+      }
+      if (data?.nickname !== void 0) {
+        await window.electronAPI.storeSet(nicknameKey, data.nickname);
+        this.nickname = data.nickname;
+      }
+      if (data?.nicknameResidue !== void 0) {
+        await window.electronAPI.storeSet(nicknameResidueKey, data.nicknameResidue);
+        this.nicknameResidue = data.nicknameResidue;
+      }
+      if (data?.sex !== void 0) {
+        await window.electronAPI.storeSet(sexKey, data.sex);
+        this.sex = data.sex;
+      }
+      if (data?.sexResidue !== void 0) {
+        await window.electronAPI.storeSet(sexResidue, data.sexResidue);
+        this.sexResidue = data.sexResidue;
+      }
+      if (data?.signature !== void 0) {
+        await window.electronAPI.storeSet(signatureKey, data.signature);
+        this.signature = data.signature;
+      }
+      if (data?.signatureResidue !== void 0) {
+        await window.electronAPI.storeSet(signatureResidueKey, data.signatureResidue);
+        this.signatureResidue = data.signatureResidue;
+      }
+      if (data?.avatarUrl !== void 0) {
+        await window.electronAPI.storeSet(avatarUrlKey, data.avatarUrl);
+        this.avatarUrl = data.avatarUrl;
+      }
+      if (data?.avatarResidue !== void 0) {
+        await window.electronAPI.storeSet(avatarResidueKey, data.avatarResidue);
+        this.avatarResidue = data.avatarResidue;
+      }
+    },
+    async setLoginStatus(status) {
+      this.isLogin = status;
+      await window.electronAPI.storeSet(isLoginKey, status);
+    },
+    async updateUserField(field, value) {
+      const keyMap = {
+        nickname: nicknameKey,
+        nicknameResidue: nicknameResidueKey,
+        sex: sexKey,
+        sexResidue,
+        signature: signatureKey,
+        signatureResidue: signatureResidueKey,
+        avatarUrl: avatarUrlKey,
+        avatarResidue: avatarResidueKey
+      };
+      if (keyMap[field]) {
+        await window.electronAPI.storeSet(keyMap[field], value);
+        this[field] = value;
+      }
+    },
+    async clearUserData() {
+      const keys = [
+        isLoginKey,
+        tokenKey,
+        uidKey,
+        nicknameKey,
+        nicknameResidueKey,
+        sexKey,
+        sexResidue,
+        signatureKey,
+        signatureResidueKey,
+        avatarUrlKey,
+        avatarResidueKey
+      ];
+      for (const key of keys) {
+        await window.electronAPI.storeDelete(key);
+      }
+      this.isLogin = false;
+      this.token = "";
+      this.myId = "";
+      this.nickname = "";
+      this.nicknameResidue = 0;
+      this.sex = "";
+      this.sexResidue = 0;
+      this.signature = "";
+      this.signatureResidue = 0;
+      this.avatarUrl = "";
+      this.avatarResidue = 0;
     }
-  });
-  ws.on("close", () => {
-    reconnect();
-  });
-  ws.on("error", () => {
-    reconnect();
-  });
-  ws.on("message", async (data) => {
-    console.log("收到消息:", data.toString());
-    const msg = JSON.parse(data);
-    switch (msg.messageType) {
-      case 1:
-        await handleMessage(msg, ws);
-        break;
-    }
-  });
-};
-const onLoadSessionData = () => {
-  electron.ipcMain.on("loadSessionData", async (event) => {
-    console.log("开始查询session");
-    const result = await selectSessions();
-    console.log("查询结果:", result);
-    event.sender.send("loadSessionDataCallback", result);
-  });
-};
-const onLoginSuccess = (callback) => {
-  electron.ipcMain.on("LoginSuccess", (_, uid) => {
-    callback(uid);
-  });
-};
-const onLoginOrRegister = (callback) => {
-  electron.ipcMain.on("LoginOrRegister", (_, isLogin) => {
-    callback(isLogin);
-  });
-};
-const onScreenChange = (callback) => {
-  electron.ipcMain.on("window-ChangeScreen", (event, status) => {
-    callback(event, status);
-  });
-};
-const onTest = (callback) => {
-  electron.ipcMain.on("test", (_, __) => {
-    callback();
-  });
-};
-const mainAxios = axios.create({
-  timeout: 3e4,
+  }
+});
+class ApiError extends Error {
+  constructor(errCode, message, response) {
+    super(message);
+    this.errCode = errCode;
+    this.message = message;
+    this.response = response;
+    this.name = "ApiError";
+  }
+}
+const netMaster = axios.create({
+  withCredentials: true,
+  baseURL: "/api",
+  timeout: 10 * 1e3,
   headers: {
     "Content-Type": "application/json"
   }
 });
-mainAxios.interceptors.request.use((config) => {
-  const token = store.get(tokenKey);
-  if (token) {
-    config.headers.token = token;
+const axiosInstance = axios.create({
+  timeout: 30 * 1e3,
+  // 文件上传下载超时时间更长
+  headers: {
+    "Content-Type": "application/octet-stream"
   }
-  return config;
 });
-const pullStrongTransactionData = async () => {
-  console.log(`正在拉取强事务数据...`);
-  try {
-    await pullFriendContact();
-    await pullApply();
-    await pullGroup();
-    await pullBlackList();
-    console.log(`拉取强事务数据完成`);
-  } catch (error) {
-    console.error(`拉取强事务数据失败:`, error);
-    throw error;
+netMaster.interceptors.request.use(
+  (config) => {
+    const token = useUserStore().token;
+    if (token && config.headers) {
+      config.headers.token = token;
+    }
+    return config;
+  },
+  (_error) => {
+    return Promise.reject("请求发送失败");
   }
-};
-const pullFriendContact = async () => {
-};
-const pullApply = async () => {
-};
-const pullGroup = async () => {
-};
-const pullBlackList = async () => {
-};
-const pullOfflineMessages = async () => {
-  try {
-    console.info("开始拉取用户离线消息...");
-    const response = await mainAxios.get(
-      `${"http://localhost:8081"}/message/pullMailboxMessage`
-    );
-    if (!response.data.success) {
-      console.error("拉取离线消息失败:", response.data.errMsg);
-      return;
-    }
-    const pullResult = response.data.data;
-    if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
-      console.info("没有离线消息需要拉取");
-      return;
-    }
-    console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
-    const messageIds = [];
-    const sessionUpdates = /* @__PURE__ */ new Map();
-    const chatMessages = [];
-    for (const message of pullResult.messageList) {
-      const date = new Date(Number(message.adjustedTimestamp)).toISOString();
-      console.log(message);
-      const messageData = {
-        sessionId: String(message.sessionId),
-        sequenceId: message.sequenceNumber,
-        senderId: String(message.senderId),
-        messageId: message.messageId,
-        senderName: "",
-        msgType: message.messageType,
-        text: message.content,
-        extData: JSON.stringify(message.extra),
-        sendTime: date,
-        isRead: 0
-      };
-      const insertId = await addLocalMessage(messageData);
-      messageIds.push(message.messageId);
-      if (insertId <= 0) continue;
-      const sessionId = String(message.sessionId);
-      const existingSession = sessionUpdates.get(sessionId);
-      if (!existingSession || date > existingSession.sendTime) {
-        sessionUpdates.set(sessionId, {
-          content: message.content,
-          sendTime: date
-        });
-      }
-      chatMessages.push({
-        id: insertId,
-        sessionId: message.sessionId,
-        content: message.content,
-        messageType: "text",
-        senderId: message.senderId,
-        senderName: "",
-        senderAvatar: "",
-        timestamp: new Date(Number(message.adjustedTimestamp)),
-        isRead: false
-      });
-    }
-    const sessionUpdatePromises = [];
-    for (const [sessionId, updateData] of sessionUpdates) {
-      sessionUpdatePromises.push(
-        updateSessionByMessage({
-          content: updateData.content,
-          sendTime: updateData.sendTime,
-          sessionId
-        })
-      );
-    }
-    if (sessionUpdatePromises.length > 0) {
-      try {
-        await Promise.all(sessionUpdatePromises);
-        console.info(`批量更新 ${sessionUpdatePromises.length} 个会话`);
-      } catch (error) {
-        console.error("批量更新会话失败:", error);
-      }
-    }
-    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-    if (mainWindow && chatMessages.length > 0) {
-      try {
-        const sessionIds = Array.from(sessionUpdates.keys());
-        const sessions = await queryAll(
-          `SELECT *
-           FROM sessions
-           WHERE session_id IN (${sessionIds.map(() => "?").join(",")})`,
-          sessionIds
-        );
-        mainWindow.webContents.send("loadMessageDataCallback", chatMessages);
-        mainWindow.webContents.send("loadSessionDataCallback", sessions);
-        console.info(`发送 ${chatMessages.length} 条消息到渲染进程`);
-      } catch (error) {
-        console.error("发送消息到渲染进程失败:", error);
-      }
-    }
-    if (messageIds.length > 0) {
-      await ackConfirmMessages(messageIds);
-    }
-    if (pullResult.hasMore) {
-      console.info("还有更多离线消息，继续拉取...");
-      setTimeout(() => {
-        pullOfflineMessages();
-      }, 0);
+);
+netMaster.interceptors.response.use(
+  (response) => {
+    const { errCode, errMsg, success } = response.data;
+    if (success) {
+      return response;
     } else {
-      console.info("离线消息拉取完成");
+      throw new ApiError(errCode, errMsg, response);
     }
-  } catch (error) {
-    console.error("拉取离线消息异常:", error);
-  }
-};
-const ackConfirmMessages = async (messageIds) => {
-  try {
-    console.info(`确认 ${messageIds.length} 条消息`, messageIds);
-    const requestData = {
-      messageIdList: messageIds
-    };
-    const response = await mainAxios.post(
-      `${"http://localhost:8081"}/message/ackConfirm`,
-      requestData
-    );
-    if (response.data.success) {
-      console.info("消息确认成功");
+  },
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      console.log("netMaster AxiosError", error);
+      const errorData = error.response.data;
+      throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
     } else {
-      console.error("消息确认失败:", response.data.errMsg);
+      throw new ApiError(-1, "网络连接异常");
     }
-  } catch (error) {
-    console.error("消息确认异常:", error);
   }
-};
-const initializeUserData = async (uid) => {
-  connectWs();
-  setCurrentFolder(uid);
-  existsLocalDB();
-  await initTable();
-  await pullStrongTransactionData();
-  await pullOfflineMessages();
-};
-const test = async () => {
-  setCurrentFolder("1");
-  existsLocalDB();
-  await initTable();
-  const raw = fs.readFileSync("./test/test-data.json", "utf-8");
-  const data = JSON.parse(raw);
-  for (const session of data.sessions) {
-    await insertOrReplace("sessions", session);
+);
+axiosInstance.interceptors.request.use(
+  (config) => {
+    return config;
+  },
+  (_error) => {
+    return Promise.reject("文件请求发送失败");
   }
-  for (const message of data.messages) {
-    await insertOrReplace("messages", message);
+);
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      console.log("netMinIO AxiosError", error);
+      throw new ApiError(status, "文件操作失败", error.response);
+    } else {
+      throw new ApiError(-1, "文件网络连接异常");
+    }
   }
-  for (const black of data.blacklist) {
-    await insertOrReplace("blacklist", black);
+);
+class NetMinIO {
+  axiosInstance;
+  constructor(axiosInstance2) {
+    this.axiosInstance = axiosInstance2;
   }
-  for (const apply of data.contact_applications) {
-    await insertOrReplace("contact_applications", apply);
+  async uploadImage(presignedUrl, imageFile) {
+    const response = await this.axiosInstance.put(presignedUrl, imageFile, {
+      headers: {
+        "Content-Type": imageFile.type,
+        "Content-Length": imageFile.size.toString()
+      }
+    });
+    return response;
   }
-  await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
-  const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
-  console.info("sessions:", sessions);
-};
+  async downloadImage(imageUrl) {
+    const response = await this.axiosInstance.get(imageUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "image/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadAudio(presignedUrl, audioFile) {
+    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
+      headers: {
+        "Content-Type": audioFile.type,
+        "Content-Length": audioFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadAudio(audioUrl) {
+    const response = await this.axiosInstance.get(audioUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "audio/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadVideo(presignedUrl, videoFile) {
+    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
+      headers: {
+        "Content-Type": videoFile.type,
+        "Content-Length": videoFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadVideo(videoUrl) {
+    const response = await this.axiosInstance.get(videoUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "video/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadFile(presignedUrl, file) {
+    const response = await this.axiosInstance.put(presignedUrl, file, {
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "Content-Length": file.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadFile(fileUrl, filename) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "*/*"
+      }
+    });
+    const blob = response.data;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "download";
+    link.click();
+    window.URL.revokeObjectURL(url);
+    return blob;
+  }
+  getAxiosInstance() {
+    return this.axiosInstance;
+  }
+}
+const netMinIO = new NetMinIO(axiosInstance);
 class AvatarCacheService {
   cacheIndex = {};
   downloading = /* @__PURE__ */ new Set();
-  // 防止重复下载
   maxCacheSize = 200 * 1024 * 1024;
-  // 200MB
   maxCacheFiles = 1e3;
   cacheExpireTime = 7 * 24 * 60 * 60 * 1e3;
   // 7天
@@ -751,7 +555,7 @@ class AvatarCacheService {
   }
   async downloadAvatar(url, filePath) {
     try {
-      const response = await axios.get(url, {
+      const response = await netMinIO.getAxiosInstance().get(url, {
         responseType: "arraybuffer",
         timeout: 1e4,
         headers: {
@@ -940,14 +744,14 @@ const generateThumbnail = async (filePath) => {
 };
 class MediaTaskService {
   tasks = /* @__PURE__ */ new Map();
-  tempDir;
+  tempDir = "";
   CHUNK_SIZE = 5 * 1024 * 1024;
   // 5MB 分块
   MAX_CONCURRENT = 3;
   // 最大并发上传数
   RETRY_TIMES = 3;
   // 重试次数
-  constructor() {
+  beginServe() {
     this.tempDir = path.join(electron.app.getPath("userData"), ".tellyou", "media", "temp");
     this.ensureTempDir();
     this.setupIpcHandlers();
@@ -1049,7 +853,7 @@ class MediaTaskService {
     });
     electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
       try {
-        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-B8eW_eML.js"));
+        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-A3zHNMwX.js"));
         console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
         const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
         const originalFileBuffer = await fs.promises.readFile(filePath);
@@ -1234,6 +1038,665 @@ class MediaTaskService {
     return `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
+const mediaTaskService = new MediaTaskService();
+class JsonStoreService {
+  beginServe() {
+    electron.ipcMain.handle("store-get", (_, key) => {
+      return store.get(key);
+    });
+    electron.ipcMain.handle("store-set", (_, key, value) => {
+      store.set(key, value);
+      return true;
+    });
+    electron.ipcMain.handle("store-delete", (_, key) => {
+      store.delete(key);
+      return true;
+    });
+    electron.ipcMain.handle("store-clear", () => {
+      store.clear();
+      return true;
+    });
+  }
+}
+const jsonStoreService = new JsonStoreService();
+class ApplicationService {
+  beginServe() {
+    electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
+      const { loadIncomingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      const data = await loadIncomingApplications(pageNo, pageSize);
+      event.sender.send("application:incoming:loaded", data);
+    });
+    electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
+      const { loadOutgoingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      const data = await loadOutgoingApplications(pageNo, pageSize);
+      event.sender.send("application:outgoing:loaded", data);
+    });
+    electron.ipcMain.on("application:incoming:approve", async (event, { ids }) => {
+      const { approveIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      await approveIncoming(ids || []);
+    });
+    electron.ipcMain.on("application:incoming:reject", async (event, { ids }) => {
+      const { rejectIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      await rejectIncoming(ids || []);
+    });
+    electron.ipcMain.on("application:outgoing:cancel", async (event, { ids }) => {
+      const { cancelOutgoing } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      await cancelOutgoing(ids || []);
+    });
+    electron.ipcMain.on("application:send", async (event, { toUserId, remark }) => {
+      const { insertApplication } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
+      await insertApplication("", toUserId, remark);
+    });
+  }
+}
+const applicationService = new ApplicationService();
+class BlackService {
+  beginServer() {
+    electron.ipcMain.on("black:list:load", async (event, { pageNo, pageSize }) => {
+      const { loadBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
+      const data = await loadBlacklist(pageNo, pageSize);
+      event.sender.send("black:list:loaded", data);
+    });
+    electron.ipcMain.on("black:list:remove", async (_event, { userIds }) => {
+      const { removeFromBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
+      await removeFromBlacklist(userIds || []);
+    });
+  }
+}
+const blackService = new BlackService();
+const getMessageId = () => {
+  const time = BigInt(Date.now());
+  const rand = BigInt(Math.floor(Math.random() * 1e6));
+  return (time << 20n | rand).toString();
+};
+const rawMessageToBeInserted = (data) => {
+  return {
+    sessionId: data.sessionId,
+    sequenceId: String(data.sequenceId),
+    senderId: data.senderId,
+    msgId: data.messageId,
+    senderName: data.senderName ?? "",
+    msgType: data.msgType,
+    isRecalled: 0,
+    text: data.text ?? "",
+    extData: data.extData ?? "",
+    sendTime: data.sendTime,
+    isRead: data.isRead ?? 1
+  };
+};
+const addLocalMessage = async (data) => {
+  const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
+  if (!changes) return 0;
+  const rows = await queryAll(
+    "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
+    [data.sessionId, String(data.sequenceId)]
+  );
+  return rows[0].id;
+};
+const getMessageBySessionId = async (sessionId, options) => {
+  try {
+    const limit = Number(options?.limit) || 50;
+    const direction = options?.direction || "newest";
+    const beforeId = options?.beforeId;
+    const afterId = options?.afterId;
+    let where = "WHERE session_id = ?";
+    const params = [sessionId];
+    if (direction === "older" && beforeId) {
+      const beforeMessage = await queryAll(
+        "SELECT send_time FROM messages WHERE id = ?",
+        [beforeId]
+      );
+      if (beforeMessage.length > 0) {
+        where += " AND send_time < ?";
+        params.push(beforeMessage[0].sendTime);
+      }
+    } else if (direction === "newer" && afterId) {
+      const afterMessage = await queryAll(
+        "SELECT send_time FROM messages WHERE id = ?",
+        [afterId]
+      );
+      if (afterMessage.length > 0) {
+        where += " AND send_time > ?";
+        params.push(afterMessage[0].sendTime);
+      }
+    }
+    const sql = `
+        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
+               text, ext_data, send_time, is_read
+        FROM messages
+        ${where}
+        ORDER BY send_time DESC, id DESC
+        LIMIT ${limit}
+      `;
+    const rows = await queryAll(sql, params);
+    const messages = rows.map((r) => ({
+      id: r.id,
+      sessionId: r.sessionId,
+      content: r.text ?? "",
+      messageType: (() => {
+        switch (r.msgType) {
+          case 1:
+            return "text";
+          case 2:
+            return "image";
+          case 5:
+            return "file";
+          default:
+            return "system";
+        }
+      })(),
+      senderId: r.senderId,
+      senderName: r.senderName || "",
+      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg",
+      timestamp: new Date(r.sendTime),
+      isRead: !!r.isRead
+    }));
+    const totalCountRow = await queryAll(
+      "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
+      [sessionId]
+    );
+    const totalCount = totalCountRow[0]?.total || 0;
+    let hasMore = false;
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const moreRow = await queryAll(
+        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
+        [sessionId, lastMessage.timestamp.toISOString()]
+      );
+      hasMore = (moreRow[0]?.cnt || 0) > 0;
+    }
+    console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
+    return { messages, hasMore, totalCount };
+  } catch (error) {
+    console.error("获取会话消息失败:", error);
+    return { messages: [], hasMore: false, totalCount: 0 };
+  }
+};
+const selectSessions = async () => {
+  const sql = `
+    SELECT
+      session_id,
+      contact_id,
+      contact_type,
+      contact_name,
+      contact_avatar,
+      contact_signature,
+      last_msg_content,
+      last_msg_time,
+      unread_count,
+      is_pinned,
+      is_muted,
+      created_at,
+      updated_at,
+      member_count,
+      max_members,
+      join_mode,
+      msg_mode,
+      group_card,
+      group_notification,
+      my_role,
+      join_time,
+      last_active
+    FROM sessions
+  `;
+  const result = await queryAll(sql, []);
+  return result;
+};
+const updateSessionByMessage = async (data) => {
+  await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
+};
+const handleMessage = async (msg, ws2) => {
+  console.log(msg);
+  const snap = Number(msg.adjustedTimestamp);
+  const insertId = await addLocalMessage({
+    sessionId: msg.sessionId,
+    sequenceId: msg.sequenceNumber,
+    senderId: msg.senderId,
+    messageId: msg.messageId,
+    senderName: msg.fromName ?? "",
+    msgType: 1,
+    text: String(msg.content ?? ""),
+    extData: JSON.stringify(msg.extra),
+    sendTime: new Date(snap).toISOString(),
+    isRead: 1
+  });
+  if (!insertId || insertId <= 0) return;
+  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+  await updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
+  const vo = {
+    id: Number(insertId) || 0,
+    sessionId: msg.sessionId,
+    content: String(msg.content ?? ""),
+    messageType: "text",
+    senderId: msg.senderId,
+    senderName: msg.fromName ?? "",
+    senderAvatar: "",
+    timestamp: new Date(snap),
+    isRead: true
+  };
+  ws2.send(JSON.stringify({
+    messageId: msg.messageId,
+    type: 101,
+    fromUid: store.get(uidKey)
+  }));
+  const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
+  mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
+  mainWindow?.webContents.send("loadSessionDataCallback", [session]);
+};
+let ws = null;
+let maxReConnectTimes = null;
+let lockReconnect = false;
+let needReconnect = null;
+let wsUrl = null;
+const wsConfigInit = () => {
+  wsUrl = "http://localhost:8082/ws";
+  console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
+  needReconnect = true;
+  maxReConnectTimes = 20;
+};
+const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
+const sendText = (payload) => {
+  if (!isWsOpen()) {
+    console.warn("WebSocket 未连接，发送取消");
+    throw new Error("WebSocket is not connected");
+  }
+  const fromUId = String(payload.fromUId || "");
+  const toUserId = String(payload.toUserId || "");
+  const sessionId = String(payload.sessionId || "");
+  const content = payload.content;
+  if (!fromUId || !sessionId) {
+    console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
+    throw new Error("Missing required fields: fromUId/sessionId");
+  }
+  let base = {
+    messageId: getMessageId(),
+    type: 1,
+    fromUId,
+    toUserId,
+    sessionId,
+    content,
+    timestamp: Date.now(),
+    extra: { platform: "desktop" }
+  };
+  ws.send(JSON.stringify(base));
+};
+const reconnect = () => {
+  if (!needReconnect) {
+    console.info("不允许重试服务");
+    return;
+  }
+  console.info("连接关闭，现在正在重试....");
+  if (ws != null) {
+    ws.close();
+  }
+  if (lockReconnect) {
+    return;
+  }
+  console.info("重试请求发起");
+  lockReconnect = true;
+  if (maxReConnectTimes && maxReConnectTimes > 0) {
+    console.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
+    --maxReConnectTimes;
+    setTimeout(function() {
+      connectWs();
+      lockReconnect = false;
+    }, 5e3);
+  } else {
+    console.info("TCP 连接超时");
+  }
+};
+const connectWs = () => {
+  if (wsUrl == null) return;
+  const token = store.get(tokenKey);
+  if (token === null) {
+    console.info("token 不满足条件");
+    return;
+  }
+  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
+  ws = new WebSocket(urlWithToken);
+  ws.on("open", () => {
+    console.info("客户端连接成功");
+    maxReConnectTimes = 20;
+    const mainWindow = electron.BrowserWindow.getFocusedWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send("ws-connected");
+    }
+  });
+  ws.on("close", () => {
+    reconnect();
+  });
+  ws.on("error", () => {
+    reconnect();
+  });
+  ws.on("message", async (data) => {
+    console.log("收到消息:", data.toString());
+    const msg = JSON.parse(data);
+    switch (msg.messageType) {
+      case 1:
+        await handleMessage(msg, ws);
+        break;
+    }
+  });
+};
+class MessageService {
+  beginServe() {
+    electron.ipcMain.handle("ws-send", async (_, msg) => {
+      console.log(msg);
+      try {
+        sendText(msg);
+        console.log("发送成功");
+        return true;
+      } catch (error) {
+        console.error("发送消息失败:", error);
+        return false;
+      }
+    });
+    electron.ipcMain.handle("get-message-by-sessionId", (_, sessionId, options) => {
+      return getMessageBySessionId(String(sessionId), options);
+    });
+  }
+}
+const messageService = new MessageService();
+class SessionService {
+  beginServe() {
+    electron.ipcMain.handle("get-sessions-with-order", async () => {
+      try {
+        const sql = `
+        SELECT *
+        FROM sessions
+        WHERE contact_type IN (1, 2)
+        ORDER BY is_pinned DESC, last_msg_time DESC
+      `;
+        const result = await queryAll(sql, []);
+        return result;
+      } catch (error) {
+        console.error("获取会话列表失败:", error);
+        return [];
+      }
+    });
+    electron.ipcMain.handle("update-session-last-message", async (_, sessionId, content, time) => {
+      try {
+        const sql = `
+        UPDATE sessions
+        SET last_msg_content = ?,
+            last_msg_time    = ?,
+            updated_at       = ?
+        WHERE session_id = ?
+      `;
+        const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), String(sessionId)]);
+        return result > 0;
+      } catch (error) {
+        console.error("更新会话最后消息失败:", error);
+        return false;
+      }
+    });
+    electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
+      try {
+        const sql = `
+        UPDATE sessions
+        SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
+        WHERE session_id = ?
+      `;
+        const result = await sqliteRun(sql, [String(sessionId)]);
+        return result > 0;
+      } catch (error) {
+        console.error("切换置顶状态失败:", error);
+        return false;
+      }
+    });
+    electron.ipcMain.on("loadSessionData", async (event) => {
+      console.log("开始查询session");
+      const result = await selectSessions();
+      console.log("查询结果:", result);
+      event.sender.send("loadSessionDataCallback", result);
+    });
+  }
+}
+const sessionService = new SessionService();
+class PullService {
+  // 拉取强事务数据
+  async pullStrongTransactionData() {
+    console.log(`正在拉取强事务数据...`);
+    try {
+      await this.pullFriendContact();
+      await this.pullApply();
+      await this.pullGroup();
+      await this.pullBlackList();
+      console.log(`拉取强事务数据完成`);
+    } catch (error) {
+      console.error(`拉取强事务数据失败:`, error);
+      throw error;
+    }
+  }
+  // 拉取好友联系人
+  async pullFriendContact() {
+  }
+  // 拉取申请信息
+  async pullApply() {
+  }
+  // 拉取群组信息
+  async pullGroup() {
+  }
+  // 拉取黑名单
+  async pullBlackList() {
+  }
+  // 拉取离线消息
+  async pullOfflineMessages() {
+    try {
+      console.info("开始拉取用户离线消息...");
+      const response = await netMaster.get(
+        `${"http://localhost:8081"}/message/pullMailboxMessage`
+      );
+      if (!response.data.success) {
+        console.error("拉取离线消息失败:", response.data.errMsg);
+        return;
+      }
+      const pullResult = response.data.data;
+      if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
+        console.info("没有离线消息需要拉取");
+        return;
+      }
+      console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
+      const messageIds = [];
+      const sessionUpdates = /* @__PURE__ */ new Map();
+      const chatMessages = [];
+      for (const message of pullResult.messageList) {
+        const date = new Date(Number(message.adjustedTimestamp)).toISOString();
+        console.log(message);
+        const messageData = {
+          sessionId: String(message.sessionId),
+          sequenceId: message.sequenceNumber,
+          senderId: String(message.senderId),
+          messageId: message.messageId,
+          senderName: "",
+          msgType: message.messageType,
+          text: message.content,
+          extData: JSON.stringify(message.extra),
+          sendTime: date,
+          isRead: 0
+        };
+        const insertId = await addLocalMessage(messageData);
+        messageIds.push(message.messageId);
+        if (insertId <= 0) continue;
+        const sessionId = String(message.sessionId);
+        const existingSession = sessionUpdates.get(sessionId);
+        if (!existingSession || date > existingSession.sendTime) {
+          sessionUpdates.set(sessionId, {
+            content: message.content,
+            sendTime: date
+          });
+        }
+        chatMessages.push({
+          id: insertId,
+          sessionId: message.sessionId,
+          content: message.content,
+          messageType: "text",
+          senderId: message.senderId,
+          senderName: "",
+          senderAvatar: "",
+          timestamp: new Date(Number(message.adjustedTimestamp)),
+          isRead: false
+        });
+      }
+      const sessionUpdatePromises = [];
+      for (const [sessionId, updateData] of sessionUpdates) {
+        sessionUpdatePromises.push(
+          updateSessionByMessage({
+            content: updateData.content,
+            sendTime: updateData.sendTime,
+            sessionId
+          })
+        );
+      }
+      if (sessionUpdatePromises.length > 0) {
+        try {
+          await Promise.all(sessionUpdatePromises);
+          console.info(`批量更新 ${sessionUpdatePromises.length} 个会话`);
+        } catch (error) {
+          console.error("批量更新会话失败:", error);
+        }
+      }
+      const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+      if (mainWindow && chatMessages.length > 0) {
+        try {
+          const sessionIds = Array.from(sessionUpdates.keys());
+          const sessions = await queryAll(
+            `SELECT *
+             FROM sessions
+             WHERE session_id IN (${sessionIds.map(() => "?").join(",")})`,
+            sessionIds
+          );
+          mainWindow.webContents.send("loadMessageDataCallback", chatMessages);
+          mainWindow.webContents.send("loadSessionDataCallback", sessions);
+          console.info(`发送 ${chatMessages.length} 条消息到渲染进程`);
+        } catch (error) {
+          console.error("发送消息到渲染进程失败:", error);
+        }
+      }
+      if (messageIds.length > 0) {
+        await this.ackConfirmMessages(messageIds);
+      }
+      if (pullResult.hasMore) {
+        console.info("还有更多离线消息，继续拉取...");
+        setTimeout(() => {
+          this.pullOfflineMessages();
+        }, 0);
+      } else {
+        console.info("离线消息拉取完成");
+      }
+    } catch (error) {
+      console.error("拉取离线消息异常:", error);
+    }
+  }
+  // 确认消息
+  async ackConfirmMessages(messageIds) {
+    try {
+      console.info(`确认 ${messageIds.length} 条消息`, messageIds);
+      const requestData = {
+        messageIdList: messageIds
+      };
+      const response = await netMaster.post(
+        `${"http://localhost:8081"}/message/ackConfirm`,
+        requestData
+      );
+      if (response.data.success) {
+        console.info("消息确认成功");
+      } else {
+        console.error("消息确认失败:", response.data.errMsg);
+      }
+    } catch (error) {
+      console.error("消息确认异常:", error);
+    }
+  }
+}
+const pullService = new PullService();
+const initializeUserData = async (uid) => {
+  connectWs();
+  setCurrentFolder(uid);
+  existsLocalDB();
+  await initTable();
+  await pullService.pullStrongTransactionData();
+  await pullService.pullOfflineMessages();
+};
+const test = async () => {
+  setCurrentFolder("1");
+  existsLocalDB();
+  await initTable();
+  const raw = fs.readFileSync("./test/test-data.json", "utf-8");
+  const data = JSON.parse(raw);
+  for (const session of data.sessions) {
+    await insertOrReplace("sessions", session);
+  }
+  for (const message of data.messages) {
+    await insertOrReplace("messages", message);
+  }
+  for (const black of data.blacklist) {
+    await insertOrReplace("blacklist", black);
+  }
+  for (const apply of data.contact_applications) {
+    await insertOrReplace("contact_applications", apply);
+  }
+  await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
+  const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
+  console.info("sessions:", sessions);
+};
+class ListenService {
+  loginWidth = 596;
+  loginHeight = 400;
+  registerWidth = 596;
+  registerHeight = 462;
+  beginServe(mainWindow) {
+    electron.ipcMain.on("LoginOrRegister", (_, isLogin) => {
+      mainWindow.setResizable(true);
+      if (isLogin === false) {
+        mainWindow.setSize(this.loginWidth, this.loginHeight);
+      } else {
+        mainWindow.setSize(this.registerWidth, this.registerHeight);
+      }
+      mainWindow.setResizable(false);
+    });
+    electron.ipcMain.on("LoginSuccess", (_, uid) => {
+      wsConfigInit();
+      mainWindow.setResizable(true);
+      mainWindow.setSize(920, 740);
+      mainWindow.setMaximizable(true);
+      mainWindow.setMinimumSize(800, 600);
+      mainWindow.center();
+      initializeUserData(uid);
+    });
+    electron.ipcMain.on("window-ChangeScreen", (event, status) => {
+      const webContents = event.sender;
+      const win = electron.BrowserWindow.fromWebContents(webContents);
+      switch (status) {
+        case 0:
+          if (win?.isAlwaysOnTop()) {
+            win?.setAlwaysOnTop(false);
+          } else {
+            win?.setAlwaysOnTop(true);
+          }
+          break;
+        case 1:
+          win?.minimize();
+          break;
+        case 2:
+          if (win?.isMaximized()) {
+            win?.unmaximize();
+          } else {
+            win?.maximize();
+          }
+          break;
+        case 3:
+          win?.setSkipTaskbar(true);
+          win?.hide();
+          break;
+      }
+    });
+    electron.ipcMain.on("test", (_, __) => {
+      test();
+    });
+  }
+}
+const listenService = new ListenService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -1244,8 +1707,21 @@ console.warn = log.warn;
 console.error = log.error;
 console.info = log.info;
 console.debug = log.debug;
+const store = new Store();
+const contextMenu = [
+  {
+    label: "退出TellYou",
+    click: () => {
+      electron.app.exit();
+    }
+  }
+];
+const menu = electron.Menu.buildFromTemplate(contextMenu);
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
-electron.protocol.registerSchemesAsPrivileged([{ scheme: "tellyou", privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } }]);
+electron.protocol.registerSchemesAsPrivileged([{
+  scheme: "tellyou",
+  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
+}]);
 electron.app.whenReady().then(() => {
   console.info("TellYou应用启动", {
     version: electron.app.getVersion(),
@@ -1287,8 +1763,8 @@ electron.app.whenReady().then(() => {
     console.error("register protocol failed", e);
   }
   utils.electronApp.setAppUserModelId("com.electron");
-  electron.app.on("browser-window-created", (_, window) => {
-    utils.optimizer.watchWindowShortcuts(window);
+  electron.app.on("browser-window-created", (_, window2) => {
+    utils.optimizer.watchWindowShortcuts(window2);
   });
   createWindow();
   electron.app.on("activate", function() {
@@ -1300,25 +1776,11 @@ electron.app.on("window-all-closed", () => {
     electron.app.quit();
   }
 });
-const loginWidth = 596;
-const loginHeight = 400;
-const registerWidth = 596;
-const registerHeight = 462;
-const store = new Store();
-const contextMenu = [
-  {
-    label: "退出TellYou",
-    click: () => {
-      electron.app.exit();
-    }
-  }
-];
-const menu = electron.Menu.buildFromTemplate(contextMenu);
 const createWindow = () => {
   const mainWindow = new electron.BrowserWindow({
     icon,
-    width: loginWidth,
-    height: loginHeight,
+    width: listenService.loginWidth,
+    height: listenService.loginHeight,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
@@ -1340,8 +1802,13 @@ const createWindow = () => {
     mainWindow.setSkipTaskbar(false);
     mainWindow.show();
   });
-  new MediaTaskService();
-  processIpc(mainWindow);
+  mediaTaskService.beginServe();
+  jsonStoreService.beginServe();
+  sessionService.beginServe();
+  messageService.beginServe();
+  applicationService.beginServe();
+  blackService.beginServer();
+  listenService.beginServe(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
     if (utils.is.dev) {
@@ -1369,170 +1836,8 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 };
-const processIpc = (mainWindow) => {
-  dataHandle();
-  onLoadSessionData();
-  onLoginOrRegister((isLogin) => {
-    mainWindow.setResizable(true);
-    if (isLogin === 0) {
-      mainWindow.setSize(loginWidth, loginHeight);
-    } else {
-      mainWindow.setSize(registerWidth, registerHeight);
-    }
-    mainWindow.setResizable(false);
-  });
-  onLoginSuccess((uid) => {
-    wsConfigInit();
-    mainWindow.setResizable(true);
-    mainWindow.setSize(920, 740);
-    mainWindow.setMaximizable(true);
-    mainWindow.setMinimumSize(800, 600);
-    mainWindow.center();
-    initializeUserData(uid);
-  });
-  onScreenChange((event, status) => {
-    const webContents = event.sender;
-    const win = electron.BrowserWindow.fromWebContents(webContents);
-    switch (status) {
-      case 0:
-        if (win?.isAlwaysOnTop()) {
-          win?.setAlwaysOnTop(false);
-        } else {
-          win?.setAlwaysOnTop(true);
-        }
-        break;
-      case 1:
-        win?.minimize();
-        break;
-      case 2:
-        if (win?.isMaximized()) {
-          win?.unmaximize();
-        } else {
-          win?.maximize();
-        }
-        break;
-      case 3:
-        win?.setSkipTaskbar(true);
-        win?.hide();
-        break;
-    }
-  });
-  onTest(() => {
-    test();
-  });
-};
-const dataHandle = () => {
-  electron.ipcMain.handle("store-get", (_, key) => {
-    return store.get(key);
-  });
-  electron.ipcMain.handle("store-set", (_, key, value) => {
-    store.set(key, value);
-    return true;
-  });
-  electron.ipcMain.handle("store-delete", (_, key) => {
-    store.delete(key);
-    return true;
-  });
-  electron.ipcMain.handle("store-clear", () => {
-    store.clear();
-    return true;
-  });
-  electron.ipcMain.handle("ws-send", async (_, msg) => {
-    console.log(msg);
-    try {
-      sendText(msg);
-      console.log("发送成功");
-      return true;
-    } catch (error) {
-      console.error("发送消息失败:", error);
-      return false;
-    }
-  });
-  electron.ipcMain.handle("get-sessions-with-order", async () => {
-    try {
-      const sql = `
-        SELECT *
-        FROM sessions
-        WHERE contact_type IN (1, 2)
-        ORDER BY is_pinned DESC, last_msg_time DESC
-      `;
-      const result = await queryAll(sql, []);
-      return result;
-    } catch (error) {
-      console.error("获取会话列表失败:", error);
-      return [];
-    }
-  });
-  electron.ipcMain.handle("update-session-last-message", async (_, sessionId, content, time) => {
-    try {
-      const sql = `
-        UPDATE sessions
-        SET last_msg_content = ?,
-            last_msg_time    = ?,
-            updated_at       = ?
-        WHERE session_id = ?
-      `;
-      const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), String(sessionId)]);
-      return result > 0;
-    } catch (error) {
-      console.error("更新会话最后消息失败:", error);
-      return false;
-    }
-  });
-  electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
-    try {
-      const sql = `
-        UPDATE sessions
-        SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
-        WHERE session_id = ?
-      `;
-      const result = await sqliteRun(sql, [String(sessionId)]);
-      return result > 0;
-    } catch (error) {
-      console.error("切换置顶状态失败:", error);
-      return false;
-    }
-  });
-  electron.ipcMain.handle("get-message-by-sessionId", (_, sessionId, options) => {
-    return getMessageBySessionId(String(sessionId), options);
-  });
-  electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
-    const { loadIncomingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    const data = await loadIncomingApplications(pageNo, pageSize);
-    event.sender.send("application:incoming:loaded", data);
-  });
-  electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
-    const { loadOutgoingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    const data = await loadOutgoingApplications(pageNo, pageSize);
-    event.sender.send("application:outgoing:loaded", data);
-  });
-  electron.ipcMain.on("application:incoming:approve", async (event, { ids }) => {
-    const { approveIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    await approveIncoming(ids || []);
-  });
-  electron.ipcMain.on("application:incoming:reject", async (event, { ids }) => {
-    const { rejectIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    await rejectIncoming(ids || []);
-  });
-  electron.ipcMain.on("application:outgoing:cancel", async (event, { ids }) => {
-    const { cancelOutgoing } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    await cancelOutgoing(ids || []);
-  });
-  electron.ipcMain.on("application:send", async (event, { toUserId, remark }) => {
-    const { insertApplication } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-    await insertApplication("", toUserId, remark);
-  });
-  electron.ipcMain.on("black:list:load", async (event, { pageNo, pageSize }) => {
-    const { loadBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
-    const data = await loadBlacklist(pageNo, pageSize);
-    event.sender.send("black:list:loaded", data);
-  });
-  electron.ipcMain.on("black:list:remove", async (event, { userIds }) => {
-    const { removeFromBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
-    await removeFromBlacklist(userIds || []);
-  });
-};
+exports.netMaster = netMaster;
+exports.netMinIO = netMinIO;
 exports.queryAll = queryAll;
 exports.sqliteRun = sqliteRun;
 exports.store = store;
-exports.tokenKey = tokenKey;

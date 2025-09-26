@@ -1,4 +1,3 @@
-
 type MessageType = 'error' | 'success' | 'warning';
 type MessageCallback = (() => void) | undefined;
 

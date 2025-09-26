@@ -61,7 +61,6 @@ export const useSessionStore = defineStore('session', () => {
   const searchSessions = (keyword: string): Session[] => {
     return sessionManager.value.searchSessions(keyword)
   }
-
   const setCurrentSessionId = (sessionId: string | number): void => {
     currentSessionId.value = String(sessionId)
   }

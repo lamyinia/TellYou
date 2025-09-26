@@ -14,7 +14,7 @@ import {
 } from '@main/electron-store/key'
 
 interface LoginResp {
-  uid: number
+  uid: string
   token: string
   nickname: string
   nicknameResidue: number
@@ -44,15 +44,15 @@ export const useUserStore = defineStore('user', {
     async initStore() {
       this.isLogin = (await window.electronAPI.storeGet(isLoginKey) as boolean) || false
       this.token = (await window.electronAPI.storeGet(tokenKey) as string) || ''
-      this.myId = (await window.electronAPI.storeGet(uidKey)) || ''
-      this.nickname = (await window.electronAPI.storeGet(nicknameKey)) || ''
-      this.nicknameResidue = (await window.electronAPI.storeGet(nicknameResidueKey)) || 0
-      this.sex = (await window.electronAPI.storeGet(sexKey)) || ''
-      this.sexResidue = (await window.electronAPI.storeGet(sexResidue)) || 0
-      this.signature = (await window.electronAPI.storeGet(signatureKey)) || ''
-      this.signatureResidue = (await window.electronAPI.storeGet(signatureResidueKey)) || 0
-      this.avatarUrl = (await window.electronAPI.storeGet(avatarUrlKey)) || ''
-      this.avatarResidue = (await window.electronAPI.storeGet(avatarResidueKey)) || 0
+      this.myId = (await window.electronAPI.storeGet(uidKey) as string) || ''
+      this.nickname = (await window.electronAPI.storeGet(nicknameKey) as string) || ''
+      this.nicknameResidue = (await window.electronAPI.storeGet(nicknameResidueKey) as number) || 0
+      this.sex = (await window.electronAPI.storeGet(sexKey) as string) || ''
+      this.sexResidue = (await window.electronAPI.storeGet(sexResidue) as number) || 0
+      this.signature = (await window.electronAPI.storeGet(signatureKey) as string) || ''
+      this.signatureResidue = (await window.electronAPI.storeGet(signatureResidueKey) as number) || 0
+      this.avatarUrl = (await window.electronAPI.storeGet(avatarUrlKey) as string) || ''
+      this.avatarResidue = (await window.electronAPI.storeGet(avatarResidueKey) as number) || 0
     },
     async setUserData(data: LoginResp) {
       if (data?.token) {
@@ -61,9 +61,8 @@ export const useUserStore = defineStore('user', {
       }
       if (data?.uid) {
         await window.electronAPI.storeSet(uidKey, data.uid)
-        this.myId = data.uid.toString()
+        this.myId = data.uid
       }
-
       if (data?.nickname !== undefined) {
         await window.electronAPI.storeSet(nicknameKey, data.nickname)
         this.nickname = data.nickname

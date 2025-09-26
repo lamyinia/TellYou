@@ -71,15 +71,14 @@ const generateThumbnail = async (filePath: string): Promise<Buffer> => {
   }
 }
 
-// 媒体任务服务类
-export class MediaTaskService {
+class MediaTaskService {
   private tasks = new Map<string, MediaTask>()
-  private tempDir: string
+  private tempDir: string = ""
   private readonly CHUNK_SIZE = 5 * 1024 * 1024 // 5MB 分块
   private readonly MAX_CONCURRENT = 3 // 最大并发上传数
   private readonly RETRY_TIMES = 3 // 重试次数
 
-  constructor() {
+  public beginServe(): void {
     this.tempDir = join(app.getPath('userData'), '.tellyou', 'media', 'temp')
     this.ensureTempDir()
     this.setupIpcHandlers()
@@ -421,3 +420,5 @@ export class MediaTaskService {
     return `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 }
+
+export const mediaTaskService = new MediaTaskService()

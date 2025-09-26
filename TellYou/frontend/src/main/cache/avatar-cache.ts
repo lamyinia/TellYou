@@ -1,14 +1,22 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, statSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  readdirSync,
+  statSync
+} from 'fs'
 import { createHash } from 'crypto'
-import axios from 'axios'
+import { netMinIO } from '../util/net-util'
 import log from 'electron-log'
 
 interface AvatarInfo {
   userId: string
   hash: string
-  localPaths: Record<string, string> // size -> filePath
+  localPaths: Record<string, string>
   updatedAt: number
 }
 
@@ -18,75 +26,104 @@ interface CacheIndex {
 
 class AvatarCacheService {
   private cacheIndex: CacheIndex = {}
-  private downloading = new Set<string>() // 防止重复下载
-  private readonly maxCacheSize = 200 * 1024 * 1024 // 200MB
-  private readonly maxCacheFiles = 1000
-  private readonly cacheExpireTime = 7 * 24 * 60 * 60 * 1000 // 7天
+  private readonly cacheDir: string
+  private readonly indexFile: string
+  private readonly maxCacheSize: number = 100 * 1024 * 1024 // 100MB
+  private readonly maxCacheAge: number = 7 * 24 * 60 * 60 * 1000 // 7 days
+  private readonly maxFiles: number = 1000
 
   constructor() {
+    this.cacheDir = join(app.getPath('userData'), 'avatar-cache')
+    this.indexFile = join(this.cacheDir, 'index.json')
     this.ensureCacheDir()
     this.loadIndex()
     this.startCleanupTimer()
   }
 
-  private getCacheDir(): string {
-    return join(app.getPath('userData'), '.tellyou', 'cache', 'avatar')
-  }
-
-  private getIndexFile(): string {
-    return join(this.getCacheDir(), 'index.json')
-  }
-
   private ensureCacheDir(): void {
-    const dir = this.getCacheDir()
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
+    if (!existsSync(this.cacheDir)) {
+      mkdirSync(this.cacheDir, { recursive: true })
     }
   }
 
   private loadIndex(): void {
     try {
-      const indexFile = this.getIndexFile()
-      if (existsSync(indexFile)) {
-        const data = readFileSync(indexFile, 'utf-8')
-        this.cacheIndex = JSON.parse(data) || {}
-        log.info('Avatar cache index loaded:', Object.keys(this.cacheIndex).length, 'users')
+      if (existsSync(this.indexFile)) {
+        const data = readFileSync(this.indexFile, 'utf-8')
+        this.cacheIndex = JSON.parse(data)
       }
     } catch (error) {
-      log.error('Failed to load avatar cache index:', error)
+      log.error('Failed to load cache index:', error)
       this.cacheIndex = {}
     }
   }
 
   private saveIndex(): void {
     try {
-      console.log('缓存映射', this.getIndexFile())
-      writeFileSync(this.getIndexFile(), JSON.stringify(this.cacheIndex, null, 2))
+      writeFileSync(this.indexFile, JSON.stringify(this.cacheIndex, null, 2))
     } catch (error) {
-      log.error('Failed to save avatar cache index:', error)
+      log.error('Failed to save cache index:', error)
     }
   }
 
-  private getCacheKey(userId: string, hash: string, size: number): string {
-    return `${userId}_${size}_${hash}`
-  }
+  async getAvatarPath(userId: string, avatarUrl: string): Promise<string | null> {
+    if (!avatarUrl) return null
 
-  private getFilePath(userId: string, hash: string, size: number): string {
-    const hashPrefix = hash.substring(0, 2)
-    const subDir = join(this.getCacheDir(), hashPrefix)
-    if (!existsSync(subDir)) {
-      mkdirSync(subDir, { recursive: true })
+    const hash = this.generateHash(avatarUrl)
+    const avatarInfo = this.cacheIndex[userId]
+
+    if (avatarInfo && avatarInfo.hash === hash && avatarInfo.localPaths[hash]) {
+      const localPath = avatarInfo.localPaths[hash]
+      if (existsSync(localPath)) {
+        avatarInfo.updatedAt = Date.now()
+        this.saveIndex()
+        return localPath
+      }
     }
-    return join(subDir, `avatar_${userId}_${size}_${hash}.jpg`)
+
+    const localPath = await this.downloadAndCacheAvatar(userId, avatarUrl, hash)
+    return localPath
   }
 
-  private extractHashFromUrl(url: string): string {
-    // 从URL中提取hash，支持 ?v=hash 或 /hash.jpg 格式
-    const urlObj = new URL(url)
-    const version = urlObj.searchParams.get('v')
-    if (version) return version
+  private async downloadAndCacheAvatar(
+    userId: string,
+    avatarUrl: string,
+    hash: string
+  ): Promise<string | null> {
+    try {
+      const fileName = `${hash}.jpg`
+      const filePath = join(this.cacheDir, fileName)
 
-    const pathParts = urlObj.pathname.split('/')
+      const success = await this.downloadAvatar(avatarUrl, filePath)
+      if (success) {
+        this.updateCacheIndex(userId, hash, filePath)
+        return filePath
+      }
+      return null
+    } catch (error) {
+      log.error('Failed to download and cache avatar:', error)
+      return null
+    }
+  }
+
+  private updateCacheIndex(userId: string, hash: string, filePath: string): void {
+    if (!this.cacheIndex[userId]) {
+      this.cacheIndex[userId] = {
+        userId,
+        hash: '',
+        localPaths: {},
+        updatedAt: Date.now()
+      }
+    }
+
+    this.cacheIndex[userId].hash = hash
+    this.cacheIndex[userId].localPaths[hash] = filePath
+    this.cacheIndex[userId].updatedAt = Date.now()
+    this.saveIndex()
+  }
+
+  private generateHash(url: string): string {
+    const pathParts = url.split('/')
     const filename = pathParts[pathParts.length - 1]
     const match = filename.match(/([a-f0-9]{8,})/)
     return match ? match[1] : createHash('md5').update(url).digest('hex').substring(0, 8)
@@ -94,15 +131,9 @@ class AvatarCacheService {
 
   private async downloadAvatar(url: string, filePath: string): Promise<boolean> {
     try {
-      const response = await axios.get(url, {
-        responseType: 'arraybuffer',
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'TellYou-Client/1.0'
-        }
-      })
-      if (response.status === 200 && response.data) {
-        writeFileSync(filePath, response.data)
+      const arrayBuffer = await netMinIO.downloadAvatar(url)
+      if (arrayBuffer) {
+        writeFileSync(filePath, Buffer.from(arrayBuffer))
         return true
       }
       return false
@@ -117,170 +148,145 @@ class AvatarCacheService {
       const now = Date.now()
       const files: Array<{ path: string; mtime: number; size: number }> = []
 
-      // 收集所有缓存文件信息
-      const scanDir = (dir: string) => {
-        if (!existsSync(dir)) return
-        const items = readdirSync(dir)
-        for (const item of items) {
-          const itemPath = join(dir, item)
-          const stat = statSync(itemPath)
-          if (stat.isDirectory()) {
-            scanDir(itemPath)
-          } else if (item.startsWith('avatar_') && item.endsWith('.jpg')) {
-            files.push({ path: itemPath, mtime: stat.mtime.getTime(), size: stat.size })
+      if (existsSync(this.cacheDir)) {
+        const fileList = readdirSync(this.cacheDir)
+        for (const file of fileList) {
+          if (file === 'index.json') continue
+          const filePath = join(this.cacheDir, file)
+          const stats = statSync(filePath)
+          files.push({
+            path: filePath,
+            mtime: stats.mtime.getTime(),
+            size: stats.size
+          })
+        }
+      }
+
+      files.sort((a, b) => a.mtime - b.mtime)
+
+      let totalSize = files.reduce((sum, file) => sum + file.size, 0)
+      const filesToDelete: string[] = []
+
+      for (const file of files) {
+        const age = now - file.mtime
+        if (
+          age > this.maxCacheAge ||
+          totalSize > this.maxCacheSize ||
+          files.length - filesToDelete.length > this.maxFiles
+        ) {
+          filesToDelete.push(file.path)
+          totalSize -= file.size
+        }
+      }
+
+      for (const filePath of filesToDelete) {
+        try {
+          unlinkSync(filePath)
+          log.info('Deleted old cache file:', filePath)
+        } catch (error) {
+          log.error('Failed to delete cache file:', filePath, error)
+        }
+      }
+
+      if (filesToDelete.length > 0) {
+        this.cleanupIndex()
+      }
+    } catch (error) {
+      log.error('Failed to cleanup old cache:', error)
+    }
+  }
+
+  private cleanupIndex(): void {
+    const validPaths = new Set<string>()
+    try {
+      if (existsSync(this.cacheDir)) {
+        const fileList = readdirSync(this.cacheDir)
+        for (const file of fileList) {
+          if (file !== 'index.json') {
+            validPaths.add(join(this.cacheDir, file))
           }
         }
       }
-
-      scanDir(this.getCacheDir())
-
-      // 按修改时间排序，删除最旧的
-      files.sort((a, b) => a.mtime - b.mtime)
-
-      let totalSize = files.reduce((sum, f) => sum + f.size, 0)
-      let deletedCount = 0
-
-      for (const file of files) {
-        if (totalSize <= this.maxCacheSize && files.length - deletedCount <= this.maxCacheFiles) {
-          break
-        }
-
-        try {
-          unlinkSync(file.path)
-          totalSize -= file.size
-          deletedCount++
-        } catch (error) {
-          log.warn('Failed to delete cache file:', file.path, error)
-        }
-      }
-
-      // 清理过期的索引项
-      for (const [userId, info] of Object.entries(this.cacheIndex)) {
-        if (now - info.updatedAt > this.cacheExpireTime) {
-          delete this.cacheIndex[userId]
-        }
-      }
-      if (deletedCount > 0) {
-        log.info('Avatar cache cleanup:', deletedCount, 'files deleted')
-        this.saveIndex()
-      }
     } catch (error) {
-      log.error('Avatar cache cleanup failed:', error)
+      log.error('Failed to get valid paths:', error)
+      return
     }
+
+    for (const userId in this.cacheIndex) {
+      const avatarInfo = this.cacheIndex[userId]
+      const validLocalPaths: Record<string, string> = {}
+
+      for (const hash in avatarInfo.localPaths) {
+        const localPath = avatarInfo.localPaths[hash]
+        if (validPaths.has(localPath)) {
+          validLocalPaths[hash] = localPath
+        }
+      }
+
+      if (Object.keys(validLocalPaths).length === 0) {
+        delete this.cacheIndex[userId]
+      } else {
+        avatarInfo.localPaths = validLocalPaths
+      }
+    }
+
+    this.saveIndex()
   }
 
   private startCleanupTimer(): void {
-    // 每小时清理一次
-    setInterval(() => {
-      this.cleanupOldCache()
-    }, 60 * 60 * 1000)
-  }
-
-  async getAvatar(userId: string, avatarUrl: string, size: number = 48): Promise<string | null> {
-    if (!avatarUrl || !userId) return null
-    const hash = this.extractHashFromUrl(avatarUrl)
-    const cacheKey = this.getCacheKey(userId, hash, size)
-    const filePath = this.getFilePath(userId, hash, size)
-    if (existsSync(filePath)) {
-      const info = this.cacheIndex[userId]
-      if (info && info.hash === hash && info.localPaths[size] === filePath) {
-        info.updatedAt = Date.now()
-        this.saveIndex()
-        return filePath
-      }
-    }
-    // 防止重复下载
-    if (this.downloading.has(cacheKey)) {
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!this.downloading.has(cacheKey)) {
-            clearInterval(checkInterval)
-            resolve(existsSync(filePath) ? filePath : null)
-          }
-        }, 100)
-      })
-    }
-    this.downloading.add(cacheKey)
-    try {
-      const success = await this.downloadAvatar(avatarUrl, filePath)
-      if (success) {
-        if (!this.cacheIndex[userId]) {
-          this.cacheIndex[userId] = {
-            userId,
-            hash,
-            localPaths: {},
-            updatedAt: Date.now()
-          }
-        }
-        this.cacheIndex[userId].hash = hash
-        this.cacheIndex[userId].localPaths[size] = filePath
-        this.cacheIndex[userId].updatedAt = Date.now()
-        this.saveIndex()
-
-        return filePath
-      }
-    } catch (error) {
-      log.error('Avatar download failed:', userId, avatarUrl, error)
-    } finally {
-      this.downloading.delete(cacheKey)
-    }
-    return null
-  }
-
-  async preloadAvatars(avatarMap: Record<string, string>, size: number = 48): Promise<void> {
-    const promises = Object.entries(avatarMap).map(([userId, avatarUrl]) =>
-      this.getAvatar(userId, avatarUrl, size)
+    setInterval(
+      () => {
+        this.cleanupOldCache()
+      },
+      60 * 60 * 1000
     )
-    await Promise.allSettled(promises)
   }
 
-  clearUserCache(userId: string): void {
-    const info = this.cacheIndex[userId]
-    if (info) {
-      // 删除文件
-      Object.values(info.localPaths).forEach(filePath => {
-        try {
-          if (existsSync(filePath)) {
-            unlinkSync(filePath)
-          }
-        } catch (error) {
-          log.warn('Failed to delete avatar file:', filePath, error)
+  clearCache(): void {
+    try {
+      if (existsSync(this.cacheDir)) {
+        const files = readdirSync(this.cacheDir)
+        for (const file of files) {
+          const filePath = join(this.cacheDir, file)
+          unlinkSync(filePath)
         }
-      })
-      // 删除索引
-      delete this.cacheIndex[userId]
+      }
+      this.cacheIndex = {}
       this.saveIndex()
+      log.info('Avatar cache cleared')
+    } catch (error) {
+      log.error('Failed to clear cache:', error)
     }
   }
 
-  getCacheStats(): { totalUsers: number; totalFiles: number; totalSize: number } {
+  getCacheStats(): { totalFiles: number; totalSize: number; cacheEntries: number } {
     let totalFiles = 0
     let totalSize = 0
 
-    const scanDir = (dir: string) => {
-      if (!existsSync(dir)) return
-      const items = readdirSync(dir)
-      for (const item of items) {
-        const itemPath = join(dir, item)
-        const stat = statSync(itemPath)
-        if (stat.isDirectory()) {
-          scanDir(itemPath)
-        } else if (item.startsWith('avatar_') && item.endsWith('.jpg')) {
-          totalFiles++
-          totalSize += stat.size
+    try {
+      if (existsSync(this.cacheDir)) {
+        const files = readdirSync(this.cacheDir)
+        for (const file of files) {
+          if (file !== 'index.json') {
+            const filePath = join(this.cacheDir, file)
+            const stats = statSync(filePath)
+            totalFiles++
+            totalSize += stats.size
+          }
         }
       }
+    } catch (error) {
+      log.error('Failed to get cache stats:', error)
     }
 
-    scanDir(this.getCacheDir())
-
     return {
-      totalUsers: Object.keys(this.cacheIndex).length,
       totalFiles,
-      totalSize
+      totalSize,
+      cacheEntries: Object.keys(this.cacheIndex).length
     }
   }
 }
 
-// 单例
-export const avatarCacheService = new AvatarCacheService()
+const avatarCacheService = new AvatarCacheService()
+
+export { avatarCacheService }

@@ -66,7 +66,7 @@ src/renderer/src/
 
 ```
 src/main/
-├── index.ts                 # 主进程入口
+├── pull-service.ts                 # 主进程入口
 ├── sqlite/                  # 数据库层
 │   ├── atom.ts             # 数据库连接
 │   ├── table.ts            # 表结构定义
@@ -143,7 +143,7 @@ export class MessageDAO {
   static async insertMessage(message: Message): Promise<boolean> {
     // 数据库插入逻辑
   }
-  
+
   static async getMessagesBySessionId(sessionId: string): Promise<Message[]> {
     // 查询逻辑
   }
@@ -160,7 +160,7 @@ export const useMessageStore = defineStore('message', {
     messages: new Map<string, Message[]>(),
     currentSessionId: ''
   }),
-  
+
   actions: {
     addMessage(message: Message) {
       // 添加消息逻辑

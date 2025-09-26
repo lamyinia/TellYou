@@ -6,7 +6,7 @@
 
 ## 架构组成
 
-### 1. 主进程服务 (`frontend/src/main/media-index.ts`)
+### 1. 主进程服务 (`frontend/src/main/media-pull-service.ts`)
 - **MediaTaskService**: 核心服务类，管理所有媒体上传任务
 - **分块上传**: 5MB 分块，支持大文件上传
 - **并发控制**: 最大3个并发上传任务

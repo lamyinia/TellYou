@@ -27,7 +27,7 @@ TellYou（通彼）是一个基于 Electron + Vue 3 + TypeScript 开发的跨平
 frontend/
 ├── src/
 │   ├── main/                   # Electron 主进程
-│   │   ├── index.ts           # 主进程入口
+│   │   ├── pull-service.ts           # 主进程入口
 │   │   ├── sqlite/            # 数据库相关
 │   │   ├── websocket/         # WebSocket 客户端
 │   │   ├── service/           # 服务层
