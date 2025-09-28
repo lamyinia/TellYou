@@ -5,16 +5,21 @@ import { useAvatarStore } from '@renderer/status/avatar/store'
 const props = withDefaults(defineProps<{
   userId?: string
   url?: string
+  version?: string
   name?: string
   size?: number
   side?: 'left' | 'right'
+  showStrategy?: string
+  showShape: string
   fallbackText?: string
   showLoading?: boolean
 }>(), {
   size: 36,
   side: 'left',
   fallbackText: '?',
-  showLoading: true
+  showLoading: true,
+  showStrategy: "originalAvatarUrl",
+  showShape: "normal"
 })
 
 const avatarStore = useAvatarStore()
@@ -32,16 +37,42 @@ const avatarSrc = computed(() => {
   return props.url || null
 })
 const isLoading = computed(() => loading.value && props.showLoading)
+
 const loadAvatar = async () => {
-  if (!props.userId || !props.url) {
+  if (!props.userId) {
     localPath.value = null
     return
   }
+  let loadingUrl: string = ''
+  // 要么带版本号查url，要么直接给 url
+  if (props.version){
+    // 带版本号查url, 判断 props.version 的版本号是不是比自己存的大更大，如果是更大或者自己没有存过，那么主进程访问 static/json 找 props.url，否则 path 更新为自己存的 localPath
+    const checkResult = await avatarStore.seekCache(props.userId, props.showStrategy, props.version)
+    console.info('debug:checkResult', checkResult)
+    if (checkResult.needUpdated){
+      // 需要访问 url
+      loadingUrl = checkResult.pathResult
+    } else {
+
+      localPath.value = checkResult.pathResult
+      return
+    }
+  } else if (props.url){
+    // 直接给 url
+    loadingUrl = props.url
+  }
+
+  if (loadingUrl === ''){
+    localPath.value = null
+    return
+  }
+
   loading.value = true
   error.value = null
   try {
-    console.log('要加载的头像url', props.url)
-    const path = await avatarStore.getAvatar(props.userId, props.url, props.size)
+    console.log('要加载的头像 url', loadingUrl)
+    const path = await avatarStore.getAvatar(props.userId, props.showStrategy, loadingUrl)
+    console.log('要加载的头像 path', path)
     localPath.value = path
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load avatar'

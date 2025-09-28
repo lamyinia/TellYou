@@ -2,11 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, reactive } from 'vue'
 
 interface AvatarCacheItem {
-  userId: string
-  avatarUrl: string
-  hash: string
+  version: string
   localPath: string | null
-  size: number
   loading: boolean
   error: string | null
   lastAccessed: number
@@ -18,62 +15,71 @@ interface AvatarStats {
   totalSize: number
 }
 
+/**
+ * lanye
+ * 2025/09/28 17:27
+ * 约定优于配置
+ */
+
 export const useAvatarStore = defineStore('avatar', () => {
-  // 内存缓存：userId+size -> AvatarCacheItem
   const memoryCache = reactive<Map<string, AvatarCacheItem>>(new Map())
   const stats = ref<AvatarStats>({ totalUsers: 0, totalFiles: 0, totalSize: 0 })
   const maxMemoryCache = 200
 
+  const getCacheKey = (userId: string, strategy: string): string => userId + '_' + strategy
+  // 例子 http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/6/index.png?hash=3，这里返回 6
+  const extractVersionFromUrl = (url: string): string => new URL(url).pathname.split('/').at(-2) || "0"
 
-  const getCacheKey = (userId: string, size: number): string => {
-    return `${userId}_${size}`
-  }
-
-  const extractHashFromUrl = (url: string): string => {
-    try {
-      const urlObj = new URL(url)
-      const version = urlObj.searchParams.get('v')
-      if (version) return version
-
-      const pathParts = urlObj.pathname.split('/')
-      const filename = pathParts[pathParts.length - 1]
-      const match = filename.match(/([a-f0-9]{8,})/)
-      return match ? match[1] : ''
-    } catch {
-      return ''
-    }
-  }
   const cleanupMemoryCache = (): void => {
     if (memoryCache.size <= maxMemoryCache) return
-
     const items = Array.from(memoryCache.entries())
       .map(([key, item]) => ({ key, item, lastAccessed: item.lastAccessed }))
       .sort((a, b) => a.lastAccessed - b.lastAccessed)
-
     const toDelete = items.slice(0, items.length - maxMemoryCache)
     toDelete.forEach(({ key }) => {
       memoryCache.delete(key)
     })
   }
 
-  const getAvatar = async (userId: string, avatarUrl: string, size: number = 48): Promise<string | null> => {
+  const seekCache = async (userId: string, strategy: string, version: string): Promise<{needUpdated: boolean, pathResult: string}> => {
+    const item = memoryCache.get(getCacheKey(userId, strategy))
+
+    console.info('debug:seekCache:   ', [userId, strategy, version].join('---'))
+
+    if (item && item.localPath && item.version >= version){
+      // 渲染进程缓存命中
+      console.info('debug:seekCache:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
+      return {needUpdated: false, pathResult: item.localPath};
+    }
+    const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', {userId, strategy, version})
+    if (resp.success){
+      // 主进程缓存命中
+      console.info('debug:seekCache:主进程缓存命中   ', resp)
+      memoryCache.set(getCacheKey(userId, strategy), {
+        version: version, localPath: resp.pathResult, loading: false, error: null, lastAccessed: Date.now()
+      } as AvatarCacheItem)
+    }
+    return {needUpdated: !resp.success, pathResult: resp.pathResult};
+  }
+  const getAvatar = async (userId: string, strategy: string, avatarUrl: string): Promise<string | null> => {
     if (!userId || !avatarUrl) return null
 
-    const cacheKey = getCacheKey(userId, size)
-    const hash = extractHashFromUrl(avatarUrl)
+    console.info('debug:getAvatar1:   ', [userId, strategy, avatarUrl].join('---'))
 
-    const cached = memoryCache.get(cacheKey)
-    console.log('缓存哈希：', hash)
-    if (cached && cached.hash === hash && cached.localPath) {
-      console.log('缓存命中：', cached)
+    const key: string = getCacheKey(userId, strategy)
+    const version = extractVersionFromUrl(avatarUrl)
+    const cached = memoryCache.get(key)
+
+    if (cached && cached.localPath && cached.version >= version) {
+      console.info('debug:getAvatar:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
       cached.lastAccessed = Date.now()
       return cached.localPath
     }
-
     if (cached?.loading) {
+      console.info('debug:getAvatar:正在加载，等待其它任务完成')
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
-          const current = memoryCache.get(cacheKey)
+          const current = memoryCache.get(key)
           if (current && !current.loading) {
             clearInterval(checkInterval)
             resolve(current.localPath)
@@ -82,100 +88,37 @@ export const useAvatarStore = defineStore('avatar', () => {
       })
     }
 
-    const cacheItem: AvatarCacheItem = {
-      userId,
-      avatarUrl,
-      hash,
-      localPath: null,
-      size,
-      loading: true,
-      error: null,
-      lastAccessed: Date.now()
-    }
-    memoryCache.set(cacheKey, cacheItem)
+    const cacheItem: AvatarCacheItem = { version: version, localPath: null, loading: true, error: null, lastAccessed: Date.now() }
+    memoryCache.set(key, cacheItem)
 
     try {
-      const localPath = await window.electronAPI.getAvatar({ userId, avatarUrl, size })
+      console.info('debug:getAvatar4:   ', [userId, strategy, avatarUrl].join('---'))
+      const localPath = await window.electronAPI.getAvatar({ userId, strategy, avatarUrl })
       if (localPath) {
         cacheItem.localPath = localPath
-        cacheItem.loading = false
         cacheItem.error = null
         return localPath
       } else {
-        cacheItem.loading = false
         cacheItem.error = 'Download failed'
         return null
       }
     } catch (error) {
-      cacheItem.loading = false
       cacheItem.error = error instanceof Error ? error.message : 'Unknown error'
       return null
     } finally {
+      cacheItem.loading = false
       cleanupMemoryCache()
     }
   }
-
-  // 批量预加载头像
-  const preloadAvatars = async (avatarMap: Record<string, string>, size: number = 48): Promise<void> => {
-    const promises = Object.entries(avatarMap).map(([userId, avatarUrl]) =>
-      getAvatar(userId, avatarUrl, size)
-    )
-    await Promise.allSettled(promises)
-  }
-
-  // 清除用户头像缓存
-  const clearUserCache = async (userId: string): Promise<void> => {
-    // 清除内存缓存
-    const keysToDelete: string[] = []
-    for (const [key, item] of memoryCache.entries()) {
-      if (item.userId === userId) {
-        keysToDelete.push(key)
-      }
-    }
-    keysToDelete.forEach(key => memoryCache.delete(key))
-
-    // 清除主进程缓存
-    try {
-      await window.electronAPI.clearAvatarCache(userId)
-    } catch (error) {
-      console.error('Failed to clear avatar cache:', error)
-    }
-  }
-
-  // 获取缓存统计
-  const updateStats = async (): Promise<void> => {
-    try {
-      stats.value = await window.electronAPI.getAvatarCacheStats()
-    } catch (error) {
-      console.error('Failed to get avatar cache stats:', error)
-    }
-  }
-
-  // 获取内存缓存统计
-  const getMemoryStats = () => {
-    return {
-      memoryCacheSize: memoryCache.size,
-      loadingCount: Array.from(memoryCache.values()).filter(item => item.loading).length,
-      errorCount: Array.from(memoryCache.values()).filter(item => item.error).length
-    }
-  }
-
-  // 清理所有内存缓存
   const clearMemoryCache = (): void => {
     memoryCache.clear()
   }
-
   return {
-    // State
+    extractVersionFromUrl,
     memoryCache,
     stats,
-
-    // Actions
+    seekCache,
     getAvatar,
-    preloadAvatars,
-    clearUserCache,
-    updateStats,
-    getMemoryStats,
     clearMemoryCache
   }
 })

@@ -1,0 +1,87 @@
+import path, { join } from 'path'
+import { app, protocol } from 'electron'
+import fs, { existsSync, mkdirSync } from 'fs'
+import os from 'os'
+
+
+class UrlUtil {
+  public readonly protocolHost: string[] = ["avatar", "picture", "voice", "video", "file"]
+  public readonly mimeByExt: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif'
+  }
+
+  public nodeEnv = process.env.NODE_ENV || 'production'
+  public homeDir = os.homedir()
+  public appPath = join(this.homeDir, this.nodeEnv === 'development' ? '.tellyoudev' : '.tellyou')
+  public sqlPath = this.appPath
+  public atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || ''
+  public instanceId = process.env.ELECTRON_INSTANCE_ID as string || ''
+
+  public cacheRootPath = ''
+  public cachePaths: Record<string, string> = {
+    "avatar": "",
+    "picture": "",
+    "voice": "",
+    "video": "",
+    "file": ""
+  }
+  public ensureDir(path: string): void {
+    if (!existsSync(path)) {
+      console.info('debug:ensureDir   ', path)
+      mkdirSync(path, { recursive: true })
+    }
+  }
+  public init(): void {
+    this.cacheRootPath = join(app.getPath('userData'), 'caching')
+    this.protocolHost.forEach(host => {
+      this.cachePaths[host] = join(this.cacheRootPath,  host)
+      this.ensureDir(this.cachePaths[host])
+    })
+  }
+  public registerProtocol(): void {
+    protocol.handle('tellyou', async (request) => {
+      try {
+        const url = new URL(request.url)
+
+        if (!this.protocolHost.includes(url.hostname)) return new Response('', { status: 403 })
+
+        const filePath = decodeURIComponent(url.searchParams.get('path') || '')
+        const normalized = path.resolve(filePath)
+        const rootResolved = path.resolve(this.cacheRootPath)
+        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase())
+          || normalized.toLowerCase() === rootResolved.toLowerCase()
+
+        if (!hasAccess) {
+          console.error('tellyou protocol denied:', { normalized, rootResolved })
+          return new Response('', { status: 403 })
+        }
+
+        const ext = path.extname(normalized).toLowerCase()
+        const mime = this.mimeByExt[ext] || 'application/octet-stream'
+        const data = await fs.promises.readFile(normalized)
+        return new Response(data, { headers: { 'content-type': mime, 'Access-Control-Allow-Origin': '*' } })
+      } catch (e) {
+        console.error('tellyou protocol error:', e)
+        return new Response('', { status: 500 })
+      }
+    })
+  }
+  public redirectSqlPath(userId: string): void {
+    this.sqlPath = join(this.appPath, '_' + userId)
+    console.info('数据库操作目录 ' + this.sqlPath)
+    if (!fs.existsSync(this.sqlPath)) {
+      fs.mkdirSync(this.sqlPath, {recursive: true})
+    }
+  }
+  public signByApp(path: string): string {
+    return `tellyou://avatar?path=${encodeURIComponent(path)}`
+  }
+}
+
+
+const urlUtil: UrlUtil = new UrlUtil()
+export default urlUtil

@@ -16,6 +16,8 @@ if (process.contextIsolated) {
       storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store-set', key, value),
       storeDelete: (key: string) => ipcRenderer.invoke('store-delete', key),
       storeClear: () => ipcRenderer.invoke('store-clear'),
+
+      invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
       send: (channel: string, ...args: unknown[]) => ipcRenderer.send(channel, ...args),
       on: (channel: string, callback: (...args: unknown[]) => void) => ipcRenderer.on(channel, callback),
       removeListener: (channel: string, callback: (...args: unknown[]) => void) => ipcRenderer.removeListener(channel, callback),
@@ -32,7 +34,7 @@ if (process.contextIsolated) {
 
       wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg),
 
-      getAvatar: (params: { userId: string; avatarUrl: string; size?: number }) =>
+      getAvatar: (params: { userId: string; strategy: string; avatarUrl: string;}) =>
         ipcRenderer.invoke('avatar:get', params),
       preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) =>
         ipcRenderer.invoke('avatar:preload', params),
@@ -55,7 +57,7 @@ if (process.contextIsolated) {
       selectAvatarFile: () =>
         ipcRenderer.invoke('avatar:select-file'),
       uploadAvatar: (params: { filePath: string; fileName: string; fileSize: number; fileSuffix: string }) =>
-        ipcRenderer.invoke('avatar:upload', params)
+        ipcRenderer.invoke('avatar:upload', params),
     })
   } catch (error) {
     console.error(error)

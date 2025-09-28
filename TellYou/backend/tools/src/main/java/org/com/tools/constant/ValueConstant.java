@@ -13,6 +13,9 @@ public class ValueConstant {
     public static final String DEFAULT_NICKNAME_RESIDUE_KEY = "nicknameResidue";
     public static final String DEFAULT_SIGNATURE_RESIDUE_KEY = "signatureResidue";
     public static final String DEFAULT_SEX_RESIDUE_KEY = "sexResidue";
+    public static final String DEFAULT_ORIGIN_AVATAR_URL_KRY = "originalAvatarUrl";
+    public static final String DEFAULT_THUMB_AVATAR_URL_KEY = "thumbedAvatarUrl";
+
 
     public static final String SINGLE_FILE = "index";
 

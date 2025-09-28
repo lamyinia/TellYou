@@ -1,33 +1,24 @@
 import fs from 'fs'
-import os from 'os'
 import sqlite3 from 'sqlite3'
 import { add_indexes, add_tables } from './table'
+import urlUtil from '@main/util/url-util'
+import { join } from 'path'
 
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }
 const globalColumnMap: GlobalColumnMap = {}
 
-export const instanceId: string = process.env.ELECTRON_INSTANCE_ID as string || ''
-const NODE_ENV: string = process.env.NODE_ENV || 'production'
-const userDir: string = os.homedir()
-const baseFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev/' : 'tellyou/')
-let dataFolder: string = baseFolder
 let dataBase: sqlite3.Database
 
-export const setCurrentFolder = (userId: string): void => {
-  dataFolder = baseFolder + '_' + userId + '/'
-  console.info('数据库操作目录 ' + dataFolder)
-  if (!fs.existsSync(dataFolder)) {
-    fs.mkdirSync(dataFolder)
-  }
-}
-export const existsLocalDB = (): boolean => {
-  const result: boolean = fs.existsSync(dataFolder + 'local.db')
-  dataBase = (NODE_ENV === 'development') ?
-    new (sqlite3.verbose().Database)(dataFolder + 'local.db') : new sqlite3.Database(dataFolder + 'local.db')  // 开发模式输出日志
+export const redirectDataBase = (): boolean => {
+  const path = join(urlUtil.sqlPath, 'local.db')
+  const result: boolean = fs.existsSync(path)
+  dataBase = (urlUtil.nodeEnv === 'development') ?
+    new (sqlite3.verbose().Database)(path) : new sqlite3.Database(path)  // 开发模式输出日志
   return result
 }
 export const initTable =  async ()=> {
+
   dataBase.serialize(async () => {
     await createTable()
   })

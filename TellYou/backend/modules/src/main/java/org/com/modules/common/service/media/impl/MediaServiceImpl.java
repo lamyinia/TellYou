@@ -1,5 +1,6 @@
 package org.com.modules.common.service.media.impl;
 
+import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import org.com.modules.common.domain.vo.req.*;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class MediaServiceImpl implements MediaService {
     private final MinioTemplate minioTemplate;
     private final UserInfoDao userInfoDao;
+    private final String[] needCompressedSuffix = {".webp", ".gif", ".avif"};
 
     @Override
     public AvatarUploadResp getAvatarUploadResp(AvatarUploadReq req) {
@@ -40,13 +42,23 @@ public class MediaServiceImpl implements MediaService {
 
         String originalUploadUrl = minioTemplate
                 .getPreSignedObjectUrl(UrlConstant.originalAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
-                        + ValueConstant.SINGLE_FILE + req.getFileSuffix());
+                        + ValueConstant.SINGLE_FILE + getOriginalAvatarSuffix(req.getFileSuffix()));
         String thumbnailUploadUrl = minioTemplate
                 .getPreSignedObjectUrl(UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
-                        + ValueConstant.SINGLE_FILE + req.getFileSuffix());
+                        + ValueConstant.SINGLE_FILE + getThumbedAvatarSuffix());
 
         return new AvatarUploadResp(originalUploadUrl, thumbnailUploadUrl);
     }
+
+    public String getOriginalAvatarSuffix(String suffix){
+        if (ArrayUtil.contains(needCompressedSuffix, suffix)) return ".avif";
+        else return suffix;
+    }
+    public String getThumbedAvatarSuffix(){
+        return ".avif";
+    }
+
+
 
     @Override
     public PictureUploadResp getPictureUploadResp(PictureUploadReq req) {

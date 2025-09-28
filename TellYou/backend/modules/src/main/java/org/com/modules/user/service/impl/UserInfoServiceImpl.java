@@ -152,6 +152,8 @@ public class UserInfoServiceImpl implements UserInfoService {
             residues.put(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, avatarResidue - 1);
             identifier.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
             atomFile.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
+            atomFile.put(ValueConstant.DEFAULT_ORIGIN_AVATAR_URL_KRY, minioTemplate.getHost() + req.getOriginalUploadUrl());
+            atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, minioTemplate.getHost() + req.getThumbnailUploadUrl());
 
             String identifierJson = JsonUtils.toStr(identifier);
             String residuesJson = JsonUtils.toStr(residues);

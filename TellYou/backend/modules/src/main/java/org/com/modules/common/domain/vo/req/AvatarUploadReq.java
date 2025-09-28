@@ -12,7 +12,7 @@ public class AvatarUploadReq {
     private Long fileSize;
 
     @NotNull(message = "文件后缀不能为空")
-    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp)$",
-             message = "头像文件格式只支持 .png, .jpg, .jpeg, .gif, .webp")
+    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp|avif)$",
+             message = "头像文件格式只支持 .png, .jpg, .jpeg, .gif, .webp, .avif")
     private String fileSuffix;
 }

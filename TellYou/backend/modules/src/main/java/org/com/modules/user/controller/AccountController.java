@@ -42,7 +42,7 @@ public class AccountController {
 
     @PostMapping("/login")
     @Operation(summary = "登录")
-    @FlowControl(time = 1, unit = TimeUnit.MINUTES, count = 1, target = FlowControl.Target.IP)
+    @FlowControl(time = 1, unit = TimeUnit.MINUTES, count = 3, target = FlowControl.Target.IP)
     public ApiResult<LoginResp> login(@Valid @RequestBody LoginReq loginReq) {
         LoginResp loginResp = userInfoService.login(loginReq);
         return ApiResult.success(loginResp);

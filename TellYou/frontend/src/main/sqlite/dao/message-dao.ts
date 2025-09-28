@@ -99,7 +99,7 @@ export const getMessageBySessionId = async (sessionId: string, options: MessageQ
       })(),
       senderId: r.senderId,
       senderName: r.senderName || '',
-      senderAvatar: 'http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg',
+      senderAvatar: 'http://113.44.158.255:32788/lanye/avatar/thumb/1948031012053333361/6/index.png',
       timestamp: new Date(r.sendTime),
       isRead: !!r.isRead
     }))

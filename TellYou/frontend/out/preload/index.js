@@ -12,6 +12,7 @@ if (process.contextIsolated) {
       storeSet: (key, value) => electron.ipcRenderer.invoke("store-set", key, value),
       storeDelete: (key) => electron.ipcRenderer.invoke("store-delete", key),
       storeClear: () => electron.ipcRenderer.invoke("store-clear"),
+      invoke: (channel, ...args) => electron.ipcRenderer.invoke(channel, ...args),
       send: (channel, ...args) => electron.ipcRenderer.send(channel, ...args),
       on: (channel, callback) => electron.ipcRenderer.on(channel, callback),
       removeListener: (channel, callback) => electron.ipcRenderer.removeListener(channel, callback),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ApiError, axio } from '../../utils/request'
+import { axio } from '../../utils/request'
 import { api } from '@renderer/utils/api'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
@@ -20,11 +20,11 @@ const handleWsConnected = (): void => {
   loading.value = false
 }
 onMounted(() => {
-  console.log("监听器挂载 handleWsConnected")
+  console.log('监听器挂载 handleWsConnected')
   window.electronAPI.onWsConnected(handleWsConnected)
 })
 onUnmounted(() => {
-  console.log("监听器移除 handleWsConnected")
+  console.log('监听器移除 handleWsConnected')
   window.electronAPI.offWsConnected(handleWsConnected)
 })
 const onLogin = async (): Promise<void> => {
@@ -40,16 +40,16 @@ const onLogin = async (): Promise<void> => {
 
     const uid = data?.uid
 
-    if (data?.token && uid){
+    if (data?.token && uid) {
       await userStore.setUserData(data)
       window.electronAPI.send('LoginSuccess', uid)
     } else {
-      throw new Error("响应被拦截")
+      throw new Error('响应被拦截')
     }
   } catch (error: any) {
     loading.value = false
     console.error('登录失败:', error)
-    if (error?.message){
+    if (error?.message) {
       errorMessage.value = error.message
     } else {
       errorMessage.value = '登录失败，请检查网络连接或稍后重试'
@@ -60,8 +60,8 @@ const goRegister = (): void => {
   window.electronAPI.send('LoginOrRegister', 1)
   router.push('/register')
 }
-const goTotest = (): void => {
-  window.electronAPI.send('test', 'ping')
+const goTotest = async (): Promise<void> => {
+  window.electronAPI.invoke('test').then()
 }
 
 </script>
@@ -74,7 +74,7 @@ const goTotest = (): void => {
       <v-col cols="12" sm="8" md="4">
         <v-card>
           <v-card-title class="text-h5">登录 - Tell-You</v-card-title>
-<!--          <v-alert type="success" closable> display </v-alert>-->
+          <!--          <v-alert type="success" closable> display </v-alert>-->
           <v-card-text>
             <v-form @submit.prevent="onLogin" ref="formRef">
               <v-text-field
@@ -96,7 +96,15 @@ const goTotest = (): void => {
               <img src="@renderer/assets/img/wifi.gif" alt="loading" />
             </div>
 
-            <v-alert v-if="errorMessage" type="error" class="mt-2" closable @click:close="errorMessage = ''">{{ errorMessage }}</v-alert>
+            <!-- AVIF 动图测试 -->
+            <div class="avif-test">
+              <h3>AVIF 动图测试</h3>
+              <img src="D:\各种素材\compress\out.avif" alt="AVIF动图" style="max-width: 300px; height: auto;" />
+            </div>
+
+            <v-alert v-if="errorMessage" type="error" class="mt-2" closable @click:close="errorMessage = ''">
+              {{ errorMessage }}
+            </v-alert>
             <v-btn variant="text" @click="goRegister" class="mt-2" block>没有账号？去注册</v-btn>
             <v-btn variant="text" @click="goTotest" class="mt-2" block>测试按钮</v-btn>
           </v-card-text>
@@ -111,8 +119,11 @@ const goTotest = (): void => {
   width: 100%;
   height: 100%;
   position: fixed;
-  left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.7);
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;

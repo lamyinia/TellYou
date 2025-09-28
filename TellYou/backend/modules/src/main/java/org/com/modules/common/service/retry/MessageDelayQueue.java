@@ -7,6 +7,7 @@ import org.com.modules.session.domain.vo.resp.MessageResp;
 import org.com.modules.user.domain.vo.resp.ContactApplyResp;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
+import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;

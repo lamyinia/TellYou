@@ -55,10 +55,10 @@ class ListenService {
           break
       }
     })
-    ipcMain.on('test', (_, __ :string) => {
+    ipcMain.handle('test', (_) => {
       test()
     })
   }
 }
 
-export const listenService = new ListenService();
+export const listenService = new ListenService()

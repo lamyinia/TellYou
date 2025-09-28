@@ -1,9 +1,7 @@
 import { app, BrowserWindow, Menu, protocol, shell, Tray } from 'electron'
-import fs from 'fs'
-import path, { join } from 'path'
+import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { instanceId } from './sqlite/atom'
 import __Store from 'electron-store'
 import log from 'electron-log'
 import os from 'os'
@@ -14,6 +12,8 @@ import { blackService } from '@main/service/black-service'
 import { messageService } from '@main/service/message-service'
 import { sessionService } from '@main/service/session-service'
 import { listenService } from '@main/service/listen-service'
+import { avatarCacheService } from '@main/cache/avatar-cache'
+import urlUtil from '@main/util/url-util'
 
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'
@@ -26,6 +26,11 @@ console.error = log.error
 console.info = log.info
 console.debug = log.debug
 
+app.setPath('userData', app.getPath('userData') + '_' + urlUtil.instanceId)
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'tellyou',
+  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
+}])
 export const store = new Store()
 const contextMenu = [
   {
@@ -36,11 +41,6 @@ const contextMenu = [
 ]
 const menu = Menu.buildFromTemplate(contextMenu)
 
-app.setPath('userData', app.getPath('userData') + '_' + instanceId)
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'tellyou',
-  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
-}])
 app.whenReady().then(() => {
   console.info('TellYou应用启动', {
     version: app.getVersion(),
@@ -48,46 +48,9 @@ app.whenReady().then(() => {
     arch: process.arch,
     nodeEnv: process.env.NODE_ENV
   })
-
-  try {
-    const getCacheRoot = () => join(app.getPath('userData'), '.tellyou', 'cache', 'avatar')
-    const mimeByExt: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.webp': 'image/webp',
-      '.gif': 'image/gif'
-    }
-    protocol.handle('tellyou', async (request) => {
-      try {
-        const url = new URL(request.url)
-        if (url.hostname !== 'avatar') return new Response('', { status: 403 })
-        const filePath = decodeURIComponent(url.searchParams.get('path') || '')
-        const normalized = path.resolve(filePath)
-        const rootResolved = path.resolve(getCacheRoot())
-        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase())
-          || normalized.toLowerCase() === rootResolved.toLowerCase()
-
-        if (!hasAccess) {
-          console.error('tellyou protocol denied:', { normalized, rootResolved })
-          return new Response('', { status: 403 })
-        }
-
-        const ext = path.extname(normalized).toLowerCase()
-        const mime = mimeByExt[ext] || 'application/octet-stream'
-        const data = await fs.promises.readFile(normalized)
-        return new Response(data, { headers: { 'content-type': mime, 'Access-Control-Allow-Origin': '*' } })
-      } catch (e) {
-        console.error('tellyou protocol error:', e)
-        return new Response('', { status: 500 })
-      }
-    })
-  } catch (e) {
-    console.error('register protocol failed', e)
-  }
-
+  urlUtil.init()
+  urlUtil.registerProtocol()
   electronApp.setAppUserModelId('com.electron')
-
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -129,6 +92,7 @@ const createWindow = (): void => {
     mainWindow.show()
   })
 
+  avatarCacheService.beginServe()
   mediaTaskService.beginServe()
   jsonStoreService.beginServe()
   sessionService.beginServe()

@@ -43,7 +43,7 @@ class PullService {
   // 拉取离线消息
   async pullOfflineMessages(): Promise<void> {
     try {
-      console.info('开始拉取用户离线消息...')
+      console.info('开始拉取用户离线消息...', `${import.meta.env.VITE_REQUEST_URL}/message/pullMailboxMessage`)
 
       const response = await netMaster.get(
         `${import.meta.env.VITE_REQUEST_URL}/message/pullMailboxMessage`

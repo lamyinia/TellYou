@@ -23,702 +23,18 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const electron = require("electron");
-const fs = require("fs");
 const path = require("path");
 const utils = require("@electron-toolkit/utils");
-const os = require("os");
-const sqlite3 = require("sqlite3");
 const __Store = require("electron-store");
 const log = require("electron-log");
+const os = require("os");
+const fs = require("fs");
 const axios = require("axios");
-const crypto = require("crypto");
-const pinia = require("pinia");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegStatic = require("ffmpeg-static");
 const WebSocket = require("ws");
+const sqlite3 = require("sqlite3");
 const icon = path.join(__dirname, "../../resources/icon.png");
-const add_tables = [
-  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
-  "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
-  "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
-  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
-  "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
-];
-const add_indexes = [
-  "create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);",
-  "create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);",
-  "create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);",
-  "create index if not exists idx_messages_session_time on messages(session_id, send_time desc);",
-  "create index if not exists idx_messages_sender on messages(sender_id);",
-  "create index if not exists idx_blacklist_target on blacklist(target_id, target_type);",
-  "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
-  "create index if not exists idx_applications_status on contact_applications(status);"
-];
-const globalColumnMap = {};
-const instanceId = process.env.ELECTRON_INSTANCE_ID || "";
-const NODE_ENV = process.env.NODE_ENV || "production";
-const userDir = os.homedir();
-const baseFolder = userDir + (NODE_ENV === "development" ? "/.tellyoudev/" : "tellyou/");
-let dataFolder = baseFolder;
-let dataBase;
-const setCurrentFolder = (userId) => {
-  dataFolder = baseFolder + "_" + userId + "/";
-  console.info("数据库操作目录 " + dataFolder);
-  if (!fs.existsSync(dataFolder)) {
-    fs.mkdirSync(dataFolder);
-  }
-};
-const existsLocalDB = () => {
-  const result = fs.existsSync(dataFolder + "local.db");
-  dataBase = NODE_ENV === "development" ? new (sqlite3.verbose()).Database(dataFolder + "local.db") : new sqlite3.Database(dataFolder + "local.db");
-  return result;
-};
-const initTable = async () => {
-  dataBase.serialize(async () => {
-    await createTable();
-  });
-  await initTableColumnsMap();
-};
-const queryAll = (sql, params) => {
-  return new Promise((resolve) => {
-    const stmt = dataBase.prepare(sql);
-    stmt.all(params, function(err, rows) {
-      if (err) {
-        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
-        resolve([]);
-        return;
-      }
-      const result = rows.map((item) => convertDb2Biz(item));
-      console.info(sql, params, result);
-      resolve(result);
-    });
-    stmt.finalize();
-  });
-};
-const sqliteRun = (sql, params) => {
-  return new Promise((resolve, reject) => {
-    const stmt = dataBase.prepare(sql);
-    stmt.run(params, function(err) {
-      if (err) {
-        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
-        reject(-1);
-        return;
-      }
-      console.info(sql, params, this.changes);
-      resolve(this.changes);
-    });
-    stmt.finalize();
-  });
-};
-const insert = (sqlPrefix, tableName, data) => {
-  const columnMap = globalColumnMap[tableName];
-  const columns = [];
-  const params = [];
-  for (const item in data) {
-    if (data[item] != void 0 && columnMap[item] != void 0) {
-      columns.push(columnMap[item]);
-      params.push(data[item]);
-    }
-  }
-  const prepare = Array(columns.length).fill("?").join(",");
-  const sql = `${sqlPrefix} ${tableName}(${columns.join(",")}) values(${prepare})`;
-  return sqliteRun(sql, params);
-};
-const insertOrReplace = (tableName, data) => {
-  console.log(data);
-  return insert("insert or replace into", tableName, data);
-};
-const insertOrIgnore = (tableName, data) => {
-  return insert("insert or ignore into", tableName, data);
-};
-const update = (tableName, data, paramData) => {
-  const columnMap = globalColumnMap[tableName];
-  const columns = [];
-  const params = [];
-  const whereColumns = [];
-  for (const item in data) {
-    if (data[item] != void 0 && columnMap[item] != void 0) {
-      columns.push(`${columnMap[item]} = ?`);
-      params.push(data[item]);
-    }
-  }
-  for (const item in paramData) {
-    if (paramData[item] != void 0 && columnMap[item] != void 0) {
-      whereColumns.push(`${columnMap[item]} = ?`);
-      params.push(paramData[item]);
-    }
-  }
-  const sql = `update ${tableName}
-               set ${columns.join(",")} ${whereColumns.length > 0 ? " where " : ""}${whereColumns.join(" and ")}`;
-  console.info(sql);
-  return sqliteRun(sql, params);
-};
-const toCamelCase = (str) => {
-  return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
-};
-const convertDb2Biz = (data) => {
-  if (!data) return null;
-  const bizData = {};
-  for (const item in data) {
-    bizData[toCamelCase(item)] = data[item];
-  }
-  return bizData;
-};
-const createTable = async () => {
-  const add_table = async () => {
-    for (const item of add_tables) {
-      dataBase.run(item);
-    }
-  };
-  const add_index = async () => {
-    for (const item of add_indexes) {
-      dataBase.run(item);
-    }
-  };
-  await add_table();
-  await add_index();
-};
-const initTableColumnsMap = async () => {
-  let sql = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'";
-  const tables = await queryAll(sql, []);
-  for (let i = 0; i < tables.length; ++i) {
-    sql = `PRAGMA table_info(${tables[i].name})`;
-    const columns = await queryAll(sql, []);
-    const columnsMapItem = {};
-    for (let j = 0; j < columns.length; j++) {
-      columnsMapItem[toCamelCase(columns[j].name)] = columns[j].name;
-    }
-    globalColumnMap[tables[i].name] = columnsMapItem;
-  }
-};
-const uidKey = "newest:user:uid";
-const isLoginKey = "newest:user:is-login";
-const tokenKey = "newest:user:token";
-const nicknameKey = "newest:user:nickname";
-const nicknameResidueKey = "newest:user:nickname-residue";
-const signatureKey = "newest:user:signature";
-const signatureResidueKey = "newest:user:signature-residue";
-const sexKey = "newest:user:sex";
-const sexResidue = "newest:user:sex-residue";
-const avatarUrlKey = "newest:user:avatar:url";
-const avatarResidueKey = "newest:user:avatar-residue";
-const useUserStore = pinia.defineStore("user", {
-  state: () => ({
-    isLogin: false,
-    token: "",
-    myId: "",
-    nickname: "",
-    nicknameResidue: 0,
-    sex: "",
-    sexResidue: 0,
-    signature: "",
-    signatureResidue: 0,
-    avatarUrl: "",
-    avatarResidue: 0
-  }),
-  actions: {
-    async initStore() {
-      this.isLogin = await window.electronAPI.storeGet(isLoginKey) || false;
-      this.token = await window.electronAPI.storeGet(tokenKey) || "";
-      this.myId = await window.electronAPI.storeGet(uidKey) || "";
-      this.nickname = await window.electronAPI.storeGet(nicknameKey) || "";
-      this.nicknameResidue = await window.electronAPI.storeGet(nicknameResidueKey) || 0;
-      this.sex = await window.electronAPI.storeGet(sexKey) || "";
-      this.sexResidue = await window.electronAPI.storeGet(sexResidue) || 0;
-      this.signature = await window.electronAPI.storeGet(signatureKey) || "";
-      this.signatureResidue = await window.electronAPI.storeGet(signatureResidueKey) || 0;
-      this.avatarUrl = await window.electronAPI.storeGet(avatarUrlKey) || "";
-      this.avatarResidue = await window.electronAPI.storeGet(avatarResidueKey) || 0;
-    },
-    async setUserData(data) {
-      if (data?.token) {
-        await window.electronAPI.storeSet(tokenKey, data.token);
-        this.token = data.token;
-      }
-      if (data?.uid) {
-        await window.electronAPI.storeSet(uidKey, data.uid);
-        this.myId = data.uid;
-      }
-      if (data?.nickname !== void 0) {
-        await window.electronAPI.storeSet(nicknameKey, data.nickname);
-        this.nickname = data.nickname;
-      }
-      if (data?.nicknameResidue !== void 0) {
-        await window.electronAPI.storeSet(nicknameResidueKey, data.nicknameResidue);
-        this.nicknameResidue = data.nicknameResidue;
-      }
-      if (data?.sex !== void 0) {
-        await window.electronAPI.storeSet(sexKey, data.sex);
-        this.sex = data.sex;
-      }
-      if (data?.sexResidue !== void 0) {
-        await window.electronAPI.storeSet(sexResidue, data.sexResidue);
-        this.sexResidue = data.sexResidue;
-      }
-      if (data?.signature !== void 0) {
-        await window.electronAPI.storeSet(signatureKey, data.signature);
-        this.signature = data.signature;
-      }
-      if (data?.signatureResidue !== void 0) {
-        await window.electronAPI.storeSet(signatureResidueKey, data.signatureResidue);
-        this.signatureResidue = data.signatureResidue;
-      }
-      if (data?.avatarUrl !== void 0) {
-        await window.electronAPI.storeSet(avatarUrlKey, data.avatarUrl);
-        this.avatarUrl = data.avatarUrl;
-      }
-      if (data?.avatarResidue !== void 0) {
-        await window.electronAPI.storeSet(avatarResidueKey, data.avatarResidue);
-        this.avatarResidue = data.avatarResidue;
-      }
-    },
-    async setLoginStatus(status) {
-      this.isLogin = status;
-      await window.electronAPI.storeSet(isLoginKey, status);
-    },
-    async updateUserField(field, value) {
-      const keyMap = {
-        nickname: nicknameKey,
-        nicknameResidue: nicknameResidueKey,
-        sex: sexKey,
-        sexResidue,
-        signature: signatureKey,
-        signatureResidue: signatureResidueKey,
-        avatarUrl: avatarUrlKey,
-        avatarResidue: avatarResidueKey
-      };
-      if (keyMap[field]) {
-        await window.electronAPI.storeSet(keyMap[field], value);
-        this[field] = value;
-      }
-    },
-    async clearUserData() {
-      const keys = [
-        isLoginKey,
-        tokenKey,
-        uidKey,
-        nicknameKey,
-        nicknameResidueKey,
-        sexKey,
-        sexResidue,
-        signatureKey,
-        signatureResidueKey,
-        avatarUrlKey,
-        avatarResidueKey
-      ];
-      for (const key of keys) {
-        await window.electronAPI.storeDelete(key);
-      }
-      this.isLogin = false;
-      this.token = "";
-      this.myId = "";
-      this.nickname = "";
-      this.nicknameResidue = 0;
-      this.sex = "";
-      this.sexResidue = 0;
-      this.signature = "";
-      this.signatureResidue = 0;
-      this.avatarUrl = "";
-      this.avatarResidue = 0;
-    }
-  }
-});
-class ApiError extends Error {
-  constructor(errCode, message, response) {
-    super(message);
-    this.errCode = errCode;
-    this.message = message;
-    this.response = response;
-    this.name = "ApiError";
-  }
-}
-const netMaster = axios.create({
-  withCredentials: true,
-  baseURL: "/api",
-  timeout: 10 * 1e3,
-  headers: {
-    "Content-Type": "application/json"
-  }
-});
-const axiosInstance = axios.create({
-  timeout: 30 * 1e3,
-  // 文件上传下载超时时间更长
-  headers: {
-    "Content-Type": "application/octet-stream"
-  }
-});
-netMaster.interceptors.request.use(
-  (config) => {
-    const token = useUserStore().token;
-    if (token && config.headers) {
-      config.headers.token = token;
-    }
-    return config;
-  },
-  (_error) => {
-    return Promise.reject("请求发送失败");
-  }
-);
-netMaster.interceptors.response.use(
-  (response) => {
-    const { errCode, errMsg, success } = response.data;
-    if (success) {
-      return response;
-    } else {
-      throw new ApiError(errCode, errMsg, response);
-    }
-  },
-  (error) => {
-    if (error.response) {
-      const status = error.response.status;
-      console.log("netMaster AxiosError", error);
-      const errorData = error.response.data;
-      throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
-    } else {
-      throw new ApiError(-1, "网络连接异常");
-    }
-  }
-);
-axiosInstance.interceptors.request.use(
-  (config) => {
-    return config;
-  },
-  (_error) => {
-    return Promise.reject("文件请求发送失败");
-  }
-);
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response) {
-      const status = error.response.status;
-      console.log("netMinIO AxiosError", error);
-      throw new ApiError(status, "文件操作失败", error.response);
-    } else {
-      throw new ApiError(-1, "文件网络连接异常");
-    }
-  }
-);
-class NetMinIO {
-  axiosInstance;
-  constructor(axiosInstance2) {
-    this.axiosInstance = axiosInstance2;
-  }
-  async uploadImage(presignedUrl, imageFile) {
-    const response = await this.axiosInstance.put(presignedUrl, imageFile, {
-      headers: {
-        "Content-Type": imageFile.type,
-        "Content-Length": imageFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadImage(imageUrl) {
-    const response = await this.axiosInstance.get(imageUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "image/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadAudio(presignedUrl, audioFile) {
-    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
-      headers: {
-        "Content-Type": audioFile.type,
-        "Content-Length": audioFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadAudio(audioUrl) {
-    const response = await this.axiosInstance.get(audioUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "audio/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadVideo(presignedUrl, videoFile) {
-    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
-      headers: {
-        "Content-Type": videoFile.type,
-        "Content-Length": videoFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadVideo(videoUrl) {
-    const response = await this.axiosInstance.get(videoUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "video/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadFile(presignedUrl, file) {
-    const response = await this.axiosInstance.put(presignedUrl, file, {
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-        "Content-Length": file.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadFile(fileUrl, filename) {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "*/*"
-      }
-    });
-    const blob = response.data;
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "download";
-    link.click();
-    window.URL.revokeObjectURL(url);
-    return blob;
-  }
-  getAxiosInstance() {
-    return this.axiosInstance;
-  }
-}
-const netMinIO = new NetMinIO(axiosInstance);
-class AvatarCacheService {
-  cacheIndex = {};
-  downloading = /* @__PURE__ */ new Set();
-  maxCacheSize = 200 * 1024 * 1024;
-  maxCacheFiles = 1e3;
-  cacheExpireTime = 7 * 24 * 60 * 60 * 1e3;
-  // 7天
-  constructor() {
-    this.ensureCacheDir();
-    this.loadIndex();
-    this.startCleanupTimer();
-  }
-  getCacheDir() {
-    return path.join(electron.app.getPath("userData"), ".tellyou", "cache", "avatar");
-  }
-  getIndexFile() {
-    return path.join(this.getCacheDir(), "index.json");
-  }
-  ensureCacheDir() {
-    const dir = this.getCacheDir();
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  }
-  loadIndex() {
-    try {
-      const indexFile = this.getIndexFile();
-      if (fs.existsSync(indexFile)) {
-        const data = fs.readFileSync(indexFile, "utf-8");
-        this.cacheIndex = JSON.parse(data) || {};
-        log.info("Avatar cache index loaded:", Object.keys(this.cacheIndex).length, "users");
-      }
-    } catch (error) {
-      log.error("Failed to load avatar cache index:", error);
-      this.cacheIndex = {};
-    }
-  }
-  saveIndex() {
-    try {
-      console.log("缓存映射", this.getIndexFile());
-      fs.writeFileSync(this.getIndexFile(), JSON.stringify(this.cacheIndex, null, 2));
-    } catch (error) {
-      log.error("Failed to save avatar cache index:", error);
-    }
-  }
-  getCacheKey(userId, hash, size) {
-    return `${userId}_${size}_${hash}`;
-  }
-  getFilePath(userId, hash, size) {
-    const hashPrefix = hash.substring(0, 2);
-    const subDir = path.join(this.getCacheDir(), hashPrefix);
-    if (!fs.existsSync(subDir)) {
-      fs.mkdirSync(subDir, { recursive: true });
-    }
-    return path.join(subDir, `avatar_${userId}_${size}_${hash}.jpg`);
-  }
-  extractHashFromUrl(url) {
-    const urlObj = new URL(url);
-    const version = urlObj.searchParams.get("v");
-    if (version) return version;
-    const pathParts = urlObj.pathname.split("/");
-    const filename = pathParts[pathParts.length - 1];
-    const match = filename.match(/([a-f0-9]{8,})/);
-    return match ? match[1] : crypto.createHash("md5").update(url).digest("hex").substring(0, 8);
-  }
-  async downloadAvatar(url, filePath) {
-    try {
-      const response = await netMinIO.getAxiosInstance().get(url, {
-        responseType: "arraybuffer",
-        timeout: 1e4,
-        headers: {
-          "User-Agent": "TellYou-Client/1.0"
-        }
-      });
-      if (response.status === 200 && response.data) {
-        fs.writeFileSync(filePath, response.data);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      log.error("Failed to download avatar:", url, error);
-      return false;
-    }
-  }
-  cleanupOldCache() {
-    try {
-      const now = Date.now();
-      const files = [];
-      const scanDir = (dir) => {
-        if (!fs.existsSync(dir)) return;
-        const items = fs.readdirSync(dir);
-        for (const item of items) {
-          const itemPath = path.join(dir, item);
-          const stat = fs.statSync(itemPath);
-          if (stat.isDirectory()) {
-            scanDir(itemPath);
-          } else if (item.startsWith("avatar_") && item.endsWith(".jpg")) {
-            files.push({ path: itemPath, mtime: stat.mtime.getTime(), size: stat.size });
-          }
-        }
-      };
-      scanDir(this.getCacheDir());
-      files.sort((a, b) => a.mtime - b.mtime);
-      let totalSize = files.reduce((sum, f) => sum + f.size, 0);
-      let deletedCount = 0;
-      for (const file of files) {
-        if (totalSize <= this.maxCacheSize && files.length - deletedCount <= this.maxCacheFiles) {
-          break;
-        }
-        try {
-          fs.unlinkSync(file.path);
-          totalSize -= file.size;
-          deletedCount++;
-        } catch (error) {
-          log.warn("Failed to delete cache file:", file.path, error);
-        }
-      }
-      for (const [userId, info] of Object.entries(this.cacheIndex)) {
-        if (now - info.updatedAt > this.cacheExpireTime) {
-          delete this.cacheIndex[userId];
-        }
-      }
-      if (deletedCount > 0) {
-        log.info("Avatar cache cleanup:", deletedCount, "files deleted");
-        this.saveIndex();
-      }
-    } catch (error) {
-      log.error("Avatar cache cleanup failed:", error);
-    }
-  }
-  startCleanupTimer() {
-    setInterval(() => {
-      this.cleanupOldCache();
-    }, 60 * 60 * 1e3);
-  }
-  async getAvatar(userId, avatarUrl, size = 48) {
-    if (!avatarUrl || !userId) return null;
-    const hash = this.extractHashFromUrl(avatarUrl);
-    const cacheKey = this.getCacheKey(userId, hash, size);
-    const filePath = this.getFilePath(userId, hash, size);
-    if (fs.existsSync(filePath)) {
-      const info = this.cacheIndex[userId];
-      if (info && info.hash === hash && info.localPaths[size] === filePath) {
-        info.updatedAt = Date.now();
-        this.saveIndex();
-        return filePath;
-      }
-    }
-    if (this.downloading.has(cacheKey)) {
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!this.downloading.has(cacheKey)) {
-            clearInterval(checkInterval);
-            resolve(fs.existsSync(filePath) ? filePath : null);
-          }
-        }, 100);
-      });
-    }
-    this.downloading.add(cacheKey);
-    try {
-      const success = await this.downloadAvatar(avatarUrl, filePath);
-      if (success) {
-        if (!this.cacheIndex[userId]) {
-          this.cacheIndex[userId] = {
-            userId,
-            hash,
-            localPaths: {},
-            updatedAt: Date.now()
-          };
-        }
-        this.cacheIndex[userId].hash = hash;
-        this.cacheIndex[userId].localPaths[size] = filePath;
-        this.cacheIndex[userId].updatedAt = Date.now();
-        this.saveIndex();
-        return filePath;
-      }
-    } catch (error) {
-      log.error("Avatar download failed:", userId, avatarUrl, error);
-    } finally {
-      this.downloading.delete(cacheKey);
-    }
-    return null;
-  }
-  async preloadAvatars(avatarMap, size = 48) {
-    const promises = Object.entries(avatarMap).map(
-      ([userId, avatarUrl]) => this.getAvatar(userId, avatarUrl, size)
-    );
-    await Promise.allSettled(promises);
-  }
-  clearUserCache(userId) {
-    const info = this.cacheIndex[userId];
-    if (info) {
-      Object.values(info.localPaths).forEach((filePath) => {
-        try {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
-        } catch (error) {
-          log.warn("Failed to delete avatar file:", filePath, error);
-        }
-      });
-      delete this.cacheIndex[userId];
-      this.saveIndex();
-    }
-  }
-  getCacheStats() {
-    let totalFiles = 0;
-    let totalSize = 0;
-    const scanDir = (dir) => {
-      if (!fs.existsSync(dir)) return;
-      const items = fs.readdirSync(dir);
-      for (const item of items) {
-        const itemPath = path.join(dir, item);
-        const stat = fs.statSync(itemPath);
-        if (stat.isDirectory()) {
-          scanDir(itemPath);
-        } else if (item.startsWith("avatar_") && item.endsWith(".jpg")) {
-          totalFiles++;
-          totalSize += stat.size;
-        }
-      }
-    };
-    scanDir(this.getCacheDir());
-    return {
-      totalUsers: Object.keys(this.cacheIndex).length,
-      totalFiles,
-      totalSize
-    };
-  }
-}
-const avatarCacheService = new AvatarCacheService();
 const getMimeType = (ext) => {
   const mimeTypes = {
     ".png": "image/png",
@@ -752,6 +68,7 @@ class MediaTaskService {
   RETRY_TIMES = 3;
   // 重试次数
   beginServe() {
+    ffmpeg.setFfmpegPath(ffmpegStatic);
     this.tempDir = path.join(electron.app.getPath("userData"), ".tellyou", "media", "temp");
     this.ensureTempDir();
     this.setupIpcHandlers();
@@ -776,42 +93,6 @@ class MediaTaskService {
     });
     electron.ipcMain.handle("media:send:list", async () => {
       return this.getAllTasks();
-    });
-    electron.ipcMain.handle("avatar:get", async (_, { userId, avatarUrl, size }) => {
-      try {
-        const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size);
-        if (!filePath) return null;
-        return `tellyou://avatar?path=${encodeURIComponent(filePath)}`;
-      } catch (error) {
-        console.error("Failed to get avatar:", error);
-        return null;
-      }
-    });
-    electron.ipcMain.handle("avatar:preload", async (_, { avatarMap, size }) => {
-      try {
-        await avatarCacheService.preloadAvatars(avatarMap, size);
-        return true;
-      } catch (error) {
-        console.error("Failed to preload avatars:", error);
-        return false;
-      }
-    });
-    electron.ipcMain.handle("avatar:clear", async (_, { userId }) => {
-      try {
-        avatarCacheService.clearUserCache(userId);
-        return true;
-      } catch (error) {
-        console.error("Failed to clear avatar cache:", error);
-        return false;
-      }
-    });
-    electron.ipcMain.handle("avatar:stats", async () => {
-      try {
-        return avatarCacheService.getCacheStats();
-      } catch (error) {
-        console.error("Failed to get avatar cache stats:", error);
-        return { totalUsers: 0, totalFiles: 0, totalSize: 0 };
-      }
     });
     electron.ipcMain.handle("avatar:select-file", async () => {
       try {
@@ -1109,6 +390,216 @@ const getMessageId = () => {
   const rand = BigInt(Math.floor(Math.random() * 1e6));
   return (time << 20n | rand).toString();
 };
+const add_tables = [
+  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
+  "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
+  "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
+  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
+  "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
+];
+const add_indexes = [
+  "create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);",
+  "create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);",
+  "create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);",
+  "create index if not exists idx_messages_session_time on messages(session_id, send_time desc);",
+  "create index if not exists idx_messages_sender on messages(sender_id);",
+  "create index if not exists idx_blacklist_target on blacklist(target_id, target_type);",
+  "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
+  "create index if not exists idx_applications_status on contact_applications(status);"
+];
+class UrlUtil {
+  protocolHost = ["avatar", "picture", "voice", "video", "file"];
+  mimeByExt = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif"
+  };
+  nodeEnv = process.env.NODE_ENV || "production";
+  homeDir = os.homedir();
+  appPath = path.join(this.homeDir, this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou");
+  sqlPath = this.appPath;
+  atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || "";
+  instanceId = process.env.ELECTRON_INSTANCE_ID || "";
+  cacheRootPath = "";
+  cachePaths = {
+    "avatar": "",
+    "picture": "",
+    "voice": "",
+    "video": "",
+    "file": ""
+  };
+  ensureDir(path2) {
+    if (!fs.existsSync(path2)) {
+      console.info("debug:ensureDir   ", path2);
+      fs.mkdirSync(path2, { recursive: true });
+    }
+  }
+  init() {
+    this.cacheRootPath = path.join(electron.app.getPath("userData"), "caching");
+    this.protocolHost.forEach((host) => {
+      this.cachePaths[host] = path.join(this.cacheRootPath, host);
+      this.ensureDir(this.cachePaths[host]);
+    });
+  }
+  registerProtocol() {
+    electron.protocol.handle("tellyou", async (request) => {
+      try {
+        const url = new URL(request.url);
+        if (!this.protocolHost.includes(url.hostname)) return new Response("", { status: 403 });
+        const filePath = decodeURIComponent(url.searchParams.get("path") || "");
+        const normalized = path.resolve(filePath);
+        const rootResolved = path.resolve(this.cacheRootPath);
+        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) || normalized.toLowerCase() === rootResolved.toLowerCase();
+        if (!hasAccess) {
+          console.error("tellyou protocol denied:", { normalized, rootResolved });
+          return new Response("", { status: 403 });
+        }
+        const ext = path.extname(normalized).toLowerCase();
+        const mime = this.mimeByExt[ext] || "application/octet-stream";
+        const data = await fs.promises.readFile(normalized);
+        return new Response(data, { headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" } });
+      } catch (e) {
+        console.error("tellyou protocol error:", e);
+        return new Response("", { status: 500 });
+      }
+    });
+  }
+  redirectSqlPath(userId) {
+    this.sqlPath = path.join(this.appPath, "_" + userId);
+    console.info("数据库操作目录 " + this.sqlPath);
+    if (!fs.existsSync(this.sqlPath)) {
+      fs.mkdirSync(this.sqlPath, { recursive: true });
+    }
+  }
+  signByApp(path2) {
+    return `tellyou://avatar?path=${encodeURIComponent(path2)}`;
+  }
+}
+const urlUtil = new UrlUtil();
+const globalColumnMap = {};
+let dataBase;
+const redirectDataBase = () => {
+  const path$1 = path.join(urlUtil.sqlPath, "local.db");
+  const result = fs.existsSync(path$1);
+  dataBase = urlUtil.nodeEnv === "development" ? new (sqlite3.verbose()).Database(path$1) : new sqlite3.Database(path$1);
+  return result;
+};
+const initTable = async () => {
+  dataBase.serialize(async () => {
+    await createTable();
+  });
+  await initTableColumnsMap();
+};
+const queryAll = (sql, params) => {
+  return new Promise((resolve) => {
+    const stmt = dataBase.prepare(sql);
+    stmt.all(params, function(err, rows) {
+      if (err) {
+        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        resolve([]);
+        return;
+      }
+      const result = rows.map((item) => convertDb2Biz(item));
+      console.info(sql, params, result);
+      resolve(result);
+    });
+    stmt.finalize();
+  });
+};
+const sqliteRun = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    const stmt = dataBase.prepare(sql);
+    stmt.run(params, function(err) {
+      if (err) {
+        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        reject(-1);
+        return;
+      }
+      console.info(sql, params, this.changes);
+      resolve(this.changes);
+    });
+    stmt.finalize();
+  });
+};
+const insert = (sqlPrefix, tableName, data) => {
+  const columnMap = globalColumnMap[tableName];
+  const columns = [];
+  const params = [];
+  for (const item in data) {
+    if (data[item] != void 0 && columnMap[item] != void 0) {
+      columns.push(columnMap[item]);
+      params.push(data[item]);
+    }
+  }
+  const prepare = Array(columns.length).fill("?").join(",");
+  const sql = `${sqlPrefix} ${tableName}(${columns.join(",")}) values(${prepare})`;
+  return sqliteRun(sql, params);
+};
+const insertOrIgnore = (tableName, data) => {
+  return insert("insert or ignore into", tableName, data);
+};
+const update = (tableName, data, paramData) => {
+  const columnMap = globalColumnMap[tableName];
+  const columns = [];
+  const params = [];
+  const whereColumns = [];
+  for (const item in data) {
+    if (data[item] != void 0 && columnMap[item] != void 0) {
+      columns.push(`${columnMap[item]} = ?`);
+      params.push(data[item]);
+    }
+  }
+  for (const item in paramData) {
+    if (paramData[item] != void 0 && columnMap[item] != void 0) {
+      whereColumns.push(`${columnMap[item]} = ?`);
+      params.push(paramData[item]);
+    }
+  }
+  const sql = `update ${tableName}
+               set ${columns.join(",")} ${whereColumns.length > 0 ? " where " : ""}${whereColumns.join(" and ")}`;
+  console.info(sql);
+  return sqliteRun(sql, params);
+};
+const toCamelCase = (str) => {
+  return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
+};
+const convertDb2Biz = (data) => {
+  if (!data) return null;
+  const bizData = {};
+  for (const item in data) {
+    bizData[toCamelCase(item)] = data[item];
+  }
+  return bizData;
+};
+const createTable = async () => {
+  const add_table = async () => {
+    for (const item of add_tables) {
+      dataBase.run(item);
+    }
+  };
+  const add_index = async () => {
+    for (const item of add_indexes) {
+      dataBase.run(item);
+    }
+  };
+  await add_table();
+  await add_index();
+};
+const initTableColumnsMap = async () => {
+  let sql = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'";
+  const tables = await queryAll(sql, []);
+  for (let i = 0; i < tables.length; ++i) {
+    sql = `PRAGMA table_info(${tables[i].name})`;
+    const columns = await queryAll(sql, []);
+    const columnsMapItem = {};
+    for (let j = 0; j < columns.length; j++) {
+      columnsMapItem[toCamelCase(columns[j].name)] = columns[j].name;
+    }
+    globalColumnMap[tables[i].name] = columnsMapItem;
+  }
+};
 const rawMessageToBeInserted = (data) => {
   return {
     sessionId: data.sessionId,
@@ -1187,7 +678,7 @@ const getMessageBySessionId = async (sessionId, options) => {
       })(),
       senderId: r.senderId,
       senderName: r.senderName || "",
-      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/2025-08/d212eb94b83a476ab23f9d2d62f6e2ef~tplv-p14lwwcsbr-7.jpg",
+      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/thumb/1948031012053333361/6/index.png",
       timestamp: new Date(r.sendTime),
       isRead: !!r.isRead
     }));
@@ -1245,6 +736,8 @@ const selectSessions = async () => {
 const updateSessionByMessage = async (data) => {
   await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
 };
+const uidKey = "newest:user:uid";
+const tokenKey = "newest:user:token";
 const handleMessage = async (msg, ws2) => {
   console.log(msg);
   const snap = Number(msg.adjustedTimestamp);
@@ -1453,8 +946,216 @@ class SessionService {
   }
 }
 const sessionService = new SessionService();
+class ApiError extends Error {
+  constructor(errCode, message, response) {
+    super(message);
+    this.errCode = errCode;
+    this.message = message;
+    this.response = response;
+    this.name = "ApiError";
+  }
+}
+const netMaster = axios.create({
+  withCredentials: true,
+  baseURL: "/api",
+  timeout: 10 * 1e3,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+const axiosInstance = axios.create({
+  timeout: 30 * 1e3,
+  // 文件上传下载超时时间更长
+  headers: {
+    "Content-Type": "application/octet-stream"
+  }
+});
+netMaster.interceptors.request.use(
+  (config) => {
+    const token = store.get(tokenKey);
+    if (token && config.headers) {
+      config.headers.token = token;
+    }
+    return config;
+  },
+  (_error) => {
+    return Promise.reject("请求发送失败");
+  }
+);
+netMaster.interceptors.response.use(
+  (response) => {
+    const { errCode, errMsg, success } = response.data;
+    if (success) {
+      return response;
+    } else {
+      throw new ApiError(errCode, errMsg, response);
+    }
+  },
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      console.log("netMaster AxiosError", error);
+      const errorData = error.response.data;
+      throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
+    } else {
+      throw new ApiError(-1, "网络连接异常");
+    }
+  }
+);
+axiosInstance.interceptors.request.use(
+  (config) => {
+    return config;
+  },
+  (_error) => {
+    return Promise.reject("文件请求发送失败");
+  }
+);
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      console.log("netMinIO AxiosError", error);
+      throw new ApiError(status, "文件操作失败", error.response);
+    } else {
+      throw new ApiError(-1, "文件网络连接异常");
+    }
+  }
+);
+class NetMinIO {
+  axiosInstance;
+  constructor(axiosInstance2) {
+    this.axiosInstance = axiosInstance2;
+  }
+  async uploadImage(presignedUrl, imageFile) {
+    const response = await this.axiosInstance.put(presignedUrl, imageFile, {
+      headers: {
+        "Content-Type": imageFile.type,
+        "Content-Length": imageFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadImage(imageUrl) {
+    const response = await this.axiosInstance.get(imageUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "image/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadAudio(presignedUrl, audioFile) {
+    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
+      headers: {
+        "Content-Type": audioFile.type,
+        "Content-Length": audioFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadAudio(audioUrl) {
+    const response = await this.axiosInstance.get(audioUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "audio/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadVideo(presignedUrl, videoFile) {
+    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
+      headers: {
+        "Content-Type": videoFile.type,
+        "Content-Length": videoFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadVideo(videoUrl) {
+    const response = await this.axiosInstance.get(videoUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "video/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadFile(presignedUrl, file) {
+    const response = await this.axiosInstance.put(presignedUrl, file, {
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "Content-Length": file.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadFile(fileUrl, filename) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "*/*"
+      }
+    });
+    const blob = response.data;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "download";
+    link.click();
+    window.URL.revokeObjectURL(url);
+    return blob;
+  }
+  async downloadFileAsArrayBuffer(fileUrl, userAgent) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": userAgent || "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadFileAsBlob(fileUrl, userAgent) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": userAgent || "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadAvatar(avatarUrl) {
+    return this.downloadFileAsArrayBuffer(avatarUrl, "TellYou-Client/1.0");
+  }
+  async downloadJson(jsonUrl) {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadJsonAsString(jsonUrl) {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      responseType: "text",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  getAxiosInstance() {
+    return this.axiosInstance;
+  }
+}
+const netMinIO = new NetMinIO(axiosInstance);
 class PullService {
-  // 拉取强事务数据
   async pullStrongTransactionData() {
     console.log(`正在拉取强事务数据...`);
     try {
@@ -1483,7 +1184,7 @@ class PullService {
   // 拉取离线消息
   async pullOfflineMessages() {
     try {
-      console.info("开始拉取用户离线消息...");
+      console.info("开始拉取用户离线消息...", `${"http://localhost:8081"}/message/pullMailboxMessage`);
       const response = await netMaster.get(
         `${"http://localhost:8081"}/message/pullMailboxMessage`
       );
@@ -1612,33 +1313,86 @@ class PullService {
 const pullService = new PullService();
 const initializeUserData = async (uid) => {
   connectWs();
-  setCurrentFolder(uid);
-  existsLocalDB();
+  urlUtil.redirectSqlPath(uid);
+  if (!redirectDataBase()) {
+    console.info("未检测到本地数据，新创建数据库");
+  }
   await initTable();
   await pullService.pullStrongTransactionData();
   await pullService.pullOfflineMessages();
 };
+const measureTime = (label) => {
+  const startTime = Date.now();
+  console.log(`[${label}] 开始时间:`, new Date(startTime).toLocaleTimeString());
+  return {
+    end: (additionalInfo) => {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`[${label}] 结束时间:`, new Date(endTime).toLocaleTimeString());
+      console.log(`[${label}] 总耗时:`, duration, "ms");
+      console.log(`[${label}] 总耗时:`, (duration / 1e3).toFixed(2), "秒");
+      if (additionalInfo) {
+        console.log(`[${label}] 性能统计:`, additionalInfo);
+      }
+      return duration;
+    }
+  };
+};
+const calculatePerformance = (duration, fileSize, originalSize) => {
+  const compressionRatio = originalSize ? ((originalSize - fileSize) / originalSize * 100).toFixed(1) : "N/A";
+  const processingSpeed = (fileSize / (duration / 1e3) / 1024).toFixed(2);
+  return {
+    duration: `${duration}ms`,
+    fileSize: `${(fileSize / 1024).toFixed(2)}KB`,
+    compressionRatio: originalSize ? `${compressionRatio}%` : "N/A",
+    processingSpeed: `${processingSpeed}KB/s`
+  };
+};
+const t_ffmpeg_compress_gif = (originalSize) => {
+  const inputPath = "D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif";
+  const outputPath = "D:/各种素材/compress/out.avif";
+  const timer = measureTime("AVIF转换");
+  ffmpeg(inputPath).outputOptions([
+    "-c:v libaom-av1",
+    // 使用 libaom-av1 编码器
+    "-crf 45",
+    // 提高质量参数以加速 (30->35)
+    "-b:v 0",
+    // 使用 CRF 模式
+    "-cpu-used 8",
+    // 最高速度模式 (0-8, 8最快)
+    "-threads 0",
+    // 使用所有可用线程
+    "-pix_fmt yuv420p",
+    // 像素格式
+    "-movflags +faststart",
+    // 优化流媒体播放
+    "-f avif"
+    // 输出 AVIF 格式
+  ]).on("start", (commandLine) => {
+    console.log("FFmpeg 命令:", commandLine);
+  }).on("end", () => {
+    const stats = fs.statSync(outputPath);
+    console.log("AVIF 文件生成成功:", outputPath);
+    console.log("文件大小:", (stats.size / 1024).toFixed(2), "KB");
+    const duration = timer.end();
+    const performance = calculatePerformance(duration, stats.size, originalSize);
+    console.log("性能统计:", performance);
+  }).on("error", (err) => {
+    console.error("AVIF 转换失败:", err.message);
+  }).save(outputPath);
+};
 const test = async () => {
-  setCurrentFolder("1");
-  existsLocalDB();
-  await initTable();
-  const raw = fs.readFileSync("./test/test-data.json", "utf-8");
-  const data = JSON.parse(raw);
-  for (const session of data.sessions) {
-    await insertOrReplace("sessions", session);
-  }
-  for (const message of data.messages) {
-    await insertOrReplace("messages", message);
-  }
-  for (const black of data.blacklist) {
-    await insertOrReplace("blacklist", black);
-  }
-  for (const apply of data.contact_applications) {
-    await insertOrReplace("contact_applications", apply);
-  }
-  await update("sessions", { contactName: "张三-已更新" }, { sessionId: 1 });
-  const sessions = await queryAll("select * from sessions where session_id = ?", [1]);
-  console.info("sessions:", sessions);
+  console.log("=== 开始转码性能测试 ===");
+  const inputPath = "D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif";
+  const originalStats = fs.statSync(inputPath);
+  const originalSize = originalStats.size;
+  console.log("原始文件大小:", (originalSize / 1024).toFixed(2), "KB");
+  console.log("");
+  setTimeout(() => {
+    console.log("开始 AVIF 转换测试...");
+    t_ffmpeg_compress_gif(originalSize);
+  }, 1e3);
 };
 class ListenService {
   loginWidth = 596;
@@ -1691,12 +1445,124 @@ class ListenService {
           break;
       }
     });
-    electron.ipcMain.on("test", (_, __) => {
+    electron.ipcMain.handle("test", (_) => {
       test();
     });
   }
 }
 const listenService = new ListenService();
+class AvatarCacheService {
+  cacheMap = /* @__PURE__ */ new Map();
+  maxCacheSize = 100 * 1024 * 1024;
+  // 100MB
+  maxCacheAge = 7 * 24 * 60 * 60 * 1e3;
+  // 7 days
+  maxFiles = 1e3;
+  getJsonPath = (userId) => path.join(urlUtil.cachePaths["avatar"], userId, "index.json");
+  // {userData}/cache/avatar/{userId}/index.json
+  beginServe() {
+    this.startCleanupTimer();
+    electron.ipcMain.handle("avatar:cache:seek-by-version", async (_, params) => {
+      let item = this.cacheMap.get(params.userId);
+      if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+        return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
+      } else if (fs.existsSync(this.getJsonPath(params.userId))) {
+        try {
+          item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), "utf-8"));
+          console.info("avatar:cache:seek-by-version: ", item);
+          if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+            this.cacheMap.set(params.userId, item);
+            return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      console.info("debug:downloadJson:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
+      const result = await netMinIO.downloadJson([urlUtil.atomPath, params.userId + ".json"].join("/"));
+      return { success: false, pathResult: result[params.strategy] };
+    });
+    electron.ipcMain.handle("avatar:get", async (_, { userId, strategy, avatarUrl }) => {
+      try {
+        const filePath = await this.getAvatarPath(userId, strategy, avatarUrl);
+        if (!filePath) return null;
+        return urlUtil.signByApp(filePath);
+      } catch (error) {
+        console.error("Failed to get avatar:", error);
+        return null;
+      }
+    });
+  }
+  checkVersion(item, strategy, version) {
+    return item[strategy] && item[strategy].version >= version;
+  }
+  extractVersionFromUrl(url) {
+    return new URL(url).pathname.split("/").at(-2) || "";
+  }
+  extractObjectFromUrl(url) {
+    return new URL(url).pathname.split("/").at(-1) || "";
+  }
+  saveItem(userId, cacheItem) {
+    try {
+      fs.writeFileSync(this.getJsonPath(userId), JSON.stringify(cacheItem, null, 2));
+    } catch (error) {
+      log.error("Failed to save cache index:", error);
+    }
+  }
+  async getAvatarPath(userId, strategy, avatarUrl) {
+    try {
+      const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
+      urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
+      console.info("debug:downloadAvatar:  ", [userId, avatarUrl, filePath].join(" !!! "));
+      const success = await this.downloadAvatar(avatarUrl, filePath);
+      if (success) {
+        this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath);
+        return filePath;
+      }
+      return null;
+    } catch (error) {
+      log.error("Failed to download and cache avatar:", error);
+      return null;
+    }
+  }
+  async downloadAvatar(url, filePath) {
+    try {
+      const arrayBuffer = await netMinIO.downloadAvatar(url);
+      if (arrayBuffer) {
+        console.info("下载成功", url);
+        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error("Failed to download avatar:", url, error);
+      return false;
+    }
+  }
+  updateCacheIndex(userId, strategy, version, filePath) {
+    let item = this.cacheMap.get(userId);
+    if (item) {
+      item[strategy] = { version, localPath: filePath };
+    } else {
+      item = {
+        [strategy]: { version, localPath: filePath }
+      };
+    }
+    this.cacheMap.set(userId, item);
+    this.saveItem(userId, item);
+  }
+  cleanupOldCache() {
+  }
+  startCleanupTimer() {
+    setInterval(
+      () => {
+        this.cleanupOldCache();
+      },
+      60 * 60 * 1e3
+    );
+  }
+}
+const avatarCacheService = new AvatarCacheService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -1707,6 +1573,11 @@ console.warn = log.warn;
 console.error = log.error;
 console.info = log.info;
 console.debug = log.debug;
+electron.app.setPath("userData", electron.app.getPath("userData") + "_" + urlUtil.instanceId);
+electron.protocol.registerSchemesAsPrivileged([{
+  scheme: "tellyou",
+  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
+}]);
 const store = new Store();
 const contextMenu = [
   {
@@ -1717,11 +1588,6 @@ const contextMenu = [
   }
 ];
 const menu = electron.Menu.buildFromTemplate(contextMenu);
-electron.app.setPath("userData", electron.app.getPath("userData") + "_" + instanceId);
-electron.protocol.registerSchemesAsPrivileged([{
-  scheme: "tellyou",
-  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
-}]);
 electron.app.whenReady().then(() => {
   console.info("TellYou应用启动", {
     version: electron.app.getVersion(),
@@ -1729,39 +1595,8 @@ electron.app.whenReady().then(() => {
     arch: process.arch,
     nodeEnv: process.env.NODE_ENV
   });
-  try {
-    const getCacheRoot = () => path.join(electron.app.getPath("userData"), ".tellyou", "cache", "avatar");
-    const mimeByExt = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".webp": "image/webp",
-      ".gif": "image/gif"
-    };
-    electron.protocol.handle("tellyou", async (request) => {
-      try {
-        const url = new URL(request.url);
-        if (url.hostname !== "avatar") return new Response("", { status: 403 });
-        const filePath = decodeURIComponent(url.searchParams.get("path") || "");
-        const normalized = path.resolve(filePath);
-        const rootResolved = path.resolve(getCacheRoot());
-        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) || normalized.toLowerCase() === rootResolved.toLowerCase();
-        if (!hasAccess) {
-          console.error("tellyou protocol denied:", { normalized, rootResolved });
-          return new Response("", { status: 403 });
-        }
-        const ext = path.extname(normalized).toLowerCase();
-        const mime = mimeByExt[ext] || "application/octet-stream";
-        const data = await fs.promises.readFile(normalized);
-        return new Response(data, { headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" } });
-      } catch (e) {
-        console.error("tellyou protocol error:", e);
-        return new Response("", { status: 500 });
-      }
-    });
-  } catch (e) {
-    console.error("register protocol failed", e);
-  }
+  urlUtil.init();
+  urlUtil.registerProtocol();
   utils.electronApp.setAppUserModelId("com.electron");
   electron.app.on("browser-window-created", (_, window2) => {
     utils.optimizer.watchWindowShortcuts(window2);
@@ -1802,6 +1637,7 @@ const createWindow = () => {
     mainWindow.setSkipTaskbar(false);
     mainWindow.show();
   });
+  avatarCacheService.beginServe();
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
   sessionService.beginServe();

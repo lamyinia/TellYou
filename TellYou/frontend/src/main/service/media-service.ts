@@ -4,6 +4,8 @@ import fs, { createReadStream, existsSync, mkdirSync, statSync } from 'fs'
 import axios from 'axios'
 import log from 'electron-log'
 import { avatarCacheService } from '@main/cache/avatar-cache'
+import ffmpeg from 'fluent-ffmpeg'
+import ffmpegStatic from 'ffmpeg-static'
 
 export enum MediaTaskStatus {
   PENDING = 'pending',
@@ -79,6 +81,8 @@ class MediaTaskService {
   private readonly RETRY_TIMES = 3 // 重试次数
 
   public beginServe(): void {
+    ffmpeg.setFfmpegPath(ffmpegStatic as string)
+
     this.tempDir = join(app.getPath('userData'), '.tellyou', 'media', 'temp')
     this.ensureTempDir()
     this.setupIpcHandlers()
@@ -110,43 +114,6 @@ class MediaTaskService {
     })
     ipcMain.handle('media:send:list', async () => {
       return this.getAllTasks()
-    })
-
-    ipcMain.handle('avatar:get', async (_, { userId, avatarUrl, size }) => {
-      try {
-        const filePath = await avatarCacheService.getAvatar(userId, avatarUrl, size)
-        if (!filePath) return null
-        return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
-      } catch (error) {
-        console.error('Failed to get avatar:', error)
-        return null
-      }
-    })
-    ipcMain.handle('avatar:preload', async (_, { avatarMap, size }) => {
-      try {
-        await avatarCacheService.preloadAvatars(avatarMap, size)
-        return true
-      } catch (error) {
-        console.error('Failed to preload avatars:', error)
-        return false
-      }
-    })
-    ipcMain.handle('avatar:clear', async (_, { userId }) => {
-      try {
-        avatarCacheService.clearUserCache(userId)
-        return true
-      } catch (error) {
-        console.error('Failed to clear avatar cache:', error)
-        return false
-      }
-    })
-    ipcMain.handle('avatar:stats', async () => {
-      try {
-        return avatarCacheService.getCacheStats()
-      } catch (error) {
-        console.error('Failed to get avatar cache stats:', error)
-        return { totalUsers: 0, totalFiles: 0, totalSize: 0 }
-      }
     })
     ipcMain.handle('avatar:select-file', async () => {
       try {

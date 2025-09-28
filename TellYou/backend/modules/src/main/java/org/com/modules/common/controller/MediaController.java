@@ -63,7 +63,6 @@ public class MediaController {
             "thumbnailUploadUrl": "avatar/thumb/1948031012053333361/5/index.png"
         }
     */
-
     @PostMapping("/picture/upload-confirm")
     @Operation(summary = "确认图片上传完成")
     public ApiResult<Void> confirmPictureUpload(@Check @Valid @RequestBody PictureUploadConfirmReq req){

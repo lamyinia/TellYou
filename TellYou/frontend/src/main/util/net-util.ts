@@ -1,5 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios'
 import { useUserStore } from '@main/electron-store/persist/user-store'
+import { store } from '@main/index'
+import { tokenKey } from '@main/electron-store/key'
 
 type MessageType = 'error' | 'success' | 'warning'
 type MessageCallback = (() => void) | undefined
@@ -48,7 +50,7 @@ const axiosInstance: AxiosInstance = axios.create({
 
 netMaster.interceptors.request.use(
   (config) => {
-    const token: string = useUserStore().token
+    const token: string = store.get(tokenKey)
     if (token && config.headers) {
       config.headers.token = token
     }
@@ -246,6 +248,27 @@ class NetMinIO {
 
   async downloadAvatar(avatarUrl: string): Promise<ArrayBuffer> {
     return this.downloadFileAsArrayBuffer(avatarUrl, 'TellYou-Client/1.0')
+  }
+
+  async downloadJson(jsonUrl: string): Promise<any> {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'TellYou-Client/1.0'
+      }
+    })
+    return response.data
+  }
+
+  async downloadJsonAsString(jsonUrl: string): Promise<string> {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      responseType: 'text',
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'TellYou-Client/1.0'
+      }
+    })
+    return response.data
   }
 
   getAxiosInstance(): AxiosInstance {
