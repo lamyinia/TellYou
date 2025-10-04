@@ -32,10 +32,7 @@ const onLogin = async (): Promise<void> => {
     loading.value = true
     errorMessage.value = '' // 清空之前的错误信息
 
-    const data: any = await axio.post(api.login, {
-      email: username.value,
-      password: password.value
-    })
+    const data: any = await window.electronAPI.invoke('proxy:login', {email: username.value, password: password.value})
     console.log(data)
 
     const uid = data?.uid
@@ -95,13 +92,6 @@ const goTotest = async (): Promise<void> => {
             <div v-if="loading" class="loading-mask">
               <img src="@renderer/assets/img/wifi.gif" alt="loading" />
             </div>
-
-            <!-- AVIF 动图测试 -->
-            <div class="avif-test">
-              <h3>AVIF 动图测试</h3>
-              <img src="D:\各种素材\compress\out.avif" alt="AVIF动图" style="max-width: 300px; height: auto;" />
-            </div>
-
             <v-alert v-if="errorMessage" type="error" class="mt-2" closable @click:close="errorMessage = ''">
               {{ errorMessage }}
             </v-alert>

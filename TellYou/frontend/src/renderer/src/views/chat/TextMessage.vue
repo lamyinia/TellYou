@@ -7,20 +7,18 @@ import Avatar from '@renderer/components/Avatar.vue'
 const props = defineProps<{ message: ChatMessage }>()
 const userStore = useUserStore()
 const isSelf = computed(() => props.message.senderId === userStore.myId)
-const testVersion1: string = "8"
-const testVersion2: string = "4"
 
 </script>
 
 <template>
   <div class="msg-row" :class="{ other: !isSelf }">
     <template v-if="isSelf">
-      <Avatar :version="testVersion1" :name="props.message.senderName" :userId="props.message.senderId" side="left" />
+      <Avatar :version="props.message.avatarVersion" :name="props.message.senderName" :userId="props.message.senderId" side="left" />
       <div class="bubble left">{{ props.message.content }}</div>
     </template>
     <template v-else>
       <div class="bubble right">{{ props.message.content }}</div>
-      <Avatar :version="testVersion2" :name="props.message.senderName" :userId="props.message.senderId" side="right" />
+      <Avatar :version="props.message.avatarVersion" :name="props.message.senderName" :userId="props.message.senderId" side="right" />
     </template>
   </div>
 </template>

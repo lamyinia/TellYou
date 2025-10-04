@@ -28,7 +28,6 @@ export const useMessageStore = defineStore('message', () => {
   const init = (): void => {
     console.log('messageStore 开始初始化')
     if (isInitialized.value === true || loadMessageFunction) return
-
     loadMessageFunction = (...args: unknown[]): void => {
       const [, messages] = args as [Electron.IpcRendererEvent, ChatMessage[]]
       messages.forEach((message) => {
@@ -36,7 +35,6 @@ export const useMessageStore = defineStore('message', () => {
         addMessage(message.sessionId, message)
       })
     }
-
     window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
     isInitialized.value = true
     console.log('messageStore 初始化完成')
@@ -46,7 +44,6 @@ export const useMessageStore = defineStore('message', () => {
     isInitialized.value = false
     window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction!)
   }
-
   const getCurrentSessionMessages = (sessionId: string | number): ChatMessage[] => {
     const key = String(sessionId)
     if (!key) return []
@@ -54,40 +51,31 @@ export const useMessageStore = defineStore('message', () => {
     console.log(`getCurrentSessionMessages(${sessionId}):`, result.length, 'messages')
     return result
   }
-
   const getCurrentPageInfo = (sessionId: string | number): MessagePageInfo | null => {
     const key = String(sessionId)
     if (!key) return null
     return pageInfoCache[key] || null
   }
-
   const getSessionMessages = (sessionId: string | number): ChatMessage[] => {
     const key = String(sessionId)
     return messageCache[key] || []
   }
-
   const getSessionPageInfo = (sessionId: string | number): MessagePageInfo | null => {
     const key = String(sessionId)
     return pageInfoCache[key] || null
   }
-
-  const setCurrentSession = (sessionId: string | number): void => {
+  const setCurrentSession = async (sessionId: string | number): void => {
     const key = String(sessionId)
     sessionAccessTime[key] = Date.now()
-
     if (!messageCache[key]) {
-      loadMessagesById(key)
+      await loadMessagesById(key)
     }
-
     cleanupExpiredCache()
   }
-
   const cleanupExpiredCache = (): void => {
     const now = Date.now()
     const sessions = Object.entries(sessionAccessTime)
-
     sessions.sort(([, timeA], [, timeB]) => timeA - timeB)
-
     while (sessions.length > config.maxCachedSessions) {
       const [sessionId] = sessions.shift()!
 
@@ -96,7 +84,6 @@ export const useMessageStore = defineStore('message', () => {
       delete sessionAccessTime[String(sessionId)]
       console.log(`清理过期缓存: 会话 ${sessionId}`)
     }
-
     sessions.forEach(([sessionId, lastAccessTime]) => {
       if (now - lastAccessTime > config.cacheExpireTime) {
         delete messageCache[String(sessionId)]
@@ -106,22 +93,16 @@ export const useMessageStore = defineStore('message', () => {
       }
     })
   }
-
   const loadMessagesById = async (sessionId: string): Promise<void> => {
     if (isLoading.value) return
-
     isLoading.value = true
-
     try {
       const result = (await window.electronAPI.requestMessages(sessionId, {
         limit: config.pageSize,
         direction: 'newest'
       })) as unknown as MessagesResponse
-
-      console.log(result)
-
+      console.log('查询当前会话信息', result)
       messageCache[String(sessionId)] = result.messages
-
       pageInfoCache[String(sessionId)] = {
         sessionId: String(sessionId),
         hasMore: result.hasMore,
@@ -136,12 +117,12 @@ export const useMessageStore = defineStore('message', () => {
       isLoading.value = false
     }
   }
-
   const loadOlderMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingOlder.value) return false
-
     const pageInfo = pageInfoCache[String(sessionId)]
+    console.log('pageInfo:', pageInfo)
     if (!pageInfo?.hasMore) return false
+
     console.log('缓存消息', pageInfo)
 
     isLoadingOlder.value = true
@@ -151,26 +132,20 @@ export const useMessageStore = defineStore('message', () => {
         beforeId: pageInfo.oldestMessageId,
         direction: 'older'
       })) as unknown as MessagesResponse
-
       if (result.messages.length > 0) {
         const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...currentMessages, ...result.messages]
-
         if (newMessages.length > config.maxMessagesPerSession) {
           newMessages.splice(0, newMessages.length - config.maxMessagesPerSession)
         }
-
         messageCache[String(sessionId)] = newMessages
-
         pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMore: result.hasMore,
           oldestMessageId: newMessages[newMessages.length - 1]?.id || null
         }
-
         return true
       }
-
       return false
     } catch (error) {
       console.error('加载更早消息失败:', error)
@@ -179,39 +154,28 @@ export const useMessageStore = defineStore('message', () => {
       isLoadingOlder.value = false
     }
   }
-
   const loadNewerMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingNewer.value) return false
-
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo?.hasMoreNewer) return false
     isLoadingNewer.value = true
     try {
-      const result = (await window.electronAPI.requestMessages(sessionId, {
-        limit: config.pageSize,
-        afterId: pageInfo.newestMessageId,
-        direction: 'newer'
-      })) as unknown as MessagesResponse
-
+      const result = (await window.electronAPI.requestMessages(sessionId,
+        { limit: config.pageSize, afterId: pageInfo.newestMessageId, direction: 'newer' })) as unknown as MessagesResponse
       if (result.messages.length > 0) {
         const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...result.messages, ...currentMessages]
-
         if (newMessages.length > config.maxMessagesPerSession) {
           newMessages.splice(config.maxMessagesPerSession)
         }
-
         messageCache[String(sessionId)] = newMessages
-
         pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMoreNewer: result.hasMore,
           newestMessageId: newMessages[0]?.id || null
         }
-
         return true
       }
-
       return false
     } catch (error) {
       console.error('加载更新消息失败:', error)
@@ -243,24 +207,17 @@ export const useMessageStore = defineStore('message', () => {
     )
   }
 
-  const checkPreload = (
-    sessionId: string | number,
-    scrollTop: number,
-    scrollHeight: number,
-    clientHeight: number
-  ): void => {
+  const checkPreload = async (sessionId: string | number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo) return
-
     if (pageInfo.hasMore && scrollTop < config.preloadThreshold) {
-      loadOlderMessages(String(sessionId))
+      await loadOlderMessages(String(sessionId))
     }
-
     if (
       pageInfo.hasMoreNewer &&
       scrollHeight - scrollTop - clientHeight < config.preloadThreshold
     ) {
-      loadNewerMessages(String(sessionId))
+      await loadNewerMessages(String(sessionId))
     }
   }
 

@@ -1,8 +1,9 @@
 import { BrowserWindow } from 'electron'
 import { netMaster } from '../util/net-util'
-import { addLocalMessage } from '../sqlite/dao/message-dao'
-import { updateSessionByMessage } from '../sqlite/dao/session-dao'
+import messageDao from '../sqlite/dao/message-dao'
+import sessionDao from '../sqlite/dao/session-dao'
 import { queryAll } from '../sqlite/atom'
+import { Api } from '@main/service/proxy-service'
 
 class PullService {
   async pullStrongTransactionData(): Promise<void> {
@@ -43,11 +44,9 @@ class PullService {
   // 拉取离线消息
   async pullOfflineMessages(): Promise<void> {
     try {
-      console.info('开始拉取用户离线消息...', `${import.meta.env.VITE_REQUEST_URL}/message/pullMailboxMessage`)
+      console.info('开始拉取用户离线消息...', `${Api.PULL_MAILBOX}`)
 
-      const response = await netMaster.get(
-        `${import.meta.env.VITE_REQUEST_URL}/message/pullMailboxMessage`
-      )
+      const response = await netMaster.get(Api.PULL_MAILBOX)
 
       if (!response.data.success) {
         console.error('拉取离线消息失败:', response.data.errMsg)
@@ -81,7 +80,7 @@ class PullService {
           sendTime: date,
           isRead: 0
         }
-        const insertId = await addLocalMessage(messageData)
+        const insertId = await messageDao.addLocalMessage(messageData)
         messageIds.push(message.messageId)
         if (insertId <= 0) continue
 
@@ -109,7 +108,7 @@ class PullService {
       const sessionUpdatePromises: unknown[] = []
       for (const [sessionId, updateData] of sessionUpdates) {
         sessionUpdatePromises.push(
-          updateSessionByMessage({
+          sessionDao.updateSessionByMessage({
             content: updateData.content,
             sendTime: updateData.sendTime,
             sessionId: sessionId
@@ -168,10 +167,7 @@ class PullService {
       const requestData = {
         messageIdList: messageIds
       }
-      const response = await netMaster.post(
-        `${import.meta.env.VITE_REQUEST_URL}/message/ackConfirm`,
-        requestData
-      )
+      const response = await netMaster.post(Api.ACK_CONFIRM, requestData)
 
       if (response.data.success) {
         console.info('消息确认成功')

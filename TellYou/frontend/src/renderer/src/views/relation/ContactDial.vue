@@ -2,20 +2,14 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
 import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
+import { SimpleContact } from '@renderer/views/relation/ContactManagementView.vue'
 
-interface SimpleContact {
-  id: string
-  name: string
-  avatar?: string
-  sessionId: string
-}
 
-const emit = defineEmits<{ (e: 'select', contact: SimpleContact): void }>()
+const emit = defineEmits<{ (e: 'select', sessionId: string): void }>()
 
-// 从 session store 派生联系人视图数据
 const sessionStore = useSessionStore()
 const contacts = computed<SimpleContact[]>(() => {
-  return sessionStore.sortedSessions.map((s) => ({
+  return sessionStore.sortedSessions.map(s => ({
     id: s.contactId,
     name: s.contactName,
     avatar: s.contactAvatar,
@@ -23,8 +17,8 @@ const contacts = computed<SimpleContact[]>(() => {
   }))
 })
 
-type Group = { letter: string; items: SimpleContact[] }
-const grouped = computed<Group[]>(() => {
+type sessionDial = { letter: string; items: SimpleContact[] }
+const simpleSessions = computed<sessionDial[]>(() => {
   const map = new Map<string, SimpleContact[]>()
   for (const c of contacts.value) {
     const letter = (c.name?.[0] || '#').toUpperCase()
@@ -67,13 +61,13 @@ onBeforeUnmount(() => {
   if (hideTimer) clearTimeout(hideTimer)
 })
 
-const onSelect = (c: SimpleContact): void => emit('select', c)
+const onSelect = (contact: SimpleContact): void => emit('select', contact.sessionId)
 </script>
 
 <template>
   <div ref="wrapRef" class="dial-root">
     <div v-show="currentLetter" class="letter-float">{{ currentLetter }}</div>
-    <div v-for="g in grouped" :key="g.letter" class="group">
+    <div v-for="g in simpleSessions" :key="g.letter" class="group">
       <div class="group-header" :data-letter="g.letter">{{ g.letter }}</div>
       <div class="list">
         <div v-for="item in g.items" :key="item.id" class="item" @click="onSelect(item)">
@@ -100,7 +94,6 @@ const onSelect = (c: SimpleContact): void => emit('select', c)
   display: block; /* 竖向排布分组 */
   padding-top: 24px;
 }
-/* 美化滚动条 */
 .dial-root::-webkit-scrollbar {
   width: 8px;
 }
@@ -114,7 +107,6 @@ const onSelect = (c: SimpleContact): void => emit('select', c)
 .dial-root::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
-/* Firefox */
 .dial-root {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;

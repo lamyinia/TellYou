@@ -5,7 +5,8 @@ export interface ChatMessage {
   messageType: 'text' | 'image' | 'file' | 'system'
   senderId: string
   senderName: string
-  senderAvatar: string
+  avatarVersion: string
+  nicknameVersion: string
   timestamp: Date
   isRead: boolean
 }

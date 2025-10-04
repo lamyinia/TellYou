@@ -1,5 +1,8 @@
 import fs from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
+import { mediaUtil } from '@main/util/media-util'
+import path from 'path'
+import { error } from 'electron-log'
 
 const measureTime = (label: string) => {
   const startTime = Date.now()
@@ -30,8 +33,7 @@ const calculatePerformance = (duration: number, fileSize: number, originalSize?:
   }
 }
 
-const t_check_input_file = async (): Promise<void> => {
-  const filePath: string = 'D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif'
+const check_input_file = async (filePath: string): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
@@ -60,18 +62,37 @@ const t_check_input_file = async (): Promise<void> => {
   })
 }
 const t_ffmpeg_compress_gif = (originalSize?: number): void => {
+/*  await sharp(tempInputPath)
+    .toFormat('avif')
+    .toFile('D:/各种素材/compress/sharp.avif', (err, info) => { // 指定输出文件路径
+      if (err) {
+        console.error('生成 AVIF 文件失败:', err);
+      } else {
+        console.log('sharp 成功生成 AVIF 文件:', info);
+      }
+    });
+  console.log('开始测试')
+  const inputPath: string = 'D:/各种素材/gif/f0b20537c1f3489b5bcff1df219fc23fd9d67865.gif'
+  const outputPath: string = 'D:/各种素材/compress/out7.avif'
+  const buffer = fs.readFileSync(inputPath)
+  console.log(buffer.length / 1024)
+  const result = await mediaUtil.processMotion({mimeType: 'image/gif', buffer: buffer, originalName: 'test', size: buffer.length}, 'thumb')
+  console.log(result.compressedBuffer.length / 1024)
+  fs.writeFileSync(outputPath, result.compressedBuffer)*/
+
+
   const inputPath: string = 'D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif'
   const outputPath: string = 'D:/各种素材/compress/out.avif'
   const timer = measureTime('AVIF转换')
   ffmpeg(inputPath)
     .outputOptions([
       '-c:v libaom-av1', // 使用 libaom-av1 编码器
-      '-crf 45', // 提高质量参数以加速 (30->35)
+      '-crf 45',
       '-b:v 0', // 使用 CRF 模式
       '-cpu-used 8', // 最高速度模式 (0-8, 8最快)
       '-threads 0', // 使用所有可用线程
       '-pix_fmt yuv420p', // 像素格式
-      '-movflags +faststart', // 优化流媒体播放
+      '-movflags +faststart',
       '-f avif' // 输出 AVIF 格式
     ])
     .on('start', (commandLine) => {
@@ -91,15 +112,47 @@ const t_ffmpeg_compress_gif = (originalSize?: number): void => {
     .save(outputPath)
 }
 
+const test_video_preview = async () => {
+  const inputPath: string = 'D:/multi-media-material/video/ailun.mp4'
+  const outPutPath: string  = 'D:/multi-media-material/compress/videoNail.png'
+  console.log(path.dirname(outPutPath) + ':' + path.basename(outPutPath))
+
+  const snap = Math.floor(Math.random() * 100)
+  console.log(snap)
+
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(inputPath)
+      .screenshots({ timestamps: [`${snap}%`], folder: path.dirname(outPutPath), filename: path.basename(outPutPath), size: '800x?' })
+      .on('end', () => {
+        try {
+          fs.readFileSync(outPutPath)
+          resolve()
+        } catch (_err){
+          console.log(_err)
+          reject()
+        }
+      })
+      .on('error', reject)
+  }).then(() => {
+    console.info('缩略图生成成功')
+  }).catch(() => {
+    console.info('缩略图生成失败')
+  })
+}
+
 export const test = async (): Promise<void> => {
-  console.log('=== 开始转码性能测试 ===')
-  const inputPath = 'D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif'
-  const originalStats = fs.statSync(inputPath)
-  const originalSize = originalStats.size
-  console.log('原始文件大小:', (originalSize / 1024).toFixed(2), 'KB')
-  console.log('')
-  setTimeout(() => {
-    console.log('开始 AVIF 转换测试...')
-    t_ffmpeg_compress_gif(originalSize)
-  }, 1000)
+  const inputPath: string = 'D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg'
+  const outPutPath: string  = 'D:/multi-media-material/compress/out12.jpg'
+
+  return mediaUtil.getNormal(inputPath)
+    .then( async (mediaFile) => {
+      return mediaUtil.processStaticOriginal(mediaFile)
+    })
+    .then(async (result) => {
+      console.info(result)
+      await fs.promises.writeFile(outPutPath, result.compressedBuffer)
+      console.info('压缩 jpg 文件任务完成')
+    })
+    // .catch((error) => console.error(error))
+
 }

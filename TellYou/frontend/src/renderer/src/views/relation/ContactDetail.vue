@@ -4,15 +4,10 @@ import { useRouter } from 'vue-router'
 import { useMessageStore } from '@renderer/status/message/store'
 import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
 import { useSessionStore } from '@renderer/status/session/store'
+import { DetailContact } from '@renderer/views/relation/ContactManagementView.vue'
 
-interface SimpleContact {
-  id: string
-  name: string
-  avatar?: string
-  sessionId: string
-}
 
-const props = defineProps<{ contact: SimpleContact | null }>()
+const props = defineProps<{ contact: DetailContact | null }>()
 const contact = computed(() => props.contact)
 
 const router = useRouter()
@@ -42,7 +37,7 @@ const handleDelete = (): void => {
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
         <div class="cm-remark">备注：{{ contact.name }}</div>
-        <div class="cm-id">ID：{{ contact.id }}</div>
+<!--        <div class="cm-id">ID：{{ contact.sessionId }}</div>  如果是群聊就不显示，否则显示 -->
       </div>
       <div class="cm-actions">
         <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage">发消息</v-btn>

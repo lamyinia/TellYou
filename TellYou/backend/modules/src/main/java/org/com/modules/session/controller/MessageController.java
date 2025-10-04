@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.*;
 public class MessageController {
     private final PullService pullService;
 
-    @GetMapping("/pullMailboxMessage")
+    @GetMapping("/pull-mailbox")
     @Operation(summary = "拉取信箱消息")
     public ApiResult<PullMessageResp> pullMailboxMessage(){
         Long userId = RequestHolder.get().getUid();
         return ApiResult.success(pullService.pullBox(userId));
     }
 
-    @PostMapping("/ackConfirm")
+    @PostMapping("/ack-confirm")
     @Operation(summary = "ack 确认")
     public ApiResult<Void> confirmMailboxMessage(@RequestBody AckBatchConfirmReq ackBatchConfirmReq){
         pullService.ackBatchConfirm(RequestHolder.get().getUid(), ackBatchConfirmReq.getMessageIdList());

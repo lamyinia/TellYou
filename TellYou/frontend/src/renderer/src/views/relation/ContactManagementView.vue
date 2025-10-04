@@ -1,20 +1,29 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 import ContactDial from './ContactDial.vue'
 import ContactDetail from './ContactDetail.vue'
 import ContactApplication from './ContactApplication.vue'
 import CreatedGroup from './CreatedGroup.vue'
 import ContactBlack from './ContactBlack.vue'
 
-interface SimpleContact {
+export interface SimpleContact {
   id: string
   name: string
   avatar?: string
   sessionId: string
 }
-const selectedContact = ref<SimpleContact | null>(null)
-const selectContact = (c: SimpleContact): void => {
-  selectedContact.value = c
+export interface DetailContact {
+  name: string
+  avatar?: string
+  sessionId: string
+  signature?: string
+  gender?: string
+  region?: string
+}
+
+const selectedContact = ref<DetailContact | null>(null)
+const selectContact = (sessionId: string): void => {
+  // selectedContact.value = c
 }
 
 </script>

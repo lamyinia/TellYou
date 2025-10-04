@@ -30,9 +30,9 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
       toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
-      requestMessages: (sessionId: number, obj: object) => ipcRenderer.invoke('get-message-by-sessionId', sessionId, obj),
+      requestMessages: (sessionId: number, obj: object) => ipcRenderer.invoke('message:get-by-sessionId', sessionId, obj),
 
-      wsSend: (msg: unknown) => ipcRenderer.invoke('ws-send', msg),
+      wsSend: (msg: unknown) => ipcRenderer.invoke('websocket:send', msg),
 
       getAvatar: (params: { userId: string; strategy: string; avatarUrl: string;}) =>
         ipcRenderer.invoke('avatar:get', params),

@@ -63,6 +63,8 @@ export class SessionManager {
       this.sortedSessions.delete(oldSortKey)
       this.sortedSessions.set(newSortKey, session)
       this.sessionIdToSortKey.set(sessionId, newSortKey)
+    } else {
+      this.sortedSessions.set(oldSortKey, session)
     }
 
     this.lastUpdateTime = Date.now()
@@ -146,7 +148,8 @@ export class SessionManager {
     }
   }
 }
-export interface SortKey {
+
+interface SortKey {
   isPinned: boolean
   lastMsgTime: number // 时间戳
   sessionId: string // 用于稳定排序

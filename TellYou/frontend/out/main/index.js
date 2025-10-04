@@ -32,8 +32,9 @@ const fs = require("fs");
 const axios = require("axios");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
-const WebSocket = require("ws");
 const sqlite3 = require("sqlite3");
+const WebSocket = require("ws");
+const sharp = require("sharp");
 const icon = path.join(__dirname, "../../resources/icon.png");
 const getMimeType = (ext) => {
   const mimeTypes = {
@@ -47,8 +48,8 @@ const getMimeType = (ext) => {
 };
 const generateThumbnail = async (filePath) => {
   try {
-    const sharp = await import("sharp");
-    const thumbnailBuffer = await sharp.default(filePath).resize(200, 200, {
+    const sharp2 = await import("sharp");
+    const thumbnailBuffer = await sharp2.default(filePath).resize(200, 200, {
       fit: "cover",
       position: "center"
     }).jpeg({ quality: 80 }).toBuffer();
@@ -340,56 +341,6 @@ class JsonStoreService {
   }
 }
 const jsonStoreService = new JsonStoreService();
-class ApplicationService {
-  beginServe() {
-    electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
-      const { loadIncomingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      const data = await loadIncomingApplications(pageNo, pageSize);
-      event.sender.send("application:incoming:loaded", data);
-    });
-    electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
-      const { loadOutgoingApplications } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      const data = await loadOutgoingApplications(pageNo, pageSize);
-      event.sender.send("application:outgoing:loaded", data);
-    });
-    electron.ipcMain.on("application:incoming:approve", async (event, { ids }) => {
-      const { approveIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      await approveIncoming(ids || []);
-    });
-    electron.ipcMain.on("application:incoming:reject", async (event, { ids }) => {
-      const { rejectIncoming } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      await rejectIncoming(ids || []);
-    });
-    electron.ipcMain.on("application:outgoing:cancel", async (event, { ids }) => {
-      const { cancelOutgoing } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      await cancelOutgoing(ids || []);
-    });
-    electron.ipcMain.on("application:send", async (event, { toUserId, remark }) => {
-      const { insertApplication } = await Promise.resolve().then(() => require("./application-dao-B15nW3FF.js"));
-      await insertApplication("", toUserId, remark);
-    });
-  }
-}
-const applicationService = new ApplicationService();
-class BlackService {
-  beginServer() {
-    electron.ipcMain.on("black:list:load", async (event, { pageNo, pageSize }) => {
-      const { loadBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
-      const data = await loadBlacklist(pageNo, pageSize);
-      event.sender.send("black:list:loaded", data);
-    });
-    electron.ipcMain.on("black:list:remove", async (_event, { userIds }) => {
-      const { removeFromBlacklist } = await Promise.resolve().then(() => require("./black-dao-onwnEYrb.js"));
-      await removeFromBlacklist(userIds || []);
-    });
-  }
-}
-const blackService = new BlackService();
-const getMessageId = () => {
-  const time = BigInt(Date.now());
-  const rand = BigInt(Math.floor(Math.random() * 1e6));
-  return (time << 20n | rand).toString();
-};
 const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
@@ -419,6 +370,7 @@ class UrlUtil {
   nodeEnv = process.env.NODE_ENV || "production";
   homeDir = os.homedir();
   appPath = path.join(this.homeDir, this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou");
+  tempPath = path.join(this.appPath, "temp");
   sqlPath = this.appPath;
   atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || "";
   instanceId = process.env.ELECTRON_INSTANCE_ID || "";
@@ -438,6 +390,7 @@ class UrlUtil {
   }
   init() {
     this.cacheRootPath = path.join(electron.app.getPath("userData"), "caching");
+    this.tempPath = path.join(electron.app.getPath("userData"), "temp");
     this.protocolHost.forEach((host) => {
       this.cachePaths[host] = path.join(this.cacheRootPath, host);
       this.ensureDir(this.cachePaths[host]);
@@ -600,6 +553,116 @@ const initTableColumnsMap = async () => {
     globalColumnMap[tables[i].name] = columnsMapItem;
   }
 };
+class ApplicationDao {
+  async loadIncomingApplications(pageNo, pageSize, currentUserId) {
+    const offset = (pageNo - 1) * pageSize;
+    const where = currentUserId ? "WHERE target_id = ?" : "";
+    const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
+    const rows = await queryAll(`
+    SELECT * FROM contact_applications
+    ${where}
+    ORDER BY last_apply_time DESC
+    LIMIT ? OFFSET ?
+  `, params);
+    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM contact_applications ${where}`, currentUserId ? [currentUserId] : []);
+    return { list: rows, total: totalRow[0]?.total || 0 };
+  }
+  async loadOutgoingApplications(pageNo, pageSize, currentUserId) {
+    const offset = (pageNo - 1) * pageSize;
+    const where = currentUserId ? "WHERE apply_user_id = ?" : "";
+    const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
+    const rows = await queryAll(`
+    SELECT * FROM contact_applications
+    ${where}
+    ORDER BY last_apply_time DESC
+    LIMIT ? OFFSET ?
+  `, params);
+    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM contact_applications ${where}`, currentUserId ? [currentUserId] : []);
+    return { list: rows, total: totalRow[0]?.total || 0 };
+  }
+  async approveIncoming(ids) {
+    if (!ids.length) return 0;
+    const placeholders = ids.map(() => "?").join(",");
+    const sql = `UPDATE contact_applications SET status = 1 WHERE id IN (${placeholders})`;
+    return sqliteRun(sql, ids);
+  }
+  async rejectIncoming(ids) {
+    if (!ids.length) return 0;
+    const placeholders = ids.map(() => "?").join(",");
+    const sql = `UPDATE contact_applications SET status = 2 WHERE id IN (${placeholders})`;
+    return sqliteRun(sql, ids);
+  }
+  async cancelOutgoing(ids) {
+    if (!ids.length) return 0;
+    const placeholders = ids.map(() => "?").join(",");
+    const sql = `UPDATE contact_applications SET status = 3 WHERE id IN (${placeholders})`;
+    return sqliteRun(sql, ids);
+  }
+  async insertApplication(applyUserId, targetId, remark) {
+    const sql = `INSERT INTO contact_applications (apply_user_id, target_id, contact_type, status, apply_info, last_apply_time)
+               VALUES (?, ?, 0, 0, ?, ?)`;
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    return sqliteRun(sql, [applyUserId, targetId, remark || "", now]);
+  }
+}
+const applicationDao = new ApplicationDao();
+class ApplicationService {
+  beginServe() {
+    electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
+      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize);
+      event.sender.send("application:incoming:loaded", data);
+    });
+    electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
+      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize);
+      event.sender.send("application:outgoing:loaded", data);
+    });
+    electron.ipcMain.on("application:incoming:approve", async (_event, { ids }) => {
+      await applicationDao.approveIncoming(ids || []);
+    });
+    electron.ipcMain.on("application:incoming:reject", async (_event, { ids }) => {
+      await applicationDao.rejectIncoming(ids || []);
+    });
+    electron.ipcMain.on("application:outgoing:cancel", async (_event, { ids }) => {
+      await applicationDao.cancelOutgoing(ids || []);
+    });
+    electron.ipcMain.on("application:send", async (_event, { toUserId, remark }) => {
+      await applicationDao.insertApplication("", toUserId, remark);
+    });
+  }
+}
+const applicationService = new ApplicationService();
+class BlackDao {
+  async loadBlacklist(pageNo, pageSize) {
+    const offset = (pageNo - 1) * pageSize;
+    const rows = await queryAll(`SELECT * FROM blacklist ORDER BY create_time DESC LIMIT ? OFFSET ?`, [pageSize, offset]);
+    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM blacklist`, []);
+    return { list: rows, total: totalRow[0]?.total || 0 };
+  }
+  async removeFromBlacklist(userIds) {
+    if (!userIds.length) return 0;
+    const placeholders = userIds.map(() => "?").join(",");
+    const sql = `DELETE FROM blacklist WHERE target_id IN (${placeholders})`;
+    return sqliteRun(sql, userIds);
+  }
+}
+const blackDao = new BlackDao();
+class BlackService {
+  beginServer() {
+    electron.ipcMain.on("black:list:load", async (event, { pageNo, pageSize }) => {
+      const data = await blackDao.loadBlacklist(pageNo, pageSize);
+      event.sender.send("black:list:loaded", data);
+    });
+    electron.ipcMain.on("black:list:remove", async (_event, { userIds }) => {
+      await blackDao.removeFromBlacklist(userIds || []);
+    });
+  }
+}
+const blackService = new BlackService();
+const getMessageId = () => {
+  const time = BigInt(Date.now());
+  const rand = BigInt(Math.floor(Math.random() * 1e6));
+  return (time << 20n | rand).toString();
+};
 const rawMessageToBeInserted = (data) => {
   return {
     sessionId: data.sessionId,
@@ -615,43 +678,44 @@ const rawMessageToBeInserted = (data) => {
     isRead: data.isRead ?? 1
   };
 };
-const addLocalMessage = async (data) => {
-  const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
-  if (!changes) return 0;
-  const rows = await queryAll(
-    "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
-    [data.sessionId, String(data.sequenceId)]
-  );
-  return rows[0].id;
-};
-const getMessageBySessionId = async (sessionId, options) => {
-  try {
-    const limit = Number(options?.limit) || 50;
-    const direction = options?.direction || "newest";
-    const beforeId = options?.beforeId;
-    const afterId = options?.afterId;
-    let where = "WHERE session_id = ?";
-    const params = [sessionId];
-    if (direction === "older" && beforeId) {
-      const beforeMessage = await queryAll(
-        "SELECT send_time FROM messages WHERE id = ?",
-        [beforeId]
-      );
-      if (beforeMessage.length > 0) {
-        where += " AND send_time < ?";
-        params.push(beforeMessage[0].sendTime);
+class MessageDao {
+  async addLocalMessage(data) {
+    const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
+    if (!changes) return 0;
+    const rows = await queryAll(
+      "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
+      [data.sessionId, String(data.sequenceId)]
+    );
+    return rows[0].id;
+  }
+  async getMessageBySessionId(sessionId, options) {
+    try {
+      const limit = Number(options?.limit) || 50;
+      const direction = options?.direction || "newest";
+      const beforeId = options?.beforeId;
+      const afterId = options?.afterId;
+      let where = "WHERE session_id = ?";
+      const params = [sessionId];
+      if (direction === "older" && beforeId) {
+        const beforeMessage = await queryAll(
+          "SELECT send_time FROM messages WHERE id = ?",
+          [beforeId]
+        );
+        if (beforeMessage.length > 0) {
+          where += " AND send_time < ?";
+          params.push(beforeMessage[0].sendTime);
+        }
+      } else if (direction === "newer" && afterId) {
+        const afterMessage = await queryAll(
+          "SELECT send_time FROM messages WHERE id = ?",
+          [afterId]
+        );
+        if (afterMessage.length > 0) {
+          where += " AND send_time > ?";
+          params.push(afterMessage[0].sendTime);
+        }
       }
-    } else if (direction === "newer" && afterId) {
-      const afterMessage = await queryAll(
-        "SELECT send_time FROM messages WHERE id = ?",
-        [afterId]
-      );
-      if (afterMessage.length > 0) {
-        where += " AND send_time > ?";
-        params.push(afterMessage[0].sendTime);
-      }
-    }
-    const sql = `
+      const sql = `
         SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
                text, ext_data, send_time, is_read
         FROM messages
@@ -659,52 +723,59 @@ const getMessageBySessionId = async (sessionId, options) => {
         ORDER BY send_time DESC, id DESC
         LIMIT ${limit}
       `;
-    const rows = await queryAll(sql, params);
-    const messages = rows.map((r) => ({
-      id: r.id,
-      sessionId: r.sessionId,
-      content: r.text ?? "",
-      messageType: (() => {
-        switch (r.msgType) {
-          case 1:
-            return "text";
-          case 2:
-            return "image";
-          case 5:
-            return "file";
-          default:
-            return "system";
-        }
-      })(),
-      senderId: r.senderId,
-      senderName: r.senderName || "",
-      senderAvatar: "http://113.44.158.255:32788/lanye/avatar/thumb/1948031012053333361/6/index.png",
-      timestamp: new Date(r.sendTime),
-      isRead: !!r.isRead
-    }));
-    const totalCountRow = await queryAll(
-      "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
-      [sessionId]
-    );
-    const totalCount = totalCountRow[0]?.total || 0;
-    let hasMore = false;
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      const moreRow = await queryAll(
-        "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
-        [sessionId, lastMessage.timestamp.toISOString()]
+      const rows = await queryAll(sql, params);
+      const messages = rows.map((r) => {
+        const extData = JSON.parse(r.extData);
+        return {
+          id: r.id,
+          sessionId: r.sessionId,
+          content: r.text ?? "",
+          messageType: (() => {
+            switch (r.msgType) {
+              case 1:
+                return "text";
+              case 2:
+                return "image";
+              case 5:
+                return "file";
+              default:
+                return "system";
+            }
+          })(),
+          senderId: r.senderId,
+          senderName: r.senderName || "",
+          timestamp: new Date(r.sendTime),
+          isRead: !!r.isRead,
+          avatarVersion: String(extData.avatarVersion),
+          nicknameVersion: String(extData.nicknameVersion)
+        };
+      });
+      const totalCountRow = await queryAll(
+        "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
+        [sessionId]
       );
-      hasMore = (moreRow[0]?.cnt || 0) > 0;
+      const totalCount = totalCountRow[0]?.total || 0;
+      let hasMore = false;
+      if (messages.length > 0) {
+        const lastMessage = messages.at(-1);
+        const moreRow = await queryAll(
+          "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
+          [sessionId, lastMessage.timestamp.toString()]
+        );
+        hasMore = (moreRow[0]?.cnt || 0) > 0;
+      }
+      console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
+      return { messages, hasMore, totalCount };
+    } catch (error) {
+      console.error("获取会话消息失败:", error);
+      return { messages: [], hasMore: false, totalCount: 0 };
     }
-    console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
-    return { messages, hasMore, totalCount };
-  } catch (error) {
-    console.error("获取会话消息失败:", error);
-    return { messages: [], hasMore: false, totalCount: 0 };
   }
-};
-const selectSessions = async () => {
-  const sql = `
+}
+const messageDao = new MessageDao();
+class SessionDao {
+  async selectSessions() {
+    const sql = `
     SELECT
       session_id,
       contact_id,
@@ -730,18 +801,29 @@ const selectSessions = async () => {
       last_active
     FROM sessions
   `;
-  const result = await queryAll(sql, []);
-  return result;
-};
-const updateSessionByMessage = async (data) => {
-  await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
-};
+    const result = await queryAll(sql, []);
+    return result;
+  }
+  async updateSessionByMessage(data) {
+    await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
+  }
+  async updateAvatarUrl(params) {
+    try {
+      const result = await update("sessions", { contactAvatar: params.avatarUrl }, { sessionId: params.sessionId });
+      return result;
+    } catch {
+      console.error("更新会话头像失败");
+      return 0;
+    }
+  }
+}
+const sessionDao = new SessionDao();
 const uidKey = "newest:user:uid";
 const tokenKey = "newest:user:token";
 const handleMessage = async (msg, ws2) => {
   console.log(msg);
   const snap = Number(msg.adjustedTimestamp);
-  const insertId = await addLocalMessage({
+  const insertId = await messageDao.addLocalMessage({
     sessionId: msg.sessionId,
     sequenceId: msg.sequenceNumber,
     senderId: msg.senderId,
@@ -755,7 +837,7 @@ const handleMessage = async (msg, ws2) => {
   });
   if (!insertId || insertId <= 0) return;
   const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-  await updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
+  await sessionDao.updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
   const vo = {
     id: Number(insertId) || 0,
     sessionId: msg.sessionId,
@@ -763,9 +845,10 @@ const handleMessage = async (msg, ws2) => {
     messageType: "text",
     senderId: msg.senderId,
     senderName: msg.fromName ?? "",
-    senderAvatar: "",
     timestamp: new Date(snap),
-    isRead: true
+    isRead: true,
+    avatarVersion: String(msg.extra["avatarVersion"]),
+    nicknameVersion: String(msg.extra["nicknameVersion"])
   };
   ws2.send(JSON.stringify({
     messageId: msg.messageId,
@@ -862,7 +945,7 @@ const connectWs = () => {
     reconnect();
   });
   ws.on("message", async (data) => {
-    console.log("收到消息:", data.toString());
+    console.info("收到消息:", data.toString());
     const msg = JSON.parse(data);
     switch (msg.messageType) {
       case 1:
@@ -873,7 +956,7 @@ const connectWs = () => {
 };
 class MessageService {
   beginServe() {
-    electron.ipcMain.handle("ws-send", async (_, msg) => {
+    electron.ipcMain.handle("websocket:send", async (_, msg) => {
       console.log(msg);
       try {
         sendText(msg);
@@ -884,8 +967,8 @@ class MessageService {
         return false;
       }
     });
-    electron.ipcMain.handle("get-message-by-sessionId", (_, sessionId, options) => {
-      return getMessageBySessionId(String(sessionId), options);
+    electron.ipcMain.handle("message:get-by-sessionId", (_, sessionId, options) => {
+      return messageDao.getMessageBySessionId(String(sessionId), options);
     });
   }
 }
@@ -937,11 +1020,14 @@ class SessionService {
         return false;
       }
     });
-    electron.ipcMain.on("loadSessionData", async (event) => {
+    electron.ipcMain.handle("session:update:avatar-url", async (_, params) => {
+      return await sessionDao.updateAvatarUrl(params);
+    });
+    electron.ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session");
-      const result = await selectSessions();
+      const result = await sessionDao.selectSessions();
       console.log("查询结果:", result);
-      event.sender.send("loadSessionDataCallback", result);
+      event.sender.send("session:load-data:callback", result);
     });
   }
 }
@@ -957,7 +1043,7 @@ class ApiError extends Error {
 }
 const netMaster = axios.create({
   withCredentials: true,
-  baseURL: "/api",
+  baseURL: "http://localhost:8081",
   timeout: 10 * 1e3,
   headers: {
     "Content-Type": "application/json"
@@ -972,6 +1058,7 @@ const axiosInstance = axios.create({
 });
 netMaster.interceptors.request.use(
   (config) => {
+    console.log(config);
     const token = store.get(tokenKey);
     if (token && config.headers) {
       config.headers.token = token;
@@ -1216,7 +1303,7 @@ class PullService {
           sendTime: date,
           isRead: 0
         };
-        const insertId = await addLocalMessage(messageData);
+        const insertId = await messageDao.addLocalMessage(messageData);
         messageIds.push(message.messageId);
         if (insertId <= 0) continue;
         const sessionId = String(message.sessionId);
@@ -1242,7 +1329,7 @@ class PullService {
       const sessionUpdatePromises = [];
       for (const [sessionId, updateData] of sessionUpdates) {
         sessionUpdatePromises.push(
-          updateSessionByMessage({
+          sessionDao.updateSessionByMessage({
             content: updateData.content,
             sendTime: updateData.sendTime,
             sessionId
@@ -1321,80 +1408,458 @@ const initializeUserData = async (uid) => {
   await pullService.pullStrongTransactionData();
   await pullService.pullOfflineMessages();
 };
-const measureTime = (label) => {
-  const startTime = Date.now();
-  console.log(`[${label}] 开始时间:`, new Date(startTime).toLocaleTimeString());
-  return {
-    end: (additionalInfo) => {
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      console.log(`[${label}] 结束时间:`, new Date(endTime).toLocaleTimeString());
-      console.log(`[${label}] 总耗时:`, duration, "ms");
-      console.log(`[${label}] 总耗时:`, (duration / 1e3).toFixed(2), "秒");
-      if (additionalInfo) {
-        console.log(`[${label}] 性能统计:`, additionalInfo);
-      }
-      return duration;
+const NON_COMPRESSIBLE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "application/x-rar-compressed",
+  "application/x-7z-compressed",
+  "text/plain",
+  "application/json",
+  "application/xml"
+];
+const MOTION_IMAGE_TYPES = ["image/gif", "image/webp", "image/avif"];
+const IM_COMPRESSION_CONFIG = {
+  thumbnail: {
+    format: "avif",
+    maxSize: 300,
+    quality: 80,
+    crf: 35,
+    cpuUsed: 4
+  },
+  original: {
+    maxSize: 1920,
+    quality: 90,
+    progressive: true,
+    crf: 25,
+    cpuUsed: 2
+  }
+};
+class MediaUtil {
+  maxVideoSize = 1280;
+  thumbnailSize = 300;
+  previewSize = 800;
+  suffixMap = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/avif": ".avif",
+    "image/gif": ".gif"
+  };
+  mimeTypeMap = {
+    ".json": "application/json",
+    ".jpg": "image/jpg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mpeg": "audio/mpeg",
+    ".wav": "audio/wav"
+  };
+  /**
+   * 检查文件是否需要压缩
+   */
+  needsCompression(mimeType) {
+    return !NON_COMPRESSIBLE_TYPES.includes(mimeType);
+  }
+  /**
+   * 检查是否为动图
+   */
+  isMotionImage(mimeType) {
+    return MOTION_IMAGE_TYPES.includes(mimeType);
+  }
+  /**
+   * 获取文件后缀
+   */
+  getSuffixByMimeType(mimeType) {
+    return this.suffixMap[mimeType] || ".jpg";
+  }
+  /**
+   * 获取上传格式
+   */
+  getMimeTypeBySuffix(suffix) {
+    return this.mimeTypeMap[suffix] || "application/octet-stream";
+  }
+  /**
+   * 获取标准参数
+   */
+  async getNormal(filePath) {
+    try {
+      const buffer = await fs.promises.readFile(filePath);
+      console.info(buffer.length);
+      return { buffer, size: buffer.length, originalName: path.basename(filePath), mimeType: this.getMimeTypeBySuffix(path.extname(filePath)) };
+    } catch (e) {
+      console.error("获取文件失败");
+      throw e;
     }
-  };
-};
-const calculatePerformance = (duration, fileSize, originalSize) => {
-  const compressionRatio = originalSize ? ((originalSize - fileSize) / originalSize * 100).toFixed(1) : "N/A";
-  const processingSpeed = (fileSize / (duration / 1e3) / 1024).toFixed(2);
-  return {
-    duration: `${duration}ms`,
-    fileSize: `${(fileSize / 1024).toFixed(2)}KB`,
-    compressionRatio: originalSize ? `${compressionRatio}%` : "N/A",
-    processingSpeed: `${processingSpeed}KB/s`
-  };
-};
-const t_ffmpeg_compress_gif = (originalSize) => {
-  const inputPath = "D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif";
-  const outputPath = "D:/各种素材/compress/out.avif";
-  const timer = measureTime("AVIF转换");
-  ffmpeg(inputPath).outputOptions([
-    "-c:v libaom-av1",
-    // 使用 libaom-av1 编码器
-    "-crf 45",
-    // 提高质量参数以加速 (30->35)
-    "-b:v 0",
-    // 使用 CRF 模式
-    "-cpu-used 8",
-    // 最高速度模式 (0-8, 8最快)
-    "-threads 0",
-    // 使用所有可用线程
-    "-pix_fmt yuv420p",
-    // 像素格式
-    "-movflags +faststart",
-    // 优化流媒体播放
-    "-f avif"
-    // 输出 AVIF 格式
-  ]).on("start", (commandLine) => {
-    console.log("FFmpeg 命令:", commandLine);
-  }).on("end", () => {
-    const stats = fs.statSync(outputPath);
-    console.log("AVIF 文件生成成功:", outputPath);
-    console.log("文件大小:", (stats.size / 1024).toFixed(2), "KB");
-    const duration = timer.end();
-    const performance = calculatePerformance(duration, stats.size, originalSize);
-    console.log("性能统计:", performance);
-  }).on("error", (err) => {
-    console.error("AVIF 转换失败:", err.message);
-  }).save(outputPath);
-};
+  }
+  async processImage(mediaFile, strategy) {
+    const { mimeType } = mediaFile;
+    if (this.isMotionImage(mimeType)) {
+      return this.processMotion(mediaFile, strategy);
+    } else {
+      if (strategy === "thumb") {
+        return this.processStaticThumbnail(mediaFile);
+      } else {
+        return this.processStaticOriginal(mediaFile);
+      }
+    }
+  }
+  /**
+   * 处理动图
+   */
+  async processMotion(mediaFile, strategy) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(
+        urlUtil.tempPath,
+        `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`
+      );
+      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`);
+      console.info("临时目录", urlUtil.tempPath);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const currentConfig = strategy === "thumb" ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original;
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).size(`${currentConfig.maxSize}x?`).outputOptions([
+          "-c:v libaom-av1",
+          "-b:v 0",
+          `-crf ${currentConfig.crf}`,
+          `-cpu-used 8`,
+          "-threads 0",
+          "-pix_fmt yuv420p",
+          "-movflags +faststart",
+          "-vsync cfr",
+          "-f avif"
+        ]).on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", (err) => {
+          console.error("FFmpeg 错误详情:", err.message);
+          reject(err);
+        }).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "image/avif",
+        newSuffix: ".avif"
+      };
+    } catch (error) {
+      throw new Error(`动图缩略图转码失败: ${error.message}`);
+    }
+  }
+  /**
+   * 处理静态图片缩略图
+   */
+  async processStaticThumbnail(mediaFile) {
+    const { buffer } = mediaFile;
+    const config = IM_COMPRESSION_CONFIG.thumbnail;
+    try {
+      const sharpInstance = sharp(buffer);
+      const metadata = await sharpInstance.metadata();
+      const { width = 0, height = 0 } = metadata;
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      const compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "cover" }).avif({ quality: config.quality }).toBuffer();
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "image/avif",
+        newSuffix: ".avif"
+      };
+    } catch (error) {
+      throw new Error(`静态图片缩略图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 处理静态图片原图
+   */
+  async processStaticOriginal(mediaFile) {
+    const { buffer, mimeType } = mediaFile;
+    const config = IM_COMPRESSION_CONFIG.original;
+    try {
+      const sharpInstance = sharp(buffer);
+      const metadata = await sharpInstance.metadata();
+      const { width = 0, height = 0 } = metadata;
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      let compressedBuffer;
+      let newMimeType = mimeType;
+      if (mimeType === "image/png") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).webp({ quality: config.quality }).toBuffer();
+        newMimeType = "image/webp";
+      } else if (mimeType === "image/jpeg") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+      } else if (mimeType == "image/avif") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).avif({ quality: config.quality, progressive: config.progressive }).toBuffer();
+        newMimeType = "image/avif";
+      } else {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+        newMimeType = "image/jpeg";
+      }
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType,
+        newSuffix: this.getSuffixByMimeType(newMimeType)
+      };
+    } catch (error) {
+      throw new Error(`静态图片原图处理失败: ${error.message}`);
+    }
+  }
+  /**
+   * 压缩视频
+   */
+  async compressVideo(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp4`);
+      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp4`);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).size(`${this.maxVideoSize}x?`).videoBitrate("1000k").audioBitrate("128k").format("mp4").outputOptions([
+          "-c:v libx264",
+          // 使用更高效的 H.264 编码器
+          "-crf 23",
+          // 降低 CRF 值，提高压缩率
+          "-preset fast",
+          // 平衡速度和质量
+          "-threads 0",
+          "-movflags +faststart"
+        ]).on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "video/mp4",
+        newSuffix: ".mp4"
+      };
+    } catch (error) {
+      throw new Error(`视频压缩失败: ${error.message}`);
+    }
+  }
+  /**
+   * 压缩音频
+   */
+  async compressAudio(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp3`);
+      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp3`);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).audioBitrate("128k").format("mp3").on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "audio/mp3",
+        newSuffix: ".mp3"
+      };
+    } catch (error) {
+      throw new Error(`音频压缩失败: ${error.message}`);
+    }
+  }
+  /**
+   * 生成视频缩略图
+   */
+  async generateVideoThumbnail(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      const tempThumbnailPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.jpg`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const snap = Math.floor(Math.random() * 100);
+      const thumbnailBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempVideoPath).screenshots({
+          timestamps: [`${snap}%`],
+          filename: path.basename(tempThumbnailPath),
+          folder: path.dirname(tempThumbnailPath),
+          size: `${this.thumbnailSize}x?`
+        }).on("end", async () => {
+          try {
+            const thumbnailData = await fs.promises.readFile(tempThumbnailPath);
+            resolve(thumbnailData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject);
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      await fs.promises.unlink(tempThumbnailPath).catch(() => {
+      });
+      return {
+        thumbnailBuffer,
+        thumbnailSize: thumbnailBuffer.length,
+        dimensions: { width: this.thumbnailSize, height: this.thumbnailSize }
+      };
+    } catch (error) {
+      throw new Error(`视频缩略图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 生成预览图
+   */
+  async generatePreview(mediaFile) {
+    const { mimeType } = mediaFile;
+    if (mimeType.startsWith("video/")) {
+      return this.generateVideoPreview(mediaFile);
+    } else {
+      throw new Error(`不支持的预览图类型: ${mimeType}`);
+    }
+  }
+  /**
+   * 生成视频预览图
+   */
+  async generateVideoPreview(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      const tempPreviewPath = path.join(process.cwd(), "temp", `preview_${Date.now()}.jpg`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const snap = Math.floor(Math.random() * 100);
+      const previewBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempVideoPath).screenshots({
+          timestamps: [`${snap}%`],
+          filename: path.basename(tempPreviewPath),
+          folder: path.dirname(tempPreviewPath),
+          size: `${this.previewSize}x?`
+        }).on("end", async () => {
+          try {
+            const previewData = await fs.promises.readFile(tempPreviewPath);
+            resolve(previewData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject);
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      await fs.promises.unlink(tempPreviewPath).catch(() => {
+      });
+      return {
+        thumbnailBuffer: previewBuffer,
+        thumbnailSize: previewBuffer.length,
+        dimensions: { width: this.previewSize, height: this.previewSize }
+      };
+    } catch (error) {
+      throw new Error(`视频预览图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 获取视频信息
+   */
+  async getVideoInfo(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const videoInfo = await new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
+          if (!videoStream) {
+            reject(new Error("未找到视频流"));
+            return;
+          }
+          resolve({
+            duration: metadata.format.duration || 0,
+            width: videoStream.width || 0,
+            height: videoStream.height || 0,
+            bitrate: parseInt(String(metadata.format.bit_rate || "0")),
+            codec: videoStream.codec_name || "unknown"
+          });
+        });
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      return videoInfo;
+    } catch (error) {
+      throw new Error(`获取视频信息失败: ${error.message}`);
+    }
+  }
+  /**
+   * 计算压缩尺寸
+   */
+  calculateDimensions(originalWidth, originalHeight, maxSize) {
+    if (originalWidth <= maxSize && originalHeight <= maxSize) {
+      return { newWidth: originalWidth, newHeight: originalHeight };
+    }
+    const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
+    return {
+      newWidth: Math.round(originalWidth * ratio),
+      newHeight: Math.round(originalHeight * ratio)
+    };
+  }
+}
+const mediaUtil = new MediaUtil();
 const test = async () => {
-  console.log("=== 开始转码性能测试 ===");
-  const inputPath = "D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif";
-  const originalStats = fs.statSync(inputPath);
-  const originalSize = originalStats.size;
-  console.log("原始文件大小:", (originalSize / 1024).toFixed(2), "KB");
-  console.log("");
-  setTimeout(() => {
-    console.log("开始 AVIF 转换测试...");
-    t_ffmpeg_compress_gif(originalSize);
-  }, 1e3);
+  const inputPath = "D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg";
+  const outPutPath = "D:/multi-media-material/compress/out12.jpg";
+  return mediaUtil.getNormal(inputPath).then(async (mediaFile) => {
+    return mediaUtil.processStaticOriginal(mediaFile);
+  }).then(async (result) => {
+    console.info(result);
+    await fs.promises.writeFile(outPutPath, result.compressedBuffer);
+    console.info("压缩 jpg 文件任务完成");
+  });
 };
-class ListenService {
+class DeviceService {
   loginWidth = 596;
   loginHeight = 400;
   registerWidth = 596;
@@ -1450,7 +1915,7 @@ class ListenService {
     });
   }
 }
-const listenService = new ListenService();
+const deviceService = new DeviceService();
 class AvatarCacheService {
   cacheMap = /* @__PURE__ */ new Map();
   maxCacheSize = 100 * 1024 * 1024;
@@ -1563,6 +2028,22 @@ class AvatarCacheService {
   }
 }
 const avatarCacheService = new AvatarCacheService();
+class ProxyService {
+  beginServe() {
+    electron.ipcMain.handle("proxy:login", async (_event, params) => {
+      const response = await netMaster.post("/user-account/login", params);
+      return response.data.data;
+    });
+    electron.ipcMain.handle(
+      "proxy:register",
+      async (_event, params) => {
+        const response = await netMaster.post("/user-account/register", params);
+        return response.data;
+      }
+    );
+  }
+}
+const proxyService = new ProxyService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -1614,8 +2095,8 @@ electron.app.on("window-all-closed", () => {
 const createWindow = () => {
   const mainWindow = new electron.BrowserWindow({
     icon,
-    width: listenService.loginWidth,
-    height: listenService.loginHeight,
+    width: deviceService.loginWidth,
+    height: deviceService.loginHeight,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
@@ -1637,6 +2118,7 @@ const createWindow = () => {
     mainWindow.setSkipTaskbar(false);
     mainWindow.show();
   });
+  proxyService.beginServe();
   avatarCacheService.beginServe();
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
@@ -1644,7 +2126,7 @@ const createWindow = () => {
   messageService.beginServe();
   applicationService.beginServe();
   blackService.beginServer();
-  listenService.beginServe(mainWindow);
+  deviceService.beginServe(mainWindow);
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
     if (utils.is.dev) {
@@ -1674,6 +2156,4 @@ const createWindow = () => {
 };
 exports.netMaster = netMaster;
 exports.netMinIO = netMinIO;
-exports.queryAll = queryAll;
-exports.sqliteRun = sqliteRun;
 exports.store = store;

@@ -1,8 +1,9 @@
 import { Session } from '@renderer/status/session/class'
 import { queryAll, update } from '../atom'
 
-export const selectSessions = async (): Promise<Session[]> => {
-  const sql: string = `
+class SessionDao {
+  public async selectSessions(): Promise<Session[]>{
+    const sql: string = `
     SELECT
       session_id,
       contact_id,
@@ -28,10 +29,22 @@ export const selectSessions = async (): Promise<Session[]> => {
       last_active
     FROM sessions
   `;
-  const result = await queryAll(sql, [])
-  return result as unknown as Session[]
+    const result = await queryAll(sql, [])
+    return result as unknown as Session[]
+  }
+  public async updateSessionByMessage(data: {content: string, sendTime: string, sessionId: string}): Promise<void> {
+    await update('sessions', {lastMsgContent: data.content, lastMsgTime: data.sendTime}, {sessionId: data.sessionId})
+  }
+  public async updateAvatarUrl(params: {sessionId: string, avatarUrl: string}): Promise<number> {
+    try {
+      const result = await update("sessions", {contactAvatar: params.avatarUrl}, {sessionId: params.sessionId})
+      return result
+    } catch {
+      console.error('更新会话头像失败')
+      return 0
+    }
+  }
 }
 
-export const updateSessionByMessage = async (data: {content: string, sendTime: string, sessionId: string}): Promise<void> => {
-  await update('sessions', {lastMsgContent: data.content, lastMsgTime: data.sendTime}, {sessionId: data.sessionId})
-}
+const sessionDao = new SessionDao()
+export default sessionDao

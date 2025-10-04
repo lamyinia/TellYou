@@ -3,7 +3,6 @@ import path, { join } from 'path'
 import fs, { createReadStream, existsSync, mkdirSync, statSync } from 'fs'
 import axios from 'axios'
 import log from 'electron-log'
-import { avatarCacheService } from '@main/cache/avatar-cache'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 

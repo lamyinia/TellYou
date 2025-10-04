@@ -4,7 +4,6 @@ server:
   retry:
     threads: 1
 
-
 tell-you:
   netty:
     port: 8082

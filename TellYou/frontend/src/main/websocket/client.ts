@@ -97,15 +97,6 @@ export const connectWs = (): void => {
   ws.on('open', () => {
     console.info('客户端连接成功')
     maxReConnectTimes = 20
-
-    // setInterval(() => {
-    //   ws.send(JSON.stringify({
-    //     type: 0,
-    //     fromUid: "2",
-    //     timestamp: Date.now(),
-    //   }))
-    // }, 1000 * 5)
-
     const mainWindow = BrowserWindow.getFocusedWindow()
     if (mainWindow){
       mainWindow.webContents.send('ws-connected')
@@ -119,7 +110,7 @@ export const connectWs = (): void => {
   })
 
   ws.on('message', async (data) => {
-    console.log('收到消息:', data.toString())
+    console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
 
     switch (msg.messageType){

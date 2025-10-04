@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
-import { queryAll, sqliteRun } from '@main/sqlite/atom'
+import { queryAll, sqliteRun, update } from '@main/sqlite/atom'
 import { Session } from '@renderer/status/session/class'
-import { selectSessions } from '@main/sqlite/dao/session-dao'
+import sessionDao from '@main/sqlite/dao/session-dao'
 
 class SessionService {
   public beginServe(): void {
@@ -50,12 +50,14 @@ class SessionService {
         return false
       }
     })
-
-    ipcMain.on('loadSessionData', async (event) => {
+    ipcMain.handle('session:update:avatar-url', async (_, params: {sessionId: string, avatarUrl: string}) => {
+        return await sessionDao.updateAvatarUrl(params)
+    })
+    ipcMain.on('session:load-data', async (event) => {
       console.log("开始查询session");
-      const result: Session[] = await selectSessions()
+      const result: Session[] = await sessionDao.selectSessions()
       console.log('查询结果:', result)
-      event.sender.send("loadSessionDataCallback", result);
+      event.sender.send("session:load-data:callback", result);
     })
   }
 }

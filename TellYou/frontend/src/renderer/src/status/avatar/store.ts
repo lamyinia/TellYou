@@ -64,8 +64,6 @@ export const useAvatarStore = defineStore('avatar', () => {
   const getAvatar = async (userId: string, strategy: string, avatarUrl: string): Promise<string | null> => {
     if (!userId || !avatarUrl) return null
 
-    console.info('debug:getAvatar1:   ', [userId, strategy, avatarUrl].join('---'))
-
     const key: string = getCacheKey(userId, strategy)
     const version = extractVersionFromUrl(avatarUrl)
     const cached = memoryCache.get(key)
@@ -92,7 +90,6 @@ export const useAvatarStore = defineStore('avatar', () => {
     memoryCache.set(key, cacheItem)
 
     try {
-      console.info('debug:getAvatar4:   ', [userId, strategy, avatarUrl].join('---'))
       const localPath = await window.electronAPI.getAvatar({ userId, strategy, avatarUrl })
       if (localPath) {
         cacheItem.localPath = localPath

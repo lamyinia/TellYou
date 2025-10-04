@@ -17,6 +17,7 @@ class UrlUtil {
   public nodeEnv = process.env.NODE_ENV || 'production'
   public homeDir = os.homedir()
   public appPath = join(this.homeDir, this.nodeEnv === 'development' ? '.tellyoudev' : '.tellyou')
+  public tempPath: string = join(this.appPath, 'temp')
   public sqlPath = this.appPath
   public atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || ''
   public instanceId = process.env.ELECTRON_INSTANCE_ID as string || ''
@@ -37,6 +38,7 @@ class UrlUtil {
   }
   public init(): void {
     this.cacheRootPath = join(app.getPath('userData'), 'caching')
+    this.tempPath = join(app.getPath('userData'), 'temp')
     this.protocolHost.forEach(host => {
       this.cachePaths[host] = join(this.cacheRootPath,  host)
       this.ensureDir(this.cachePaths[host])

@@ -2,15 +2,14 @@ import sharp from 'sharp'
 import ffmpeg from 'fluent-ffmpeg'
 import { promises as fs } from 'fs'
 import path from 'path'
+import urlUtil from '@main/util/url-util'
 
-// 媒体文件类型定义
 export interface MediaFile {
   buffer: Buffer
   mimeType: string
   originalName: string
   size: number
 }
-
 export interface CompressionResult {
   compressedBuffer: Buffer
   compressedSize: number
@@ -18,13 +17,11 @@ export interface CompressionResult {
   newMimeType: string
   newSuffix: string
 }
-
 export interface ThumbnailResult {
   thumbnailBuffer: Buffer
   thumbnailSize: number
   dimensions: { width: number; height: number }
 }
-
 export interface VideoInfo {
   duration: number
   width: number
@@ -32,9 +29,7 @@ export interface VideoInfo {
   bitrate: number
   codec: string
 }
-
-// 不需要压缩的文件类型
-const NON_COMPRESSIBLE_TYPES = [
+const NON_COMPRESSIBLE_TYPES: string[] = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -49,53 +44,219 @@ const NON_COMPRESSIBLE_TYPES = [
   'application/json',
   'application/xml'
 ]
-
-// 压缩后文件后缀映射
-const COMPRESSED_SUFFIXES = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/avif': '.avif',
-  'video/mp4': '.mp4',
-  'video/webm': '.webm',
-  'audio/mp3': '.mp3',
-  'audio/aac': '.aac',
-  'audio/opus': '.opus',
-  'audio/ogg': '.ogg'
+const MOTION_IMAGE_TYPES = ['image/gif', 'image/webp', 'image/avif']
+const IM_COMPRESSION_CONFIG = {
+  thumbnail: {
+    format: 'avif',
+    maxSize: 300,
+    quality: 80,
+    crf: 35,
+    cpuUsed: 4
+  },
+  original: {
+    maxSize: 1920,
+    quality: 90,
+    progressive: true,
+    crf: 25,
+    cpuUsed: 2
+  }
 }
 
+/**
+ * 媒体文件处理工具类
+ * 提供图片、视频、音频的压缩、缩略图生成等功能
+ *
+ * @author lanye
+ * @date 2025/09/29 16:10
+ * @description 媒体文件处理工具类，支持多种格式的压缩和预览图生成
+ */
+
 class MediaUtil {
-  private readonly maxImageSize = 1920
   private readonly maxVideoSize = 1280
   private readonly thumbnailSize = 300
   private readonly previewSize = 800
-
+  private readonly suffixMap: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/avif': '.avif',
+    'image/gif': '.gif'
+  }
+  private readonly mimeTypeMap: Record<string, string> = {
+    '.json': 'application/json',
+    '.jpg': 'image/jpg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.avif': 'image/avif',
+    '.gif': 'image/gif',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mpeg': 'audio/mpeg',
+    '.wav': 'audio/wav',
+  }
   /**
    * 检查文件是否需要压缩
    */
-  needsCompression(mimeType: string): boolean {
+  public needsCompression(mimeType: string): boolean {
     return !NON_COMPRESSIBLE_TYPES.includes(mimeType)
   }
-
   /**
-   * 获取压缩后的文件后缀
+   * 检查是否为动图
    */
-  getCompressedSuffix(mimeType: string): string {
-    return COMPRESSED_SUFFIXES[mimeType] || path.extname(mimeType)
+  public isMotionImage(mimeType: string): boolean {
+    return MOTION_IMAGE_TYPES.includes(mimeType)
+  }
+  /**
+   * 获取文件后缀
+   */
+  public getSuffixByMimeType(mimeType: string): string {
+    return this.suffixMap[mimeType] || '.jpg'
+  }
+  /**
+   * 获取上传格式
+   */
+  public getMimeTypeBySuffix(suffix: string): string {
+    return this.mimeTypeMap[suffix] || 'application/octet-stream'
+  }
+  /**
+   * 获取标准参数
+   */
+  public async getNormal(filePath: string): Promise<MediaFile> {
+    try {
+      const buffer: Buffer = await fs.readFile(filePath)
+      console.info(buffer.length)
+      return {buffer: buffer, size: buffer.length, originalName: path.basename(filePath), mimeType: this.getMimeTypeBySuffix(path.extname(filePath))}
+    } catch(e) {
+      console.error('获取文件失败')
+      throw e
+    }
+  }
+
+  async processImage(
+    mediaFile: MediaFile,
+    strategy: 'thumb' | 'original'
+  ): Promise<CompressionResult> {
+    const { mimeType } = mediaFile
+
+    if (this.isMotionImage(mimeType)) {
+      return this.processMotion(mediaFile, strategy)
+    } else {
+      if (strategy === 'thumb') {
+        return this.processStaticThumbnail(mediaFile)
+      } else {
+        return this.processStaticOriginal(mediaFile)
+      }
+    }
   }
 
   /**
-   * 压缩图片
+   * 处理动图
    */
-  async compressImage(mediaFile: MediaFile): Promise<CompressionResult> {
-    const { buffer, mimeType } = mediaFile
+  async processMotion(mediaFile: MediaFile, strategy: 'thumb' | 'original'): Promise<CompressionResult> {
+    const { buffer } = mediaFile
+    try {
+      const tempInputPath = path.join(
+        urlUtil.tempPath,
+        `motion_input_${Date.now()}.${mediaFile.mimeType.split('/')[1]}`
+      )
+      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`)
+      console.info('临时目录', urlUtil.tempPath)
+
+      await fs.mkdir(path.dirname(tempInputPath), { recursive: true })
+      await fs.writeFile(tempInputPath, buffer)
+      const currentConfig =
+        strategy === 'thumb' ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original
+
+      const compressedBuffer = await new Promise<Buffer>((resolve, reject) => {
+        ffmpeg(tempInputPath)
+          .size(`${currentConfig.maxSize}x?`)
+          .outputOptions([
+            '-c:v libaom-av1',
+            '-b:v 0',
+            `-crf ${currentConfig.crf}`,
+            `-cpu-used 8`,
+            '-threads 0',
+            '-pix_fmt yuv420p',
+            '-movflags +faststart',
+            '-vsync cfr',
+            '-f avif'
+          ])
+          .on('end', async () => {
+            try {
+              const compressedData = await fs.readFile(tempOutputPath)
+              resolve(compressedData)
+            } catch (error) {
+              reject(error)
+            }
+          })
+          .on('error', (err) => {
+            console.error('FFmpeg 错误详情:', err.message)
+            reject(err)
+          })
+          .save(tempOutputPath)
+      })
+      await fs.unlink(tempInputPath).catch(() => {})
+      await fs.unlink(tempOutputPath).catch(() => {})
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
+
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: 'image/avif',
+        newSuffix: '.avif'
+      }
+    } catch (error) {
+      throw new Error(`动图缩略图转码失败: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * 处理静态图片缩略图
+   */
+  async processStaticThumbnail(mediaFile: MediaFile): Promise<CompressionResult> {
+    const { buffer } = mediaFile
+    const config = IM_COMPRESSION_CONFIG.thumbnail
 
     try {
       const sharpInstance = sharp(buffer)
       const metadata = await sharpInstance.metadata()
       const { width = 0, height = 0 } = metadata
 
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, this.maxImageSize)
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize)
+
+      const compressedBuffer = await sharpInstance
+        .resize(newWidth, newHeight, { fit: 'cover' })
+        .avif({ quality: config.quality })
+        .toBuffer()
+
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
+
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: 'image/avif',
+        newSuffix: '.avif'
+      }
+    } catch (error) {
+      throw new Error(`静态图片缩略图生成失败: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * 处理静态图片原图
+   */
+  async processStaticOriginal(mediaFile: MediaFile): Promise<CompressionResult> {
+    const { buffer, mimeType } = mediaFile
+    const config = IM_COMPRESSION_CONFIG.original
+
+    try {
+      const sharpInstance = sharp(buffer)
+      const metadata = await sharpInstance.metadata()
+      const { width = 0, height = 0 } = metadata
+
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize)
 
       let compressedBuffer: Buffer
       let newMimeType = mimeType
@@ -103,18 +264,24 @@ class MediaUtil {
       if (mimeType === 'image/png') {
         compressedBuffer = await sharpInstance
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-          .webp({ quality: 85 })
+          .webp({ quality: config.quality })
           .toBuffer()
         newMimeType = 'image/webp'
       } else if (mimeType === 'image/jpeg') {
         compressedBuffer = await sharpInstance
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 85, progressive: true })
+          .jpeg({ quality: config.quality, progressive: config.progressive })
           .toBuffer()
+      } else if (mimeType == 'image/avif'){
+        compressedBuffer = await sharpInstance
+          .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
+          .avif({ quality: config.quality, progressive: config.progressive })
+          .toBuffer()
+        newMimeType = 'image/avif'
       } else {
         compressedBuffer = await sharpInstance
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 85 })
+          .jpeg({ quality: config.quality, progressive: config.progressive })
           .toBuffer()
         newMimeType = 'image/jpeg'
       }
@@ -126,10 +293,10 @@ class MediaUtil {
         compressedSize: compressedBuffer.length,
         compressionRatio,
         newMimeType,
-        newSuffix: this.getCompressedSuffix(newMimeType)
+        newSuffix: this.getSuffixByMimeType(newMimeType)
       }
     } catch (error) {
-      throw new Error(`图片压缩失败: ${(error as Error).message}`)
+      throw new Error(`静态图片原图处理失败: ${(error as Error).message}`)
     }
   }
 
@@ -152,8 +319,13 @@ class MediaUtil {
           .videoBitrate('1000k')
           .audioBitrate('128k')
           .format('mp4')
-          .outputOptions(['-preset fast', '-crf 23', '-movflags +faststart'])
-          .on('end', async () => {
+          .outputOptions([
+            '-c:v libx264',        // 使用更高效的 H.264 编码器
+            '-crf 23',             // 降低 CRF 值，提高压缩率
+            '-preset fast',        // 平衡速度和质量
+            '-threads 0',
+            '-movflags +faststart'
+          ])          .on('end', async () => {
             try {
               const compressedData = await fs.readFile(tempOutputPath)
               resolve(compressedData)
@@ -229,50 +401,21 @@ class MediaUtil {
   }
 
   /**
-   * 生成图片缩略图
-   */
-  async generateImageThumbnail(mediaFile: MediaFile): Promise<ThumbnailResult> {
-    const { buffer } = mediaFile
-
-    try {
-      const sharpInstance = sharp(buffer)
-      const metadata = await sharpInstance.metadata()
-      const { width = 0, height = 0 } = metadata
-
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, this.thumbnailSize)
-
-      const thumbnailBuffer = await sharpInstance
-        .resize(newWidth, newHeight, { fit: 'cover' })
-        .jpeg({ quality: 80 })
-        .toBuffer()
-
-      return {
-        thumbnailBuffer,
-        thumbnailSize: thumbnailBuffer.length,
-        dimensions: { width: newWidth, height: newHeight }
-      }
-    } catch (error) {
-      throw new Error(`缩略图生成失败: ${(error as Error).message}`)
-    }
-  }
-
-  /**
    * 生成视频缩略图
    */
   async generateVideoThumbnail(mediaFile: MediaFile): Promise<ThumbnailResult> {
     const { buffer } = mediaFile
-
     try {
       const tempVideoPath = path.join(process.cwd(), 'temp', `video_${Date.now()}.mp4`)
       const tempThumbnailPath = path.join(process.cwd(), 'temp', `thumb_${Date.now()}.jpg`)
-
       await fs.mkdir(path.dirname(tempVideoPath), { recursive: true })
       await fs.writeFile(tempVideoPath, buffer)
+      const snap = Math.floor(Math.random() * 100)
 
       const thumbnailBuffer = await new Promise<Buffer>((resolve, reject) => {
         ffmpeg(tempVideoPath)
           .screenshots({
-            timestamps: ['10%'],
+            timestamps: [`${snap}%`],
             filename: path.basename(tempThumbnailPath),
             folder: path.dirname(tempThumbnailPath),
             size: `${this.thumbnailSize}x?`
@@ -307,40 +450,10 @@ class MediaUtil {
   async generatePreview(mediaFile: MediaFile): Promise<ThumbnailResult> {
     const { mimeType } = mediaFile
 
-    if (mimeType.startsWith('image/')) {
-      return this.generateImagePreview(mediaFile)
-    } else if (mimeType.startsWith('video/')) {
+    if (mimeType.startsWith('video/')) {
       return this.generateVideoPreview(mediaFile)
     } else {
       throw new Error(`不支持的预览图类型: ${mimeType}`)
-    }
-  }
-
-  /**
-   * 生成图片预览图
-   */
-  private async generateImagePreview(mediaFile: MediaFile): Promise<ThumbnailResult> {
-    const { buffer } = mediaFile
-
-    try {
-      const sharpInstance = sharp(buffer)
-      const metadata = await sharpInstance.metadata()
-      const { width = 0, height = 0 } = metadata
-
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, this.previewSize)
-
-      const previewBuffer = await sharpInstance
-        .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85 })
-        .toBuffer()
-
-      return {
-        thumbnailBuffer: previewBuffer,
-        thumbnailSize: previewBuffer.length,
-        dimensions: { width: newWidth, height: newHeight }
-      }
-    } catch (error) {
-      throw new Error(`图片预览图生成失败: ${(error as Error).message}`)
     }
   }
 
@@ -356,11 +469,12 @@ class MediaUtil {
 
       await fs.mkdir(path.dirname(tempVideoPath), { recursive: true })
       await fs.writeFile(tempVideoPath, buffer)
+      const snap = Math.floor(Math.random() * 100)
 
       const previewBuffer = await new Promise<Buffer>((resolve, reject) => {
         ffmpeg(tempVideoPath)
           .screenshots({
-            timestamps: ['50%'],
+            timestamps: [`${snap}%`],
             filename: path.basename(tempPreviewPath),
             folder: path.dirname(tempPreviewPath),
             size: `${this.previewSize}x?`
@@ -407,15 +521,12 @@ class MediaUtil {
             reject(err)
             return
           }
-
           const videoStream = metadata.streams.find((stream) => stream.codec_type === 'video')
           // const audioStream = metadata.streams.find((stream) => stream.codec_type === 'audio')
-
           if (!videoStream) {
             reject(new Error('未找到视频流'))
             return
           }
-
           resolve({
             duration: metadata.format.duration || 0,
             width: videoStream.width || 0,
@@ -451,27 +562,6 @@ class MediaUtil {
     return {
       newWidth: Math.round(originalWidth * ratio),
       newHeight: Math.round(originalHeight * ratio)
-    }
-  }
-
-  /**
-   * 智能压缩（根据文件类型自动选择压缩方法）
-   */
-  async smartCompress(mediaFile: MediaFile): Promise<CompressionResult> {
-    const { mimeType } = mediaFile
-
-    if (!this.needsCompression(mimeType)) {
-      throw new Error(`文件类型 ${mimeType} 不需要压缩`)
-    }
-
-    if (mimeType.startsWith('image/')) {
-      return this.compressImage(mediaFile)
-    } else if (mimeType.startsWith('video/')) {
-      return this.compressVideo(mediaFile)
-    } else if (mimeType.startsWith('audio/')) {
-      return this.compressAudio(mediaFile)
-    } else {
-      throw new Error(`不支持的压缩类型: ${mimeType}`)
     }
   }
 }

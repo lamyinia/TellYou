@@ -11,9 +11,10 @@ import { applicationService } from '@main/service/application-service'
 import { blackService } from '@main/service/black-service'
 import { messageService } from '@main/service/message-service'
 import { sessionService } from '@main/service/session-service'
-import { listenService } from '@main/service/listen-service'
+import { deviceService } from '@main/service/device-service'
 import { avatarCacheService } from '@main/cache/avatar-cache'
 import urlUtil from '@main/util/url-util'
+import proxyService from '@main/service/proxy-service'
 
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'
@@ -68,8 +69,8 @@ app.on('window-all-closed', () => {
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     icon: icon,
-    width: listenService.loginWidth,
-    height: listenService.loginHeight,
+    width: deviceService.loginWidth,
+    height: deviceService.loginHeight,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
@@ -92,6 +93,7 @@ const createWindow = (): void => {
     mainWindow.show()
   })
 
+  proxyService.beginServe()
   avatarCacheService.beginServe()
   mediaTaskService.beginServe()
   jsonStoreService.beginServe()
@@ -99,7 +101,7 @@ const createWindow = (): void => {
   messageService.beginServe()
   applicationService.beginServe()
   blackService.beginServer()
-  listenService.beginServe(mainWindow)
+  deviceService.beginServe(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

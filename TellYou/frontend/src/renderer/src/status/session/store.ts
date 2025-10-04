@@ -29,8 +29,8 @@ export const useSessionStore = defineStore('session', () => {
       console.log(sortedSessions.value)
     }
 
-    window.electronAPI.on('loadSessionDataCallback', loadSessionFunction)
-    window.electronAPI.send('loadSessionData')
+    window.electronAPI.on('session:load-data:callback', loadSessionFunction)
+    window.electronAPI.send('session:load-data')
 
     isInitialized.value = true
     console.log('sessionStore 初始化完成')
@@ -41,12 +41,14 @@ export const useSessionStore = defineStore('session', () => {
     isInitialized.value = false
     window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction!)
   }
-
-
   const getSession = (sessionId: string | number): Session | undefined => {
     return sessionManager.value.getSession(String(sessionId))
   }
-  const updateSession = (sessionId: string | number, updates: Partial<Session>): void => {
+  const updateSession = async (sessionId: string | number, updates: Partial<Session>): Promise<void> => {
+    if (updates?.contactAvatar){
+      console.info("更新{}的avatar:{}", sessionId, updates.contactAvatar)
+      await window.electronAPI.invoke('session:update:avatar-url', {sessionId: sessionId, avatarUrl: updates.contactAvatar})
+    }
     sessionManager.value.updateSession(String(sessionId), updates)
   }
   const togglePin = (sessionId: string | number): void => {

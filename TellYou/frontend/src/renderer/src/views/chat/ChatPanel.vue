@@ -17,9 +17,9 @@ const preloadThreshold = 80
 const messages = computed(() => {
   const id = currentSessionId.value
   if (!id) return []
-  const msgs = messageStore.getCurrentSessionMessages(String(id))
-  console.log(`ChatPanel computed messages for session ${id}:`, msgs.length, 'messages')
-  return msgs
+  const result = messageStore.getCurrentSessionMessages(String(id))
+  console.log(`ChatPanel computed messages for session ${id}:`, result.length, 'messages')
+  return result
 })
 const displayedMessages = computed(() => [...messages.value].reverse())
 
@@ -29,7 +29,6 @@ watch(currentSessionId, (id) => {
     messageStore.setCurrentSession(String(id))
   }
 }, { immediate: true })
-
 watch(messages, async (val) => {
   if (!listRef.value) return
   if (isFirstLoad.value && val.length > 0) {
@@ -42,9 +41,7 @@ onMounted(async () => {
   await scrollToBottom()
 })
 
-// 发送后滚到底部
 const onSent = async (): Promise<void> => { await scrollToBottom() }
-
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
   await nextTick()
@@ -59,13 +56,12 @@ const onScroll = async (): Promise<void> => {
   const el = listRef.value
   const sessionId = currentSessionId.value
   if (!el || !sessionId) return
-
   const { scrollTop, scrollHeight, clientHeight } = el
 
-  // 滚动到顶部时加载更早的消息
   if (scrollTop <= preloadThreshold) {
     const prevScrollHeight = scrollHeight
     const prevTop = scrollTop
+    console.log('滚动到顶部时加载旧消息')
     const loaded = await messageStore.loadOlderMessages(String(sessionId))
     if (loaded) {
       await nextTick()
@@ -73,10 +69,9 @@ const onScroll = async (): Promise<void> => {
       listRef.value!.scrollTop = prevTop + diff
     }
   }
-
-  // 滚动到底部时加载更新的消息
   const distanceToBottom = scrollHeight - scrollTop - clientHeight
   if (distanceToBottom <= preloadThreshold) {
+    console.log('滚动到底部时加载更新的消息')
     await messageStore.loadNewerMessages(sessionId)
   }
 }
@@ -156,5 +151,4 @@ const onScroll = async (): Promise<void> => {
 .star-messages::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.2));
 }
-/* 输入区域样式已迁移到 MessageSendBox.vue */
 </style>

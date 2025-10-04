@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Tag(name = "用户账号管理")
 @RestController("accountController")
-@RequestMapping("/userAccount")
+@RequestMapping("/user-account")
 @RequiredArgsConstructor
 public class AccountController {
     private final UserInfoService userInfoService;

@@ -6,10 +6,9 @@ import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '../../../../
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
-
+const src = 'tellyou://avatar?path=C%3A%5CUsers%5Clanyo%5CAppData%5CRoaming%5Ctell-you_1%5Ccaching%5Cavatar%5C1948031012053333361%5CoriginalAvatarUrl%5Cindex.avif'
 const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void }>()
 const selectContact = (contact: Session): void => {
-  // 确保会话 ID 为字符串（Session 已定义为 string，这里只是兜底）
   contact.sessionId = String(contact.sessionId)
   contact.contactId = String(contact.contactId)
   emit('contact-selected', contact)
@@ -32,7 +31,7 @@ const selectContact = (contact: Session): void => {
           <div class="avatar-box">
             <img
               class="star-contact-avatar"
-              :src="resolveAvatar(item.contactAvatar)"
+              :src="src"
               alt="avatar"
               referrerpolicy="no-referrer"
               crossorigin="anonymous"
@@ -62,14 +61,14 @@ const selectContact = (contact: Session): void => {
 .star-contact-bg {
   height: 100%;
   border-radius: 0 18px 18px 0;
-  background: linear-gradient(135deg, 
-    rgba(13, 19, 61, 0.95) 0%, 
-    rgba(25, 35, 85, 0.92) 25%, 
-    rgba(35, 45, 105, 0.88) 50%, 
-    rgba(25, 35, 85, 0.92) 75%, 
+  background: linear-gradient(135deg,
+    rgba(13, 19, 61, 0.95) 0%,
+    rgba(25, 35, 85, 0.92) 25%,
+    rgba(35, 45, 105, 0.88) 50%,
+    rgba(25, 35, 85, 0.92) 75%,
     rgba(13, 19, 61, 0.95) 100%);
   backdrop-filter: blur(8px);
-  box-shadow: 
+  box-shadow:
     0 8px 32px 0 rgba(211, 0, 244, 0.17),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -78,7 +77,7 @@ const selectContact = (contact: Session): void => {
   align-items: flex-start;
   padding-left: 0;
   padding-right: 0;
-  padding-top: 0; /* 顶部紧贴，去除多余空隙 */
+  padding-top: 0;
   position: relative;
   overflow: hidden;
 }
@@ -90,7 +89,7 @@ const selectContact = (contact: Session): void => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 22% 10%, rgba(138, 43, 226, 0.10) 0%, transparent 46%),
     radial-gradient(circle at 80% 80%, rgba(30, 144, 255, 0.12) 0%, transparent 50%),
     radial-gradient(circle at 40% 60%, rgba(255, 20, 147, 0.08) 0%, transparent 50%);
@@ -205,8 +204,8 @@ const selectContact = (contact: Session): void => {
 }
 
 .v-list-item.session-item {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.08) 0%, 
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.08) 0%,
     rgba(255, 255, 255, 0.04) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -226,9 +225,9 @@ const selectContact = (contact: Session): void => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.05) 0%, 
-    transparent 50%, 
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 50%,
     rgba(255, 255, 255, 0.02) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -236,12 +235,12 @@ const selectContact = (contact: Session): void => {
 }
 
 .v-list-item.session-item:hover {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.15) 0%, 
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.15) 0%,
     rgba(255, 255, 255, 0.08) 100%) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
   transform: translateY(-1px);
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 2px 4px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -272,7 +271,7 @@ const selectContact = (contact: Session): void => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 2px 4px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -285,7 +284,7 @@ const selectContact = (contact: Session): void => {
 
 .star-contact-avatar:hover {
   transform: scale(1.05);
-  box-shadow: 
+  box-shadow:
     0 6px 16px rgba(0, 0, 0, 0.2),
     0 3px 6px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);

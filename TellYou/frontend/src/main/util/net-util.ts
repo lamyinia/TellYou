@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios'
-import { useUserStore } from '@main/electron-store/persist/user-store'
 import { store } from '@main/index'
 import { tokenKey } from '@main/electron-store/key'
 
@@ -35,7 +34,7 @@ class ApiError extends Error {
 
 const netMaster: AxiosInstance = axios.create({
   withCredentials: true,
-  baseURL: import.meta.env.VITE_BASE_URL,
+  baseURL: import.meta.env.VITE_REQUEST_URL,
   timeout: 10 * 1000,
   headers: {
     'Content-Type': 'application/json'
@@ -47,9 +46,9 @@ const axiosInstance: AxiosInstance = axios.create({
     'Content-Type': 'application/octet-stream'
   }
 })
-
 netMaster.interceptors.request.use(
   (config) => {
+    console.log(config)
     const token: string = store.get(tokenKey)
     if (token && config.headers) {
       config.headers.token = token

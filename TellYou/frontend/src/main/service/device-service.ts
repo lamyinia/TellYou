@@ -3,7 +3,7 @@ import { initializeUserData } from '@main/sqlite/dao/local-dao'
 import { BrowserWindow, ipcMain } from 'electron'
 import { test } from '@main/test'
 
-class ListenService {
+class DeviceService {
   public readonly loginWidth: number = 596
   public readonly loginHeight: number = 400
   public readonly registerWidth: number = 596
@@ -61,4 +61,4 @@ class ListenService {
   }
 }
 
-export const listenService = new ListenService()
+export const deviceService = new DeviceService()

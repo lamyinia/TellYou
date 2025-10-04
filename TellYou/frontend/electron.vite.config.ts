@@ -39,7 +39,6 @@ export default defineConfig(({mode}) => {
         port: 7969,
         proxy: {
           '/api': {
-            // 使用从环境变量加载的值
             target: env.VITE_REQUEST_URL,
             ws: true,
             secure: false,

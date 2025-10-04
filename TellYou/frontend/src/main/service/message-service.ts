@@ -1,10 +1,10 @@
 import { ipcMain } from 'electron'
 import { sendText } from '@main/websocket/client'
-import { getMessageBySessionId } from '@main/sqlite/dao/message-dao'
+import messageDao from '@main/sqlite/dao/message-dao'
 
 class MessageService {
   public beginServe(): void {
-    ipcMain.handle('ws-send', async (_, msg) => {
+    ipcMain.handle('websocket:send', async (_, msg) => {
       console.log(msg)
       try {
         sendText(msg)
@@ -15,8 +15,8 @@ class MessageService {
         return false
       }
     })
-    ipcMain.handle('get-message-by-sessionId', (_, sessionId: string | number, options: any) => {
-      return getMessageBySessionId(String(sessionId), options)
+    ipcMain.handle('message:get-by-sessionId', (_, sessionId: string | number, options: any) => {
+      return messageDao.getMessageBySessionId(String(sessionId), options)
     })
   }
 }
