@@ -1,6 +1,5 @@
 package org.com.modules.user.service.adapter;
 
-import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.RegisterReq;
@@ -19,10 +18,10 @@ public class UserInfoAdapter {
     public static UserInfo buildUserInfo(RegisterReq registerReq){
         UserInfo userInfo = new UserInfo();
         userInfo.setEmail(registerReq.getEmail());
-        userInfo.setPassword(registerReq.getPassword());
-        userInfo.setNickName(registerReq.getNickName());
+        userInfo.setPassword(SecurityUtil.encode(registerReq.getPassword()));
+        userInfo.setNickName(registerReq.getNickname());
         userInfo.setSex(registerReq.getSex());
-        userInfo.setPassword(ValueConstant.DEFAULT_SIGNATURE);
+        userInfo.setPersonalSignature(ValueConstant.DEFAULT_SIGNATURE);
         userInfo.setAvatar(ValueConstant.DEFAULT_AVATAR);
         userInfo.setIdentifier(JsonUtils.toStr(getDefaultIdentifier()));
         userInfo.setResidues(JsonUtils.toStr(getDefaultResidues()));

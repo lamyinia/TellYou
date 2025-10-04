@@ -20,22 +20,30 @@ class SessionService {
         return []
       }
     })
-    ipcMain.handle('update-session-last-message', async (_, sessionId: string | number, content: string, time: Date) => {
-      try {
-        const sql = `
+    ipcMain.handle(
+      'update-session-last-message',
+      async (_, sessionId: string | number, content: string, time: Date) => {
+        try {
+          const sql = `
         UPDATE sessions
         SET last_msg_content = ?,
             last_msg_time    = ?,
             updated_at       = ?
         WHERE session_id = ?
       `
-        const result = await sqliteRun(sql, [content, time.toISOString(), new Date().toISOString(), String(sessionId)])
-        return result > 0
-      } catch (error) {
-        console.error('更新会话最后消息失败:', error)
-        return false
+          const result = await sqliteRun(sql, [
+            content,
+            time.toISOString(),
+            new Date().toISOString(),
+            String(sessionId)
+          ])
+          return result > 0
+        } catch (error) {
+          console.error('更新会话最后消息失败:', error)
+          return false
+        }
       }
-    })
+    )
     ipcMain.handle('toggle-session-pin', async (_, sessionId: string | number) => {
       try {
         const sql = `
@@ -50,14 +58,17 @@ class SessionService {
         return false
       }
     })
-    ipcMain.handle('session:update:avatar-url', async (_, params: {sessionId: string, avatarUrl: string}) => {
+    ipcMain.handle(
+      'session:update:avatar-url',
+      async (_, params: { sessionId: string; avatarUrl: string }) => {
         return await sessionDao.updateAvatarUrl(params)
-    })
+      }
+    )
     ipcMain.on('session:load-data', async (event) => {
-      console.log("开始查询session");
+      console.log('开始查询session')
       const result: Session[] = await sessionDao.selectSessions()
       console.log('查询结果:', result)
-      event.sender.send("session:load-data:callback", result);
+      event.sender.send('session:load-data:callback', result)
     })
   }
 }

@@ -7,18 +7,27 @@ import Avatar from '@renderer/components/Avatar.vue'
 const props = defineProps<{ message: ChatMessage }>()
 const userStore = useUserStore()
 const isSelf = computed(() => props.message.senderId === userStore.myId)
-
 </script>
 
 <template>
   <div class="msg-row" :class="{ other: !isSelf }">
     <template v-if="isSelf">
-      <Avatar :version="props.message.avatarVersion" :name="props.message.senderName" :userId="props.message.senderId" side="left" />
+      <Avatar
+        :version="props.message.avatarVersion"
+        :name="props.message.senderName"
+        :userId="props.message.senderId"
+        side="left"
+      />
       <div class="bubble left">{{ props.message.content }}</div>
     </template>
     <template v-else>
       <div class="bubble right">{{ props.message.content }}</div>
-      <Avatar :version="props.message.avatarVersion" :name="props.message.senderName" :userId="props.message.senderId" side="right" />
+      <Avatar
+        :version="props.message.avatarVersion"
+        :name="props.message.senderName"
+        :userId="props.message.senderId"
+        side="right"
+      />
     </template>
   </div>
 </template>
@@ -28,7 +37,9 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
   display: flex;
   align-items: flex-end;
 }
-.msg-row.other { justify-content: flex-end; }
+.msg-row.other {
+  justify-content: flex-end;
+}
 .bubble {
   padding: 10px 14px;
   border-radius: 14px;
@@ -38,7 +49,7 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
   box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.18);
 }
 .bubble.left {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
   color: #e9f1f4;
   border-top-left-radius: 4px;
   margin-right: 8px;

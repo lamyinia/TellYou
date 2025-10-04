@@ -5,8 +5,15 @@ import { useApplicationStore } from '@renderer/status/application/store'
 const appStore = useApplicationStore()
 const selected = ref<Set<number>>(new Set())
 
-interface Row { id: number; apply_user_id: string; target_id: string; status: number; apply_info?: string; last_apply_time?: string }
-const rows = computed<Row[]>(() => (appStore.outgoing as unknown as Row[]))
+interface Row {
+  id: number
+  apply_user_id: string
+  target_id: string
+  status: number
+  apply_info?: string
+  last_apply_time?: string
+}
+const rows = computed<Row[]>(() => appStore.outgoing as unknown as Row[])
 const page = computed(() => appStore.outgoingPage)
 
 // 受控分页
@@ -46,12 +53,7 @@ const onPageChange = (newPage: number): void => {
 
 <template>
   <div class="toolbar">
-    <v-checkbox
-      v-model="allChecked"
-      label="全选"
-      hide-details
-      density="compact"
-    />
+    <v-checkbox v-model="allChecked" label="全选" hide-details density="compact" />
     <v-btn class="ml-2" size="small" color="warning" @click="cancelSelected">撤回申请</v-btn>
   </div>
 
@@ -66,8 +68,19 @@ const onPageChange = (newPage: number): void => {
         <v-checkbox-btn :model-value="selected.has(item.id)" @click.stop="toggle(item.id)" />
       </template>
       <template #append>
-        <v-chip size="x-small" :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'">
-          {{ item.status === 0 ? '待处理' : item.status === 1 ? '已同意' : item.status === 2 ? '已拒绝' : '已撤回' }}
+        <v-chip
+          size="x-small"
+          :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'"
+        >
+          {{
+            item.status === 0
+              ? '待处理'
+              : item.status === 1
+                ? '已同意'
+                : item.status === 2
+                  ? '已拒绝'
+                  : '已撤回'
+          }}
         </v-chip>
       </template>
     </v-list-item>
@@ -89,7 +102,15 @@ const onPageChange = (newPage: number): void => {
   display: flex;
   align-items: center;
 }
-.ml-2 { margin-left: 8px; }
-.mt-2 { margin-top: 8px; }
-.pager { display: flex; justify-content: center; margin-top: 8px; }
+.ml-2 {
+  margin-left: 8px;
+}
+.mt-2 {
+  margin-top: 8px;
+}
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
 </style>

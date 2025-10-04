@@ -6,18 +6,24 @@
 
 ```typescript
 // 错误的代码（没有分号）
-const file = new File([blob], 'test.jpg', { type: 'image/jpeg' })
-(file as File & { path?: string }).path = '/path/to/file'
+const file = (new File([blob], 'test.jpg', { type: 'image/jpeg' })(
+  file as File & { path?: string }
+).path = '/path/to/file')
 
 // JavaScript引擎解析为：
-const file = new File([blob], 'test.jpg', { type: 'image/jpeg' })(file as File & { path?: string }).path = '/path/to/file'
+const file = (new File([blob], 'test.jpg', { type: 'image/jpeg' })(
+  file as File & { path?: string }
+).path = '/path/to/file')
 
 // 这相当于：
-const file = new File([blob], 'test.jpg', { type: 'image/jpeg' })(file as File & { path?: string }).path = '/path/to/file'
+const file = (new File([blob], 'test.jpg', { type: 'image/jpeg' })(
+  file as File & { path?: string }
+).path = '/path/to/file')
 // 错误：试图调用 new File() 的返回值
 ```
 
 **错误信息**：
+
 ```
 TypeError: (intermediate value) is not a function
 ```
@@ -40,26 +46,24 @@ const file = new File([blob], 'test.jpg', { type: 'image/jpeg' })
 
 ```typescript
 // 错误：没有分号
-const arr = [1, 2, 3]
-[4, 5, 6].forEach(item => console.log(item))
+const arr = [1, 2, 3][(4, 5, 6)].forEach((item) => console.log(item))
 
 // 解析为：
-const arr = [1, 2, 3][4, 5, 6].forEach(item => console.log(item))
+const arr = [1, 2, 3][(4, 5, 6)].forEach((item) => console.log(item))
 // 错误：试图访问 arr[4, 5, 6]
 ```
 
 ```typescript
 // 正确：有分号
 const arr = [1, 2, 3]
-;[4, 5, 6].forEach(item => console.log(item))
+;[4, 5, 6].forEach((item) => console.log(item))
 ```
 
 ### 场景4：模板字符串
 
 ```typescript
 // 错误：没有分号
-const name = 'John'
-`Hello ${name}`.toUpperCase()
+const name = 'John'`Hello ${name}`.toUpperCase()
 
 // 解析为：
 const name = 'John'`Hello ${name}`.toUpperCase()

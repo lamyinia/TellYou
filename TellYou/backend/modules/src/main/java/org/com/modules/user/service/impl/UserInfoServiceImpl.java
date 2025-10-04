@@ -1,5 +1,6 @@
 package org.com.modules.user.service.impl;
 
+import io.seata.spring.annotation.GlobalTransactional;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -73,7 +74,12 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
+    @GlobalTransactional
     public void register(RegisterReq registerReq) {
+        if (Objects.nonNull(userInfoDao.getByEmail(registerReq.getEmail()))){
+            throw new BusinessException(20001, "邮箱已经注册");
+        }
+
         String key = REDIS_CODE_PREFIX + registerReq.getEmail();
         String code = (String) redisTemplate.opsForValue().get(key);
         if (!ValueConstant.IS_DEVELOPMENT){
@@ -84,7 +90,7 @@ public class UserInfoServiceImpl implements UserInfoService {
 
         UserInfo user = UserInfoAdapter.buildUserInfo(registerReq);
         userInfoDao.save(user);
-        redisTemplate.delete(code);
+        redisTemplate.delete(key);
     }
 
     @Override

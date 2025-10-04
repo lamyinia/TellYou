@@ -5,11 +5,11 @@ import { getMessageId } from '../../utils/process'
 import { handleMessage } from '@main/websocket/handler'
 import { tokenKey } from '@main/electron-store/key'
 
-let ws: WebSocket|null = null
-let maxReConnectTimes: number | null = null;
-let lockReconnect = false;
-let needReconnect: null|boolean = null;
-let wsUrl: string | null = null;
+let ws: WebSocket | null = null
+let maxReConnectTimes: number | null = null
+let lockReconnect = false
+let needReconnect: null | boolean = null
+let wsUrl: string | null = null
 
 export const wsConfigInit = (): void => {
   wsUrl = import.meta.env.VITE_REQUEST_WS_URL
@@ -44,11 +44,11 @@ export const sendText = (payload: Record<string, unknown>): void => {
     sessionId,
     content,
     timestamp: Date.now(),
-    extra: { platform: 'desktop'}
+    extra: { platform: 'desktop' }
   }
 
   ws.send(JSON.stringify(base))
-/*  for (let i: number = 0; i < 999; i++){
+  /*  for (let i: number = 0; i < 999; i++){
     base.messageId = getMessageId()
     base.content = `${payload.content} - 测试消息 #${i + 1} - 时间: ${new Date().toLocaleTimeString()} - ID: ${base.messageId}`
     base.timestamp = Date.now() + i
@@ -57,40 +57,41 @@ export const sendText = (payload: Record<string, unknown>): void => {
 }
 
 const reconnect = (): void => {
-  if (!needReconnect){
-    console.info("不允许重试服务")
+  if (!needReconnect) {
+    console.info('不允许重试服务')
     return
   }
   console.info('连接关闭，现在正在重试....')
-  if (ws != null){
+  if (ws != null) {
     ws.close()
   }
-  if (lockReconnect){
+  if (lockReconnect) {
     return
   }
-  console.info("重试请求发起")
+  console.info('重试请求发起')
   lockReconnect = true
   if (maxReConnectTimes && maxReConnectTimes > 0) {
-    console.info('重试请求发起，剩余重试次数:' + maxReConnectTimes);
-    -- maxReConnectTimes;
+    console.info('重试请求发起，剩余重试次数:' + maxReConnectTimes)
+    --maxReConnectTimes
     setTimeout(function () {
-      connectWs();
-      lockReconnect = false;
-    }, 5000);
+      connectWs()
+      lockReconnect = false
+    }, 5000)
   } else {
-    console.info('TCP 连接超时');
+    console.info('TCP 连接超时')
   }
 }
-
 
 export const connectWs = (): void => {
   if (wsUrl == null) return
   const token: string = store.get(tokenKey)
-  if (token === null){
+  if (token === null) {
     console.info('token 不满足条件')
     return
   }
-  const urlWithToken: string = wsUrl.includes('?') ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`
+  const urlWithToken: string = wsUrl.includes('?')
+    ? `${wsUrl}&token=${token}`
+    : `${wsUrl}?token=${token}`
 
   ws = new WebSocket(urlWithToken)
 
@@ -98,7 +99,7 @@ export const connectWs = (): void => {
     console.info('客户端连接成功')
     maxReConnectTimes = 20
     const mainWindow = BrowserWindow.getFocusedWindow()
-    if (mainWindow){
+    if (mainWindow) {
       mainWindow.webContents.send('ws-connected')
     }
   })
@@ -113,10 +114,10 @@ export const connectWs = (): void => {
     console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
 
-    switch (msg.messageType){
+    switch (msg.messageType) {
       case 1:
         await handleMessage(msg, ws)
-        break;
+        break
     }
   })
 }

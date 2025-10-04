@@ -13,14 +13,16 @@ const emit = defineEmits<{
 
 // 状态
 const activeTab = ref<'image' | 'video' | 'audio' | 'file'>('image')
-const selectedMedia = ref<Array<{
-  type: MediaType
-  fileName: string
-  fileSize: number
-  originUrl: string
-  thumbnailUrl?: string
-  fileId: string
-}>>([])
+const selectedMedia = ref<
+  Array<{
+    type: MediaType
+    fileName: string
+    fileSize: number
+    originUrl: string
+    thumbnailUrl?: string
+    fileId: string
+  }>
+>([])
 const error = ref<string>('')
 const isRecording = ref(false)
 const audioDuration = ref(0)
@@ -41,7 +43,11 @@ const canSend = computed(() => {
 })
 
 // 处理媒体上传完成
-const handleMediaUploaded = (result: { originUrl: string; thumbnailUrl?: string; fileId: string }) => {
+const handleMediaUploaded = (result: {
+  originUrl: string
+  thumbnailUrl?: string
+  fileId: string
+}) => {
   // 这里需要从上传结果中获取文件信息
   // 实际实现中需要从MediaUpload组件传递更多信息
   const media = {
@@ -95,7 +101,6 @@ const startRecording = async () => {
         clearInterval(timer)
       }
     }, 1000)
-
   } catch (err) {
     error.value = '无法访问麦克风'
   }
@@ -108,7 +113,7 @@ const stopRecording = () => {
     isRecording.value = false
 
     // 停止所有音频轨道
-    mediaRecorder.value.stream.getTracks().forEach(track => track.stop())
+    mediaRecorder.value.stream.getTracks().forEach((track) => track.stop())
   }
 }
 
@@ -181,7 +186,6 @@ const sendMedia = async () => {
 
     // 通知父组件
     emit('sent')
-
   } catch (err) {
     error.value = '发送失败'
   }
@@ -279,11 +283,7 @@ onUnmounted(() => {
       </div>
 
       <div class="preview-list">
-        <div
-          v-for="(media, index) in selectedMedia"
-          :key="index"
-          class="preview-item"
-        >
+        <div v-for="(media, index) in selectedMedia" :key="index" class="preview-item">
           <div class="preview-thumbnail">
             <img
               v-if="media.type === 'image'"
@@ -309,11 +309,7 @@ onUnmounted(() => {
 
     <!-- 发送按钮 -->
     <div v-if="selectedMedia.length > 0" class="send-actions">
-      <button
-        class="send-btn"
-        :disabled="!canSend"
-        @click="sendMedia"
-      >
+      <button class="send-btn" :disabled="!canSend" @click="sendMedia">
         <i class="iconfont icon-send"></i>
         发送 ({{ selectedMedia.length }})
       </button>
@@ -325,8 +321,6 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 .media-send-box {
@@ -412,9 +406,15 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .audio-info {

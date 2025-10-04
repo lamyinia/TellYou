@@ -25,7 +25,6 @@ const selectedContact = ref<DetailContact | null>(null)
 const selectContact = (sessionId: string): void => {
   // selectedContact.value = c
 }
-
 </script>
 
 <template>

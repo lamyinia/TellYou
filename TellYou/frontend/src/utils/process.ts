@@ -29,7 +29,7 @@ export const formatTime = (t?: string): string => {
 export const briefMsg = (s?: string): string => (s || '').replace(/\n/g, ' ').slice(0, 40)
 
 export const getMessageId = (): string => {
-  const time = BigInt(Date.now());
-  const rand = BigInt(Math.floor(Math.random() * 1_000_000));
-  return ((time << 20n) | rand).toString();
-};
+  const time = BigInt(Date.now())
+  const rand = BigInt(Math.floor(Math.random() * 1_000_000))
+  return ((time << 20n) | rand).toString()
+}

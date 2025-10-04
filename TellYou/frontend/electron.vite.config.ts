@@ -2,7 +2,7 @@ import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin, loadEnv } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
 
   return {
@@ -13,7 +13,7 @@ export default defineConfig(({mode}) => {
           '@renderer': resolve('src/renderer/src'),
           '@main': resolve('src/main')
         }
-      },
+      }
     },
 
     preload: {
@@ -23,7 +23,7 @@ export default defineConfig(({mode}) => {
           '@renderer': resolve('src/renderer/src'),
           '@main': resolve('src/main')
         }
-      },
+      }
     },
 
     renderer: {
@@ -43,7 +43,7 @@ export default defineConfig(({mode}) => {
             ws: true,
             secure: false,
             changeOrigin: true,
-            rewrite: path => path.replace(/^\/api/, '')
+            rewrite: (path) => path.replace(/^\/api/, '')
           }
         }
       }

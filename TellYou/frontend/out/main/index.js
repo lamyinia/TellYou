@@ -80,9 +80,12 @@ class MediaTaskService {
     }
   }
   setupIpcHandlers() {
-    electron.ipcMain.handle("media:send:start", async (event, params) => {
-      return this.startTask(params);
-    });
+    electron.ipcMain.handle(
+      "media:send:start",
+      async (event, params) => {
+        return this.startTask(params);
+      }
+    );
     electron.ipcMain.handle("media:send:cancel", async (event, taskId) => {
       return this.cancelTask(taskId);
     });
@@ -376,11 +379,11 @@ class UrlUtil {
   instanceId = process.env.ELECTRON_INSTANCE_ID || "";
   cacheRootPath = "";
   cachePaths = {
-    "avatar": "",
-    "picture": "",
-    "voice": "",
-    "video": "",
-    "file": ""
+    avatar: "",
+    picture: "",
+    voice: "",
+    video: "",
+    file: ""
   };
   ensureDir(path2) {
     if (!fs.existsSync(path2)) {
@@ -405,14 +408,12 @@ class UrlUtil {
         const normalized = path.resolve(filePath);
         const rootResolved = path.resolve(this.cacheRootPath);
         const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) || normalized.toLowerCase() === rootResolved.toLowerCase();
-        if (!hasAccess) {
-          console.error("tellyou protocol denied:", { normalized, rootResolved });
-          return new Response("", { status: 403 });
-        }
         const ext = path.extname(normalized).toLowerCase();
         const mime = this.mimeByExt[ext] || "application/octet-stream";
         const data = await fs.promises.readFile(normalized);
-        return new Response(data, { headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" } });
+        return new Response(data, {
+          headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" }
+        });
       } catch (e) {
         console.error("tellyou protocol error:", e);
         return new Response("", { status: 500 });
@@ -558,26 +559,38 @@ class ApplicationDao {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE target_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(`
+    const rows = await queryAll(
+      `
     SELECT * FROM contact_applications
     ${where}
     ORDER BY last_apply_time DESC
     LIMIT ? OFFSET ?
-  `, params);
-    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM contact_applications ${where}`, currentUserId ? [currentUserId] : []);
+  `,
+      params
+    );
+    const totalRow = await queryAll(
+      `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
+      currentUserId ? [currentUserId] : []
+    );
     return { list: rows, total: totalRow[0]?.total || 0 };
   }
   async loadOutgoingApplications(pageNo, pageSize, currentUserId) {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE apply_user_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(`
+    const rows = await queryAll(
+      `
     SELECT * FROM contact_applications
     ${where}
     ORDER BY last_apply_time DESC
     LIMIT ? OFFSET ?
-  `, params);
-    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM contact_applications ${where}`, currentUserId ? [currentUserId] : []);
+  `,
+      params
+    );
+    const totalRow = await queryAll(
+      `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
+      currentUserId ? [currentUserId] : []
+    );
     return { list: rows, total: totalRow[0]?.total || 0 };
   }
   async approveIncoming(ids) {
@@ -634,7 +647,10 @@ const applicationService = new ApplicationService();
 class BlackDao {
   async loadBlacklist(pageNo, pageSize) {
     const offset = (pageNo - 1) * pageSize;
-    const rows = await queryAll(`SELECT * FROM blacklist ORDER BY create_time DESC LIMIT ? OFFSET ?`, [pageSize, offset]);
+    const rows = await queryAll(
+      `SELECT * FROM blacklist ORDER BY create_time DESC LIMIT ? OFFSET ?`,
+      [pageSize, offset]
+    );
     const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM blacklist`, []);
     return { list: rows, total: totalRow[0]?.total || 0 };
   }
@@ -697,19 +713,17 @@ class MessageDao {
       let where = "WHERE session_id = ?";
       const params = [sessionId];
       if (direction === "older" && beforeId) {
-        const beforeMessage = await queryAll(
-          "SELECT send_time FROM messages WHERE id = ?",
-          [beforeId]
-        );
+        const beforeMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
+          beforeId
+        ]);
         if (beforeMessage.length > 0) {
           where += " AND send_time < ?";
           params.push(beforeMessage[0].sendTime);
         }
       } else if (direction === "newer" && afterId) {
-        const afterMessage = await queryAll(
-          "SELECT send_time FROM messages WHERE id = ?",
-          [afterId]
-        );
+        const afterMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
+          afterId
+        ]);
         if (afterMessage.length > 0) {
           where += " AND send_time > ?";
           params.push(afterMessage[0].sendTime);
@@ -805,11 +819,19 @@ class SessionDao {
     return result;
   }
   async updateSessionByMessage(data) {
-    await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
+    await update(
+      "sessions",
+      { lastMsgContent: data.content, lastMsgTime: data.sendTime },
+      { sessionId: data.sessionId }
+    );
   }
   async updateAvatarUrl(params) {
     try {
-      const result = await update("sessions", { contactAvatar: params.avatarUrl }, { sessionId: params.sessionId });
+      const result = await update(
+        "sessions",
+        { contactAvatar: params.avatarUrl },
+        { sessionId: params.sessionId }
+      );
       return result;
     } catch {
       console.error("更新会话头像失败");
@@ -837,7 +859,11 @@ const handleMessage = async (msg, ws2) => {
   });
   if (!insertId || insertId <= 0) return;
   const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-  await sessionDao.updateSessionByMessage({ content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId });
+  await sessionDao.updateSessionByMessage({
+    content: msg.content,
+    sendTime: new Date(snap).toISOString(),
+    sessionId: msg.sessionId
+  });
   const vo = {
     id: Number(insertId) || 0,
     sessionId: msg.sessionId,
@@ -850,12 +876,16 @@ const handleMessage = async (msg, ws2) => {
     avatarVersion: String(msg.extra["avatarVersion"]),
     nicknameVersion: String(msg.extra["nicknameVersion"])
   };
-  ws2.send(JSON.stringify({
-    messageId: msg.messageId,
-    type: 101,
-    fromUid: store.get(uidKey)
-  }));
-  const session = (await queryAll("select * from sessions where session_id = ?", [msg.sessionId]))[0];
+  ws2.send(
+    JSON.stringify({
+      messageId: msg.messageId,
+      type: 101,
+      fromUid: store.get(uidKey)
+    })
+  );
+  const session = (await queryAll("select * from sessions where session_id = ?", [
+    msg.sessionId
+  ]))[0];
   mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
   mainWindow?.webContents.send("loadSessionDataCallback", [session]);
 };
@@ -990,22 +1020,30 @@ class SessionService {
         return [];
       }
     });
-    electron.ipcMain.handle("update-session-last-message", async (_, sessionId, content, time) => {
-      try {
-        const sql = `
+    electron.ipcMain.handle(
+      "update-session-last-message",
+      async (_, sessionId, content, time) => {
+        try {
+          const sql = `
         UPDATE sessions
         SET last_msg_content = ?,
             last_msg_time    = ?,
             updated_at       = ?
         WHERE session_id = ?
       `;
-        const result = await sqliteRun(sql, [content, time.toISOString(), (/* @__PURE__ */ new Date()).toISOString(), String(sessionId)]);
-        return result > 0;
-      } catch (error) {
-        console.error("更新会话最后消息失败:", error);
-        return false;
+          const result = await sqliteRun(sql, [
+            content,
+            time.toISOString(),
+            (/* @__PURE__ */ new Date()).toISOString(),
+            String(sessionId)
+          ]);
+          return result > 0;
+        } catch (error) {
+          console.error("更新会话最后消息失败:", error);
+          return false;
+        }
       }
-    });
+    );
     electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
       try {
         const sql = `
@@ -1020,9 +1058,12 @@ class SessionService {
         return false;
       }
     });
-    electron.ipcMain.handle("session:update:avatar-url", async (_, params) => {
-      return await sessionDao.updateAvatarUrl(params);
-    });
+    electron.ipcMain.handle(
+      "session:update:avatar-url",
+      async (_, params) => {
+        return await sessionDao.updateAvatarUrl(params);
+      }
+    );
     electron.ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session");
       const result = await sessionDao.selectSessions();
@@ -1044,7 +1085,7 @@ class ApiError extends Error {
 const netMaster = axios.create({
   withCredentials: true,
   baseURL: "http://localhost:8081",
-  timeout: 10 * 1e3,
+  timeout: 180 * 1e3,
   headers: {
     "Content-Type": "application/json"
   }
@@ -1242,6 +1283,31 @@ class NetMinIO {
   }
 }
 const netMinIO = new NetMinIO(axiosInstance);
+var Api = /* @__PURE__ */ ((Api2) => {
+  Api2["LOGIN"] = "/user-account/login";
+  Api2["REGISTER"] = "/user-account/register";
+  Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
+  Api2["ACK_CONFIRM"] = "/message/ack-confirm";
+  return Api2;
+})(Api || {});
+class ProxyService {
+  beginServe() {
+    electron.ipcMain.handle("proxy:login", async (_event, params) => {
+      const response = await netMaster.post("/user-account/login", params);
+      return response.data.data;
+    });
+    electron.ipcMain.handle(
+      "proxy:register",
+      async (_event, params) => {
+        const data = { code: "123456" };
+        Object.assign(data, params);
+        const response = await netMaster.post("/user-account/register", data);
+        return response.data;
+      }
+    );
+  }
+}
+const proxyService = new ProxyService();
 class PullService {
   async pullStrongTransactionData() {
     console.log(`正在拉取强事务数据...`);
@@ -1271,10 +1337,8 @@ class PullService {
   // 拉取离线消息
   async pullOfflineMessages() {
     try {
-      console.info("开始拉取用户离线消息...", `${"http://localhost:8081"}/message/pullMailboxMessage`);
-      const response = await netMaster.get(
-        `${"http://localhost:8081"}/message/pullMailboxMessage`
-      );
+      console.info("开始拉取用户离线消息...", `${Api.PULL_MAILBOX}`);
+      const response = await netMaster.get(Api.PULL_MAILBOX);
       if (!response.data.success) {
         console.error("拉取离线消息失败:", response.data.errMsg);
         return;
@@ -1380,13 +1444,8 @@ class PullService {
   async ackConfirmMessages(messageIds) {
     try {
       console.info(`确认 ${messageIds.length} 条消息`, messageIds);
-      const requestData = {
-        messageIdList: messageIds
-      };
-      const response = await netMaster.post(
-        `${"http://localhost:8081"}/message/ackConfirm`,
-        requestData
-      );
+      const requestData = { messageIdList: messageIds };
+      const response = await netMaster.post(Api.ACK_CONFIRM, requestData);
       if (response.data.success) {
         console.info("消息确认成功");
       } else {
@@ -1494,7 +1553,12 @@ class MediaUtil {
     try {
       const buffer = await fs.promises.readFile(filePath);
       console.info(buffer.length);
-      return { buffer, size: buffer.length, originalName: path.basename(filePath), mimeType: this.getMimeTypeBySuffix(path.extname(filePath)) };
+      return {
+        buffer,
+        size: buffer.length,
+        originalName: path.basename(filePath),
+        mimeType: this.getMimeTypeBySuffix(path.extname(filePath))
+      };
     } catch (e) {
       console.error("获取文件失败");
       throw e;
@@ -1863,9 +1927,9 @@ class DeviceService {
   loginWidth = 596;
   loginHeight = 400;
   registerWidth = 596;
-  registerHeight = 462;
+  registerHeight = 656;
   beginServe(mainWindow) {
-    electron.ipcMain.on("LoginOrRegister", (_, isLogin) => {
+    electron.ipcMain.on("device:login-or-register", (_, isLogin) => {
       mainWindow.setResizable(true);
       if (isLogin === false) {
         mainWindow.setSize(this.loginWidth, this.loginHeight);
@@ -1927,26 +1991,36 @@ class AvatarCacheService {
   // {userData}/cache/avatar/{userId}/index.json
   beginServe() {
     this.startCleanupTimer();
-    electron.ipcMain.handle("avatar:cache:seek-by-version", async (_, params) => {
-      let item = this.cacheMap.get(params.userId);
-      if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
-        return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
-      } else if (fs.existsSync(this.getJsonPath(params.userId))) {
-        try {
-          item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), "utf-8"));
-          console.info("avatar:cache:seek-by-version: ", item);
-          if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
-            this.cacheMap.set(params.userId, item);
-            return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
+    electron.ipcMain.handle(
+      "avatar:cache:seek-by-version",
+      async (_, params) => {
+        let item = this.cacheMap.get(params.userId);
+        if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+          return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
+        } else if (fs.existsSync(this.getJsonPath(params.userId))) {
+          try {
+            item = JSON.parse(
+              fs.readFileSync(this.getJsonPath(params.userId), "utf-8")
+            );
+            console.info("avatar:cache:seek-by-version: ", item);
+            if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+              this.cacheMap.set(params.userId, item);
+              return {
+                success: true,
+                pathResult: urlUtil.signByApp(item[params.strategy].localPath)
+              };
+            }
+          } catch (error) {
+            console.error(error);
           }
-        } catch (error) {
-          console.error(error);
         }
+        console.info("debug:downloadJson:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
+        const result = await netMinIO.downloadJson(
+          [urlUtil.atomPath, params.userId + ".json"].join("/")
+        );
+        return { success: false, pathResult: result[params.strategy] };
       }
-      console.info("debug:downloadJson:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
-      const result = await netMinIO.downloadJson([urlUtil.atomPath, params.userId + ".json"].join("/"));
-      return { success: false, pathResult: result[params.strategy] };
-    });
+    );
     electron.ipcMain.handle("avatar:get", async (_, { userId, strategy, avatarUrl }) => {
       try {
         const filePath = await this.getAvatarPath(userId, strategy, avatarUrl);
@@ -1976,7 +2050,12 @@ class AvatarCacheService {
   }
   async getAvatarPath(userId, strategy, avatarUrl) {
     try {
-      const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
+      const filePath = path.join(
+        urlUtil.cachePaths["avatar"],
+        userId,
+        strategy,
+        this.extractObjectFromUrl(avatarUrl)
+      );
       urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
       console.info("debug:downloadAvatar:  ", [userId, avatarUrl, filePath].join(" !!! "));
       const success = await this.downloadAvatar(avatarUrl, filePath);
@@ -2028,22 +2107,6 @@ class AvatarCacheService {
   }
 }
 const avatarCacheService = new AvatarCacheService();
-class ProxyService {
-  beginServe() {
-    electron.ipcMain.handle("proxy:login", async (_event, params) => {
-      const response = await netMaster.post("/user-account/login", params);
-      return response.data.data;
-    });
-    electron.ipcMain.handle(
-      "proxy:register",
-      async (_event, params) => {
-        const response = await netMaster.post("/user-account/register", params);
-        return response.data;
-      }
-    );
-  }
-}
-const proxyService = new ProxyService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -2055,10 +2118,18 @@ console.error = log.error;
 console.info = log.info;
 console.debug = log.debug;
 electron.app.setPath("userData", electron.app.getPath("userData") + "_" + urlUtil.instanceId);
-electron.protocol.registerSchemesAsPrivileged([{
-  scheme: "tellyou",
-  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
-}]);
+electron.protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "tellyou",
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      bypassCSP: true
+    }
+  }
+]);
 const store = new Store();
 const contextMenu = [
   {
@@ -2143,7 +2214,9 @@ const createWindow = () => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          "Content-Security-Policy": ["default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"]
+          "Content-Security-Policy": [
+            "default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"
+          ]
         }
       });
     });

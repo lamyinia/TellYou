@@ -11,29 +11,27 @@ const onTop = (): void => {
   window.ipcRenderer.send('window-ChangeScreen', 0)
 }
 const onMinimize = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 1)
-const onScreenChange = ():Promise<void> => window.electronAPI.send('window-ChangeScreen', 2)
+const onScreenChange = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 2)
 const onClose = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 3)
 onMounted(async () => {
   await userStore.initStore()
 })
-
 </script>
 
 <template>
-    <div class="window-drag-bar">
-      <span> Tell You - 通彼</span>
-      <div v-if="showWindowControls" class="window-controls">
-        <i :class="['iconfont icon-top', isTop ? 'win-top' : '']" title="置顶" @click="onTop"></i>
-        <i class="iconfont icon-min" title="最小化" @click="onMinimize"></i>
-        <i class="iconfont icon-max" title="全屏切换" @click="onScreenChange"></i>
-        <i class="iconfont icon-close" title="关闭" @click="onClose"></i>
-      </div>
+  <div class="window-drag-bar">
+    <span> Tell You - 通彼</span>
+    <div v-if="showWindowControls" class="window-controls">
+      <i :class="['iconfont icon-top', isTop ? 'win-top' : '']" title="置顶" @click="onTop"></i>
+      <i class="iconfont icon-min" title="最小化" @click="onMinimize"></i>
+      <i class="iconfont icon-max" title="全屏切换" @click="onScreenChange"></i>
+      <i class="iconfont icon-close" title="关闭" @click="onClose"></i>
     </div>
-    <router-view />
+  </div>
+  <router-view />
 </template>
 
 <style scoped>
-
 .window-drag-bar {
   height: 25px;
   width: 100%;
@@ -70,9 +68,8 @@ onMounted(async () => {
   color: #4caf50;
 }
 .window-controls .iconfont.win-top {
-  color: #ffb300 !important;      /* 高亮为金色 */
+  color: #ffb300 !important; /* 高亮为金色 */
   text-shadow: 0 0 6px #ffb30055; /* 柔和光晕 */
   font-weight: bold;
 }
-
 </style>

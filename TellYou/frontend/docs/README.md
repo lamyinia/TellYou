@@ -7,12 +7,14 @@ TellYou（通彼）是一个基于 Electron + Vue 3 + TypeScript 开发的跨平
 ## 技术栈
 
 ### 核心技术
+
 - **Electron**: 跨平台桌面应用框架
 - **Vue 3**: 前端框架，使用 Composition API
 - **TypeScript**: 类型安全的 JavaScript 超集
 - **Vite**: 快速的前端构建工具
 
 ### 主要依赖
+
 - **Pinia**: Vue 状态管理
 - **Vue Router**: 路由管理
 - **Axios**: HTTP 客户端
@@ -48,21 +50,25 @@ frontend/
 ## 快速开始
 
 ### 环境要求
+
 - Node.js >= 16.0.0
 - npm >= 8.0.0
 
 ### 安装依赖
+
 ```bash
 cd frontend
 npm install
 ```
 
 ### 开发模式
+
 ```bash
 npm run dev
 ```
 
 ### 构建应用
+
 ```bash
 # 构建所有平台
 npm run build
@@ -76,23 +82,27 @@ npm run build:linux  # Linux
 ## 主要功能
 
 ### 🔐 用户认证
+
 - 用户登录/注册
 - 会话管理
 - 自动登录
 
 ### 💬 聊天功能
+
 - 实时消息收发
 - 文本、图片、文件消息
 - 消息历史记录
 - 会话管理
 
 ### 👥 联系人管理
+
 - 好友列表
 - 好友申请
 - 黑名单管理
 - 群组管理
 
 ### ⚙️ 系统设置
+
 - 用户偏好设置
 - 应用配置
 - 数据管理
@@ -100,16 +110,19 @@ npm run build:linux  # Linux
 ## 开发指南
 
 ### 编码规范
+
 - 使用 TypeScript 进行类型检查
 - 遵循 Vue 3 Composition API 最佳实践
 - 使用 ESLint + Prettier 进行代码格式化
 
 ### 状态管理
+
 - 使用 Pinia 进行状态管理
 - 按功能模块划分 store
 - 支持数据持久化
 
 ### 数据库
+
 - 使用 SQLite3 作为本地数据库
 - 通过 DAO 模式进行数据访问
 - 支持数据迁移和版本管理
@@ -138,6 +151,7 @@ npm run build:linux  # Linux
 ## 联系方式
 
 如有问题或建议，请通过以下方式联系：
+
 - 提交 Issue
 - 发送邮件至项目维护者
 

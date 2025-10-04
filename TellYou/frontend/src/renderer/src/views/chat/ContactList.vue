@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
 import type { Session } from '@renderer/status/session/class'
-import { briefMsg, formatTime, onAvatarError, resolveAvatar } from '../../../../utils/process'
+import { briefMsg, formatTime, onAvatarError } from '../../../../utils/process'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
@@ -16,73 +16,80 @@ const selectContact = (contact: Session): void => {
 </script>
 
 <template>
-  <div class="star-contact-bg">
+  <div class="contact-bg">
     <div>
       <v-text-field
         prepend-inner-icon="iconfont icon-search"
         placeholder="搜索联系人..."
-        class="star-search-field"
+        class="search-field"
         hide-details
       />
     </div>
-    <v-list class="star-list">
-      <v-list-item v-for="item in sessions" :key="item.sessionId" class="session-item" @click="selectContact(item)">
-        <div class="row-wrap">
-          <div class="avatar-box">
-            <img
-              class="star-contact-avatar"
-              :src="src"
-              alt="avatar"
-              referrerpolicy="no-referrer"
-              crossorigin="anonymous"
-              loading="lazy"
-              @error="onAvatarError"
-            />
-            <span v-if="item.contactType === 2" class="contact-tag">群</span>
-            <span v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount > 99 ? '99+' : item.unreadCount }}</span>
+    <div class="contact-list">
+      <template v-if="sessions.length > 0">
+        <v-list>
+          <v-list-item v-for="item in sessions" :key="item.sessionId" class="session-item" @click="selectContact(item)">
+            <div class="row-wrap">
+              <div class="avatar-box">
+                <img
+                  class="star-contact-avatar"
+                  :src="src"
+                  alt="avatar"
+                  referrerpolicy="no-referrer"
+                  crossorigin="anonymous"
+                  loading="lazy"
+                  @error="onAvatarError"
+                />
+                <span v-if="item.contactType === 2" class="contact-tag">群</span>
+                <span v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount > 99 ? '99+' : item.unreadCount }}</span>
+              </div>
 
-          </div>
-
-          <div class="content-col">
-            <div class="name">{{ item.contactName }}</div>
-            <div class="subtitle">{{ briefMsg(item.lastMsgContent) }}</div>
-            <div class="footer-row">
-              <i v-if="item.isPinned" class="iconfont icon-top pin-flag" title="置顶"></i>
-              <div class="time">{{ formatTime(item.lastMsgTime) }}</div>
+              <div class="content-col">
+                <div class="name">{{ item.contactName }}</div>
+                <div class="subtitle">{{ briefMsg(item.lastMsgContent) }}</div>
+                <div class="footer-row">
+                  <i v-if="item.isPinned" class="iconfont icon-top pin-flag" title="置顶"></i>
+                  <div class="time">{{ formatTime(item.lastMsgTime) }}</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </v-list-item>
+        </v-list>
+      </template>
+      <template v-else>
+        <div class="empty-state">
+          <div class="empty-icon">💬</div>
+          <div class="empty-text">暂无联系人</div>
+          <div class="empty-subtitle">开始添加好友吧</div>
         </div>
-      </v-list-item>
-    </v-list>
+      </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.star-contact-bg {
+.contact-bg {
   height: 100%;
-  border-radius: 0 18px 18px 0;
+  width: 100%;
+  border-radius: 18px;
   background: linear-gradient(135deg,
-    rgba(13, 19, 61, 0.95) 0%,
-    rgba(25, 35, 85, 0.92) 25%,
-    rgba(35, 45, 105, 0.88) 50%,
-    rgba(25, 35, 85, 0.92) 75%,
-    rgba(13, 19, 61, 0.95) 100%);
+    rgba(25, 35, 85, 0.95) 0%,
+    rgba(35, 45, 105, 0.95) 50%,
+    rgba(25, 35, 85, 0.95) 100%);
   backdrop-filter: blur(8px);
   box-shadow:
-    0 8px 32px 0 rgba(211, 0, 244, 0.17),
+    0 8px 32px 0 rgba(13, 19, 61, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  padding-left: 0;
-  padding-right: 0;
-  padding-top: 0;
+  align-items: stretch;
+  padding: 0;
   position: relative;
   overflow: hidden;
 }
 
-.star-contact-bg::before {
+.contact-bg::before {
   content: '';
   position: absolute;
   top: 0;
@@ -90,25 +97,25 @@ const selectContact = (contact: Session): void => {
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 22% 10%, rgba(138, 43, 226, 0.10) 0%, transparent 46%),
-    radial-gradient(circle at 80% 80%, rgba(30, 144, 255, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 40% 60%, rgba(255, 20, 147, 0.08) 0%, transparent 50%);
+    radial-gradient(circle at 30% 20%, rgba(30, 144, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(30, 144, 255, 0.08) 0%, transparent 50%);
   pointer-events: none;
 }
 
-.star-search-field {
+.search-field {
   width: 100%;
-  margin: 0 14px 14px 14px; /* 去除顶部空隙 */
+  margin: 0 0 14px 0; /* 只保留底部边距 */
   border-radius: 12px;
   color: #fff !important;
   min-height: 20px !important;
   font-size: 12px;
   position: relative;
   z-index: 1;
+  flex-shrink: 0; /* 防止搜索框被压缩 */
 }
 
 /* 让搜索框与背景更融合的玻璃风格 */
-.star-search-field:deep(.v-field) {
+.search-field:deep(.v-field) {
   background: linear-gradient(135deg,
     rgba(255, 255, 255, 0.08) 0%,
     rgba(255, 255, 255, 0.04) 100%) !important;
@@ -120,47 +127,52 @@ const selectContact = (contact: Session): void => {
 }
 
 /* 彻底移除可能来源于 Vuetify 的顶部留白 */
-.star-search-field:deep(.v-input__control) { padding-top: 0 !important; }
-.star-search-field:deep(.v-field) { margin-top: 0 !important; }
-.star-search-field:deep(.v-field__field) { padding-top: 0 !important; }
-.star-search-field:deep(.v-field__input) { margin-top: 0 !important; }
-.star-search-field:deep(.v-input) { margin-top: 0 !important; margin-bottom: 0 !important; }
+.search-field:deep(.v-input__control) { padding-top: 0 !important; }
+.search-field:deep(.v-field) { margin-top: 0 !important; }
+.search-field:deep(.v-field__field) { padding-top: 0 !important; }
+.search-field:deep(.v-field__input) { margin-top: 0 !important; }
+.search-field:deep(.v-input) { margin-top: 0 !important; margin-bottom: 0 !important; }
 
 /* 包裹搜索框的第一个容器去除任何默认外边距/内边距 */
-.star-contact-bg > div:first-child { margin: 0 !important; padding: 0 !important; }
+.contact-bg > div:first-child {
+  margin: 0 !important;
+  padding: 14px !important; /* 统一内边距 */
+  width: 100%;
+  box-sizing: border-box;
+}
 
-.star-search-field:deep(.v-field__overlay),
-.star-search-field:deep(.v-field__outline) {
+.search-field:deep(.v-field__overlay),
+.search-field:deep(.v-field__outline) {
   display: none !important; /* 去掉双重描边导致的割裂感 */
 }
 
-.star-search-field:deep(.v-field__input) {
+.search-field:deep(.v-field__input) {
   padding-left: 12px !important;
   color: #fff !important;
 }
 
-.star-search-field:deep(.v-icon) {
+.search-field:deep(.v-icon) {
   color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.star-search-field:deep(input::placeholder) {
+.search-field:deep(input::placeholder) {
   color: rgba(255, 255, 255, 0.85) !important;
   opacity: 0.8 !important;
 }
 
-.star-search-field:hover:deep(.v-field) {
+.search-field:hover:deep(.v-field) {
   border-color: rgba(255, 255, 255, 0.22) !important;
   background: linear-gradient(135deg,
     rgba(255, 255, 255, 0.12) 0%,
     rgba(255, 255, 255, 0.06) 100%) !important;
 }
 
-.star-search-field:deep(.v-field--focused) {
+.search-field:deep(.v-field--focused) {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 2px rgba(86, 164, 255, 0.35), 0 8px 20px rgba(0, 0, 0, 0.18) !important;
   border-color: rgba(86, 164, 255, 0.45) !important;
 }
 
-.star-search-field .v-input__control, .star-search-field .v-field, .star-search-field .v-field__field, .star-search-field input {
+.search-field .v-input__control, .search-field .v-field, .search-field .v-field__field, .search-field input {
   min-height: 36px !important;
   height: 36px !important;
   line-height: 36px !important;
@@ -168,37 +180,49 @@ const selectContact = (contact: Session): void => {
   font-size: 15px !important;
 }
 
-.star-search-field input::placeholder {
+.search-field input::placeholder {
   color: #fff !important;
   opacity: 0.7;
 }
 
-.star-list {
+.contact-list {
   background: transparent !important;
   box-shadow: none !important;
-  border-radius: 0 0 18px 0;
-  padding-bottom: 12px;
+  border-radius: 0 0 18px 18px;
   position: relative;
   z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px 14px 14px;
 }
 
-.star-list::-webkit-scrollbar {
+.contact-list :deep(.v-list) {
+  background: transparent !important;
+  box-shadow: none !important;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 12px;
+}
+
+.contact-list::-webkit-scrollbar {
   width: 5px;
-  background: #ba0d9c;
+  background: rgba(24, 28, 70, 0.3);
   border-radius: 8px;
 }
 
-.star-list::-webkit-scrollbar-thumb {
+.contact-list::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #092a43 0%, #04165e 100%);
   border-radius: 8px;
   min-height: 40px;
 }
 
-.star-list::-webkit-scrollbar-thumb:hover {
+.contact-list::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #1d12b5 0%, #2e0c83 100%);
 }
 
-.star-list::-webkit-scrollbar-track {
+.contact-list::-webkit-scrollbar-track {
   background: #181c46;
   border-radius: 8px;
 }
@@ -209,7 +233,7 @@ const selectContact = (contact: Session): void => {
     rgba(255, 255, 255, 0.04) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  margin: 6px 8px;
+  margin: 6px 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0 !important;
   min-height: 72px;
@@ -401,5 +425,37 @@ const selectContact = (contact: Session): void => {
   text-overflow: ellipsis;
   line-height: 1.4;
   opacity: 0.9;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  padding: 60px 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+
+.empty-text {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.empty-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0.7;
 }
 </style>

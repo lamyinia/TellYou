@@ -13,12 +13,13 @@ let dataBase: sqlite3.Database
 export const redirectDataBase = (): boolean => {
   const path = join(urlUtil.sqlPath, 'local.db')
   const result: boolean = fs.existsSync(path)
-  dataBase = (urlUtil.nodeEnv === 'development') ?
-    new (sqlite3.verbose().Database)(path) : new sqlite3.Database(path)  // 开发模式输出日志
+  dataBase =
+    urlUtil.nodeEnv === 'development'
+      ? new (sqlite3.verbose().Database)(path)
+      : new sqlite3.Database(path) // 开发模式输出日志
   return result
 }
-export const initTable =  async ()=> {
-
+export const initTable = async () => {
   dataBase.serialize(async () => {
     await createTable()
   })
@@ -28,13 +29,13 @@ export const initTable =  async ()=> {
 export const queryAll = (sql: string, params: unknown[]): Promise<Record<string, unknown>[]> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
-    stmt.all(params, function(err: Error | null, rows: unknown[]) {
+    stmt.all(params, function (err: Error | null, rows: unknown[]) {
       if (err) {
         console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve([])
         return
       }
-      const result = (rows as Record<string, unknown>[]).map(item => convertDb2Biz(item))
+      const result = (rows as Record<string, unknown>[]).map((item) => convertDb2Biz(item))
       console.info(sql, params, result)
       resolve(result as Record<string, unknown>[])
     })
@@ -44,7 +45,7 @@ export const queryAll = (sql: string, params: unknown[]): Promise<Record<string,
 export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
-    stmt.get(params, function(err: Error | null, row: unknown) {
+    stmt.get(params, function (err: Error | null, row: unknown) {
       if (err) {
         console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve(0)
@@ -55,10 +56,13 @@ export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
     stmt.finalize()
   })
 }
-export const queryOne = (sql: string, params: unknown[]): Promise<Record<string, unknown> | null> => {
+export const queryOne = (
+  sql: string,
+  params: unknown[]
+): Promise<Record<string, unknown> | null> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
-    stmt.get(params, function(err: Error | null, row: unknown) {
+    stmt.get(params, function (err: Error | null, row: unknown) {
       if (err) {
         console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         resolve(null)
@@ -73,7 +77,7 @@ export const queryOne = (sql: string, params: unknown[]): Promise<Record<string,
 export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
   return new Promise((resolve, reject) => {
     const stmt = dataBase.prepare(sql)
-    stmt.run(params, function(err: Error | null) {
+    stmt.run(params, function (err: Error | null) {
       if (err) {
         console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
         reject(-1)
@@ -85,7 +89,11 @@ export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
     stmt.finalize()
   })
 }
-export const insert = (sqlPrefix: string, tableName: string, data: Record<string, unknown>): Promise<number> => {
+export const insert = (
+  sqlPrefix: string,
+  tableName: string,
+  data: Record<string, unknown>
+): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const columns: string[] = []
   const params: unknown[] = []
@@ -99,19 +107,28 @@ export const insert = (sqlPrefix: string, tableName: string, data: Record<string
   const sql = `${sqlPrefix} ${tableName}(${columns.join(',')}) values(${prepare})`
   return sqliteRun(sql, params)
 }
-export const insertOrReplace = (tableName: string, data: Record<string, unknown>): Promise<number> => {
+export const insertOrReplace = (
+  tableName: string,
+  data: Record<string, unknown>
+): Promise<number> => {
   console.log(data)
   return insert('insert or replace into', tableName, data)
 }
-export const insertOrIgnore = (tableName: string, data: Record<string, unknown>): Promise<number> => {
+export const insertOrIgnore = (
+  tableName: string,
+  data: Record<string, unknown>
+): Promise<number> => {
   return insert('insert or ignore into', tableName, data)
 }
-export const batchInsert = (tableName: string, dataList: Record<string,unknown>[]): Promise<number> => {
+export const batchInsert = (
+  tableName: string,
+  dataList: Record<string, unknown>[]
+): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const firstData = dataList[0]
   const columns: string[] = []
-  for (const item in firstData){
-    if (firstData[item] != undefined && columnMap[item] != undefined){
+  for (const item in firstData) {
+    if (firstData[item] != undefined && columnMap[item] != undefined) {
       columns.push(columnMap[item])
     }
   }
@@ -121,7 +138,7 @@ export const batchInsert = (tableName: string, dataList: Record<string,unknown>[
   const params: unknown[] = []
   for (const data of dataList) {
     for (const column of columns) {
-      const bizField = Object.keys(columnMap).find(key => columnMap[key] === column)
+      const bizField = Object.keys(columnMap).find((key) => columnMap[key] === column)
       params.push(data[bizField!])
     }
   }
@@ -129,7 +146,10 @@ export const batchInsert = (tableName: string, dataList: Record<string,unknown>[
 
   return sqliteRun(sql, params)
 }
-export const batchInsertWithIds = async (tableName: string, dataList: Record<string,unknown>[]):Promise<number[]> => {
+export const batchInsertWithIds = async (
+  tableName: string,
+  dataList: Record<string, unknown>[]
+): Promise<number[]> => {
   if (dataList.length === 0) return []
   await batchInsert(tableName, dataList)
   const columnMap = globalColumnMap[tableName]
@@ -154,10 +174,14 @@ export const batchInsertWithIds = async (tableName: string, dataList: Record<str
   if (whereConditions.length === 0) return []
   const sql = `SELECT id FROM ${tableName} WHERE ${whereConditions.join(' OR ')}`
   const results = await queryAll(sql, params)
-  return results.map(r => r.id as number)
+  return results.map((r) => r.id as number)
 }
 
-export const update = (tableName: string, data: Record<string, unknown>, paramData: Record<string, unknown>): Promise<number> => {
+export const update = (
+  tableName: string,
+  data: Record<string, unknown>,
+  paramData: Record<string, unknown>
+): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const columns: string[] = []
   const params: unknown[] = []
@@ -181,7 +205,6 @@ export const update = (tableName: string, data: Record<string, unknown>, paramDa
 
   return sqliteRun(sql, params)
 }
-
 
 const toCamelCase = (str: string): string => {
   return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase())
@@ -210,17 +233,18 @@ const createTable = async (): Promise<void> => {
   await add_index()
 }
 const initTableColumnsMap = async (): Promise<void> => {
-  let sql: string = 'select name from sqlite_master where type = \'table\' and name != \'sqlite_sequence\''
+  let sql: string =
+    "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'"
   const tables = await queryAll(sql, [])
   for (let i = 0; i < tables.length; ++i) {
     sql = `PRAGMA table_info(${(tables[i] as { name: string }).name})`
     const columns = await queryAll(sql, [])
     const columnsMapItem: ColumnMap = {}
     for (let j = 0; j < columns.length; j++) {
-      columnsMapItem[toCamelCase((columns[j] as { name: string }).name)] = (columns[j] as { name: string }).name
+      columnsMapItem[toCamelCase((columns[j] as { name: string }).name)] = (
+        columns[j] as { name: string }
+      ).name
     }
     globalColumnMap[(tables[i] as { name: string }).name] = columnsMapItem
   }
 }
-
-

@@ -28,4 +28,3 @@ export const getMessageId = (): string => {
   const rand = BigInt(Math.floor(Math.random() * 1_000_000))
   return ((time << 20n) | rand).toString()
 }
-

@@ -7,6 +7,7 @@
 ## 架构组成
 
 ### 1. 主进程服务 (`frontend/src/main/media-pull-service.ts`)
+
 - **MediaTaskService**: 核心服务类，管理所有媒体上传任务
 - **分块上传**: 5MB 分块，支持大文件上传
 - **并发控制**: 最大3个并发上传任务
@@ -14,6 +15,7 @@
 - **任务状态**: pending → uploading → completed/failed/cancelled
 
 ### 2. IPC 通信接口
+
 - `media:send:start` - 开始媒体任务
 - `media:send:cancel` - 取消任务
 - `media:send:retry` - 重试任务
@@ -23,21 +25,27 @@
 ### 3. 渲染进程组件
 
 #### MediaUpload.vue
+
 基础媒体上传组件，支持：
+
 - 多文件类型选择 (图片/视频/音频/文件)
 - 文件大小限制
 - 实时进度显示
 - 任务取消/重试
 
 #### MediaSendBox.vue
+
 完整媒体发送框，包含：
+
 - 标签页切换 (图片/视频/语音/文件)
 - 语音录制功能
 - 媒体预览
 - 批量发送
 
 #### Pinia Store (`frontend/src/renderer/src/status/media/store.ts`)
+
 状态管理，提供：
+
 - 任务状态管理
 - 进度监控
 - 历史记录
@@ -75,10 +83,7 @@ const handleError = (error) => {
 
 ```vue
 <template>
-  <MediaSendBox
-    :current-contact="currentContact"
-    @sent="handleSent"
-  />
+  <MediaSendBox :current-contact="currentContact" @sent="handleSent" />
 </template>
 
 <script setup>
@@ -113,13 +118,17 @@ const startUpload = async (file) => {
 }
 
 // 监听任务状态
-watch(() => mediaStore.activeTasks, (tasks) => {
-  tasks.forEach(task => {
-    if (task.status === 'completed') {
-      console.log('上传完成:', task.result)
-    }
-  })
-}, { deep: true })
+watch(
+  () => mediaStore.activeTasks,
+  (tasks) => {
+    tasks.forEach((task) => {
+      if (task.status === 'completed') {
+        console.log('上传完成:', task.result)
+      }
+    })
+  },
+  { deep: true }
+)
 </script>
 ```
 
@@ -137,6 +146,7 @@ watch(() => mediaStore.activeTasks, (tasks) => {
 服务需要以下后端接口支持：
 
 ### 1. 获取上传令牌
+
 ```
 POST /api/media/upload-token
 {
@@ -154,6 +164,7 @@ Response:
 ```
 
 ### 2. 提交上传
+
 ```
 POST /api/media/commit
 {
@@ -174,11 +185,13 @@ Response:
 ## 配置参数
 
 ### 主进程配置
+
 - `CHUNK_SIZE`: 5MB (分块大小)
 - `MAX_CONCURRENT`: 3 (最大并发数)
 - `RETRY_TIMES`: 3 (重试次数)
 
 ### 组件配置
+
 - `maxSize`: 文件大小限制 (MB)
 - `types`: 支持的文件类型
 - `multiple`: 是否支持多选
@@ -194,6 +207,7 @@ Response:
 ## 扩展功能
 
 可以进一步扩展的功能：
+
 - 视频缩略图生成
 - 图片压缩和格式转换
 - 断点续传优化

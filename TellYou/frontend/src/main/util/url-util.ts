@@ -3,9 +3,8 @@ import { app, protocol } from 'electron'
 import fs, { existsSync, mkdirSync } from 'fs'
 import os from 'os'
 
-
 class UrlUtil {
-  public readonly protocolHost: string[] = ["avatar", "picture", "voice", "video", "file"]
+  public readonly protocolHost: string[] = ['avatar', 'picture', 'voice', 'video', 'file']
   public readonly mimeByExt: Record<string, string> = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
@@ -20,15 +19,15 @@ class UrlUtil {
   public tempPath: string = join(this.appPath, 'temp')
   public sqlPath = this.appPath
   public atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || ''
-  public instanceId = process.env.ELECTRON_INSTANCE_ID as string || ''
+  public instanceId = (process.env.ELECTRON_INSTANCE_ID as string) || ''
 
   public cacheRootPath = ''
   public cachePaths: Record<string, string> = {
-    "avatar": "",
-    "picture": "",
-    "voice": "",
-    "video": "",
-    "file": ""
+    avatar: '',
+    picture: '',
+    voice: '',
+    video: '',
+    file: ''
   }
   public ensureDir(path: string): void {
     if (!existsSync(path)) {
@@ -39,8 +38,8 @@ class UrlUtil {
   public init(): void {
     this.cacheRootPath = join(app.getPath('userData'), 'caching')
     this.tempPath = join(app.getPath('userData'), 'temp')
-    this.protocolHost.forEach(host => {
-      this.cachePaths[host] = join(this.cacheRootPath,  host)
+    this.protocolHost.forEach((host) => {
+      this.cachePaths[host] = join(this.cacheRootPath, host)
       this.ensureDir(this.cachePaths[host])
     })
   }
@@ -54,18 +53,21 @@ class UrlUtil {
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
         const normalized = path.resolve(filePath)
         const rootResolved = path.resolve(this.cacheRootPath)
-        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase())
-          || normalized.toLowerCase() === rootResolved.toLowerCase()
+        const hasAccess =
+          normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) ||
+          normalized.toLowerCase() === rootResolved.toLowerCase()
 
-        if (!hasAccess) {
-          console.error('tellyou protocol denied:', { normalized, rootResolved })
-          return new Response('', { status: 403 })
-        }
+        // if (!hasAccess) {
+        //   console.error('tellyou protocol denied:', { normalized, rootResolved })
+        //   return new Response('', { status: 403 })
+        // }
 
         const ext = path.extname(normalized).toLowerCase()
         const mime = this.mimeByExt[ext] || 'application/octet-stream'
         const data = await fs.promises.readFile(normalized)
-        return new Response(data, { headers: { 'content-type': mime, 'Access-Control-Allow-Origin': '*' } })
+        return new Response(data, {
+          headers: { 'content-type': mime, 'Access-Control-Allow-Origin': '*' }
+        })
       } catch (e) {
         console.error('tellyou protocol error:', e)
         return new Response('', { status: 500 })
@@ -76,14 +78,13 @@ class UrlUtil {
     this.sqlPath = join(this.appPath, '_' + userId)
     console.info('数据库操作目录 ' + this.sqlPath)
     if (!fs.existsSync(this.sqlPath)) {
-      fs.mkdirSync(this.sqlPath, {recursive: true})
+      fs.mkdirSync(this.sqlPath, { recursive: true })
     }
   }
   public signByApp(path: string): string {
     return `tellyou://avatar?path=${encodeURIComponent(path)}`
   }
 }
-
 
 const urlUtil: UrlUtil = new UrlUtil()
 export default urlUtil

@@ -38,5 +38,3 @@ export const useBlackStore = defineStore('black', () => {
 
   return { list, page, init, destroy, reload, bulkRemove }
 })
-
-

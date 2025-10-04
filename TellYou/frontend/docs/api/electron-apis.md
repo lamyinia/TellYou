@@ -7,10 +7,15 @@ TellYou 应用使用 Electron 的 IPC (Inter-Process Communication) 机制实现
 ## API 分类
 
 ### 1. 数据存储 APIs
-### 2. WebSocket 通信 APIs  
+
+### 2. WebSocket 通信 APIs
+
 ### 3. 数据库操作 APIs
+
 ### 4. 会话管理 APIs
+
 ### 5. 应用管理 APIs
+
 ### 6. 黑名单管理 APIs
 
 ## 数据存储 APIs
@@ -30,12 +35,15 @@ ipcMain.handle('store-get', (_, key) => {
 ```
 
 **参数**:
+
 - `key` (string): 存储键名
 
 **返回值**:
+
 - `any`: 存储的值，如果不存在返回 `undefined`
 
 **示例**:
+
 ```typescript
 // 获取用户信息
 const userInfo = await window.electronAPI.invoke('store-get', 'userInfo')
@@ -60,13 +68,16 @@ ipcMain.handle('store-set', (_, key, value) => {
 ```
 
 **参数**:
+
 - `key` (string): 存储键名
 - `value` (any): 要存储的值
 
 **返回值**:
+
 - `boolean`: 操作是否成功
 
 **示例**:
+
 ```typescript
 // 保存用户信息
 await window.electronAPI.invoke('store-set', 'userInfo', {
@@ -99,9 +110,11 @@ ipcMain.handle('store-delete', (_, key) => {
 ```
 
 **参数**:
+
 - `key` (string): 要删除的存储键名
 
 **返回值**:
+
 - `boolean`: 操作是否成功
 
 ### store-clear
@@ -120,6 +133,7 @@ ipcMain.handle('store-clear', () => {
 ```
 
 **返回值**:
+
 - `boolean`: 操作是否成功
 
 ## WebSocket 通信 APIs
@@ -145,12 +159,15 @@ ipcMain.handle('ws-send', async (_, msg) => {
 ```
 
 **参数**:
+
 - `message` (any): 要发送的消息对象
 
 **返回值**:
+
 - `boolean`: 发送是否成功
 
 **示例**:
+
 ```typescript
 // 发送聊天消息
 const message = {
@@ -200,17 +217,19 @@ ipcMain.handle('get-sessions-with-order', async () => {
 ```
 
 **返回值**:
+
 - `Session[]`: 会话列表数组
 
 **Session 对象结构**:
+
 ```typescript
 interface Session {
   session_id: string
-  contact_type: number      // 1: 好友, 2: 群组
+  contact_type: number // 1: 好友, 2: 群组
   contact_id: string
   last_msg_content: string
   last_msg_time: string
-  is_pinned: number        // 0: 未置顶, 1: 已置顶
+  is_pinned: number // 0: 未置顶, 1: 已置顶
   unread_count: number
   created_at: string
   updated_at: string
@@ -224,7 +243,7 @@ interface Session {
 ```typescript
 // 渲染进程调用
 const success = await window.electronAPI.invoke(
-  'update-session-last-message', 
+  'update-session-last-message',
   sessionId: string | number,
   content: string,
   time: Date
@@ -241,9 +260,9 @@ ipcMain.handle('update-session-last-message', async (_, sessionId, content, time
       WHERE session_id = ?
     `
     const result = await sqliteRun(sql, [
-      content, 
-      time.toISOString(), 
-      new Date().toISOString(), 
+      content,
+      time.toISOString(),
+      new Date().toISOString(),
       String(sessionId)
     ])
     return result > 0
@@ -255,11 +274,13 @@ ipcMain.handle('update-session-last-message', async (_, sessionId, content, time
 ```
 
 **参数**:
+
 - `sessionId` (string | number): 会话ID
 - `content` (string): 消息内容
 - `time` (Date): 消息时间
 
 **返回值**:
+
 - `boolean`: 更新是否成功
 
 ### toggle-session-pin
@@ -288,9 +309,11 @@ ipcMain.handle('toggle-session-pin', async (_, sessionId) => {
 ```
 
 **参数**:
+
 - `sessionId` (string | number): 会话ID
 
 **返回值**:
+
 - `boolean`: 操作是否成功
 
 ### get-message-by-sessionId
@@ -312,24 +335,28 @@ ipcMain.handle('get-message-by-sessionId', (_, sessionId, options) => {
 ```
 
 **参数**:
+
 - `sessionId` (string | number): 会话ID
 - `options` (MessageQueryOptions): 查询选项
 
 **MessageQueryOptions 结构**:
+
 ```typescript
 interface MessageQueryOptions {
-  pageNo?: number      // 页码，默认 1
-  pageSize?: number    // 每页大小，默认 20
+  pageNo?: number // 页码，默认 1
+  pageSize?: number // 每页大小，默认 20
   messageType?: number // 消息类型过滤
-  startTime?: string   // 开始时间
-  endTime?: string     // 结束时间
+  startTime?: string // 开始时间
+  endTime?: string // 结束时间
 }
 ```
 
 **返回值**:
+
 - `Message[]`: 消息列表
 
 **Message 对象结构**:
+
 ```typescript
 interface Message {
   id: string
@@ -340,7 +367,7 @@ interface Message {
   message_type: number
   timestamp: string
   status: number
-  extra: string       // JSON 字符串
+  extra: string // JSON 字符串
 }
 ```
 
@@ -371,10 +398,12 @@ ipcMain.on('application:incoming:load', async (event, { pageNo, pageSize }) => {
 ```
 
 **参数**:
+
 - `pageNo` (number): 页码
 - `pageSize` (number): 每页大小
 
 **响应数据**:
+
 ```typescript
 interface ApplicationData {
   applications: Application[]
@@ -388,7 +417,7 @@ interface Application {
   from_user_id: string
   to_user_id: string
   remark: string
-  status: number        // 0: 待处理, 1: 已同意, 2: 已拒绝
+  status: number // 0: 待处理, 1: 已同意, 2: 已拒绝
   created_at: string
   updated_at: string
 }
@@ -412,6 +441,7 @@ ipcMain.on('application:incoming:approve', async (event, { ids }) => {
 ```
 
 **参数**:
+
 - `ids` (string[]): 要同意的申请ID数组
 
 ### application:incoming:reject
@@ -432,6 +462,7 @@ ipcMain.on('application:incoming:reject', async (event, { ids }) => {
 ```
 
 **参数**:
+
 - `ids` (string[]): 要拒绝的申请ID数组
 
 ### application:outgoing:load
@@ -481,6 +512,7 @@ ipcMain.on('application:send', async (event, { toUserId, remark }) => {
 ```
 
 **参数**:
+
 - `toUserId` (string): 目标用户ID
 - `remark` (string): 申请备注
 
@@ -511,6 +543,7 @@ ipcMain.on('black:list:load', async (event, { pageNo, pageSize }) => {
 ```
 
 **响应数据**:
+
 ```typescript
 interface BlacklistData {
   blacklist: BlacklistItem[]
@@ -546,6 +579,7 @@ ipcMain.on('black:list:remove', async (event, { userIds }) => {
 ```
 
 **参数**:
+
 - `userIds` (string[]): 要移除的用户ID数组
 
 ## 窗口控制 APIs
@@ -562,7 +596,7 @@ window.electronAPI.send('window-ChangeScreen', status: number)
 onScreenChange((event: Electron.IpcMainEvent, status: number) => {
   const webContents = event.sender
   const win = BrowserWindow.fromWebContents(webContents)
-  
+
   switch (status) {
     case 0: // 切换置顶状态
       if (win?.isAlwaysOnTop()) {
@@ -590,6 +624,7 @@ onScreenChange((event: Electron.IpcMainEvent, status: number) => {
 ```
 
 **参数**:
+
 - `status` (number): 窗口状态
   - `0`: 切换置顶状态
   - `1`: 最小化窗口
@@ -631,7 +666,7 @@ const sendMessage = async (content: string) => {
       timestamp: new Date().toISOString()
     }
   }
-  
+
   const success = await window.electronAPI.invoke('ws-send', message)
   if (success) {
     console.log('消息发送成功')
@@ -646,7 +681,7 @@ const handleNewMessage = (message: any) => {
 onMounted(() => {
   // 加载初始数据
   loadSessions()
-  
+
   // 监听消息事件
   window.electronAPI.on('new-message', handleNewMessage)
 })
@@ -672,7 +707,7 @@ export const useMessageStore = defineStore('message', {
         console.error('加载会话失败:', error)
       }
     },
-    
+
     async sendMessage(content: string, sessionId: string) {
       const message = {
         type: 'CHAT_MESSAGE',
@@ -683,10 +718,10 @@ export const useMessageStore = defineStore('message', {
           timestamp: new Date().toISOString()
         }
       }
-      
+
       return await window.electronAPI.invoke('ws-send', message)
     },
-    
+
     async toggleSessionPin(sessionId: string) {
       return await window.electronAPI.invoke('toggle-session-pin', sessionId)
     }
@@ -730,7 +765,7 @@ const invokeWithTimeout = async (channel: string, timeout: number, ...args: any[
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('操作超时')), timeout)
   })
-  
+
   return Promise.race([promise, timeoutPromise])
 }
 ```
@@ -774,14 +809,15 @@ const handleIpcError = (error: Error, context: string) => {
 ```typescript
 // 批量操作
 const batchUpdateSessions = async (updates: SessionUpdate[]) => {
-  const promises = updates.map(update => 
-    window.electronAPI.invoke('update-session-last-message', 
-      update.sessionId, 
-      update.content, 
+  const promises = updates.map((update) =>
+    window.electronAPI.invoke(
+      'update-session-last-message',
+      update.sessionId,
+      update.content,
       update.time
     )
   )
-  
+
   await Promise.all(promises)
 }
 ```

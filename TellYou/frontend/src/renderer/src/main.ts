@@ -6,7 +6,6 @@ import * as directives from 'vuetify/directives'
 import '@renderer/assets/global.css'
 import '@renderer/assets/icon/iconfont.css'
 import '@renderer/assets/font-alibaba/iconfont.css'
-import '@renderer/utils/api'
 
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
@@ -18,8 +17,4 @@ const vuetifyBase = createVuetify({
   directives
 })
 
-createApp(App)
-  .use(createPinia())
-  .use(router)
-  .use(vuetifyBase)
-  .mount('#app')
+createApp(App).use(createPinia()).use(router).use(vuetifyBase).mount('#app')

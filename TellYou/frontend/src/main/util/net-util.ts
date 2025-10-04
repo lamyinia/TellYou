@@ -35,7 +35,7 @@ class ApiError extends Error {
 const netMaster: AxiosInstance = axios.create({
   withCredentials: true,
   baseURL: import.meta.env.VITE_REQUEST_URL,
-  timeout: 10 * 1000,
+  timeout: 180 * 1000,
   headers: {
     'Content-Type': 'application/json'
   }

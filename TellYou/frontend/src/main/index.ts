@@ -28,14 +28,23 @@ console.info = log.info
 console.debug = log.debug
 
 app.setPath('userData', app.getPath('userData') + '_' + urlUtil.instanceId)
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'tellyou',
-  privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true }
-}])
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'tellyou',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      bypassCSP: true
+    }
+  }
+])
 export const store = new Store()
 const contextMenu = [
   {
-    label: '退出TellYou', click: () => {
+    label: '退出TellYou',
+    click: () => {
       app.exit()
     }
   }
@@ -56,7 +65,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
   createWindow()
-  app.on('activate', function() {
+  app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
@@ -121,7 +130,9 @@ const createWindow = (): void => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': ['default-src * \'unsafe-eval\' \'unsafe-inline\' data: blob: file:']
+          'Content-Security-Policy': [
+            "default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"
+          ]
         }
       })
     })

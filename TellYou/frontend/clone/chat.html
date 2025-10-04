@@ -1,693 +1,694 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tell You - 聊天</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
-        }
+      body {
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
+        color: #fff;
+        overflow: hidden;
+        height: 100vh;
+      }
 
-        /* 星空背景 */
-        .star-bg {
-            position: relative;
-            height: 100vh;
-            overflow: hidden;
-        }
+      /* 星空背景 */
+      .star-bg {
+        position: relative;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-        .star {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle 2s infinite alternate;
-        }
+      .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: white;
+        border-radius: 50%;
+        animation: twinkle 2s infinite alternate;
+      }
 
-        @keyframes twinkle {
-            0%, 100% {
-                opacity: 0.2;
-                transform: scale(0.8);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1.2);
-                filter: blur(0px) drop-shadow(0 0 5px white);
-            }
+      @keyframes twinkle {
+        0%,
+        100% {
+          opacity: 0.2;
+          transform: scale(0.8);
         }
+        50% {
+          opacity: 1;
+          transform: scale(1.2);
+          filter: blur(0px) drop-shadow(0 0 5px white);
+        }
+      }
 
-        /* 主容器 */
-        .main-container {
-            display: flex;
-            height: 100vh;
-            position: relative;
-            z-index: 2;
-        }
+      /* 主容器 */
+      .main-container {
+        display: flex;
+        height: 100vh;
+        position: relative;
+        z-index: 2;
+      }
 
-        /* 左侧主内容区 */
-        .main-content {
-            flex: 1;
-            background: rgba(20, 24, 60, 0.85);
-            border-radius: 18px 0 0 18px;
-            margin: 0 0 32px 0;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            overflow: hidden;
-            position: relative;
-        }
+      /* 左侧主内容区 */
+      .main-content {
+        flex: 1;
+        background: rgba(20, 24, 60, 0.85);
+        border-radius: 18px 0 0 18px;
+        margin: 0 0 32px 0;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        overflow: hidden;
+        position: relative;
+      }
 
-        /* 右侧导航栏 */
-        .right-nav {
-            width: 64px;
-            background: #111827;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 0;
-            height: 100vh;
-        }
+      /* 右侧导航栏 */
+      .right-nav {
+        width: 64px;
+        background: #111827;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 0;
+        height: 100vh;
+      }
 
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: #bbb;
-            margin-bottom: 32px;
-            cursor: pointer;
-            font-size: 24px;
-            transition: color 0.2s;
-        }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #bbb;
+        margin-bottom: 32px;
+        cursor: pointer;
+        font-size: 24px;
+        transition: color 0.2s;
+      }
 
-        .nav-item.active {
-            color: #4caf50;
-        }
+      .nav-item.active {
+        color: #4caf50;
+      }
 
-        .nav-label {
-            font-size: 12px;
-            margin-top: 4px;
-        }
+      .nav-label {
+        font-size: 12px;
+        margin-top: 4px;
+      }
 
-        /* 聊天界面 */
-        .chat-container {
-            display: flex;
-            height: 100vh;
-        }
+      /* 聊天界面 */
+      .chat-container {
+        display: flex;
+        height: 100vh;
+      }
 
-        /* 聊天面板 */
-        .chat-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
+      /* 聊天面板 */
+      .chat-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
 
-        /* 聊天头部 */
-        .chat-header {
-            background: rgba(255, 255, 255, 0.06);
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+      /* 聊天头部 */
+      .chat-header {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
 
-        .chat-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #4caf50, #45a049);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 20px;
-        }
+      .chat-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+      }
 
-        .chat-info {
-            flex: 1;
-        }
+      .chat-info {
+        flex: 1;
+      }
 
-        .chat-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #cdede7;
-            margin-bottom: 4px;
-        }
+      .chat-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #cdede7;
+        margin-bottom: 4px;
+      }
 
-        .chat-status {
-            font-size: 14px;
-            color: #4caf50;
-        }
+      .chat-status {
+        font-size: 14px;
+        color: #4caf50;
+      }
 
-        .chat-actions {
-            display: flex;
-            gap: 12px;
-        }
+      .chat-actions {
+        display: flex;
+        gap: 12px;
+      }
 
-        .action-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #cdede7;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
+      .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #cdede7;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
 
-        .action-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+      .action-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
 
-        /* 消息区域 */
-        .messages-container {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
+      /* 消息区域 */
+      .messages-container {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
 
-        .message {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            max-width: 70%;
-        }
+      .message {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        max-width: 70%;
+      }
 
-        .message.sent {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
+      .message.sent {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+      }
 
-        .message-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #4caf50, #45a049);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
+      .message-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
 
-        .message-content {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 12px 16px;
-            position: relative;
-        }
+      .message-content {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 12px 16px;
+        position: relative;
+      }
 
-        .message.sent .message-content {
-            background: linear-gradient(135deg, #4caf50, #45a049);
-        }
+      .message.sent .message-content {
+        background: linear-gradient(135deg, #4caf50, #45a049);
+      }
 
-        .message-text {
-            color: #cdede7;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
+      .message-text {
+        color: #cdede7;
+        font-size: 14px;
+        line-height: 1.4;
+        word-wrap: break-word;
+      }
 
-        .message-time {
-            font-size: 12px;
-            color: #90a4ae;
-            margin-top: 4px;
-            text-align: right;
-        }
+      .message-time {
+        font-size: 12px;
+        color: #90a4ae;
+        margin-top: 4px;
+        text-align: right;
+      }
 
-        .message.sent .message-time {
-            color: rgba(255, 255, 255, 0.7);
-        }
+      .message.sent .message-time {
+        color: rgba(255, 255, 255, 0.7);
+      }
 
-        /* 输入区域 */
-        .input-container {
-            background: rgba(255, 255, 255, 0.06);
-            padding: 20px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+      /* 输入区域 */
+      .input-container {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 20px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-        .input-actions {
-            display: flex;
-            gap: 8px;
-        }
+      .input-actions {
+        display: flex;
+        gap: 8px;
+      }
 
-        .input-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #cdede7;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
+      .input-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #cdede7;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
 
-        .input-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+      .input-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
 
-        .message-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 12px 16px;
-            color: #cdede7;
-            font-size: 14px;
-            outline: none;
-            resize: none;
-            min-height: 40px;
-            max-height: 120px;
-        }
+      .message-input {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+        color: #cdede7;
+        font-size: 14px;
+        outline: none;
+        resize: none;
+        min-height: 40px;
+        max-height: 120px;
+      }
 
-        .message-input:focus {
-            border-color: #4caf50;
-        }
+      .message-input:focus {
+        border-color: #4caf50;
+      }
 
-        .message-input::placeholder {
-            color: #90a4ae;
-        }
+      .message-input::placeholder {
+        color: #90a4ae;
+      }
 
-        .send-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #4caf50, #45a049);
-            border: none;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
+      .send-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
 
-        .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-        }
+      .send-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+      }
 
-        /* 联系人列表 */
-        .contact-list {
-            width: 280px;
-            background: rgba(24, 28, 70, 0.92);
-            border-left: 1px solid #2c2f4a;
-            display: flex;
-            flex-direction: column;
-        }
+      /* 联系人列表 */
+      .contact-list {
+        width: 280px;
+        background: rgba(24, 28, 70, 0.92);
+        border-left: 1px solid #2c2f4a;
+        display: flex;
+        flex-direction: column;
+      }
 
-        .contact-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
+      .contact-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
 
-        .search-input {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: #cdede7;
-            font-size: 14px;
-            outline: none;
-        }
+      .search-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: #cdede7;
+        font-size: 14px;
+        outline: none;
+      }
 
-        .search-input:focus {
-            border-color: #4caf50;
-        }
+      .search-input:focus {
+        border-color: #4caf50;
+      }
 
-        .search-input::placeholder {
-            color: #90a4ae;
-        }
+      .search-input::placeholder {
+        color: #90a4ae;
+      }
 
-        .contact-items {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-        }
+      .contact-items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+      }
 
-        .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 4px;
-        }
+      .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 4px;
+      }
 
-        .contact-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
+      .contact-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
 
-        .contact-item.active {
-            background: rgba(76, 175, 80, 0.2);
-        }
+      .contact-item.active {
+        background: rgba(76, 175, 80, 0.2);
+      }
 
-        .contact-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #4caf50, #45a049);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-        }
+      .contact-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+      }
 
-        .contact-info {
-            flex: 1;
-            min-width: 0;
-        }
+      .contact-info {
+        flex: 1;
+        min-width: 0;
+      }
 
-        .contact-name {
-            font-size: 14px;
-            font-weight: bold;
-            color: #cdede7;
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+      .contact-name {
+        font-size: 14px;
+        font-weight: bold;
+        color: #cdede7;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-        .contact-last-msg {
-            font-size: 12px;
-            color: #90a4ae;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+      .contact-last-msg {
+        font-size: 12px;
+        color: #90a4ae;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-        .contact-time {
-            font-size: 12px;
-            color: #90a4ae;
-            text-align: right;
-        }
+      .contact-time {
+        font-size: 12px;
+        color: #90a4ae;
+        text-align: right;
+      }
 
-        /* 滚动条样式 */
-        .messages-container::-webkit-scrollbar,
-        .contact-items::-webkit-scrollbar {
-            width: 6px;
-        }
+      /* 滚动条样式 */
+      .messages-container::-webkit-scrollbar,
+      .contact-items::-webkit-scrollbar {
+        width: 6px;
+      }
 
-        .messages-container::-webkit-scrollbar-track,
-        .contact-items::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-        }
+      .messages-container::-webkit-scrollbar-track,
+      .contact-items::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+      }
 
-        .messages-container::-webkit-scrollbar-thumb,
-        .contact-items::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }
+      .messages-container::-webkit-scrollbar-thumb,
+      .contact-items::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+      }
 
-        .messages-container::-webkit-scrollbar-thumb:hover,
-        .contact-items::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
+      .messages-container::-webkit-scrollbar-thumb:hover,
+      .contact-items::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
 
-        /* 系统消息 */
-        .system-message {
-            text-align: center;
-            margin: 16px 0;
-        }
+      /* 系统消息 */
+      .system-message {
+        text-align: center;
+        margin: 16px 0;
+      }
 
-        .system-text {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 8px 16px;
-            color: #90a4ae;
-            font-size: 12px;
-            display: inline-block;
-        }
+      .system-text {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 8px 16px;
+        color: #90a4ae;
+        font-size: 12px;
+        display: inline-block;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="star-bg">
-        <!-- 星空背景 -->
-        <div class="star" style="top: 10%; left: 15%; animation-delay: 0s;"></div>
-        <div class="star" style="top: 20%; left: 25%; animation-delay: 0.5s;"></div>
-        <div class="star" style="top: 30%; left: 35%; animation-delay: 1s;"></div>
-        <div class="star" style="top: 40%; left: 45%; animation-delay: 1.5s;"></div>
-        <div class="star" style="top: 50%; left: 55%; animation-delay: 2s;"></div>
-        <div class="star" style="top: 60%; left: 65%; animation-delay: 0.3s;"></div>
-        <div class="star" style="top: 70%; left: 75%; animation-delay: 0.8s;"></div>
-        <div class="star" style="top: 80%; left: 85%; animation-delay: 1.3s;"></div>
-        <div class="star" style="top: 90%; left: 95%; animation-delay: 1.8s;"></div>
+      <!-- 星空背景 -->
+      <div class="star" style="top: 10%; left: 15%; animation-delay: 0s"></div>
+      <div class="star" style="top: 20%; left: 25%; animation-delay: 0.5s"></div>
+      <div class="star" style="top: 30%; left: 35%; animation-delay: 1s"></div>
+      <div class="star" style="top: 40%; left: 45%; animation-delay: 1.5s"></div>
+      <div class="star" style="top: 50%; left: 55%; animation-delay: 2s"></div>
+      <div class="star" style="top: 60%; left: 65%; animation-delay: 0.3s"></div>
+      <div class="star" style="top: 70%; left: 75%; animation-delay: 0.8s"></div>
+      <div class="star" style="top: 80%; left: 85%; animation-delay: 1.3s"></div>
+      <div class="star" style="top: 90%; left: 95%; animation-delay: 1.8s"></div>
 
-        <div class="main-container">
-            <!-- 左侧主内容区 -->
-            <div class="main-content">
-                <div class="chat-container">
-                    <!-- 聊天面板 -->
-                    <div class="chat-panel">
-                        <!-- 聊天头部 -->
-                        <div class="chat-header">
-                            <div class="chat-avatar">张</div>
-                            <div class="chat-info">
-                                <div class="chat-name">张三</div>
-                                <div class="chat-status">在线</div>
-                            </div>
-                            <div class="chat-actions">
-                                <button class="action-btn">📞</button>
-                                <button class="action-btn">📹</button>
-                                <button class="action-btn">📁</button>
-                            </div>
-                        </div>
-
-                        <!-- 消息区域 -->
-                        <div class="messages-container">
-                            <!-- 系统消息 -->
-                            <div class="system-message">
-                                <div class="system-text">今天 14:30</div>
-                            </div>
-
-                            <!-- 接收的消息 -->
-                            <div class="message">
-                                <div class="message-avatar">张</div>
-                                <div class="message-content">
-                                    <div class="message-text">你好！最近怎么样？</div>
-                                    <div class="message-time">14:31</div>
-                                </div>
-                            </div>
-
-                            <!-- 发送的消息 -->
-                            <div class="message sent">
-                                <div class="message-avatar">我</div>
-                                <div class="message-content">
-                                    <div class="message-text">挺好的！工作很忙，但是很有成就感 😊</div>
-                                    <div class="message-time">14:32</div>
-                                </div>
-                            </div>
-
-                            <div class="message">
-                                <div class="message-avatar">张</div>
-                                <div class="message-content">
-                                    <div class="message-text">那太好了！我们什么时候一起吃饭？</div>
-                                    <div class="message-time">14:33</div>
-                                </div>
-                            </div>
-
-                            <div class="message sent">
-                                <div class="message-avatar">我</div>
-                                <div class="message-content">
-                                    <div class="message-text">这周末怎么样？我知道一家不错的餐厅</div>
-                                    <div class="message-time">14:34</div>
-                                </div>
-                            </div>
-
-                            <div class="message">
-                                <div class="message-avatar">张</div>
-                                <div class="message-content">
-                                    <div class="message-text">听起来不错！周六晚上可以吗？</div>
-                                    <div class="message-time">14:35</div>
-                                </div>
-                            </div>
-
-                            <div class="message sent">
-                                <div class="message-avatar">我</div>
-                                <div class="message-content">
-                                    <div class="message-text">完美！我到时候发地址给你</div>
-                                    <div class="message-time">14:36</div>
-                                </div>
-                            </div>
-
-                            <div class="message">
-                                <div class="message-avatar">张</div>
-                                <div class="message-content">
-                                    <div class="message-text">好的，期待见面！👋</div>
-                                    <div class="message-time">14:37</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 输入区域 -->
-                        <div class="input-container">
-                            <div class="input-actions">
-                                <button class="input-btn">😊</button>
-                                <button class="input-btn">📎</button>
-                                <button class="input-btn">🖼️</button>
-                            </div>
-                            <textarea class="message-input" placeholder="输入消息..." rows="1"></textarea>
-                            <button class="send-btn">➤</button>
-                        </div>
-                    </div>
-
-                    <!-- 联系人列表 -->
-                    <div class="contact-list">
-                        <div class="contact-header">
-                            <input type="text" class="search-input" placeholder="搜索联系人...">
-                        </div>
-                        <div class="contact-items">
-                            <div class="contact-item active">
-                                <div class="contact-avatar">张</div>
-                                <div class="contact-info">
-                                    <div class="contact-name">张三</div>
-                                    <div class="contact-last-msg">好的，期待见面！👋</div>
-                                </div>
-                                <div class="contact-time">14:37</div>
-                            </div>
-                            <div class="contact-item">
-                                <div class="contact-avatar">李</div>
-                                <div class="contact-info">
-                                    <div class="contact-name">李四</div>
-                                    <div class="contact-last-msg">项目进展如何？</div>
-                                </div>
-                                <div class="contact-time">13:45</div>
-                            </div>
-                            <div class="contact-item">
-                                <div class="contact-avatar">王</div>
-                                <div class="contact-info">
-                                    <div class="contact-name">王五</div>
-                                    <div class="contact-last-msg">[图片]</div>
-                                </div>
-                                <div class="contact-time">12:20</div>
-                            </div>
-                            <div class="contact-item">
-                                <div class="contact-avatar">赵</div>
-                                <div class="contact-info">
-                                    <div class="contact-name">赵六</div>
-                                    <div class="contact-last-msg">明天开会记得带资料</div>
-                                </div>
-                                <div class="contact-time">11:30</div>
-                            </div>
-                            <div class="contact-item">
-                                <div class="contact-avatar">孙</div>
-                                <div class="contact-info">
-                                    <div class="contact-name">孙七</div>
-                                    <div class="contact-last-msg">周末一起打球吗？</div>
-                                </div>
-                                <div class="contact-time">10:15</div>
-                            </div>
-                        </div>
-                    </div>
+      <div class="main-container">
+        <!-- 左侧主内容区 -->
+        <div class="main-content">
+          <div class="chat-container">
+            <!-- 聊天面板 -->
+            <div class="chat-panel">
+              <!-- 聊天头部 -->
+              <div class="chat-header">
+                <div class="chat-avatar">张</div>
+                <div class="chat-info">
+                  <div class="chat-name">张三</div>
+                  <div class="chat-status">在线</div>
                 </div>
+                <div class="chat-actions">
+                  <button class="action-btn">📞</button>
+                  <button class="action-btn">📹</button>
+                  <button class="action-btn">📁</button>
+                </div>
+              </div>
+
+              <!-- 消息区域 -->
+              <div class="messages-container">
+                <!-- 系统消息 -->
+                <div class="system-message">
+                  <div class="system-text">今天 14:30</div>
+                </div>
+
+                <!-- 接收的消息 -->
+                <div class="message">
+                  <div class="message-avatar">张</div>
+                  <div class="message-content">
+                    <div class="message-text">你好！最近怎么样？</div>
+                    <div class="message-time">14:31</div>
+                  </div>
+                </div>
+
+                <!-- 发送的消息 -->
+                <div class="message sent">
+                  <div class="message-avatar">我</div>
+                  <div class="message-content">
+                    <div class="message-text">挺好的！工作很忙，但是很有成就感 😊</div>
+                    <div class="message-time">14:32</div>
+                  </div>
+                </div>
+
+                <div class="message">
+                  <div class="message-avatar">张</div>
+                  <div class="message-content">
+                    <div class="message-text">那太好了！我们什么时候一起吃饭？</div>
+                    <div class="message-time">14:33</div>
+                  </div>
+                </div>
+
+                <div class="message sent">
+                  <div class="message-avatar">我</div>
+                  <div class="message-content">
+                    <div class="message-text">这周末怎么样？我知道一家不错的餐厅</div>
+                    <div class="message-time">14:34</div>
+                  </div>
+                </div>
+
+                <div class="message">
+                  <div class="message-avatar">张</div>
+                  <div class="message-content">
+                    <div class="message-text">听起来不错！周六晚上可以吗？</div>
+                    <div class="message-time">14:35</div>
+                  </div>
+                </div>
+
+                <div class="message sent">
+                  <div class="message-avatar">我</div>
+                  <div class="message-content">
+                    <div class="message-text">完美！我到时候发地址给你</div>
+                    <div class="message-time">14:36</div>
+                  </div>
+                </div>
+
+                <div class="message">
+                  <div class="message-avatar">张</div>
+                  <div class="message-content">
+                    <div class="message-text">好的，期待见面！👋</div>
+                    <div class="message-time">14:37</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 输入区域 -->
+              <div class="input-container">
+                <div class="input-actions">
+                  <button class="input-btn">😊</button>
+                  <button class="input-btn">📎</button>
+                  <button class="input-btn">🖼️</button>
+                </div>
+                <textarea class="message-input" placeholder="输入消息..." rows="1"></textarea>
+                <button class="send-btn">➤</button>
+              </div>
             </div>
 
-            <!-- 右侧导航栏 -->
-            <div class="right-nav">
-                <div class="nav-item active">
-                    <div style="font-size: 24px;">💬</div>
-                    <div class="nav-label">聊天</div>
+            <!-- 联系人列表 -->
+            <div class="contact-list">
+              <div class="contact-header">
+                <input type="text" class="search-input" placeholder="搜索联系人..." />
+              </div>
+              <div class="contact-items">
+                <div class="contact-item active">
+                  <div class="contact-avatar">张</div>
+                  <div class="contact-info">
+                    <div class="contact-name">张三</div>
+                    <div class="contact-last-msg">好的，期待见面！👋</div>
+                  </div>
+                  <div class="contact-time">14:37</div>
                 </div>
-                <div class="nav-item">
-                    <div style="font-size: 24px;">👥</div>
-                    <div class="nav-label">联系管理</div>
+                <div class="contact-item">
+                  <div class="contact-avatar">李</div>
+                  <div class="contact-info">
+                    <div class="contact-name">李四</div>
+                    <div class="contact-last-msg">项目进展如何？</div>
+                  </div>
+                  <div class="contact-time">13:45</div>
                 </div>
-                <div class="nav-item">
-                    <div style="font-size: 24px;">⚙️</div>
-                    <div class="nav-label">设置</div>
+                <div class="contact-item">
+                  <div class="contact-avatar">王</div>
+                  <div class="contact-info">
+                    <div class="contact-name">王五</div>
+                    <div class="contact-last-msg">[图片]</div>
+                  </div>
+                  <div class="contact-time">12:20</div>
                 </div>
+                <div class="contact-item">
+                  <div class="contact-avatar">赵</div>
+                  <div class="contact-info">
+                    <div class="contact-name">赵六</div>
+                    <div class="contact-last-msg">明天开会记得带资料</div>
+                  </div>
+                  <div class="contact-time">11:30</div>
+                </div>
+                <div class="contact-item">
+                  <div class="contact-avatar">孙</div>
+                  <div class="contact-info">
+                    <div class="contact-name">孙七</div>
+                    <div class="contact-last-msg">周末一起打球吗？</div>
+                  </div>
+                  <div class="contact-time">10:15</div>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+
+        <!-- 右侧导航栏 -->
+        <div class="right-nav">
+          <div class="nav-item active">
+            <div style="font-size: 24px">💬</div>
+            <div class="nav-label">聊天</div>
+          </div>
+          <div class="nav-item">
+            <div style="font-size: 24px">👥</div>
+            <div class="nav-label">联系管理</div>
+          </div>
+          <div class="nav-item">
+            <div style="font-size: 24px">⚙️</div>
+            <div class="nav-label">设置</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        // 简单的交互功能
-        document.addEventListener('DOMContentLoaded', function() {
-            // 联系人切换
-            const contactItems = document.querySelectorAll('.contact-item');
-            contactItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    // 移除其他选中状态
-                    contactItems.forEach(i => i.classList.remove('active'));
-                    // 设置当前选中
-                    this.classList.add('active');
-                });
-            });
+      // 简单的交互功能
+      document.addEventListener('DOMContentLoaded', function () {
+        // 联系人切换
+        const contactItems = document.querySelectorAll('.contact-item')
+        contactItems.forEach((item) => {
+          item.addEventListener('click', function () {
+            // 移除其他选中状态
+            contactItems.forEach((i) => i.classList.remove('active'))
+            // 设置当前选中
+            this.classList.add('active')
+          })
+        })
 
-            // 输入框自适应高度
-            const messageInput = document.querySelector('.message-input');
-            if (messageInput) {
-                messageInput.addEventListener('input', function() {
-                    this.style.height = 'auto';
-                    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-                });
+        // 输入框自适应高度
+        const messageInput = document.querySelector('.message-input')
+        if (messageInput) {
+          messageInput.addEventListener('input', function () {
+            this.style.height = 'auto'
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px'
+          })
+        }
+
+        // 发送消息功能
+        const sendBtn = document.querySelector('.send-btn')
+        if (sendBtn && messageInput) {
+          sendBtn.addEventListener('click', function () {
+            const text = messageInput.value.trim()
+            if (text) {
+              // 这里可以添加发送消息的逻辑
+              console.log('发送消息:', text)
+              messageInput.value = ''
+              messageInput.style.height = 'auto'
             }
+          })
 
-            // 发送消息功能
-            const sendBtn = document.querySelector('.send-btn');
-            if (sendBtn && messageInput) {
-                sendBtn.addEventListener('click', function() {
-                    const text = messageInput.value.trim();
-                    if (text) {
-                        // 这里可以添加发送消息的逻辑
-                        console.log('发送消息:', text);
-                        messageInput.value = '';
-                        messageInput.style.height = 'auto';
-                    }
-                });
-
-                // 回车发送
-                messageInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendBtn.click();
-                    }
-                });
+          // 回车发送
+          messageInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              sendBtn.click()
             }
+          })
+        }
 
-            // 按钮悬停效果
-            const buttons = document.querySelectorAll('.action-btn, .input-btn');
-            buttons.forEach(btn => {
-                btn.addEventListener('mouseenter', function() {
-                    this.style.transform = 'scale(1.1)';
-                });
-                
-                btn.addEventListener('mouseleave', function() {
-                    this.style.transform = 'scale(1)';
-                });
-            });
-        });
+        // 按钮悬停效果
+        const buttons = document.querySelectorAll('.action-btn, .input-btn')
+        buttons.forEach((btn) => {
+          btn.addEventListener('mouseenter', function () {
+            this.style.transform = 'scale(1.1)'
+          })
+
+          btn.addEventListener('mouseleave', function () {
+            this.style.transform = 'scale(1)'
+          })
+        })
+      })
     </script>
-</body>
-</html> 
+  </body>
+</html>

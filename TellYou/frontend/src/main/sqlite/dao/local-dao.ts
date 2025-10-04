@@ -6,11 +6,10 @@ import urlUtil from '@main/util/url-util'
 export const initializeUserData = async (uid: string): Promise<void> => {
   connectWs()
   urlUtil.redirectSqlPath(uid)
-  if (!redirectDataBase()){
+  if (!redirectDataBase()) {
     console.info('未检测到本地数据，新创建数据库')
   }
   await initTable()
   await pullService.pullStrongTransactionData()
   await pullService.pullOfflineMessages()
 }
-

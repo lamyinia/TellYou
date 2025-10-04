@@ -3,7 +3,6 @@ import { ref, reactive } from 'vue'
 import { FriendApplicationItem, PageInfo } from '@renderer/status/application/class'
 
 export const useApplicationStore = defineStore('application', () => {
-
   const incoming = ref<FriendApplicationItem[]>([])
   const outgoing = ref<FriendApplicationItem[]>([])
 
@@ -18,14 +17,20 @@ export const useApplicationStore = defineStore('application', () => {
     if (unsubIncoming || unsubOutgoing) return
 
     unsubIncoming = (...args: unknown[]) => {
-      const [, payload] = args as [Electron.IpcRendererEvent, { list: FriendApplicationItem[]; total: number }]
+      const [, payload] = args as [
+        Electron.IpcRendererEvent,
+        { list: FriendApplicationItem[]; total: number }
+      ]
       console.log('unsubIncoming 监听', payload)
 
       incoming.value = payload.list
       incomingPage.total = payload.total
     }
     unsubOutgoing = (...args: unknown[]) => {
-      const [, payload] = args as [Electron.IpcRendererEvent, { list: FriendApplicationItem[]; total: number }]
+      const [, payload] = args as [
+        Electron.IpcRendererEvent,
+        { list: FriendApplicationItem[]; total: number }
+      ]
       console.log('unsubOutgoing 监听', payload)
 
       outgoing.value = payload.list
@@ -35,25 +40,39 @@ export const useApplicationStore = defineStore('application', () => {
     window.electronAPI.on('application:incoming:loaded', unsubIncoming)
     window.electronAPI.on('application:outgoing:loaded', unsubOutgoing)
 
-    window.electronAPI.send('application:incoming:load', { pageNo: incomingPage.pageNo, pageSize: incomingPage.pageSize })
-    window.electronAPI.send('application:outgoing:load', { pageNo: outgoingPage.pageNo, pageSize: outgoingPage.pageSize })
+    window.electronAPI.send('application:incoming:load', {
+      pageNo: incomingPage.pageNo,
+      pageSize: incomingPage.pageSize
+    })
+    window.electronAPI.send('application:outgoing:load', {
+      pageNo: outgoingPage.pageNo,
+      pageSize: outgoingPage.pageSize
+    })
     console.log('applicationStore 初始化完成')
   }
 
   const destroy = (): void => {
-    if (unsubIncoming) window.electronAPI.removeListener('application:incoming:loaded', unsubIncoming)
-    if (unsubOutgoing) window.electronAPI.removeListener('application:outgoing:loaded', unsubOutgoing)
+    if (unsubIncoming)
+      window.electronAPI.removeListener('application:incoming:loaded', unsubIncoming)
+    if (unsubOutgoing)
+      window.electronAPI.removeListener('application:outgoing:loaded', unsubOutgoing)
     unsubIncoming = null
     unsubOutgoing = null
   }
 
   const reloadIncoming = (pageNo = 1): void => {
     incomingPage.pageNo = pageNo
-    window.electronAPI.send('application:incoming:load', { pageNo, pageSize: incomingPage.pageSize })
+    window.electronAPI.send('application:incoming:load', {
+      pageNo,
+      pageSize: incomingPage.pageSize
+    })
   }
   const reloadOutgoing = (pageNo = 1): void => {
     outgoingPage.pageNo = pageNo
-    window.electronAPI.send('application:outgoing:load', { pageNo, pageSize: outgoingPage.pageSize })
+    window.electronAPI.send('application:outgoing:load', {
+      pageNo,
+      pageSize: outgoingPage.pageSize
+    })
   }
 
   const bulkApprove = (ids: string[]): void => {
@@ -89,5 +108,3 @@ export const useApplicationStore = defineStore('application', () => {
     sendRequest
   }
 })
-
-

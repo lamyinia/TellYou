@@ -38,7 +38,11 @@ export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void
   if (!insertId || insertId <= 0) return
 
   const mainWindow = BrowserWindow.getAllWindows()[0]
-  await sessionDao.updateSessionByMessage({content: msg.content, sendTime: new Date(snap).toISOString(), sessionId: msg.sessionId})
+  await sessionDao.updateSessionByMessage({
+    content: msg.content,
+    sendTime: new Date(snap).toISOString(),
+    sessionId: msg.sessionId
+  })
 
   const vo = {
     id: Number(insertId) || 0,
@@ -53,12 +57,18 @@ export const handleMessage = async (msg: ServerMsg, ws: WebSocket): Promise<void
     nicknameVersion: String(msg.extra['nicknameVersion'])
   }
 
-  ws.send(JSON.stringify({
-    messageId: msg.messageId,
-    type: 101,
-    fromUid: store.get(uidKey),
-  }))
-  const session: Session = (await queryAll('select * from sessions where session_id = ?', [msg.sessionId]) as unknown as Session[])[0]
+  ws.send(
+    JSON.stringify({
+      messageId: msg.messageId,
+      type: 101,
+      fromUid: store.get(uidKey)
+    })
+  )
+  const session: Session = (
+    (await queryAll('select * from sessions where session_id = ?', [
+      msg.sessionId
+    ])) as unknown as Session[]
+  )[0]
 
   mainWindow?.webContents.send('loadMessageDataCallback', [vo])
   mainWindow?.webContents.send('loadSessionDataCallback', [session])

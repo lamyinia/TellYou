@@ -7,6 +7,7 @@ Avatar 组件是 TellYou 应用中的核心 UI 组件，用于显示用户头像
 ## 功能特性
 
 ### ✨ 核心功能
+
 - **多种显示模式**: 支持图片、文字、默认头像
 - **尺寸定制**: 提供多种预设尺寸和自定义尺寸
 - **状态指示**: 支持在线状态、未读消息等状态显示
@@ -14,6 +15,7 @@ Avatar 组件是 TellYou 应用中的核心 UI 组件，用于显示用户头像
 - **缓存机制**: 头像缓存减少网络请求
 
 ### 🎨 视觉特性
+
 - **圆形头像**: 默认圆形显示，支持方形模式
 - **边框样式**: 可自定义边框颜色和宽度
 - **阴影效果**: 支持阴影和发光效果
@@ -23,34 +25,34 @@ Avatar 组件是 TellYou 应用中的核心 UI 组件，用于显示用户头像
 
 ### Props
 
-| 属性名 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `src` | `string` | - | 头像图片 URL |
-| `alt` | `string` | - | 图片替代文本 |
-| `size` | `number \| string` | `40` | 头像尺寸 |
-| `shape` | `'circle' \| 'square'` | `'circle'` | 头像形状 |
-| `status` | `'online' \| 'offline' \| 'busy' \| 'away'` | - | 在线状态 |
-| `showStatus` | `boolean` | `false` | 是否显示状态指示器 |
-| `placeholder` | `string` | - | 占位符文本 |
-| `fallback` | `string` | - | 加载失败时的备用图片 |
-| `lazy` | `boolean` | `true` | 是否启用懒加载 |
-| `clickable` | `boolean` | `false` | 是否可点击 |
-| `border` | `boolean \| object` | `false` | 边框配置 |
+| 属性名        | 类型                                        | 默认值     | 说明                 |
+| ------------- | ------------------------------------------- | ---------- | -------------------- |
+| `src`         | `string`                                    | -          | 头像图片 URL         |
+| `alt`         | `string`                                    | -          | 图片替代文本         |
+| `size`        | `number \| string`                          | `40`       | 头像尺寸             |
+| `shape`       | `'circle' \| 'square'`                      | `'circle'` | 头像形状             |
+| `status`      | `'online' \| 'offline' \| 'busy' \| 'away'` | -          | 在线状态             |
+| `showStatus`  | `boolean`                                   | `false`    | 是否显示状态指示器   |
+| `placeholder` | `string`                                    | -          | 占位符文本           |
+| `fallback`    | `string`                                    | -          | 加载失败时的备用图片 |
+| `lazy`        | `boolean`                                   | `true`     | 是否启用懒加载       |
+| `clickable`   | `boolean`                                   | `false`    | 是否可点击           |
+| `border`      | `boolean \| object`                         | `false`    | 边框配置             |
 
 ### Events
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
-| `click` | `event: MouseEvent` | 点击事件 |
-| `load` | `event: Event` | 图片加载成功 |
-| `error` | `event: Event` | 图片加载失败 |
+| 事件名  | 参数                | 说明         |
+| ------- | ------------------- | ------------ |
+| `click` | `event: MouseEvent` | 点击事件     |
+| `load`  | `event: Event`      | 图片加载成功 |
+| `error` | `event: Event`      | 图片加载失败 |
 
 ### Slots
 
-| 插槽名 | 说明 |
-|--------|------|
-| `default` | 自定义头像内容 |
-| `status` | 自定义状态指示器 |
+| 插槽名    | 说明             |
+| --------- | ---------------- |
+| `default` | 自定义头像内容   |
+| `status`  | 自定义状态指示器 |
 
 ## 使用示例
 
@@ -59,25 +61,13 @@ Avatar 组件是 TellYou 应用中的核心 UI 组件，用于显示用户头像
 ```vue
 <template>
   <!-- 基础头像 -->
-  <Avatar 
-    src="https://example.com/avatar.jpg" 
-    alt="用户头像"
-    size="48"
-  />
-  
+  <Avatar src="https://example.com/avatar.jpg" alt="用户头像" size="48" />
+
   <!-- 文字头像 -->
-  <Avatar 
-    placeholder="张三"
-    size="48"
-  />
-  
+  <Avatar placeholder="张三" size="48" />
+
   <!-- 带状态的头像 -->
-  <Avatar 
-    src="https://example.com/avatar.jpg"
-    size="48"
-    status="online"
-    :show-status="true"
-  />
+  <Avatar src="https://example.com/avatar.jpg" size="48" status="online" :show-status="true" />
 </template>
 ```
 
@@ -86,27 +76,23 @@ Avatar 组件是 TellYou 应用中的核心 UI 组件，用于显示用户头像
 ```vue
 <template>
   <!-- 自定义尺寸和形状 -->
-  <Avatar 
+  <Avatar
     src="https://example.com/avatar.jpg"
     :size="64"
     shape="square"
     :border="{ color: '#4CAF50', width: 2 }"
   />
-  
+
   <!-- 可点击头像 -->
-  <Avatar 
+  <Avatar
     src="https://example.com/avatar.jpg"
     size="48"
     :clickable="true"
     @click="handleAvatarClick"
   />
-  
+
   <!-- 自定义状态指示器 -->
-  <Avatar 
-    src="https://example.com/avatar.jpg"
-    size="48"
-    :show-status="true"
-  >
+  <Avatar src="https://example.com/avatar.jpg" size="48" :show-status="true">
     <template #status>
       <div class="custom-status">VIP</div>
     </template>
@@ -126,14 +112,14 @@ const handleAvatarClick = (event: MouseEvent) => {
 <template>
   <div class="chat-message">
     <!-- 发送者头像 -->
-    <Avatar 
+    <Avatar
       :src="message.senderAvatar"
       :alt="message.senderName"
       size="32"
       :status="message.senderStatus"
       :show-status="true"
     />
-    
+
     <div class="message-content">
       <div class="sender-name">{{ message.senderName }}</div>
       <div class="message-text">{{ message.content }}</div>
@@ -147,7 +133,7 @@ const handleAvatarClick = (event: MouseEvent) => {
 ```vue
 <template>
   <div class="contact-item">
-    <Avatar 
+    <Avatar
       :src="contact.avatar"
       :alt="contact.name"
       size="40"
@@ -156,12 +142,12 @@ const handleAvatarClick = (event: MouseEvent) => {
       :clickable="true"
       @click="openContactDetail(contact)"
     />
-    
+
     <div class="contact-info">
       <div class="contact-name">{{ contact.name }}</div>
       <div class="last-message">{{ contact.lastMessage }}</div>
     </div>
-    
+
     <!-- 未读消息数 -->
     <div v-if="contact.unreadCount > 0" class="unread-badge">
       {{ contact.unreadCount }}
@@ -176,14 +162,9 @@ const handleAvatarClick = (event: MouseEvent) => {
 
 ```vue
 <template>
-  <div 
-    class="avatar-container"
-    :class="avatarClasses"
-    :style="avatarStyles"
-    @click="handleClick"
-  >
+  <div class="avatar-container" :class="avatarClasses" :style="avatarStyles" @click="handleClick">
     <!-- 头像图片 -->
-    <img 
+    <img
       v-if="showImage"
       ref="imageRef"
       :src="actualSrc"
@@ -192,31 +173,20 @@ const handleAvatarClick = (event: MouseEvent) => {
       @load="handleImageLoad"
       @error="handleImageError"
     />
-    
+
     <!-- 文字头像 -->
-    <div 
-      v-else-if="showText"
-      class="avatar-text"
-      :style="textStyles"
-    >
+    <div v-else-if="showText" class="avatar-text" :style="textStyles">
       {{ displayText }}
     </div>
-    
+
     <!-- 默认头像 -->
-    <div 
-      v-else
-      class="avatar-default"
-    >
+    <div v-else class="avatar-default">
       <i class="icon-user"></i>
     </div>
-    
+
     <!-- 状态指示器 -->
-    <div 
-      v-if="showStatus && status"
-      class="avatar-status"
-      :class="`status-${status}`"
-    />
-    
+    <div v-if="showStatus && status" class="avatar-status" :class="`status-${status}`" />
+
     <!-- 自定义状态插槽 -->
     <div v-if="$slots.status" class="avatar-custom-status">
       <slot name="status" />
@@ -294,8 +264,8 @@ const showText = computed(() => {
 
 const displayText = computed(() => {
   if (!props.placeholder) return ''
-  return props.placeholder.length > 2 
-    ? props.placeholder.slice(-2) 
+  return props.placeholder.length > 2
+    ? props.placeholder.slice(-2)
     : props.placeholder
 })
 
@@ -325,7 +295,7 @@ const handleImageError = (event: Event) => {
 
 const getBorderStyles = () => {
   if (!props.border) return {}
-  
+
   if (typeof props.border === 'object') {
     return {
       borderColor: props.border.color || '#e0e0e0',
@@ -333,7 +303,7 @@ const getBorderStyles = () => {
       borderStyle: 'solid'
     }
   }
-  
+
   return {
     border: '1px solid #e0e0e0'
   }
@@ -342,7 +312,7 @@ const getBorderStyles = () => {
 // 懒加载逻辑
 const setupLazyLoading = () => {
   if (!props.lazy || !props.src) return
-  
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -351,7 +321,7 @@ const setupLazyLoading = () => {
       }
     })
   })
-  
+
   if (imageRef.value) {
     observer.observe(imageRef.value)
   }
@@ -395,7 +365,7 @@ onMounted(() => {
 
 .avatar-clickable {
   cursor: pointer;
-  
+
   &:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -422,7 +392,7 @@ onMounted(() => {
   justify-content: center;
   background-color: #e0e0e0;
   color: #999;
-  
+
   .icon-user {
     font-size: 60%;
   }
@@ -436,19 +406,19 @@ onMounted(() => {
   height: 12px;
   border-radius: 50%;
   border: 2px solid white;
-  
+
   &.status-online {
     background-color: #4CAF50;
   }
-  
+
   &.status-offline {
     background-color: #9E9E9E;
   }
-  
+
   &.status-busy {
     background-color: #F44336;
   }
-  
+
   &.status-away {
     background-color: #FF9800;
   }
@@ -488,23 +458,23 @@ export class AvatarCacheService {
   async getCachedAvatar(url: string): Promise<string | null> {
     const filename = this.getFilename(url)
     const filePath = path.join(this.cacheDir, filename)
-    
+
     if (await this.fileExists(filePath)) {
       return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
     }
-    
+
     return null
   }
 
   async cacheAvatar(url: string, data: Buffer): Promise<string> {
     const filename = this.getFilename(url)
     const filePath = path.join(this.cacheDir, filename)
-    
+
     await fs.promises.writeFile(filePath, data)
-    
+
     // 检查缓存大小，必要时清理
     await this.cleanupCache()
-    
+
     return `tellyou://avatar?path=${encodeURIComponent(filePath)}`
   }
 
@@ -517,25 +487,25 @@ export class AvatarCacheService {
   private async cleanupCache(): Promise<void> {
     const files = await fs.promises.readdir(this.cacheDir)
     let totalSize = 0
-    
+
     for (const file of files) {
       const filePath = path.join(this.cacheDir, file)
       const stats = await fs.promises.stat(filePath)
       totalSize += stats.size
     }
-    
+
     if (totalSize > this.maxCacheSize) {
       // 删除最旧的文件
       const sortedFiles = files
-        .map(file => ({
+        .map((file) => ({
           name: file,
           path: path.join(this.cacheDir, file),
-          mtime: fs.promises.stat(path.join(this.cacheDir, file)).then(stats => stats.mtime)
+          mtime: fs.promises.stat(path.join(this.cacheDir, file)).then((stats) => stats.mtime)
         }))
         .sort((a, b) => a.mtime.getTime() - b.mtime.getTime())
-      
+
       const filesToDelete = sortedFiles.slice(0, Math.floor(files.length * 0.2))
-      
+
       for (const file of filesToDelete) {
         await fs.promises.unlink(file.path)
       }
@@ -551,7 +521,7 @@ export class AvatarCacheService {
 ```typescript
 // 预加载重要头像
 const preloadAvatars = async (urls: string[]) => {
-  const promises = urls.map(url => {
+  const promises = urls.map((url) => {
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = resolve
@@ -559,7 +529,7 @@ const preloadAvatars = async (urls: string[]) => {
       img.src = url
     })
   })
-  
+
   try {
     await Promise.all(promises)
     console.log('头像预加载完成')
@@ -574,17 +544,8 @@ const preloadAvatars = async (urls: string[]) => {
 ```vue
 <template>
   <div class="virtual-list">
-    <div 
-      v-for="item in visibleItems" 
-      :key="item.id"
-      class="list-item"
-    >
-      <Avatar 
-        :src="item.avatar"
-        :alt="item.name"
-        size="32"
-        :lazy="true"
-      />
+    <div v-for="item in visibleItems" :key="item.id" class="list-item">
+      <Avatar :src="item.avatar" :alt="item.name" size="32" :lazy="true" />
       <span>{{ item.name }}</span>
     </div>
   </div>
@@ -620,11 +581,11 @@ describe('Avatar Component', () => {
         size: 48
       }
     })
-    
+
     expect(wrapper.find('img').exists()).toBe(true)
     expect(wrapper.find('img').attributes('src')).toBe('https://example.com/avatar.jpg')
   })
-  
+
   it('renders text avatar when no image', () => {
     const wrapper = mount(Avatar, {
       props: {
@@ -632,10 +593,10 @@ describe('Avatar Component', () => {
         size: 48
       }
     })
-    
+
     expect(wrapper.find('.avatar-text').text()).toBe('张三')
   })
-  
+
   it('emits click event when clickable', async () => {
     const wrapper = mount(Avatar, {
       props: {
@@ -643,7 +604,7 @@ describe('Avatar Component', () => {
         placeholder: 'Test'
       }
     })
-    
+
     await wrapper.trigger('click')
     expect(wrapper.emitted('click')).toBeTruthy()
   })
@@ -657,12 +618,12 @@ describe('Avatar Component', () => {
 describe('Avatar Visual Tests', () => {
   it('displays different sizes correctly', () => {
     const sizes = [24, 32, 48, 64, 96]
-    
-    sizes.forEach(size => {
+
+    sizes.forEach((size) => {
       const wrapper = mount(Avatar, {
         props: { size, placeholder: 'Test' }
       })
-      
+
       const element = wrapper.element as HTMLElement
       expect(element.style.width).toBe(`${size}px`)
       expect(element.style.height).toBe(`${size}px`)
@@ -691,7 +652,7 @@ describe('Avatar Visual Tests', () => {
 
 ```vue
 <template>
-  <Avatar 
+  <Avatar
     :src="avatarSrc"
     :alt="`${userName}的头像`"
     :aria-label="`查看${userName}的个人资料`"

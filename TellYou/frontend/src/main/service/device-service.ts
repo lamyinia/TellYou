@@ -7,10 +7,10 @@ class DeviceService {
   public readonly loginWidth: number = 596
   public readonly loginHeight: number = 400
   public readonly registerWidth: number = 596
-  public readonly registerHeight: number = 462
+  public readonly registerHeight: number = 656
 
   public beginServe(mainWindow: Electron.BrowserWindow): void {
-    ipcMain.on('LoginOrRegister', (_, isLogin: boolean) => {
+    ipcMain.on('device:login-or-register', (_, isLogin: boolean) => {
       mainWindow.setResizable(true)
       if (isLogin === false) {
         mainWindow.setSize(this.loginWidth, this.loginHeight)

@@ -130,11 +130,13 @@ sequenceDiagram
 ## 核心设计模式
 
 ### 1. MVC 模式
+
 - **Model**: SQLite 数据库 + Pinia Store
 - **View**: Vue 组件
 - **Controller**: IPC 通信 + 服务层
 
 ### 2. DAO 模式
+
 数据库访问采用 DAO (Data Access Object) 模式：
 
 ```typescript
@@ -151,6 +153,7 @@ export class MessageDAO {
 ```
 
 ### 3. 观察者模式
+
 使用 Pinia Store 实现状态管理：
 
 ```typescript
@@ -172,16 +175,19 @@ export const useMessageStore = defineStore('message', {
 ## 安全架构
 
 ### 1. 上下文隔离
+
 - 主进程和渲染进程通过 IPC 安全通信
 - 预加载脚本作为安全桥接层
 - 禁用 Node.js 在渲染进程中的直接访问
 
 ### 2. 数据安全
+
 - 敏感数据加密存储
 - 用户数据本地化存储
 - 安全的 WebSocket 连接
 
 ### 3. 文件访问控制
+
 - 自定义协议 `tellyou://` 处理头像缓存
 - 严格的路径验证和访问控制
 - 防止目录遍历攻击
@@ -189,16 +195,19 @@ export const useMessageStore = defineStore('message', {
 ## 性能优化
 
 ### 1. 渲染优化
+
 - Vue 3 Composition API 提供更好的性能
 - 组件懒加载和代码分割
 - 虚拟滚动处理大量消息
 
 ### 2. 内存管理
+
 - 消息分页加载
 - 图片缓存和压缩
 - 定期清理过期数据
 
 ### 3. 网络优化
+
 - WebSocket 长连接
 - 消息批量发送
 - 断线重连机制
@@ -206,16 +215,19 @@ export const useMessageStore = defineStore('message', {
 ## 扩展性设计
 
 ### 1. 模块化架构
+
 - 按功能模块划分代码结构
 - 松耦合的组件设计
 - 可插拔的服务层
 
 ### 2. 配置化
+
 - 环境变量配置
 - 用户偏好设置
 - 主题和样式定制
 
 ### 3. 插件系统
+
 - 预留插件接口
 - 支持功能扩展
 - 第三方集成能力
@@ -223,6 +235,7 @@ export const useMessageStore = defineStore('message', {
 ## 部署架构
 
 ### 开发环境
+
 ```
 开发机器
 ├── 前端开发服务器 (Vite Dev Server)
@@ -231,6 +244,7 @@ export const useMessageStore = defineStore('message', {
 ```
 
 ### 生产环境
+
 ```
 用户机器
 ├── Electron 应用

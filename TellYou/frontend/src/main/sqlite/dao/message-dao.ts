@@ -33,7 +33,7 @@ type MessageRow = {
   isRead: number
 }
 class MessageDao {
-  public async addLocalMessage(data: rawMessage): Promise<number>{
+  public async addLocalMessage(data: rawMessage): Promise<number> {
     const changes = await insertOrIgnore('messages', rawMessageToBeInserted(data))
     if (!changes) return 0
     const rows = (await queryAll(
@@ -42,7 +42,10 @@ class MessageDao {
     )) as Array<{ id: number }>
     return rows[0].id
   }
-  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }>{
+  public async getMessageBySessionId(
+    sessionId: string,
+    options: MessageQueryOptions
+  ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
       const limit = Number(options?.limit) || 50
       const direction: 'newest' | 'older' | 'newer' = options?.direction || 'newest'
@@ -53,19 +56,17 @@ class MessageDao {
       const params: unknown[] = [sessionId]
 
       if (direction === 'older' && beforeId) {
-        const beforeMessage = await queryAll(
-          'SELECT send_time FROM messages WHERE id = ?',
-          [beforeId]
-        ) as Array<{ sendTime: string }>
+        const beforeMessage = (await queryAll('SELECT send_time FROM messages WHERE id = ?', [
+          beforeId
+        ])) as Array<{ sendTime: string }>
         if (beforeMessage.length > 0) {
           where += ' AND send_time < ?'
           params.push(beforeMessage[0].sendTime)
         }
       } else if (direction === 'newer' && afterId) {
-        const afterMessage = await queryAll(
-          'SELECT send_time FROM messages WHERE id = ?',
-          [afterId]
-        ) as Array<{ sendTime: string }>
+        const afterMessage = (await queryAll('SELECT send_time FROM messages WHERE id = ?', [
+          afterId
+        ])) as Array<{ sendTime: string }>
 
         if (afterMessage.length > 0) {
           where += ' AND send_time > ?'
@@ -81,7 +82,7 @@ class MessageDao {
         LIMIT ${limit}
       `
       const rows = (await queryAll(sql, params)) as MessageRow[]
-      const messages = rows.map(r => {
+      const messages = rows.map((r) => {
         const extData = JSON.parse(r.extData)
         return {
           id: r.id,

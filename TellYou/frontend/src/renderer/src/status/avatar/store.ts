@@ -28,7 +28,8 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const getCacheKey = (userId: string, strategy: string): string => userId + '_' + strategy
   // 例子 http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/6/index.png?hash=3，这里返回 6
-  const extractVersionFromUrl = (url: string): string => new URL(url).pathname.split('/').at(-2) || "0"
+  const extractVersionFromUrl = (url: string): string =>
+    new URL(url).pathname.split('/').at(-2) || '0'
 
   const cleanupMemoryCache = (): void => {
     if (memoryCache.size <= maxMemoryCache) return
@@ -41,27 +42,43 @@ export const useAvatarStore = defineStore('avatar', () => {
     })
   }
 
-  const seekCache = async (userId: string, strategy: string, version: string): Promise<{needUpdated: boolean, pathResult: string}> => {
+  const seekCache = async (
+    userId: string,
+    strategy: string,
+    version: string
+  ): Promise<{ needUpdated: boolean; pathResult: string }> => {
     const item = memoryCache.get(getCacheKey(userId, strategy))
 
     console.info('debug:seekCache:   ', [userId, strategy, version].join('---'))
 
-    if (item && item.localPath && item.version >= version){
+    if (item && item.localPath && item.version >= version) {
       // 渲染进程缓存命中
       console.info('debug:seekCache:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
-      return {needUpdated: false, pathResult: item.localPath};
+      return { needUpdated: false, pathResult: item.localPath }
     }
-    const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', {userId, strategy, version})
-    if (resp.success){
+    const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', {
+      userId,
+      strategy,
+      version
+    })
+    if (resp.success) {
       // 主进程缓存命中
       console.info('debug:seekCache:主进程缓存命中   ', resp)
       memoryCache.set(getCacheKey(userId, strategy), {
-        version: version, localPath: resp.pathResult, loading: false, error: null, lastAccessed: Date.now()
+        version: version,
+        localPath: resp.pathResult,
+        loading: false,
+        error: null,
+        lastAccessed: Date.now()
       } as AvatarCacheItem)
     }
-    return {needUpdated: !resp.success, pathResult: resp.pathResult};
+    return { needUpdated: !resp.success, pathResult: resp.pathResult }
   }
-  const getAvatar = async (userId: string, strategy: string, avatarUrl: string): Promise<string | null> => {
+  const getAvatar = async (
+    userId: string,
+    strategy: string,
+    avatarUrl: string
+  ): Promise<string | null> => {
     if (!userId || !avatarUrl) return null
 
     const key: string = getCacheKey(userId, strategy)
@@ -86,7 +103,13 @@ export const useAvatarStore = defineStore('avatar', () => {
       })
     }
 
-    const cacheItem: AvatarCacheItem = { version: version, localPath: null, loading: true, error: null, lastAccessed: Date.now() }
+    const cacheItem: AvatarCacheItem = {
+      version: version,
+      localPath: null,
+      loading: true,
+      error: null,
+      lastAccessed: Date.now()
+    }
     memoryCache.set(key, cacheItem)
 
     try {

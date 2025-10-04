@@ -19,7 +19,7 @@ import os from 'os'
 console.log(os.homedir())
 
 // Windows: C:\Users\username
-// macOS:   /Users/username  
+// macOS:   /Users/username
 // Linux:   /home/username
 ```
 
@@ -36,27 +36,26 @@ import path from 'path'
 const testHomedirPermissions = () => {
   const homeDir = os.homedir()
   console.log('用户主目录:', homeDir)
-  
+
   try {
     // 测试读取权限
     const files = fs.readdirSync(homeDir)
     console.log('✅ 读取权限正常，文件数量:', files.length)
-    
+
     // 测试写入权限
     const testFile = path.join(homeDir, 'tellyou-test.txt')
     fs.writeFileSync(testFile, '测试文件')
     console.log('✅ 写入权限正常')
-    
+
     // 测试删除权限
     fs.unlinkSync(testFile)
     console.log('✅ 删除权限正常')
-    
+
     // 测试目录创建权限
     const testDir = path.join(homeDir, 'tellyou-test-dir')
     fs.mkdirSync(testDir)
     fs.rmdirSync(testDir)
     console.log('✅ 目录操作权限正常')
-    
   } catch (error) {
     console.error('❌ 权限测试失败:', error)
   }
@@ -95,13 +94,13 @@ fs.unlinkSync(filePath)
 const homeDir = os.homedir()
 
 // 1. 访问其他用户的目录
-fs.readdirSync('/home/other-user')  // 可能被拒绝
+fs.readdirSync('/home/other-user') // 可能被拒绝
 
 // 2. 访问系统目录
-fs.readdirSync('/etc')              // 可能被拒绝
+fs.readdirSync('/etc') // 可能被拒绝
 
 // 3. 访问受保护的文件
-fs.readFileSync('/etc/passwd')      // 可能被拒绝
+fs.readFileSync('/etc/passwd') // 可能被拒绝
 ```
 
 ## 在 TellYou 项目中的应用
@@ -128,7 +127,7 @@ const baseFolder: string = userDir + (NODE_ENV === 'development' ? '/.tellyoudev
 // macOS:   /Users/username/.tellyoudev/
 // Linux:   /home/username/.tellyoudev/
 
-// 生产环境  
+// 生产环境
 // Windows: C:\Users\username\tellyou\
 // macOS:   /Users/username/tellyou/
 // Linux:   /home/username/tellyou/
@@ -166,7 +165,7 @@ const safeWriteFile = (filePath: string, data: string): boolean => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
-    
+
     // 写入文件
     fs.writeFileSync(filePath, data)
     return true
@@ -181,14 +180,14 @@ const safeWriteFile = (filePath: string, data: string): boolean => {
 
 ### 📊 权限对比表
 
-| API | 开发环境 | 打包后 | 权限级别 | 推荐用途 |
-|-----|----------|--------|----------|----------|
-| `os.homedir()` | ✅ 完全权限 | ✅ 完全权限 | 高 | 用户数据存储 |
-| `app.getPath('userData')` | ✅ 完全权限 | ✅ 完全权限 | 高 | 应用数据存储 |
-| `app.getPath('documents')` | ✅ 完全权限 | ✅ 完全权限 | 高 | 用户文档 |
-| `app.getPath('downloads')` | ✅ 完全权限 | ✅ 完全权限 | 高 | 下载文件 |
-| `app.getPath('exe')` | ✅ 只读 | ❌ 只读 | 低 | 应用信息 |
-| `app.getPath('resources')` | ✅ 只读 | ❌ 只读 | 低 | 资源文件 |
+| API                        | 开发环境    | 打包后      | 权限级别 | 推荐用途     |
+| -------------------------- | ----------- | ----------- | -------- | ------------ |
+| `os.homedir()`             | ✅ 完全权限 | ✅ 完全权限 | 高       | 用户数据存储 |
+| `app.getPath('userData')`  | ✅ 完全权限 | ✅ 完全权限 | 高       | 应用数据存储 |
+| `app.getPath('documents')` | ✅ 完全权限 | ✅ 完全权限 | 高       | 用户文档     |
+| `app.getPath('downloads')` | ✅ 完全权限 | ✅ 完全权限 | 高       | 下载文件     |
+| `app.getPath('exe')`       | ✅ 只读     | ❌ 只读     | 低       | 应用信息     |
+| `app.getPath('resources')` | ✅ 只读     | ❌ 只读     | 低       | 资源文件     |
 
 ### 🎯 使用建议
 
@@ -199,17 +198,17 @@ class FileStorageStrategy {
   getUserDataPath(): string {
     return app.getPath('userData')
   }
-  
-  // 用户文档 - 使用 app.getPath('documents')  
+
+  // 用户文档 - 使用 app.getPath('documents')
   getUserDocumentsPath(): string {
     return app.getPath('documents')
   }
-  
+
   // 跨平台用户目录 - 使用 os.homedir()
   getUserHomePath(): string {
     return os.homedir()
   }
-  
+
   // 临时文件 - 使用 app.getPath('temp')
   getTempPath(): string {
     return app.getPath('temp')
@@ -226,31 +225,30 @@ class FileStorageStrategy {
 const testPermissions = () => {
   const homeDir = os.homedir()
   const testPath = path.join(homeDir, 'tellyou-permission-test')
-  
+
   try {
     // 创建测试目录
     fs.mkdirSync(testPath)
     console.log('✅ 目录创建成功')
-    
+
     // 创建测试文件
     const testFile = path.join(testPath, 'test.txt')
     fs.writeFileSync(testFile, 'Hello World')
     console.log('✅ 文件创建成功')
-    
+
     // 读取测试文件
     const content = fs.readFileSync(testFile, 'utf-8')
     console.log('✅ 文件读取成功:', content)
-    
+
     // 删除测试文件
     fs.unlinkSync(testFile)
     console.log('✅ 文件删除成功')
-    
+
     // 删除测试目录
     fs.rmdirSync(testPath)
     console.log('✅ 目录删除成功')
-    
+
     console.log('🎉 所有权限测试通过！')
-    
   } catch (error) {
     console.error('❌ 权限测试失败:', error)
   }

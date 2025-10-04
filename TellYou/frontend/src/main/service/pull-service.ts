@@ -45,26 +45,20 @@ class PullService {
   async pullOfflineMessages(): Promise<void> {
     try {
       console.info('开始拉取用户离线消息...', `${Api.PULL_MAILBOX}`)
-
       const response = await netMaster.get(Api.PULL_MAILBOX)
-
       if (!response.data.success) {
         console.error('拉取离线消息失败:', response.data.errMsg)
         return
       }
-
       const pullResult = response.data.data
       if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
         console.info('没有离线消息需要拉取')
         return
       }
-
       console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`)
-
       const messageIds: string[] = []
       const sessionUpdates = new Map<string, { content: string; sendTime: string }>()
       const chatMessages: unknown[] = []
-
       for (const message of pullResult.messageList) {
         const date = new Date(Number(message.adjustedTimestamp)).toISOString()
         console.log(message)
@@ -83,7 +77,6 @@ class PullService {
         const insertId = await messageDao.addLocalMessage(messageData)
         messageIds.push(message.messageId)
         if (insertId <= 0) continue
-
         const sessionId = String(message.sessionId)
         const existingSession = sessionUpdates.get(sessionId)
         if (!existingSession || date > existingSession.sendTime) {
@@ -92,7 +85,6 @@ class PullService {
             sendTime: date
           })
         }
-
         chatMessages.push({
           id: insertId,
           sessionId: message.sessionId,
@@ -115,7 +107,6 @@ class PullService {
           })
         )
       }
-
       if (sessionUpdatePromises.length > 0) {
         try {
           await Promise.all(sessionUpdatePromises)
@@ -124,7 +115,6 @@ class PullService {
           console.error('批量更新会话失败:', error)
         }
       }
-
       const mainWindow = BrowserWindow.getAllWindows()[0]
       if (mainWindow && chatMessages.length > 0) {
         try {
@@ -135,7 +125,6 @@ class PullService {
              WHERE session_id IN (${sessionIds.map(() => '?').join(',')})`,
             sessionIds
           )
-
           mainWindow.webContents.send('loadMessageDataCallback', chatMessages)
           mainWindow.webContents.send('loadSessionDataCallback', sessions)
           console.info(`发送 ${chatMessages.length} 条消息到渲染进程`)
@@ -143,7 +132,6 @@ class PullService {
           console.error('发送消息到渲染进程失败:', error)
         }
       }
-
       if (messageIds.length > 0) {
         await this.ackConfirmMessages(messageIds)
       }
@@ -159,14 +147,11 @@ class PullService {
       console.error('拉取离线消息异常:', error)
     }
   }
-
   // 确认消息
   private async ackConfirmMessages(messageIds: string[]): Promise<void> {
     try {
       console.info(`确认 ${messageIds.length} 条消息`, messageIds)
-      const requestData = {
-        messageIdList: messageIds
-      }
+      const requestData = { messageIdList: messageIds }
       const response = await netMaster.post(Api.ACK_CONFIRM, requestData)
 
       if (response.data.success) {
@@ -179,9 +164,6 @@ class PullService {
     }
   }
 }
-
 // 创建 PullService 实例
 const pullService = new PullService()
-
-// 导出实例和类
-export { pullService, PullService }
+export { pullService }

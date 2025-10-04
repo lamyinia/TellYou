@@ -4,12 +4,11 @@ import { useSessionStore } from '@renderer/status/session/store'
 import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
 import { SimpleContact } from '@renderer/views/relation/ContactManagementView.vue'
 
-
 const emit = defineEmits<{ (e: 'select', sessionId: string): void }>()
 
 const sessionStore = useSessionStore()
 const contacts = computed<SimpleContact[]>(() => {
-  return sessionStore.sortedSessions.map(s => ({
+  return sessionStore.sortedSessions.map((s) => ({
     id: s.contactId,
     name: s.contactName,
     avatar: s.contactAvatar,

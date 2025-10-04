@@ -1,4 +1,7 @@
-html, body, #app, .v-application__wrap {
+html,
+body,
+#app,
+.v-application__wrap {
   height: 100%;
   width: 100%;
   overflow: hidden !important; /* 强制覆盖 */

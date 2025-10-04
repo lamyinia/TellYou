@@ -2,6 +2,7 @@ package org.com.modules.user.domain.vo.req;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.ToString;
@@ -25,7 +26,8 @@ public class RegisterReq implements Serializable {
 
     @NotBlank(message = "昵称不能为空")
     @Size(max = 20, message = "昵称最长20个字符")
-    private String nickName;
+    private String nickname;
 
+    @NotNull
     private Integer sex;
 }

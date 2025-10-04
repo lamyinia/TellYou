@@ -121,11 +121,14 @@ export const useMediaStore = defineStore('media', () => {
   }
 
   // 完成任务
-  const completeTask = (taskId: string, result: {
-    originUrl: string
-    thumbnailUrl?: string
-    fileId: string
-  }): void => {
+  const completeTask = (
+    taskId: string,
+    result: {
+      originUrl: string
+      thumbnailUrl?: string
+      fileId: string
+    }
+  ): void => {
     if (activeTasks[taskId]) {
       activeTasks[taskId].status = 'completed' as MediaTaskStatus
       activeTasks[taskId].progress = 100
@@ -169,7 +172,7 @@ export const useMediaStore = defineStore('media', () => {
 
   // 获取指定类型的活跃任务
   const getActiveTasksByType = (type: MediaType): MediaTask[] => {
-    return Object.values(activeTasks).filter(task => task.type === type)
+    return Object.values(activeTasks).filter((task) => task.type === type)
   }
 
   // 获取任务统计
@@ -193,15 +196,15 @@ export const useMediaStore = defineStore('media', () => {
     return {
       active: {
         total: active.length,
-        uploading: active.filter(t => t.status === 'uploading').length,
-        pending: active.filter(t => t.status === 'pending').length,
-        failed: active.filter(t => t.status === 'failed').length
+        uploading: active.filter((t) => t.status === 'uploading').length,
+        pending: active.filter((t) => t.status === 'pending').length,
+        failed: active.filter((t) => t.status === 'failed').length
       },
       history: {
         total: history.length,
-        completed: history.filter(t => t.status === 'completed').length,
-        failed: history.filter(t => t.status === 'failed').length,
-        cancelled: history.filter(t => t.status === 'cancelled').length
+        completed: history.filter((t) => t.status === 'completed').length,
+        failed: history.filter((t) => t.status === 'failed').length,
+        cancelled: history.filter((t) => t.status === 'cancelled').length
       }
     }
   }

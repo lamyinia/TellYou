@@ -9,15 +9,18 @@
 ### 1. 代码风格
 
 #### 缩进和空格
+
 - 使用 **2 个空格** 进行缩进，不使用 Tab
 - 行尾不留空格
 - 文件末尾保留一个空行
 
 #### 行长度
+
 - 每行代码不超过 **100 个字符**
 - 长语句适当换行，保持可读性
 
 #### 命名规范
+
 - **变量和函数**: 使用 camelCase
 - **常量**: 使用 UPPER_SNAKE_CASE
 - **类名**: 使用 PascalCase
@@ -40,6 +43,7 @@ const UserProfile.vue
 ### 2. 注释规范
 
 #### 文件头注释
+
 ```typescript
 /**
  * @fileoverview 用户认证相关功能
@@ -49,6 +53,7 @@ const UserProfile.vue
 ```
 
 #### 函数注释
+
 ```typescript
 /**
  * 发送聊天消息
@@ -58,8 +63,8 @@ const UserProfile.vue
  * @returns Promise<boolean> 发送是否成功
  */
 async function sendMessage(
-  content: string, 
-  sessionId: string, 
+  content: string,
+  sessionId: string,
   messageType: number
 ): Promise<boolean> {
   // 实现逻辑
@@ -67,6 +72,7 @@ async function sendMessage(
 ```
 
 #### 复杂逻辑注释
+
 ```typescript
 // 计算消息显示时间
 // 如果是今天，显示时间；如果是昨天，显示"昨天"；否则显示日期
@@ -74,12 +80,12 @@ const getDisplayTime = (timestamp: Date): string => {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const messageDate = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate())
-  
+
   if (messageDate.getTime() === today.getTime()) {
     // 今天：显示时间
-    return timestamp.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return timestamp.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   } else if (messageDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
     // 昨天：显示"昨天"
@@ -96,6 +102,7 @@ const getDisplayTime = (timestamp: Date): string => {
 ### 1. 类型定义
 
 #### 接口定义
+
 ```typescript
 // ✅ 使用 interface 定义对象结构
 interface User {
@@ -116,6 +123,7 @@ type ApiResponse<T> = {
 ```
 
 #### 泛型使用
+
 ```typescript
 // ✅ 正确使用泛型
 interface Repository<T> {
@@ -134,6 +142,7 @@ class UserRepository implements Repository<User> {
 ### 2. 类型安全
 
 #### 严格类型检查
+
 ```typescript
 // ✅ 明确类型声明
 const message: Message = {
@@ -153,6 +162,7 @@ function isUser(obj: any): obj is User {
 ```
 
 #### 可选属性处理
+
 ```typescript
 // ✅ 正确处理可选属性
 interface Message {
@@ -176,22 +186,24 @@ function processMessage(message: Message) {
 
 ```typescript
 // ✅ 使用 Result 模式处理错误
-type Result<T, E = Error> = {
-  success: true
-  data: T
-} | {
-  success: false
-  error: E
-}
+type Result<T, E = Error> =
+  | {
+      success: true
+      data: T
+    }
+  | {
+      success: false
+      error: E
+    }
 
 async function sendMessage(content: string): Promise<Result<Message>> {
   try {
     const message = await api.sendMessage(content)
     return { success: true, data: message }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error : new Error('发送失败') 
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error('发送失败')
     }
   }
 }
@@ -202,6 +214,7 @@ async function sendMessage(content: string): Promise<Result<Message>> {
 ### 1. 组件结构
 
 #### 组件文件结构
+
 ```vue
 <template>
   <!-- 模板内容 -->
@@ -260,6 +273,7 @@ onMounted(() => {
 ### 2. Composition API 使用
 
 #### 响应式数据
+
 ```typescript
 // ✅ 使用 ref 处理基本类型
 const count = ref(0)
@@ -279,6 +293,7 @@ const displayName = computed(() => {
 ```
 
 #### 生命周期钩子
+
 ```typescript
 // ✅ 正确使用生命周期
 onMounted(async () => {
@@ -299,10 +314,11 @@ onBeforeUnmount(() => {
 ### 3. 组件通信
 
 #### Props 和 Emits
+
 ```vue
 <!-- 父组件 -->
 <template>
-  <MessageInput 
+  <MessageInput
     :session-id="currentSessionId"
     :placeholder="inputPlaceholder"
     @send="handleMessageSend"
@@ -322,6 +338,7 @@ const handleInputFocus = () => {
 ```
 
 #### 依赖注入
+
 ```typescript
 // ✅ 提供依赖
 const messageService = new MessageService()
@@ -357,11 +374,11 @@ export const useMessageStore = defineStore('message', {
     currentMessages: (state) => {
       return state.messages.get(state.currentSessionId) || []
     },
-    
+
     unreadCount: (state) => {
       return Array.from(state.messages.values())
         .flat()
-        .filter(msg => !msg.isRead).length
+        .filter((msg) => !msg.isRead).length
     }
   },
 
@@ -370,14 +387,13 @@ export const useMessageStore = defineStore('message', {
     async loadMessages(sessionId: string) {
       this.loading = true
       this.error = null
-      
+
       try {
-        const messages = await window.electronAPI.invoke(
-          'get-message-by-sessionId', 
-          sessionId, 
-          { pageNo: 1, pageSize: 20 }
-        )
-        
+        const messages = await window.electronAPI.invoke('get-message-by-sessionId', sessionId, {
+          pageNo: 1,
+          pageSize: 20
+        })
+
         this.messages.set(sessionId, messages)
       } catch (error) {
         this.error = error instanceof Error ? error.message : '加载失败'
@@ -431,6 +447,7 @@ const handleSendMessage = async (content: string) => {
 ### 1. CSS 类命名
 
 #### BEM 命名法
+
 ```scss
 // ✅ 使用 BEM 命名
 .message-list {
@@ -439,7 +456,7 @@ const handleSendMessage = async (content: string) => {
       background-color: #f0f0f0;
     }
   }
-  
+
   &__content {
     &--own {
       text-align: right;
@@ -454,22 +471,31 @@ const handleSendMessage = async (content: string) => {
 ```
 
 #### 语义化类名
+
 ```scss
 // ✅ 语义化命名
-.chat-container { }
-.message-bubble { }
-.user-avatar { }
-.status-indicator { }
+.chat-container {
+}
+.message-bubble {
+}
+.user-avatar {
+}
+.status-indicator {
+}
 
 // ❌ 避免无意义命名
-.box1 { }
-.red-text { }
-.big-button { }
+.box1 {
+}
+.red-text {
+}
+.big-button {
+}
 ```
 
 ### 2. 样式组织
 
 #### 组件样式结构
+
 ```scss
 <style scoped>
 // 1. 变量定义
@@ -490,10 +516,10 @@ $spacing-unit: 8px;
   flex: 1;
   overflow-y: auto;
   padding: $spacing-unit;
-  
+
   &__item {
     margin-bottom: $spacing-unit;
-    
+
     &:last-child {
       margin-bottom: 0;
     }
@@ -506,7 +532,7 @@ $spacing-unit: 8px;
     background-color: $primary-color;
     color: white;
   }
-  
+
   &--loading {
     opacity: 0.6;
   }
@@ -526,8 +552,8 @@ $spacing-unit: 8px;
 ```scss
 // ✅ 使用 CSS 变量
 :root {
-  --primary-color: #4CAF50;
-  --secondary-color: #2196F3;
+  --primary-color: #4caf50;
+  --secondary-color: #2196f3;
   --text-color: #333;
   --border-color: #e0e0e0;
   --border-radius: 8px;
@@ -555,11 +581,9 @@ $spacing-unit: 8px;
       {{ error }}
       <button @click="retry">重试</button>
     </div>
-    
-    <div v-else-if="loading" class="loading">
-      加载中...
-    </div>
-    
+
+    <div v-else-if="loading" class="loading">加载中...</div>
+
     <div v-else class="message-list">
       <!-- 消息列表 -->
     </div>
@@ -573,7 +597,7 @@ const loading = ref(false)
 const loadMessages = async () => {
   loading.value = true
   error.value = null
-  
+
   try {
     await messageStore.loadMessages(sessionId.value)
   } catch (err) {
@@ -596,21 +620,21 @@ const retry = () => {
 export class ErrorHandler {
   static handle(error: unknown, context: string) {
     console.error(`[${context}] 错误:`, error)
-    
+
     // 发送错误报告
     this.reportError(error, context)
-    
+
     // 显示用户友好的错误信息
     this.showUserError(error)
   }
-  
+
   private static reportError(error: unknown, context: string) {
     // 发送到错误监控服务
     if (process.env.NODE_ENV === 'production') {
       // 发送错误报告
     }
   }
-  
+
   private static showUserError(error: unknown) {
     const message = this.getErrorMessage(error)
     // 显示通知
@@ -619,7 +643,7 @@ export class ErrorHandler {
       message
     })
   }
-  
+
   private static getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
       return error.message
@@ -657,8 +681,8 @@ watchEffect(() => {
 ```vue
 <template>
   <!-- ✅ 使用 v-memo 优化列表渲染 -->
-  <div 
-    v-for="message in messages" 
+  <div
+    v-for="message in messages"
     :key="message.id"
     v-memo="[message.id, message.content, message.timestamp]"
     class="message-item"
@@ -712,23 +736,23 @@ describe('MessageInput', () => {
         sessionId: 'test-session'
       }
     })
-    
+
     const input = wrapper.find('textarea')
     await input.setValue('Hello World')
-    
+
     const sendButton = wrapper.find('[data-testid="send-button"]')
     await sendButton.trigger('click')
-    
+
     expect(wrapper.emitted('send')).toBeTruthy()
     expect(wrapper.emitted('send')?.[0]).toEqual(['Hello World'])
   })
-  
+
   it('should not send empty message', async () => {
     const wrapper = mount(MessageInput)
-    
+
     const sendButton = wrapper.find('[data-testid="send-button"]')
     await sendButton.trigger('click')
-    
+
     expect(wrapper.emitted('send')).toBeFalsy()
   })
 })
@@ -747,13 +771,13 @@ describe('Chat Integration', () => {
     const store = useMessageStore()
     store.reset()
   })
-  
+
   it('should load and display messages', async () => {
     const store = useMessageStore()
-    
+
     // 模拟加载消息
     await store.loadMessages('test-session')
-    
+
     expect(store.currentMessages).toHaveLength(2)
     expect(store.loading).toBe(false)
   })
@@ -763,23 +787,27 @@ describe('Chat Integration', () => {
 ## 代码审查清单
 
 ### 1. 功能正确性
+
 - [ ] 功能是否按预期工作
 - [ ] 边界条件是否处理
 - [ ] 错误情况是否处理
 - [ ] 性能是否满足要求
 
 ### 2. 代码质量
+
 - [ ] 代码是否遵循编码规范
 - [ ] 变量和函数命名是否清晰
 - [ ] 代码是否有适当的注释
 - [ ] 是否有重复代码
 
 ### 3. 安全性
+
 - [ ] 输入验证是否充分
 - [ ] 敏感信息是否安全处理
 - [ ] 是否有安全漏洞
 
 ### 4. 可维护性
+
 - [ ] 代码结构是否清晰
 - [ ] 组件职责是否单一
 - [ ] 是否易于测试
@@ -792,10 +820,7 @@ describe('Chat Integration', () => {
 ```json
 // .eslintrc.json
 {
-  "extends": [
-    "@vue/typescript/recommended",
-    "@vue/prettier"
-  ],
+  "extends": ["@vue/typescript/recommended", "@vue/prettier"],
   "rules": {
     "no-console": "warn",
     "no-debugger": "error",

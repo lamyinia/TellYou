@@ -9,10 +9,13 @@ const toggle = (): void => {
   open.value = !open.value
 }
 
-
 const activeTab = ref<'incoming' | 'outgoing' | 'search'>('incoming')
 
-const snackbar = ref({ show: false, text: '创建成功', color: 'info' as 'success' | 'error' | 'info' })
+const snackbar = ref({
+  show: false,
+  text: '创建成功',
+  color: 'info' as 'success' | 'error' | 'info'
+})
 const notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): void => {
   snackbar.value = { show: true, text, color }
 }
@@ -24,7 +27,6 @@ const sendRequest = (): void => {
   appStore.sendRequest('target-user-id', remark.value)
   notify('已发送好友申请')
 }
-
 
 const keyword = ref('')
 const remark = ref('')
@@ -53,19 +55,22 @@ const remark = ref('')
                 :variant="activeTab === 'incoming' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'incoming'"
-              >好友申请</v-btn>
+                >好友申请</v-btn
+              >
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'outgoing' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'outgoing'"
-              >我发起的</v-btn>
+                >我发起的</v-btn
+              >
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'search' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'search'"
-              >搜索加好友</v-btn>
+                >搜索加好友</v-btn
+              >
             </div>
             <v-btn icon="mdi-close" variant="text" @click="toggle" />
           </div>
@@ -150,7 +155,7 @@ const remark = ref('')
   color: #e0e6f0;
 }
 .drawer-theme {
-  background: linear-gradient(180deg, rgba(12,14,32,0.98) 0%, rgba(16,18,40,0.98) 100%);
+  background: linear-gradient(180deg, rgba(12, 14, 32, 0.98) 0%, rgba(16, 18, 40, 0.98) 100%);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }

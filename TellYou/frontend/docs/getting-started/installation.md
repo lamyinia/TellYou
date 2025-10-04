@@ -3,16 +3,19 @@
 ## 环境要求
 
 ### 系统要求
+
 - **Windows**: Windows 10 或更高版本
-- **macOS**: macOS 10.14 或更高版本  
+- **macOS**: macOS 10.14 或更高版本
 - **Linux**: Ubuntu 18.04+ 或其他主流发行版
 
 ### 开发环境要求
+
 - **Node.js**: >= 16.0.0 (推荐使用 LTS 版本)
 - **npm**: >= 8.0.0 (通常随 Node.js 一起安装)
 - **Git**: 用于版本控制
 
 ### 推荐工具
+
 - **IDE**: Visual Studio Code
 - **终端**: PowerShell (Windows) / Terminal (macOS/Linux)
 
@@ -97,13 +100,13 @@ npm run dev
 ```json
 {
   "recommendations": [
-    "Vue.volar",                    // Vue 3 支持
+    "Vue.volar", // Vue 3 支持
     "Vue.vscode-typescript-vue-plugin",
     "ms-vscode.vscode-typescript-next",
-    "bradlc.vscode-tailwindcss",    // CSS 支持
-    "esbenp.prettier-vscode",       // 代码格式化
-    "dbaeumer.vscode-eslint",       // 代码检查
-    "ms-vscode.vscode-json"         // JSON 支持
+    "bradlc.vscode-tailwindcss", // CSS 支持
+    "esbenp.prettier-vscode", // 代码格式化
+    "dbaeumer.vscode-eslint", // 代码检查
+    "ms-vscode.vscode-json" // JSON 支持
   ]
 }
 ```
@@ -167,6 +170,7 @@ npm run typecheck:web
 **问题**: npm install 失败或速度很慢
 
 **解决方案**:
+
 ```bash
 # 使用国内镜像
 npm config set registry https://registry.npmmirror.com
@@ -184,6 +188,7 @@ npm cache clean --force
 **问题**: Node.js 版本过低导致安装失败
 
 **解决方案**:
+
 ```bash
 # 使用 nvm 管理 Node.js 版本
 # Windows
@@ -200,6 +205,7 @@ nvm use 18.17.0
 **问题**: 在 macOS/Linux 上遇到权限错误
 
 **解决方案**:
+
 ```bash
 # 修复 npm 权限
 sudo chown -R $(whoami) ~/.npm
@@ -213,6 +219,7 @@ npx npm install
 **问题**: 开发服务器端口被占用
 
 **解决方案**:
+
 ```bash
 # 查看端口占用
 netstat -ano | findstr :7969  # Windows
@@ -227,6 +234,7 @@ lsof -i :7969                 # macOS/Linux
 **问题**: SQLite 数据库初始化失败
 
 **解决方案**:
+
 ```bash
 # 确保有写入权限
 # 检查用户数据目录权限

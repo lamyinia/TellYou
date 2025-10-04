@@ -60,7 +60,6 @@ const openUserDrawer = async (): Promise<void> => {
 onMounted(async () => {
   await userStore.initStore()
 })
-
 </script>
 
 <template>
@@ -77,7 +76,11 @@ onMounted(async () => {
       </div>
     </div>
     <div class="nav-bottom">
-      <div class="nav-item" :class="{ active: $route.path === '/setting' }" @click="goTo('/setting')">
+      <div
+        class="nav-item"
+        :class="{ active: $route.path === '/setting' }"
+        @click="goTo('/setting')"
+      >
         <i class="iconfont icon-more2"></i>
         <span class="nav-label">设置</span>
       </div>
@@ -85,13 +88,18 @@ onMounted(async () => {
         <Avatar :user-id="uid" :url="avatarUrl" :name="name" :size="44" />
       </div>
     </div>
-    <UserInfoDrawer v-model="openUser" :uid="uid" :name="name" :signature="signature" @save="onSaveProfile" @logout="onLogout" />
+    <UserInfoDrawer
+      v-model="openUser"
+      :uid="uid"
+      :name="name"
+      :signature="signature"
+      @save="onSaveProfile"
+      @logout="onLogout"
+    />
   </div>
-
 </template>
 
 <style scoped>
-
 .right-nav-bar {
   width: 64px;
   background: #111827 !important;
@@ -101,9 +109,23 @@ onMounted(async () => {
   padding: 16px 0 12px 0;
   height: 100vh;
 }
-.nav-top { flex: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
-.nav-bottom { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 8px; }
-.avatar-entry { margin-bottom: 6px; }
+.nav-top {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.nav-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+.avatar-entry {
+  margin-bottom: 6px;
+}
 .nav-item {
   display: flex;
   flex-direction: column;
@@ -118,5 +140,8 @@ onMounted(async () => {
 .nav-item:hover {
   color: #4caf50;
 }
-.nav-label { font-size: 13px; margin-top: 4px; }
+.nav-label {
+  font-size: 13px;
+  margin-top: 4px;
+}
 </style>

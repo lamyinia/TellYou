@@ -27,7 +27,9 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
   display: flex;
   align-items: flex-end;
 }
-.msg-row.other { justify-content: flex-end; }
+.msg-row.other {
+  justify-content: flex-end;
+}
 .image {
   max-width: 240px;
   max-height: 240px;

@@ -6,7 +6,6 @@ import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
 import { useSessionStore } from '@renderer/status/session/store'
 import { DetailContact } from '@renderer/views/relation/ContactManagementView.vue'
 
-
 const props = defineProps<{ contact: DetailContact | null }>()
 const contact = computed(() => props.contact)
 
@@ -37,12 +36,18 @@ const handleDelete = (): void => {
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
         <div class="cm-remark">备注：{{ contact.name }}</div>
-<!--        <div class="cm-id">ID：{{ contact.sessionId }}</div>  如果是群聊就不显示，否则显示 -->
+        <!--        <div class="cm-id">ID：{{ contact.sessionId }}</div>  如果是群聊就不显示，否则显示 -->
       </div>
       <div class="cm-actions">
-        <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage">发消息</v-btn>
-        <v-btn size="small" color="secondary" variant="tonal" class="ml-2" @click="handleSetRemark">设置备注</v-btn>
-        <v-btn size="small" color="error" variant="tonal" class="ml-2" @click="handleDelete">删除联系人</v-btn>
+        <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage"
+          >发消息</v-btn
+        >
+        <v-btn size="small" color="secondary" variant="tonal" class="ml-2" @click="handleSetRemark"
+          >设置备注</v-btn
+        >
+        <v-btn size="small" color="error" variant="tonal" class="ml-2" @click="handleDelete"
+          >删除联系人</v-btn
+        >
       </div>
     </div>
 
@@ -78,7 +83,8 @@ const handleDelete = (): void => {
   font-size: 20px;
   font-weight: 700;
 }
-.cm-remark, .cm-id {
+.cm-remark,
+.cm-id {
   font-size: 12px;
   opacity: 0.85;
   margin-top: 4px;
@@ -106,5 +112,9 @@ const handleDelete = (): void => {
 .cm-info-item:last-child {
   border-bottom: none;
 }
-.cm-empty { opacity: 0.7; text-align: center; padding: 32px 0; }
+.cm-empty {
+  opacity: 0.7;
+  text-align: center;
+  padding: 32px 0;
+}
 </style>

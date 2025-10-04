@@ -3,17 +3,20 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMediaStore } from '@renderer/status/media/store'
 import type { MediaType, MediaTask } from '@renderer/status/media/class'
 
-const props = withDefaults(defineProps<{
-  accept?: string
-  multiple?: boolean
-  maxSize?: number // MB
-  types?: MediaType[]
-}>(), {
-  accept: '*/*',
-  multiple: true,
-  maxSize: 100,
-  types: () => ['image', 'video', 'audio', 'file']
-})
+const props = withDefaults(
+  defineProps<{
+    accept?: string
+    multiple?: boolean
+    maxSize?: number // MB
+    types?: MediaType[]
+  }>(),
+  {
+    accept: '*/*',
+    multiple: true,
+    maxSize: 100,
+    types: () => ['image', 'video', 'audio', 'file']
+  }
+)
 
 const emit = defineEmits<{
   (e: 'uploaded', result: { originUrl: string; thumbnailUrl?: string; fileId: string }): void
@@ -35,7 +38,7 @@ const acceptTypes = computed(() => {
     file: '*/*'
   }
 
-  return props.types.map(type => typeMap[type]).join(',')
+  return props.types.map((type) => typeMap[type]).join(',')
 })
 
 // 获取活跃任务
@@ -89,7 +92,6 @@ const uploadFile = async (file: File) => {
     if (!result.success) {
       throw new Error(result.error || '上传失败')
     }
-
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : '上传失败'
     error.value = errorMsg
@@ -155,7 +157,7 @@ const handleTaskFail = (task: MediaTask) => {
 // 监听任务状态变化
 const watchTasks = () => {
   const tasks = activeTasks.value
-  tasks.forEach(task => {
+  tasks.forEach((task) => {
     if (task.status === 'completed') {
       handleTaskComplete(task)
     } else if (task.status === 'failed') {
@@ -173,7 +175,6 @@ onMounted(() => {
   })
 })
 </script>
-
 
 <template>
   <div class="media-upload">
@@ -195,12 +196,7 @@ onMounted(() => {
 
     <!-- 任务列表 -->
     <div v-if="activeTasks.length > 0" class="task-list">
-      <div
-        v-for="task in activeTasks"
-        :key="task.id"
-        class="task-item"
-        :class="task.status"
-      >
+      <div v-for="task in activeTasks" :key="task.id" class="task-item" :class="task.status">
         <div class="task-info">
           <div class="task-icon">
             <i :class="getTaskIcon(task.type)"></i>
@@ -213,10 +209,7 @@ onMounted(() => {
 
         <div class="task-progress">
           <div class="progress-bar">
-            <div
-              class="progress-fill"
-              :style="{ width: task.progress + '%' }"
-            ></div>
+            <div class="progress-fill" :style="{ width: task.progress + '%' }"></div>
           </div>
           <div class="progress-text">{{ task.progress }}%</div>
         </div>
@@ -248,7 +241,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
 
 <style scoped>
 .media-upload {

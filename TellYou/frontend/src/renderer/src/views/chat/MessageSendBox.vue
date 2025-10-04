@@ -84,11 +84,7 @@ watch(
       <v-icon>mdi-send</v-icon>
     </v-btn>
   </div>
-  <MediaSendBox
-    v-if="showMediaBox"
-    :current-contact="currentContact"
-    @sent="handleMediaSent"
-  />
+  <MediaSendBox v-if="showMediaBox" :current-contact="currentContact" @sent="handleMediaSent" />
 </template>
 
 <style scoped>
@@ -100,7 +96,7 @@ watch(
   display: flex;
   align-items: center;
   padding: 12px 24px 20px 24px;
-  background: linear-gradient(0deg, rgba(13,19,61,0.96) 90%, rgba(13,19,61,0.0) 100%);
+  background: linear-gradient(0deg, rgba(13, 19, 61, 0.96) 90%, rgba(13, 19, 61, 0) 100%);
   z-index: 3;
   border-radius: 0 0 0 18px;
   min-height: 88px;
@@ -109,12 +105,14 @@ watch(
   background: #fff;
   color: #1a237e;
   margin-right: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .icon-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
 }
 .input-wrap {
   flex: 1;
@@ -122,15 +120,23 @@ watch(
   margin: 0 10px;
   border-radius: 20px;
   padding: 10px 16px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15), 0 2px 8px rgba(31,38,135,0.12);
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(31, 38, 135, 0.12);
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 .input-wrap:focus-within {
-  background: rgba(255,255,255,0.14);
-  border-color: rgba(255,255,255,0.2);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15), 0 2px 8px rgba(31,38,135,0.12), 0 0 0 2px rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(31, 38, 135, 0.12),
+    0 0 0 2px rgba(255, 255, 255, 0.08);
 }
 .input {
   width: 100%;
@@ -152,7 +158,10 @@ watch(
   height: 44px;
   min-width: 44px;
   box-shadow: 0 2px 8px rgba(31, 38, 135, 0.18);
-  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s;
 }
 .send-btn:hover:not(:disabled) {
   transform: translateY(-1px);

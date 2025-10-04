@@ -1,7 +1,7 @@
 <template>
   <div class="media-usage-example">
     <h3>媒体发送服务使用示例</h3>
-    
+
     <!-- 基础使用 -->
     <div class="example-section">
       <h4>1. 基础媒体上传</h4>
@@ -40,14 +40,9 @@
             <span class="stat-value">{{ taskStats.history.completed }}</span>
           </div>
         </div>
-        
+
         <div class="task-list">
-          <div
-            v-for="task in activeTasks"
-            :key="task.id"
-            class="task-item"
-            :class="task.status"
-          >
+          <div v-for="task in activeTasks" :key="task.id" class="task-item" :class="task.status">
             <div class="task-info">
               <i :class="getTaskIcon(task.type)"></i>
               <span class="task-name">{{ task.fileName }}</span>
@@ -55,19 +50,12 @@
             </div>
             <div class="task-progress">
               <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :style="{ width: task.progress + '%' }"
-                ></div>
+                <div class="progress-fill" :style="{ width: task.progress + '%' }"></div>
               </div>
               <span class="progress-text">{{ task.progress }}%</span>
             </div>
             <div class="task-actions">
-              <button
-                v-if="task.status === 'failed'"
-                class="retry-btn"
-                @click="retryTask(task.id)"
-              >
+              <button v-if="task.status === 'failed'" class="retry-btn" @click="retryTask(task.id)">
                 重试
               </button>
               <button
@@ -334,7 +322,8 @@ onMounted(() => {
   gap: 4px;
 }
 
-.retry-btn, .cancel-btn {
+.retry-btn,
+.cancel-btn {
   padding: 4px 8px;
   border: none;
   border-radius: 4px;

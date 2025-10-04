@@ -58,7 +58,8 @@ const getMimeType = (ext: string): string => {
 const generateThumbnail = async (filePath: string): Promise<Buffer> => {
   try {
     const sharp = await import('sharp')
-    const thumbnailBuffer = await sharp.default(filePath)
+    const thumbnailBuffer = await sharp
+      .default(filePath)
       .resize(200, 200, {
         fit: 'cover',
         position: 'center'
@@ -74,7 +75,7 @@ const generateThumbnail = async (filePath: string): Promise<Buffer> => {
 
 class MediaTaskService {
   private tasks = new Map<string, MediaTask>()
-  private tempDir: string = ""
+  private tempDir: string = ''
   private readonly CHUNK_SIZE = 5 * 1024 * 1024 // 5MB 分块
   private readonly MAX_CONCURRENT = 3 // 最大并发上传数
   private readonly RETRY_TIMES = 3 // 重试次数
@@ -94,14 +95,20 @@ class MediaTaskService {
   }
 
   private setupIpcHandlers(): void {
-    ipcMain.handle('media:send:start', async (event, params: {
-      type: MediaType
-      filePath: string
-      fileName: string
-      mimeType: string
-    }) => {
-      return this.startTask(params)
-    })
+    ipcMain.handle(
+      'media:send:start',
+      async (
+        event,
+        params: {
+          type: MediaType
+          filePath: string
+          fileName: string
+          mimeType: string
+        }
+      ) => {
+        return this.startTask(params)
+      }
+    )
     ipcMain.handle('media:send:cancel', async (event, taskId: string) => {
       return this.cancelTask(taskId)
     })
@@ -196,7 +203,7 @@ class MediaTaskService {
         updatedAt: Date.now()
       }
       this.tasks.set(taskId, task)
-      this.processTask(taskId).catch(err => {
+      this.processTask(taskId).catch((err) => {
         log.error('Media task processing failed:', err)
       })
 
@@ -233,7 +240,6 @@ class MediaTaskService {
         success: true,
         result: task.result
       })
-
     } catch (error) {
       task.status = MediaTaskStatus.FAILED
       task.error = error instanceof Error ? error.message : 'Upload failed'
@@ -301,7 +307,12 @@ class MediaTaskService {
     }
   }
 
-  private async uploadChunk(task: MediaTask, chunk: any, chunkIndex: number, totalChunks: number): Promise<void> {
+  private async uploadChunk(
+    task: MediaTask,
+    chunk: any,
+    chunkIndex: number,
+    totalChunks: number
+  ): Promise<void> {
     const formData = new FormData()
     formData.append('file', chunk, `${task.fileName}.part${chunkIndex}`)
     formData.append('chunkIndex', chunkIndex.toString())
@@ -357,7 +368,7 @@ class MediaTaskService {
     task.updatedAt = Date.now()
 
     // 重新开始处理
-    this.processTask(taskId).catch(err => {
+    this.processTask(taskId).catch((err) => {
       log.error('Retry task failed:', err)
     })
 

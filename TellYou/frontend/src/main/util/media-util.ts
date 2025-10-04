@@ -92,7 +92,7 @@ class MediaUtil {
     '.mp4': 'video/mp4',
     '.webm': 'video/webm',
     '.mpeg': 'audio/mpeg',
-    '.wav': 'audio/wav',
+    '.wav': 'audio/wav'
   }
   /**
    * 检查文件是否需要压缩
@@ -125,8 +125,13 @@ class MediaUtil {
     try {
       const buffer: Buffer = await fs.readFile(filePath)
       console.info(buffer.length)
-      return {buffer: buffer, size: buffer.length, originalName: path.basename(filePath), mimeType: this.getMimeTypeBySuffix(path.extname(filePath))}
-    } catch(e) {
+      return {
+        buffer: buffer,
+        size: buffer.length,
+        originalName: path.basename(filePath),
+        mimeType: this.getMimeTypeBySuffix(path.extname(filePath))
+      }
+    } catch (e) {
       console.error('获取文件失败')
       throw e
     }
@@ -152,7 +157,10 @@ class MediaUtil {
   /**
    * 处理动图
    */
-  async processMotion(mediaFile: MediaFile, strategy: 'thumb' | 'original'): Promise<CompressionResult> {
+  async processMotion(
+    mediaFile: MediaFile,
+    strategy: 'thumb' | 'original'
+  ): Promise<CompressionResult> {
     const { buffer } = mediaFile
     try {
       const tempInputPath = path.join(
@@ -272,7 +280,7 @@ class MediaUtil {
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
           .jpeg({ quality: config.quality, progressive: config.progressive })
           .toBuffer()
-      } else if (mimeType == 'image/avif'){
+      } else if (mimeType == 'image/avif') {
         compressedBuffer = await sharpInstance
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
           .avif({ quality: config.quality, progressive: config.progressive })
@@ -320,12 +328,13 @@ class MediaUtil {
           .audioBitrate('128k')
           .format('mp4')
           .outputOptions([
-            '-c:v libx264',        // 使用更高效的 H.264 编码器
-            '-crf 23',             // 降低 CRF 值，提高压缩率
-            '-preset fast',        // 平衡速度和质量
+            '-c:v libx264', // 使用更高效的 H.264 编码器
+            '-crf 23', // 降低 CRF 值，提高压缩率
+            '-preset fast', // 平衡速度和质量
             '-threads 0',
             '-movflags +faststart'
-          ])          .on('end', async () => {
+          ])
+          .on('end', async () => {
             try {
               const compressedData = await fs.readFile(tempOutputPath)
               resolve(compressedData)

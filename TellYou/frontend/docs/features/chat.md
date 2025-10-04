@@ -7,6 +7,7 @@ TellYou 的聊天功能是应用的核心模块，提供了完整的即时通讯
 ## 功能特性
 
 ### ✨ 核心功能
+
 - **实时消息**: WebSocket 长连接实现即时通讯
 - **多媒体消息**: 支持文本、图片、文件等多种消息类型
 - **消息历史**: 本地 SQLite 数据库存储消息记录
@@ -14,6 +15,7 @@ TellYou 的聊天功能是应用的核心模块，提供了完整的即时通讯
 - **消息状态**: 显示消息发送状态（发送中、已发送、已读等）
 
 ### 🎨 用户体验
+
 - **消息气泡**: 美观的消息展示界面
 - **时间显示**: 智能的时间分组显示
 - **滚动定位**: 自动滚动到最新消息
@@ -43,15 +45,15 @@ graph TD
 
 ```typescript
 interface Message {
-  id: string              // 消息唯一标识
-  sessionId: string       // 会话ID
-  senderId: string        // 发送者ID
-  receiverId: string      // 接收者ID
-  content: string         // 消息内容
-  messageType: number     // 消息类型 (1:文本, 2:图片, 3:文件)
-  timestamp: Date         // 发送时间
-  status: number          // 消息状态 (0:发送中, 1:已发送, 2:已读)
-  extra?: any            // 扩展信息
+  id: string // 消息唯一标识
+  sessionId: string // 会话ID
+  senderId: string // 发送者ID
+  receiverId: string // 接收者ID
+  content: string // 消息内容
+  messageType: number // 消息类型 (1:文本, 2:图片, 3:文件)
+  timestamp: Date // 发送时间
+  status: number // 消息状态 (0:发送中, 1:已发送, 2:已读)
+  extra?: any // 扩展信息
 }
 ```
 
@@ -59,13 +61,13 @@ interface Message {
 
 ```typescript
 interface Session {
-  sessionId: string       // 会话ID
-  contactType: number     // 联系人类型 (1:好友, 2:群组)
-  contactId: string       // 联系人ID
-  lastMsgContent: string  // 最后一条消息内容
-  lastMsgTime: Date       // 最后消息时间
-  isPinned: boolean       // 是否置顶
-  unreadCount: number     // 未读消息数
+  sessionId: string // 会话ID
+  contactType: number // 联系人类型 (1:好友, 2:群组)
+  contactId: string // 联系人ID
+  lastMsgContent: string // 最后一条消息内容
+  lastMsgTime: Date // 最后消息时间
+  isPinned: boolean // 是否置顶
+  unreadCount: number // 未读消息数
 }
 ```
 
@@ -78,24 +80,22 @@ interface Session {
   <div class="chat-container">
     <!-- 聊天头部 -->
     <ChatHeader :session="currentSession" />
-    
+
     <!-- 消息列表 -->
-    <MessageList 
-      :messages="messages" 
+    <MessageList
+      :messages="messages"
       :session-id="currentSessionId"
       @load-more="loadMoreMessages"
     />
-    
+
     <!-- 消息输入框 -->
-    <MessageSendBox 
-      :session-id="currentSessionId"
-      @send-message="handleSendMessage"
-    />
+    <MessageSendBox :session-id="currentSessionId" @send-message="handleSendMessage" />
   </div>
 </template>
 ```
 
 **主要功能**:
+
 - 会话信息展示
 - 消息列表渲染
 - 消息输入处理
@@ -108,13 +108,10 @@ interface Session {
   <div class="message-list" ref="messageListRef">
     <div v-for="message in messages" :key="message.id">
       <!-- 时间分隔符 -->
-      <TimeMessage 
-        v-if="shouldShowTime(message)" 
-        :timestamp="message.timestamp" 
-      />
-      
+      <TimeMessage v-if="shouldShowTime(message)" :timestamp="message.timestamp" />
+
       <!-- 消息气泡 -->
-      <component 
+      <component
         :is="getMessageComponent(message.messageType)"
         :message="message"
         :is-own="isOwnMessage(message)"
@@ -125,6 +122,7 @@ interface Session {
 ```
 
 **主要功能**:
+
 - 消息渲染
 - 时间分组
 - 虚拟滚动
@@ -140,23 +138,18 @@ interface Session {
       <MediaUpload @upload="handleMediaUpload" />
       <EmojiPicker @select="handleEmojiSelect" />
     </div>
-    
+
     <!-- 输入区域 -->
     <div class="input-area">
-      <textarea 
-        v-model="messageContent"
-        @keydown="handleKeyDown"
-        placeholder="输入消息..."
-      />
-      <button @click="sendMessage" :disabled="!canSend">
-        发送
-      </button>
+      <textarea v-model="messageContent" @keydown="handleKeyDown" placeholder="输入消息..." />
+      <button @click="sendMessage" :disabled="!canSend">发送</button>
     </div>
   </div>
 </template>
 ```
 
 **主要功能**:
+
 - 文本输入
 - 媒体上传
 - 快捷键支持
@@ -168,7 +161,7 @@ interface Session {
 
 ```vue
 <template>
-  <div class="text-message" :class="{ 'own': isOwn }">
+  <div class="text-message" :class="{ own: isOwn }">
     <div class="message-bubble">
       <div class="content">{{ message.content }}</div>
       <div class="time">{{ formatTime(message.timestamp) }}</div>
@@ -178,6 +171,7 @@ interface Session {
 ```
 
 **特性**:
+
 - 支持换行显示
 - 链接自动识别
 - 表情符号渲染
@@ -187,14 +181,9 @@ interface Session {
 
 ```vue
 <template>
-  <div class="image-message" :class="{ 'own': isOwn }">
+  <div class="image-message" :class="{ own: isOwn }">
     <div class="message-bubble">
-      <img 
-        :src="imageUrl" 
-        :alt="message.content"
-        @click="previewImage"
-        @load="handleImageLoad"
-      />
+      <img :src="imageUrl" :alt="message.content" @click="previewImage" @load="handleImageLoad" />
       <div class="time">{{ formatTime(message.timestamp) }}</div>
     </div>
   </div>
@@ -202,6 +191,7 @@ interface Session {
 ```
 
 **特性**:
+
 - 图片预览
 - 懒加载
 - 点击放大
@@ -211,7 +201,7 @@ interface Session {
 
 ```vue
 <template>
-  <div class="file-message" :class="{ 'own': isOwn }">
+  <div class="file-message" :class="{ own: isOwn }">
     <div class="message-bubble">
       <div class="file-info">
         <div class="file-icon">{{ getFileIcon(message.extra.fileType) }}</div>
@@ -228,6 +218,7 @@ interface Session {
 ```
 
 **特性**:
+
 - 文件信息展示
 - 下载功能
 - 文件类型图标
@@ -241,21 +232,21 @@ interface Session {
 // src/renderer/src/status/message/store.ts
 export const useMessageStore = defineStore('message', {
   state: () => ({
-    messages: new Map<string, Message[]>(),  // 按会话ID分组存储消息
-    currentSessionId: '',                    // 当前会话ID
-    loading: false,                          // 加载状态
-    hasMore: true                           // 是否还有更多消息
+    messages: new Map<string, Message[]>(), // 按会话ID分组存储消息
+    currentSessionId: '', // 当前会话ID
+    loading: false, // 加载状态
+    hasMore: true // 是否还有更多消息
   }),
 
   getters: {
     currentMessages: (state) => {
       return state.messages.get(state.currentSessionId) || []
     },
-    
+
     unreadCount: (state) => {
       return Array.from(state.messages.values())
         .flat()
-        .filter(msg => !msg.isRead).length
+        .filter((msg) => !msg.isRead).length
     }
   },
 
@@ -271,14 +262,14 @@ export const useMessageStore = defineStore('message', {
     async loadMessages(sessionId: string, pageNo = 1, pageSize = 20) {
       this.loading = true
       try {
-        const messages = await window.electronAPI.getMessagesBySessionId(
-          sessionId, 
-          { pageNo, pageSize }
-        )
-        
+        const messages = await window.electronAPI.getMessagesBySessionId(sessionId, {
+          pageNo,
+          pageSize
+        })
+
         const existingMessages = this.messages.get(sessionId) || []
         this.messages.set(sessionId, [...messages, ...existingMessages])
-        
+
         this.hasMore = messages.length === pageSize
       } finally {
         this.loading = false
@@ -303,7 +294,7 @@ export const useMessageStore = defineStore('message', {
 
       // 通过 WebSocket 发送
       const success = await window.electronAPI.sendWebSocketMessage(message)
-      
+
       if (success) {
         message.status = 1 // 已发送
       } else {
@@ -330,21 +321,21 @@ export class WebSocketClient {
   async connect(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(url)
-      
+
       this.ws.onopen = () => {
         console.log('WebSocket 连接已建立')
         this.reconnectAttempts = 0
         resolve()
       }
-      
+
       this.ws.onmessage = (event) => {
         this.handleMessage(JSON.parse(event.data))
       }
-      
+
       this.ws.onclose = () => {
         this.handleReconnect()
       }
-      
+
       this.ws.onerror = (error) => {
         reject(error)
       }
@@ -392,7 +383,7 @@ export class MessageHandler {
   private static async handleChatMessage(data: any): Promise<void> {
     // 保存到本地数据库
     await MessageDAO.insertMessage(data)
-    
+
     // 通知渲染进程
     const mainWindow = BrowserWindow.getFocusedWindow()
     if (mainWindow) {
@@ -416,7 +407,7 @@ export class MessageDAO {
         content, message_type, timestamp, status, extra
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
-    
+
     try {
       await sqliteRun(sql, [
         message.id,
@@ -437,7 +428,7 @@ export class MessageDAO {
   }
 
   static async getMessagesBySessionId(
-    sessionId: string, 
+    sessionId: string,
     options: { pageNo: number; pageSize: number }
   ): Promise<Message[]> {
     const sql = `
@@ -446,9 +437,9 @@ export class MessageDAO {
       ORDER BY timestamp DESC 
       LIMIT ? OFFSET ?
     `
-    
+
     const offset = (options.pageNo - 1) * options.pageSize
-    
+
     try {
       const rows = await queryAll(sql, [sessionId, options.pageSize, offset])
       return rows.map(this.mapRowToMessage)
@@ -483,12 +474,9 @@ export class MessageDAO {
 ```vue
 <template>
   <div class="virtual-scroll-container" ref="containerRef">
-    <div 
-      class="virtual-scroll-content"
-      :style="{ height: totalHeight + 'px' }"
-    >
-      <div 
-        v-for="item in visibleItems" 
+    <div class="virtual-scroll-content" :style="{ height: totalHeight + 'px' }">
+      <div
+        v-for="item in visibleItems"
         :key="item.id"
         class="virtual-scroll-item"
         :style="{ transform: `translateY(${item.offset}px)` }"
@@ -506,7 +494,7 @@ export class MessageDAO {
 // 分页加载消息
 async loadMoreMessages(): Promise<void> {
   if (this.loading || !this.hasMore) return
-  
+
   const currentPage = Math.ceil(this.messages.length / this.pageSize) + 1
   await this.messageStore.loadMessages(this.sessionId, currentPage, this.pageSize)
 }
@@ -516,19 +504,14 @@ async loadMoreMessages(): Promise<void> {
 
 ```vue
 <template>
-  <img 
-    :src="placeholderSrc"
-    :data-src="actualSrc"
-    @load="handleImageLoad"
-    class="lazy-image"
-  />
+  <img :src="placeholderSrc" :data-src="actualSrc" @load="handleImageLoad" class="lazy-image" />
 </template>
 
 <script setup lang="ts">
 const handleImageLoad = (event: Event) => {
   const img = event.target as HTMLImageElement
   const actualSrc = img.dataset.src
-  
+
   if (actualSrc && isInViewport(img)) {
     img.src = actualSrc
   }
@@ -555,7 +538,7 @@ describe('Message Store', () => {
       messageType: 1,
       timestamp: new Date()
     }
-    
+
     await store.addMessage(message)
     expect(store.currentMessages).toContain(message)
   })
@@ -571,13 +554,13 @@ describe('Chat Integration', () => {
     // 模拟发送消息
     const message = await messageStore.sendMessage('Hello', 1)
     expect(message.status).toBe(1)
-    
+
     // 模拟接收消息
     await messageHandler.handleIncomingMessage({
       type: 'CHAT_MESSAGE',
       data: message
     })
-    
+
     expect(messageStore.currentMessages).toHaveLength(1)
   })
 })

@@ -160,8 +160,11 @@ export const useMessageStore = defineStore('message', () => {
     if (!pageInfo?.hasMoreNewer) return false
     isLoadingNewer.value = true
     try {
-      const result = (await window.electronAPI.requestMessages(sessionId,
-        { limit: config.pageSize, afterId: pageInfo.newestMessageId, direction: 'newer' })) as unknown as MessagesResponse
+      const result = (await window.electronAPI.requestMessages(sessionId, {
+        limit: config.pageSize,
+        afterId: pageInfo.newestMessageId,
+        direction: 'newer'
+      })) as unknown as MessagesResponse
       if (result.messages.length > 0) {
         const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...result.messages, ...currentMessages]
@@ -207,7 +210,12 @@ export const useMessageStore = defineStore('message', () => {
     )
   }
 
-  const checkPreload = async (sessionId: string | number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {
+  const checkPreload = async (
+    sessionId: string | number,
+    scrollTop: number,
+    scrollHeight: number,
+    clientHeight: number
+  ): void => {
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo) return
     if (pageInfo.hasMore && scrollTop < config.preloadThreshold) {

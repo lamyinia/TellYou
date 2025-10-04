@@ -115,9 +115,10 @@ export class SessionManager {
 
   searchSessions(keyword: string): Session[] {
     const lowerKeyword = keyword.toLowerCase()
-    return this.getOrderedSessions().filter((session) =>
-      session.contactName.toLowerCase().includes(lowerKeyword) ||
-      session.lastMsgContent.toLowerCase().includes(lowerKeyword)
+    return this.getOrderedSessions().filter(
+      (session) =>
+        session.contactName.toLowerCase().includes(lowerKeyword) ||
+        session.lastMsgContent.toLowerCase().includes(lowerKeyword)
     )
   }
 

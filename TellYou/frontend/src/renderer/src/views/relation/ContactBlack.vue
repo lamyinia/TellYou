@@ -9,7 +9,6 @@ onMounted(() => blackStore.init())
 const toggle = (): void => {
   open.value = !open.value
 }
-
 </script>
 
 <template>

@@ -22,7 +22,9 @@ const measureTime = (label: string) => {
   }
 }
 const calculatePerformance = (duration: number, fileSize: number, originalSize?: number) => {
-  const compressionRatio = originalSize ? ((originalSize - fileSize) / originalSize * 100).toFixed(1) : 'N/A'
+  const compressionRatio = originalSize
+    ? (((originalSize - fileSize) / originalSize) * 100).toFixed(1)
+    : 'N/A'
   const processingSpeed = (fileSize / (duration / 1000) / 1024).toFixed(2) // KB/s
 
   return {
@@ -62,7 +64,7 @@ const check_input_file = async (filePath: string): Promise<void> => {
   })
 }
 const t_ffmpeg_compress_gif = (originalSize?: number): void => {
-/*  await sharp(tempInputPath)
+  /*  await sharp(tempInputPath)
     .toFormat('avif')
     .toFile('D:/各种素材/compress/sharp.avif', (err, info) => { // 指定输出文件路径
       if (err) {
@@ -79,7 +81,6 @@ const t_ffmpeg_compress_gif = (originalSize?: number): void => {
   const result = await mediaUtil.processMotion({mimeType: 'image/gif', buffer: buffer, originalName: 'test', size: buffer.length}, 'thumb')
   console.log(result.compressedBuffer.length / 1024)
   fs.writeFileSync(outputPath, result.compressedBuffer)*/
-
 
   const inputPath: string = 'D:/各种素材/gif/37f77871d417c76a08a9467527e9670810c4c442.gif'
   const outputPath: string = 'D:/各种素材/compress/out.avif'
@@ -114,7 +115,7 @@ const t_ffmpeg_compress_gif = (originalSize?: number): void => {
 
 const test_video_preview = async () => {
   const inputPath: string = 'D:/multi-media-material/video/ailun.mp4'
-  const outPutPath: string  = 'D:/multi-media-material/compress/videoNail.png'
+  const outPutPath: string = 'D:/multi-media-material/compress/videoNail.png'
   console.log(path.dirname(outPutPath) + ':' + path.basename(outPutPath))
 
   const snap = Math.floor(Math.random() * 100)
@@ -122,30 +123,39 @@ const test_video_preview = async () => {
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg(inputPath)
-      .screenshots({ timestamps: [`${snap}%`], folder: path.dirname(outPutPath), filename: path.basename(outPutPath), size: '800x?' })
+      .screenshots({
+        timestamps: [`${snap}%`],
+        folder: path.dirname(outPutPath),
+        filename: path.basename(outPutPath),
+        size: '800x?'
+      })
       .on('end', () => {
         try {
           fs.readFileSync(outPutPath)
           resolve()
-        } catch (_err){
+        } catch (_err) {
           console.log(_err)
           reject()
         }
       })
       .on('error', reject)
-  }).then(() => {
-    console.info('缩略图生成成功')
-  }).catch(() => {
-    console.info('缩略图生成失败')
   })
+    .then(() => {
+      console.info('缩略图生成成功')
+    })
+    .catch(() => {
+      console.info('缩略图生成失败')
+    })
 }
 
 export const test = async (): Promise<void> => {
-  const inputPath: string = 'D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg'
-  const outPutPath: string  = 'D:/multi-media-material/compress/out12.jpg'
+  const inputPath: string =
+    'D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg'
+  const outPutPath: string = 'D:/multi-media-material/compress/out12.jpg'
 
-  return mediaUtil.getNormal(inputPath)
-    .then( async (mediaFile) => {
+  return mediaUtil
+    .getNormal(inputPath)
+    .then(async (mediaFile) => {
       return mediaUtil.processStaticOriginal(mediaFile)
     })
     .then(async (result) => {
@@ -153,6 +163,5 @@ export const test = async (): Promise<void> => {
       await fs.promises.writeFile(outPutPath, result.compressedBuffer)
       console.info('压缩 jpg 文件任务完成')
     })
-    // .catch((error) => console.error(error))
-
+  // .catch((error) => console.error(error))
 }

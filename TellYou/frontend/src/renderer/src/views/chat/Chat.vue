@@ -20,7 +20,6 @@ onMounted(() => {
     if (s) selectedContact.value = s
   }
 })
-
 </script>
 
 <template>
@@ -29,11 +28,11 @@ onMounted(() => {
       <div class="main-content">
         <div class="chat-panel-wrap">
           <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
-          <ChatPanel :current-contact="selectedContact"/>
+          <ChatPanel :current-contact="selectedContact" />
         </div>
         <div class="contact-list-wrap">
           <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
-          <ContactList @contact-selected="handleContactSelected"/>
+          <ContactList @contact-selected="handleContactSelected" />
         </div>
       </div>
     </div>
@@ -54,7 +53,8 @@ onMounted(() => {
   animation-delay: var(--star-delay, 0s);
 }
 @keyframes twinkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.2;
     transform: scale(0.8);
   }

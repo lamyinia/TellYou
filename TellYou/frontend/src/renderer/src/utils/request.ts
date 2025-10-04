@@ -3,9 +3,9 @@ import Message from './message'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
 interface ApiResponse<T = unknown> {
-  code: number;
-  data: T;
-  message: string;
+  code: number
+  data: T
+  message: string
 }
 export class ApiError extends Error {
   constructor(
@@ -13,15 +13,15 @@ export class ApiError extends Error {
     public message: string,
     public response?: AxiosResponse
   ) {
-    super(message);
-    this.name = 'ApiError';
+    super(message)
+    this.name = 'ApiError'
   }
 }
 
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
-  showLoading?: boolean;
-  errorCallback?: (errorData: ApiResponse) => void;
-  showError?: boolean;
+  showLoading?: boolean
+  errorCallback?: (errorData: ApiResponse) => void
+  showError?: boolean
 }
 
 const axio: AxiosInstance = axios.create({
@@ -47,7 +47,7 @@ axio.interceptors.request.use(
     if (config?.showLoading && loading) {
       loading.close()
     }
-  /*
+    /*
       axios.get('/api/data', {
         showLoading: true, // 自定义属性
         timeout: 5000     // 标准属性
@@ -68,7 +68,7 @@ axio.interceptors.response.use(
     }
   },
   (error: AxiosError) => {
-    if (error.response){
+    if (error.response) {
       const status = error.status
       console.log('request.ts 里的 AxiosError', error)
 
@@ -85,11 +85,10 @@ axio.interceptors.response.use(
 
       throw new ApiError(status, error.response.data.errMsg, error.response)
     } else {
-      throw new ApiError(-1, '网络连接异常');
+      throw new ApiError(-1, '网络连接异常')
     }
   }
 )
-
 
 export { axio, getRequest }
 export type { ApiResponse, RequestConfig }

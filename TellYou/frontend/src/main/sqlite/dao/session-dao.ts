@@ -2,7 +2,7 @@ import { Session } from '@renderer/status/session/class'
 import { queryAll, update } from '../atom'
 
 class SessionDao {
-  public async selectSessions(): Promise<Session[]>{
+  public async selectSessions(): Promise<Session[]> {
     const sql: string = `
     SELECT
       session_id,
@@ -28,16 +28,28 @@ class SessionDao {
       join_time,
       last_active
     FROM sessions
-  `;
+  `
     const result = await queryAll(sql, [])
     return result as unknown as Session[]
   }
-  public async updateSessionByMessage(data: {content: string, sendTime: string, sessionId: string}): Promise<void> {
-    await update('sessions', {lastMsgContent: data.content, lastMsgTime: data.sendTime}, {sessionId: data.sessionId})
+  public async updateSessionByMessage(data: {
+    content: string
+    sendTime: string
+    sessionId: string
+  }): Promise<void> {
+    await update(
+      'sessions',
+      { lastMsgContent: data.content, lastMsgTime: data.sendTime },
+      { sessionId: data.sessionId }
+    )
   }
-  public async updateAvatarUrl(params: {sessionId: string, avatarUrl: string}): Promise<number> {
+  public async updateAvatarUrl(params: { sessionId: string; avatarUrl: string }): Promise<number> {
     try {
-      const result = await update("sessions", {contactAvatar: params.avatarUrl}, {sessionId: params.sessionId})
+      const result = await update(
+        'sessions',
+        { contactAvatar: params.avatarUrl },
+        { sessionId: params.sessionId }
+      )
       return result
     } catch {
       console.error('更新会话头像失败')

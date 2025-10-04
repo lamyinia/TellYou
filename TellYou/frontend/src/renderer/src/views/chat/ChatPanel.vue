@@ -23,33 +23,45 @@ const messages = computed(() => {
 })
 const displayedMessages = computed(() => [...messages.value].reverse())
 
-watch(currentSessionId, (id) => {
-  if (id) {
-    isFirstLoad.value = true
-    messageStore.setCurrentSession(String(id))
-  }
-}, { immediate: true })
-watch(messages, async (val) => {
-  if (!listRef.value) return
-  if (isFirstLoad.value && val.length > 0) {
-    await scrollToBottom()
-    isFirstLoad.value = false
-  }
-}, { deep: true })
+watch(
+  currentSessionId,
+  (id) => {
+    if (id) {
+      isFirstLoad.value = true
+      messageStore.setCurrentSession(String(id))
+    }
+  },
+  { immediate: true }
+)
+watch(
+  messages,
+  async (val) => {
+    if (!listRef.value) return
+    if (isFirstLoad.value && val.length > 0) {
+      await scrollToBottom()
+      isFirstLoad.value = false
+    }
+  },
+  { deep: true }
+)
 
 onMounted(async () => {
   await scrollToBottom()
 })
 
-const onSent = async (): Promise<void> => { await scrollToBottom() }
+const onSent = async (): Promise<void> => {
+  await scrollToBottom()
+}
 const scrollToBottom = async (): Promise<void> => {
   if (!listRef.value) return
   await nextTick()
   listRef.value.scrollTop = listRef.value.scrollHeight
-  await new Promise<void>((resolve) => requestAnimationFrame(() => {
-    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
-    resolve()
-  }))
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => {
+      if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+      resolve()
+    })
+  )
 }
 
 const onScroll = async (): Promise<void> => {
@@ -65,7 +77,7 @@ const onScroll = async (): Promise<void> => {
     const loaded = await messageStore.loadOlderMessages(String(sessionId))
     if (loaded) {
       await nextTick()
-      const diff = (listRef.value!.scrollHeight - prevScrollHeight)
+      const diff = listRef.value!.scrollHeight - prevScrollHeight
       listRef.value!.scrollTop = prevTop + diff
     }
   }
@@ -80,12 +92,12 @@ const onScroll = async (): Promise<void> => {
 <template>
   <div class="star-panel-bg">
     <div class="star-header">
-      <div class="star-title"> {{contactName}} </div>
-      <div>
-        <v-btn icon><v-icon>mdi-phone</v-icon></v-btn>
-        <v-btn icon><v-icon>mdi-video</v-icon></v-btn>
-        <v-btn icon><v-icon>mdi-dots-vertical</v-icon></v-btn>
-      </div>
+      <div class="star-title">{{ contactName }}</div>
+<!--      <div>-->
+<!--        <v-btn icon><v-icon>mdi-phone</v-icon></v-btn>-->
+<!--        <v-btn icon><v-icon>mdi-video</v-icon></v-btn>-->
+<!--        <v-btn icon><v-icon>mdi-dots-vertical</v-icon></v-btn>-->
+<!--      </div>-->
     </div>
 
     <div class="star-messages" ref="listRef" @scroll="onScroll">
@@ -117,7 +129,7 @@ const onScroll = async (): Promise<void> => {
   justify-content: space-between;
   padding: 24px 32px 12px 32px;
   background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .star-title {
   color: #fff;
@@ -136,7 +148,7 @@ const onScroll = async (): Promise<void> => {
   gap: 12px;
   scroll-behavior: smooth;
   scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(255,255,255,0.25) transparent; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent; /* Firefox */
 }
 .star-messages::-webkit-scrollbar {
   width: 6px;
@@ -146,9 +158,9 @@ const onScroll = async (): Promise<void> => {
 }
 .star-messages::-webkit-scrollbar-thumb {
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
 }
 .star-messages::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.2));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.2));
 }
 </style>

@@ -50,8 +50,9 @@ public class AccountController {
 
     @PostMapping("/register")
     @Operation(summary = "注册")
-    public void register(@Valid @RequestBody RegisterReq registerReq) {
+    public ApiResult<Void> register(@Valid @RequestBody RegisterReq registerReq) {
         userInfoService.register(registerReq);
+        return ApiResult.success();
     }
 
     @PostMapping("/register/checkcode/{emailAddress}")
