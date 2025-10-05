@@ -202,6 +202,18 @@ public class MinioTemplate {
     }
 
     /**
+     * 使用默认配置的存储桶上传对象
+     *
+     * @param objectName 对象名称（包含路径）
+     * @param inputStream 文件输入流
+     * @param contentType 内容类型
+     */
+    @SneakyThrows
+    public void putObject(String objectName, InputStream inputStream, String contentType) {
+        putObject(minioProperties.getBucket(), objectName, inputStream, contentType);
+    }
+
+    /**
      * 上传文件到MinIO
      *
      * @param bucketName 存储桶名称

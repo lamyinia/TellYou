@@ -26,7 +26,7 @@ import java.util.List;
 public class DispatcherService {
     private final RedissonClient redissonClient;
     private final RocketMQTemplate rocketMQTemplate;
-    private final Integer NEED_DELIVERY_BOUNDARY = 50;
+    private final Integer NEED_DELIVERY_BOUNDARY = 501;
 
     public void dispatch(DeliveryEnum deliveryEnum, Object message, List<Long> uidList){
         switch (deliveryEnum){

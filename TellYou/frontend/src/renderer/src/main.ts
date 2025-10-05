@@ -6,6 +6,7 @@ import * as directives from 'vuetify/directives'
 import '@renderer/assets/global.css'
 import '@renderer/assets/icon/iconfont.css'
 import '@renderer/assets/font-alibaba/iconfont.css'
+import '@renderer/utils/pinyin'
 
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'

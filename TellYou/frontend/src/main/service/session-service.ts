@@ -58,10 +58,6 @@ class SessionService {
         return false
       }
     })
-    ipcMain.handle('session:update:avatar-url',
-      async (_, params: { sessionId: string; avatarUrl: string }) => {
-        return await sessionDao.updateAvatarUrl(params)
-    })
     ipcMain.handle('session:update:partial', async (_, params: any, sessionId: string) => {
       return await sessionDao.updatePartial(params, sessionId)
     })

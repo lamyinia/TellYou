@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
 import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
 import { SimpleContact } from '@renderer/views/relation/ContactManagementView.vue'
+import pinyinUtil from '@renderer/utils/pinyin'
 
 const emit = defineEmits<{ (e: 'select', sessionId: string): void }>()
 
@@ -19,14 +20,28 @@ const contacts = computed<SimpleContact[]>(() => {
 type sessionDial = { letter: string; items: SimpleContact[] }
 const simpleSessions = computed<sessionDial[]>(() => {
   const map = new Map<string, SimpleContact[]>()
-  for (const c of contacts.value) {
-    const letter = (c.name?.[0] || '#').toUpperCase()
-    if (!map.has(letter)) map.set(letter, [])
-    map.get(letter)!.push(c)
+  for (const l of pinyinUtil.LETTERS) {
+    map.set(l, [])
   }
-  return Array.from(map.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([letter, items]) => ({ letter, items }))
+  map.set('#', [])
+
+  for (const c of contacts.value) {
+    const letter = pinyinUtil.getInitial(c.name)
+    const key = pinyinUtil.LETTERS.includes(letter) ? letter : '#'
+    map.get(key)!.push(c)
+  }
+
+  return [...map.entries()]
+    .filter(([, items]) => items.length > 0)
+    .sort((a, b) => {
+      const ai = a[0] === '#' ? 26 : pinyinUtil.LETTERS.indexOf(a[0])
+      const bi = b[0] === '#' ? 26 : pinyinUtil.LETTERS.indexOf(b[0])
+      return ai - bi
+    })
+    .map(([letter, items]) => ({
+      letter,
+      items: items.sort((a, b) => pinyinUtil.collator.compare(a.name || '', b.name || ''))
+    }))
 })
 
 const wrapRef = ref<HTMLElement | null>(null)

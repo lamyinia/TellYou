@@ -23,9 +23,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class MessageRetryService {
-    @Value("${server.node}")
-    private String node;
-
     private final MessageDelayQueue messageDelayQueue;
     private final ChannelManagerUtil channelManagerUtil;
 

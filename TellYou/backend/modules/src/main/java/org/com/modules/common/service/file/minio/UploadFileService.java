@@ -6,8 +6,10 @@ import org.com.tools.constant.UrlConstant;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.template.domain.OssReq;
 import org.com.tools.utils.JsonUtils;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.util.Map;
 
 @Slf4j
@@ -16,6 +18,13 @@ import java.util.Map;
 public class UploadFileService {
     private final MinioTemplate minioTemplate;
 
+    public void writeDefaultAvatar(String objectName){
+		try (InputStream inputStream = new ClassPathResource("avatar/default.avif").getInputStream()){
+			minioTemplate.putObject(objectName, inputStream, "image/avif");
+		} catch (Exception e){
+			throw new RuntimeException("上传默认头像失败", e);
+		}
+    }
     public void writeAtomJson(String uid, Map<String, Object> data){
         uploadJsonFile(UrlConstant.staticPath, uid, JsonUtils.toStr(data));
     }

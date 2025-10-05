@@ -819,15 +819,6 @@ class SessionDao {
   async updateSessionByMessage(data) {
     await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
   }
-  async updateAvatarUrl(params) {
-    try {
-      const result = await update("sessions", { contactAvatar: params.avatarUrl }, { sessionId: params.sessionId });
-      return result;
-    } catch {
-      console.error("更新会话头像失败");
-      return 0;
-    }
-  }
   async updatePartial(params, sessionId) {
     try {
       console.log(params);
@@ -1058,12 +1049,6 @@ class SessionService {
         return false;
       }
     });
-    electron.ipcMain.handle(
-      "session:update:avatar-url",
-      async (_, params) => {
-        return await sessionDao.updateAvatarUrl(params);
-      }
-    );
     electron.ipcMain.handle("session:update:partial", async (_, params, sessionId) => {
       return await sessionDao.updatePartial(params, sessionId);
     });

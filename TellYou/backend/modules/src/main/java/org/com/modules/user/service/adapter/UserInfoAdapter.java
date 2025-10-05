@@ -22,7 +22,6 @@ public class UserInfoAdapter {
         userInfo.setNickName(registerReq.getNickname());
         userInfo.setSex(registerReq.getSex());
         userInfo.setPersonalSignature(ValueConstant.DEFAULT_SIGNATURE);
-        userInfo.setAvatar(ValueConstant.DEFAULT_AVATAR);
         userInfo.setIdentifier(JsonUtils.toStr(getDefaultIdentifier()));
         userInfo.setResidues(JsonUtils.toStr(getDefaultResidues()));
         return userInfo;

@@ -18,9 +18,9 @@ import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.domain.vo.resp.SearchByUidResp;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
+import org.com.tools.constant.UrlConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
-import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.JwtUtil;
@@ -29,6 +29,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,8 +49,8 @@ public class UserInfoServiceImpl implements UserInfoService {
     private final MinioTemplate minioTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private final UploadFileService uploadFileService;
-    private final UserInfoDao userInfoDao;
     private final DownloadService downloadService;
+    private final UserInfoDao userInfoDao;
     private final JavaMailSender javaMailSender;
     private final JwtUtil jwtUtil;
 
@@ -74,6 +75,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
+    @Transactional
     @GlobalTransactional
     public void register(RegisterReq registerReq) {
         if (Objects.nonNull(userInfoDao.getByEmail(registerReq.getEmail()))){
@@ -91,6 +93,23 @@ public class UserInfoServiceImpl implements UserInfoService {
         UserInfo user = UserInfoAdapter.buildUserInfo(registerReq);
         userInfoDao.save(user);
         redisTemplate.delete(key);
+
+        Map <String, Object> atomFile = new HashMap<>();
+        String uid = String.valueOf(user.getUserId());
+        String avatarUrl = UrlUtil.getFirstOriginalAvatar(minioTemplate.getHost(), uid);
+        userInfoDao.lambdaUpdate()
+                .eq(UserInfo::getUserId, user.getUserId())
+                .set(UserInfo::getAvatar, avatarUrl)
+                .update();
+
+        atomFile.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, ValueConstant.DEFAULT_VALUE);
+        atomFile.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, ValueConstant.DEFAULT_VALUE);
+        atomFile.put(ValueConstant.DEFAULT_ORIGIN_AVATAR_URL_KRY, avatarUrl);
+        atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, UrlUtil.getFirstThumbAvatar(minioTemplate.getHost(), uid));
+
+        uploadFileService.writeDefaultAvatar(UrlUtil.getFirstOriginalAvatar(uid));
+        uploadFileService.writeDefaultAvatar(UrlUtil.getFirstThumbAvatar(uid));
+        uploadFileService.writeAtomJson(uid, atomFile);
     }
 
     @Override

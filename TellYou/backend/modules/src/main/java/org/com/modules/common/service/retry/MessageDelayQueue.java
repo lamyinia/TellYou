@@ -118,7 +118,7 @@ public class MessageDelayQueue {
 
             if (vo != null) {
                 Integer count = letterRetryCount.get(locating);
-                if (count == null) continue;
+                if (count == null) continue;  // 规定收到对于 uid:messageId 的 ack 之后，把 letterRetryCount 清理掉
 
                 if (count > 3) {
                     log.info("{} 进入死信队列", locating);
@@ -131,7 +131,6 @@ public class MessageDelayQueue {
                 }
             }
         }
-
     }
 
     /**
@@ -143,7 +142,7 @@ public class MessageDelayQueue {
             existingTask.cancel(false);
         }
 
-        log.info("准备安排清理任务，消息ID: {}", messageId);
+//        log.info("准备安排清理任务，消息ID: {}", messageId);
 
         ScheduledFuture<?> cleanupTask = scheduler.schedule(() -> {
             try {
@@ -154,7 +153,7 @@ public class MessageDelayQueue {
             } catch (Exception e) {
                 log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
             }
-        }, 1, TimeUnit.MINUTES);
+        }, 25, TimeUnit.SECONDS);
 
         cleanupTasks.put(messageId, cleanupTask);
     }

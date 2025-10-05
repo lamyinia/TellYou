@@ -7,7 +7,7 @@ import ImageMessage from '@renderer/views/chat/ImageMessage.vue'
 import MessageSendBox from './MessageSendBox.vue'
 
 const props = defineProps<{ currentContact: Session | null }>()
-const contactName = computed(() => props.currentContact?.contactName || '你还未选择联系人')
+const contactName = computed(() => props.currentContact?.contactName || '')
 const messageStore = useMessageStore()
 const currentSessionId = computed(() => props.currentContact?.sessionId || '')
 const listRef = ref<HTMLElement | null>(null)

@@ -2,7 +2,7 @@ server:
   port: 8081
   node: 127_0_0_1-8081
   retry:
-    threads: 1
+    threads: 3
 
 tell-you:
   netty:
