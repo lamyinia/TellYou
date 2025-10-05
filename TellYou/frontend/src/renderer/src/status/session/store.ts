@@ -11,9 +11,8 @@ export const useSessionStore = defineStore('session', () => {
   const sessionManager = ref(new SessionManager())
   const isInitialized = ref(false)
   const currentSessionId = ref<string>('')
-  let loadSessionFunction: ((...args: unknown[]) => void) | null = null
-
   const sortedSessions = computed(() => sessionManager.value.getOrderedSessions())
+  let loadSessionFunction: ((...args: unknown[]) => void) | null = null
 
   const init = (): void => {
     console.log('sessionStore 开始初始化')
@@ -35,7 +34,6 @@ export const useSessionStore = defineStore('session', () => {
     isInitialized.value = true
     console.log('sessionStore 初始化完成')
   }
-
   const destroy = (): void => {
     sessionManager.value.clear()
     isInitialized.value = false
@@ -44,17 +42,9 @@ export const useSessionStore = defineStore('session', () => {
   const getSession = (sessionId: string | number): Session | undefined => {
     return sessionManager.value.getSession(String(sessionId))
   }
-  const updateSession = async (
-    sessionId: string | number,
-    updates: Partial<Session>
-  ): Promise<void> => {
-    if (updates?.contactAvatar) {
-      console.info('更新{}的avatar:{}', sessionId, updates.contactAvatar)
-      await window.electronAPI.invoke('session:update:avatar-url', {
-        sessionId: sessionId,
-        avatarUrl: updates.contactAvatar
-      })
-    }
+  const updateSession = async (sessionId: string | number, updates: Partial<Session>): Promise<void> => {
+    console.info('更新{}的信息:{}', sessionId, updates)
+    await window.electronAPI.invoke('session:update:partial', updates, sessionId)
     sessionManager.value.updateSession(String(sessionId), updates)
   }
   const togglePin = (sessionId: string | number): void => {

@@ -406,8 +406,6 @@ class UrlUtil {
         if (!this.protocolHost.includes(url.hostname)) return new Response("", { status: 403 });
         const filePath = decodeURIComponent(url.searchParams.get("path") || "");
         const normalized = path.resolve(filePath);
-        const rootResolved = path.resolve(this.cacheRootPath);
-        const hasAccess = normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) || normalized.toLowerCase() === rootResolved.toLowerCase();
         const ext = path.extname(normalized).toLowerCase();
         const mime = this.mimeByExt[ext] || "application/octet-stream";
         const data = await fs.promises.readFile(normalized);
@@ -819,22 +817,24 @@ class SessionDao {
     return result;
   }
   async updateSessionByMessage(data) {
-    await update(
-      "sessions",
-      { lastMsgContent: data.content, lastMsgTime: data.sendTime },
-      { sessionId: data.sessionId }
-    );
+    await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
   }
   async updateAvatarUrl(params) {
     try {
-      const result = await update(
-        "sessions",
-        { contactAvatar: params.avatarUrl },
-        { sessionId: params.sessionId }
-      );
+      const result = await update("sessions", { contactAvatar: params.avatarUrl }, { sessionId: params.sessionId });
       return result;
     } catch {
       console.error("更新会话头像失败");
+      return 0;
+    }
+  }
+  async updatePartial(params, sessionId) {
+    try {
+      console.log(params);
+      const result = await update("sessions", params, { sessionId });
+      return result;
+    } catch {
+      console.error("updateSession 失败");
       return 0;
     }
   }
@@ -1064,6 +1064,9 @@ class SessionService {
         return await sessionDao.updateAvatarUrl(params);
       }
     );
+    electron.ipcMain.handle("session:update:partial", async (_, params, sessionId) => {
+      return await sessionDao.updatePartial(params, sessionId);
+    });
     electron.ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session");
       const result = await sessionDao.selectSessions();
@@ -1099,7 +1102,6 @@ const axiosInstance = axios.create({
 });
 netMaster.interceptors.request.use(
   (config) => {
-    console.log(config);
     const token = store.get(tokenKey);
     if (token && config.headers) {
       config.headers.token = token;
@@ -1288,6 +1290,7 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["REGISTER"] = "/user-account/register";
   Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
   Api2["ACK_CONFIRM"] = "/message/ack-confirm";
+  Api2["SEARCH_USER"] = "/user-info/search-by-uid";
   return Api2;
 })(Api || {});
 class ProxyService {
@@ -1305,6 +1308,13 @@ class ProxyService {
         return response.data;
       }
     );
+    electron.ipcMain.handle("proxy:search:user-or-group", async (_, params) => {
+      if (params.contactType === 1) {
+        const result = await netMaster.post("/user-info/search-by-uid", { fromId: store.get(uidKey), searchedId: params.contactId });
+        return result.data.data;
+      }
+      return null;
+    });
   }
 }
 const proxyService = new ProxyService();
@@ -1945,7 +1955,7 @@ class DeviceService {
       mainWindow.setMaximizable(true);
       mainWindow.setMinimumSize(800, 600);
       mainWindow.center();
-      initializeUserData(uid);
+      initializeUserData(uid).then();
     });
     electron.ipcMain.on("window-ChangeScreen", (event, status) => {
       const webContents = event.sender;

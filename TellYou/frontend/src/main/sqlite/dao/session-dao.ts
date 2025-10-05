@@ -32,27 +32,25 @@ class SessionDao {
     const result = await queryAll(sql, [])
     return result as unknown as Session[]
   }
-  public async updateSessionByMessage(data: {
-    content: string
-    sendTime: string
-    sessionId: string
-  }): Promise<void> {
-    await update(
-      'sessions',
-      { lastMsgContent: data.content, lastMsgTime: data.sendTime },
-      { sessionId: data.sessionId }
-    )
+  public async updateSessionByMessage(data: { content: string, sendTime: string, sessionId: string }): Promise<void> {
+    await update('sessions', { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId })
   }
   public async updateAvatarUrl(params: { sessionId: string; avatarUrl: string }): Promise<number> {
     try {
-      const result = await update(
-        'sessions',
-        { contactAvatar: params.avatarUrl },
-        { sessionId: params.sessionId }
-      )
+      const result = await update('sessions', { contactAvatar: params.avatarUrl }, { sessionId: params.sessionId })
       return result
     } catch {
       console.error('更新会话头像失败')
+      return 0
+    }
+  }
+  public async updatePartial(params: Partial<Session>, sessionId: string): Promise<number> {
+    try {
+      console.log(params)
+      const result = await update('sessions', params, {sessionId: sessionId})
+      return result
+    } catch {
+      console.error('updateSession 失败')
       return 0
     }
   }

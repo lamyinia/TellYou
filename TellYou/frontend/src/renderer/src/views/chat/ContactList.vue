@@ -6,7 +6,6 @@ import { briefMsg, formatTime, onAvatarError } from '../../../../utils/process'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
-const src = 'tellyou://avatar?path=C%3A%5CUsers%5Clanyo%5CAppData%5CRoaming%5Ctell-you_1%5Ccaching%5Cavatar%5C1948031012053333361%5CoriginalAvatarUrl%5Cindex.avif'
 const emit = defineEmits<{ (e: 'contact-selected', contact: Session): void }>()
 const selectContact = (contact: Session): void => {
   contact.sessionId = String(contact.sessionId)
@@ -32,8 +31,8 @@ const selectContact = (contact: Session): void => {
             <div class="row-wrap">
               <div class="avatar-box">
                 <img
-                  class="star-contact-avatar"
-                  :src="src"
+                  class="contact-avatar"
+                  :src="item.contactAvatar"
                   alt="avatar"
                   referrerpolicy="no-referrer"
                   crossorigin="anonymous"
@@ -291,7 +290,7 @@ const selectContact = (contact: Session): void => {
   flex: 0 0 48px;
 }
 
-.star-contact-avatar {
+.contact-avatar {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -306,7 +305,7 @@ const selectContact = (contact: Session): void => {
   transition: all 0.3s ease;
 }
 
-.star-contact-avatar:hover {
+.contact-avatar:hover {
   transform: scale(1.05);
   box-shadow:
     0 6px 16px rgba(0, 0, 0, 0.2),

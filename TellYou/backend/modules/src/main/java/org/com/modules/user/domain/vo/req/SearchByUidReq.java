@@ -11,7 +11,7 @@ public class SearchByUidReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发起者 id")
-    private Long fromUId;
+    private Long fromId;
 
     @NotNull
     @Schema(description = "被查询的 id")

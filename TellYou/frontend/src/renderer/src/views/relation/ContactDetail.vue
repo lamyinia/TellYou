@@ -35,16 +35,15 @@ const handleDelete = (): void => {
       <img class="cm-avatar-lg" :src="resolveAvatar(contact.avatar)" @error="onAvatarError" />
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
-        <div class="cm-remark">备注：{{ contact.name }}</div>
-        <!--        <div class="cm-id">ID：{{ contact.sessionId }}</div>  如果是群聊就不显示，否则显示 -->
+<!--        <div class="cm-remark">备注：{{ contact.name }}</div>-->
       </div>
       <div class="cm-actions">
         <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage"
           >发消息</v-btn
         >
-        <v-btn size="small" color="secondary" variant="tonal" class="ml-2" @click="handleSetRemark"
-          >设置备注</v-btn
-        >
+<!--        <v-btn size="small" color="secondary" variant="tonal" class="ml-2" @click="handleSetRemark"-->
+<!--          >设置备注</v-btn-->
+<!--        >-->
         <v-btn size="small" color="error" variant="tonal" class="ml-2" @click="handleDelete"
           >删除联系人</v-btn
         >
@@ -52,9 +51,18 @@ const handleDelete = (): void => {
     </div>
 
     <div class="cm-info">
-      <div class="cm-info-item"><span>性别</span><span>未知</span></div>
-      <div class="cm-info-item"><span>地区</span><span>未知</span></div>
-      <div class="cm-info-item"><span>个性签名</span><span>这个人很懒，什么都没有写~</span></div>
+      <div class="cm-info-item">
+        <span>性别</span>
+        <span>{{ contact.sex ? contact.sex : '未知' }}</span>
+      </div>
+<!--      <div class="cm-info-item">-->
+<!--        <span>地区</span>-->
+<!--        <span>未知</span>-->
+<!--      </div>-->
+      <div class="cm-info-item">
+        <span>个性签名</span>
+        <span>{{contact.signature ? contact.signature : '这个人很懒，什么都没有写~'}}</span>
+      </div>
     </div>
   </div>
   <div v-else class="cm-empty">请选择联系人</div>

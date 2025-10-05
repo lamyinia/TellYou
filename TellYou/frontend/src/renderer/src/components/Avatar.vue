@@ -14,8 +14,7 @@ const props = withDefaults(
     showShape?: string
     fallbackText?: string
     showLoading?: boolean
-  }>(),
-  {
+  }>(), {
     size: 36,
     side: 'left',
     fallbackText: '?',
@@ -46,10 +45,8 @@ const loadAvatar = async () => {
     localPath.value = null
     return
   }
-  let loadingUrl: string = ''
-  // 要么带版本号查url，要么直接给 url
-  if (props.version) {
-    // 带版本号查url, 判断 props.version 的版本号是不是比自己存的大更大，如果是更大或者自己没有存过，那么主进程访问 static/json 找 props.url，否则 path 更新为本地存的 localPath
+  let loadingUrl: string = ''  // 要么带版本号查url，要么直接给 url
+  if (props.version) {  // 带版本号查url, 判断 props.version 的版本号是不是比自己存的大更大，如果是更大或者自己没有存过，那么主进程访问 static/json 找 props.url，否则 path 更新为本地存的 localPath
     const checkResult = await avatarStore.seekCache(props.userId, props.showStrategy, props.version)
     // console.info('debug:checkResult', checkResult)
     if (checkResult.needUpdated) {
@@ -88,11 +85,8 @@ const handleImageError = () => {
   error.value = 'Image load failed'
 }
 
-watch(
-  [() => props.userId, () => props.url, () => props.size],
-  () => {
-    loadAvatar()
-  },
+watch([() => props.userId, () => props.url, () => props.size],
+  () => {loadAvatar()},
   { immediate: true }
 )
 onMounted(() => {

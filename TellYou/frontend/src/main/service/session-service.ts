@@ -58,12 +58,13 @@ class SessionService {
         return false
       }
     })
-    ipcMain.handle(
-      'session:update:avatar-url',
+    ipcMain.handle('session:update:avatar-url',
       async (_, params: { sessionId: string; avatarUrl: string }) => {
         return await sessionDao.updateAvatarUrl(params)
-      }
-    )
+    })
+    ipcMain.handle('session:update:partial', async (_, params: any, sessionId: string) => {
+      return await sessionDao.updatePartial(params, sessionId)
+    })
     ipcMain.on('session:load-data', async (event) => {
       console.log('开始查询session')
       const result: Session[] = await sessionDao.selectSessions()

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, reactive } from 'vue'
+import { reactive } from 'vue'
 
 interface AvatarCacheItem {
   version: string
@@ -7,12 +7,6 @@ interface AvatarCacheItem {
   loading: boolean
   error: string | null
   lastAccessed: number
-}
-
-interface AvatarStats {
-  totalUsers: number
-  totalFiles: number
-  totalSize: number
 }
 
 /**
@@ -23,13 +17,11 @@ interface AvatarStats {
 
 export const useAvatarStore = defineStore('avatar', () => {
   const memoryCache = reactive<Map<string, AvatarCacheItem>>(new Map())
-  const stats = ref<AvatarStats>({ totalUsers: 0, totalFiles: 0, totalSize: 0 })
   const maxMemoryCache = 200
 
   const getCacheKey = (userId: string, strategy: string): string => userId + '_' + strategy
   // 例子 http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/6/index.png?hash=3，这里返回 6
-  const extractVersionFromUrl = (url: string): string =>
-    new URL(url).pathname.split('/').at(-2) || '0'
+  const extractVersionFromUrl = (url: string): string => new URL(url).pathname.split('/').at(-2) || '0'
 
   const cleanupMemoryCache = (): void => {
     if (memoryCache.size <= maxMemoryCache) return
@@ -42,11 +34,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     })
   }
 
-  const seekCache = async (
-    userId: string,
-    strategy: string,
-    version: string
-  ): Promise<{ needUpdated: boolean; pathResult: string }> => {
+  const seekCache = async (userId: string, strategy: string, version: string): Promise<{ needUpdated: boolean; pathResult: string }> => {
     const item = memoryCache.get(getCacheKey(userId, strategy))
 
     console.info('debug:seekCache:   ', [userId, strategy, version].join('---'))
@@ -56,11 +44,7 @@ export const useAvatarStore = defineStore('avatar', () => {
       console.info('debug:seekCache:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
       return { needUpdated: false, pathResult: item.localPath }
     }
-    const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', {
-      userId,
-      strategy,
-      version
-    })
+    const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', { userId, strategy, version })
     if (resp.success) {
       // 主进程缓存命中
       console.info('debug:seekCache:主进程缓存命中   ', resp)
@@ -74,11 +58,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     }
     return { needUpdated: !resp.success, pathResult: resp.pathResult }
   }
-  const getAvatar = async (
-    userId: string,
-    strategy: string,
-    avatarUrl: string
-  ): Promise<string | null> => {
+  const getAvatar = async (userId: string, strategy: string, avatarUrl: string): Promise<string | null> => {
     if (!userId || !avatarUrl) return null
 
     const key: string = getCacheKey(userId, strategy)
@@ -136,7 +116,6 @@ export const useAvatarStore = defineStore('avatar', () => {
   return {
     extractVersionFromUrl,
     memoryCache,
-    stats,
     seekCache,
     getAvatar,
     clearMemoryCache

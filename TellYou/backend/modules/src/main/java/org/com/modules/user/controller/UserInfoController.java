@@ -47,7 +47,7 @@ public class UserInfoController {
         return ApiResult.success();
     }
 
-    @GetMapping("/search-uid")
+    @PostMapping("/search-by-uid")
     @Operation(summary = "查询用户")
     public ApiResult<SearchByUidResp> SearchByUid(@Check @Valid @RequestBody SearchByUidReq req){
         return ApiResult.success(userInfoService.SearchByUidResp(req));

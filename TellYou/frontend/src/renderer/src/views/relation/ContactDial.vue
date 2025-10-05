@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
-import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
+import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
 import { SimpleContact } from '@renderer/views/relation/ContactManagementView.vue'
 
 const emit = defineEmits<{ (e: 'select', sessionId: string): void }>()

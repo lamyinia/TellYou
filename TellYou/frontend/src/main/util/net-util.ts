@@ -48,7 +48,6 @@ const axiosInstance: AxiosInstance = axios.create({
 })
 netMaster.interceptors.request.use(
   (config) => {
-    console.log(config)
     const token: string = store.get(tokenKey)
     if (token && config.headers) {
       config.headers.token = token

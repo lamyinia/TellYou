@@ -26,7 +26,7 @@ class DeviceService {
       mainWindow.setMaximizable(true)
       mainWindow.setMinimumSize(800, 600)
       mainWindow.center()
-      initializeUserData(uid)
+      initializeUserData(uid).then()
     })
     ipcMain.on('window-ChangeScreen', (event, status: number) => {
       const webContents = event.sender

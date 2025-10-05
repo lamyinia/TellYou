@@ -5,6 +5,7 @@ import ContactDetail from './ContactDetail.vue'
 import ContactApplication from './ContactApplication.vue'
 import CreatedGroup from './CreatedGroup.vue'
 import ContactBlack from './ContactBlack.vue'
+import { useSessionStore } from '@renderer/status/session/store'
 
 export interface SimpleContact {
   id: string
@@ -13,17 +14,22 @@ export interface SimpleContact {
   sessionId: string
 }
 export interface DetailContact {
+  sessionId: string
   name: string
   avatar?: string
-  sessionId: string
   signature?: string
-  gender?: string
-  region?: string
+  sex?: string
 }
 
+const sessionStore = useSessionStore()
 const selectedContact = ref<DetailContact | null>(null)
-const selectContact = (sessionId: string): void => {
-  // selectedContact.value = c
+const selectContact = async (sessionId: string): void => {
+  let session: any = sessionStore.getSession(sessionId)
+  const data: any = await window.electronAPI.invoke('proxy:search:user-or-group', {contactId: session.contactId, contactType: session.contactType})
+  console.log(data)
+  await sessionStore.updateSession(sessionId,
+    {contactName: data.nickname, contactAvatar: data.avatar, contactSignature: data.signature})
+  selectedContact.value = {name: data.nickname, avatar: data.avatar, signature: data.signature, sex: (data.sex===0 ? '女' : '男'), sessionId: sessionId}
 }
 </script>
 

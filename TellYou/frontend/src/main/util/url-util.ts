@@ -52,15 +52,15 @@ class UrlUtil {
 
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
         const normalized = path.resolve(filePath)
-        const rootResolved = path.resolve(this.cacheRootPath)
+/*        const rootResolved = path.resolve(this.cacheRootPath)
         const hasAccess =
           normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) ||
           normalized.toLowerCase() === rootResolved.toLowerCase()
 
-        // if (!hasAccess) {
-        //   console.error('tellyou protocol denied:', { normalized, rootResolved })
-        //   return new Response('', { status: 403 })
-        // }
+        if (!hasAccess) {
+          console.error('tellyou protocol denied:', { normalized, rootResolved })
+          return new Response('', { status: 403 })
+        }*/
 
         const ext = path.extname(normalized).toLowerCase()
         const mime = this.mimeByExt[ext] || 'application/octet-stream'
