@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useRouter, useRoute } from 'vue-router'
-import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import Avatar from './Avatar.vue'
 import UserInfoDrawer from './UserInfoDrawer.vue'
 import { useUserStore } from '@main/electron-store/persist/user-store'
@@ -21,42 +21,29 @@ const goTo = (path: string): void => {
 }
 
 const openUser = ref(false)
-
-// 从 userStore 获取用户数据
 const uid = computed(() => userStore.myId)
 const name = computed(() => userStore.nickname || '未命名')
 const signature = computed(() => userStore.signature || '这个人很神秘，还没有签名~')
-const avatarUrl = computed(() => userStore.avatarUrl || '')
-
-const onSaveProfile = async (payload: {
-  uid?: string
-  name?: string
-  avatarFile?: File | null
-  signature?: string
-}): Promise<void> => {
-  if (payload.name) {
-    await userStore.updateUserField('nickname', payload.name)
-  }
-  if (payload.signature) {
-    await userStore.updateUserField('signature', payload.signature)
-  }
-  openUser.value = false
-}
+const showStrategy = 'thumbedAvatarUrl'
+const avatarUrl = computed(() => {  // 我写的代码真是一坨糊出来的狗屎
+  console.log('标记', userStore.avatarUrl)
+  const split = userStore.avatarUrl.split('/')
+  split[5] = 'thumb'
+  return split.join('/')
+  // const url =  // http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/8/index.avif
+  // return userStore.avatarUrl || ''
+})
 
 const onLogout = async (): Promise<void> => {
   await userStore.clearUserData()
   router.push('/login')
 }
 
-// 确保每次点击都能触发打开（解决偶发无法再次打开的问题）
-import { nextTick } from 'vue'
 const openUserDrawer = async (): Promise<void> => {
   openUser.value = false
   await nextTick()
   openUser.value = true
 }
-
-// 组件挂载时初始化用户数据
 onMounted(async () => {
   await userStore.initStore()
 })
@@ -85,7 +72,7 @@ onMounted(async () => {
         <span class="nav-label">设置</span>
       </div>
       <div class="avatar-entry" @click="openUserDrawer">
-        <Avatar :user-id="uid" :url="avatarUrl" :name="name" :size="44" />
+        <Avatar :user-id="uid" :url="avatarUrl" :show-strategy="showStrategy" :name="name" :size="44" />
       </div>
     </div>
     <UserInfoDrawer
@@ -93,7 +80,6 @@ onMounted(async () => {
       :uid="uid"
       :name="name"
       :signature="signature"
-      @save="onSaveProfile"
       @logout="onLogout"
     />
   </div>

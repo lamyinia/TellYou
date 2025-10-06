@@ -14,6 +14,18 @@ const listRef = ref<HTMLElement | null>(null)
 const isFirstLoad = ref(true)
 const preloadThreshold = 80
 
+// 简单防抖工具，避免高频滚动触发加载
+const debounce = <T extends (...args: any[]) => void>(
+  fn: T,
+  delay = 150
+): ((...args: Parameters<T>) => void) => {
+  let timer: number | undefined
+  return (...args: Parameters<T>) => {
+    if (timer) window.clearTimeout(timer)
+    timer = window.setTimeout(() => fn(...args), delay)
+  }
+}
+
 const messages = computed(() => {
   const id = currentSessionId.value
   if (!id) return []
@@ -64,7 +76,7 @@ const scrollToBottom = async (): Promise<void> => {
   )
 }
 
-const onScroll = async (): Promise<void> => {
+const handleScroll = async (): Promise<void> => {
   const el = listRef.value
   const sessionId = currentSessionId.value
   if (!el || !sessionId) return
@@ -87,20 +99,20 @@ const onScroll = async (): Promise<void> => {
     await messageStore.loadNewerMessages(sessionId)
   }
 }
+
+// 防抖后的滚动处理函数
+const onScroll = debounce(() => {
+  void handleScroll()
+}, 150)
 </script>
 
 <template>
   <div class="star-panel-bg">
     <div class="star-header">
       <div class="star-title">{{ contactName }}</div>
-<!--      <div>-->
-<!--        <v-btn icon><v-icon>mdi-phone</v-icon></v-btn>-->
-<!--        <v-btn icon><v-icon>mdi-video</v-icon></v-btn>-->
-<!--        <v-btn icon><v-icon>mdi-dots-vertical</v-icon></v-btn>-->
-<!--      </div>-->
     </div>
 
-    <div class="star-messages" ref="listRef" @scroll="onScroll">
+    <div ref="listRef" class="star-messages" @scroll="onScroll">
       <template v-for="msg in displayedMessages" :key="msg.id">
         <TextMessage v-if="msg.messageType === 'text'" :message="msg" />
         <ImageMessage v-else-if="msg.messageType === 'image'" :message="msg" />
@@ -108,7 +120,7 @@ const onScroll = async (): Promise<void> => {
       </template>
     </div>
 
-    <MessageSendBox :currentContact="currentContact" @sent="onSent" />
+    <MessageSendBox :current-contact="currentContact" @sent="onSent" />
   </div>
 </template>
 

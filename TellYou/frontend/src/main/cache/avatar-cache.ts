@@ -1,14 +1,6 @@
-import { app, ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { join } from 'path'
-import fs, {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync
-} from 'fs'
+import fs, { existsSync, writeFileSync, readFileSync, renameSync } from 'fs'
 import { netMinIO } from '../util/net-util'
 import log from 'electron-log'
 import urlUtil from '@main/util/url-util'
@@ -23,39 +15,25 @@ interface CacheItem {
 
 class AvatarCacheService {
   private cacheMap: Map<string, CacheItem> = new Map()
-  private readonly maxCacheSize: number = 100 * 1024 * 1024 // 100MB
-  private readonly maxCacheAge: number = 7 * 24 * 60 * 60 * 1000 // 7 days
-  private readonly maxFiles: number = 1000
-  private getJsonPath = (userId: string): string =>
-    join(urlUtil.cachePaths['avatar'], userId, 'index.json') // {userData}/cache/avatar/{userId}/index.json
+  private jsonLoadingMap: Map<string, Promise<Record<string, unknown>>> = new Map()
+  private jsonMap: Map<string, Record<string, unknown>> = new Map()
 
   public beginServe(): void {
-    this.startCleanupTimer()
-
-    ipcMain.handle(
-      'avatar:cache:seek-by-version',
+    ipcMain.handle('avatar:cache:seek-by-version',
       async (_, params: { userId: string; strategy: string; version: string }) => {
         // 查本地json，检验版本，版本不过关，查 static/json
         let item = this.cacheMap.get(params.userId)
-        if (
-          item &&
-          this.checkVersion(item, params.strategy, params.version) &&
-          existsSync(item[params.strategy].localPath)
-        ) {
+        if (item && this.checkVersion(item, params.strategy, params.version) && existsSync(item[params.strategy].localPath)) {
           // 命中主进程缓存
+          console.info('avatar:cache:seek-by-version 命中 主进程缓存')
           return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) }
         } else if (existsSync(this.getJsonPath(params.userId))) {
           try {
-            item = JSON.parse(
-              fs.readFileSync(this.getJsonPath(params.userId), 'utf-8')
-            ) as CacheItem
-            console.info('avatar:cache:seek-by-version: ', item)
-            if (
-              item &&
-              this.checkVersion(item, params.strategy, params.version) &&
-              existsSync(item[params.strategy].localPath)
-            ) {
+            item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), 'utf-8')) as CacheItem
+            console.info('avatar:cache:seek-by-version:比较版本 ', item, params)
+            if (item && this.checkVersion(item, params.strategy, params.version) && existsSync(item[params.strategy].localPath)) {
               // 查 json 命中缓存
+              console.info('avatar:cache:seek-by-version 命中 json 文件')
               this.cacheMap.set(params.userId, item)
               return {
                 success: true,
@@ -66,14 +44,11 @@ class AvatarCacheService {
             console.error(error)
           }
         }
-        console.info('debug:downloadJson:  ', [urlUtil.atomPath, params.userId + '.json'].join('/'))
-        const result = (await netMinIO.downloadJson(
-          [urlUtil.atomPath, params.userId + '.json'].join('/')
-        )) as Record<string, unknown>
+        console.info('debug:downloadJson:下载元信息:  ', [urlUtil.atomPath, params.userId + '.json'].join('/'))
+        const result = await this.getMetaJson(params.userId)
         return { success: false, pathResult: result[params.strategy] }
       }
     )
-
     ipcMain.handle('avatar:get', async (_, { userId, strategy, avatarUrl }) => {
       try {
         const filePath = await this.getAvatarPath(userId, strategy, avatarUrl)
@@ -85,36 +60,37 @@ class AvatarCacheService {
       }
     })
   }
-  private checkVersion(item: CacheItem, strategy: string, version: string): boolean {
-    return item[strategy] && item[strategy].version >= version
-  }
-  private extractVersionFromUrl(url: string): string {
-    return new URL(url).pathname.split('/').at(-2) || ''
-  }
-  private extractObjectFromUrl(url: string): string {
-    return new URL(url).pathname.split('/').at(-1) || ''
-  }
-  private saveItem(userId: string, cacheItem: CacheItem): void {
-    try {
-      writeFileSync(this.getJsonPath(userId), JSON.stringify(cacheItem, null, 2))
-    } catch (error) {
-      log.error('Failed to save cache index:', error)
+  private async getMetaJson(userId: string): Promise<Record<string, unknown>> {
+    const cached = this.jsonMap.get(userId)
+    if (cached){
+      console.info('avatar-cache:get-meta-json:命中jsonMap', cached)
+      return cached
     }
+    const inflight = this.jsonLoadingMap.get(userId)
+    if (inflight){
+      console.info('avatar-cache:get-meta-json:命中jsonLoadingMap', inflight)
+      return inflight
+    }
+
+    const promise = netMinIO.downloadJson([urlUtil.atomPath, userId + '.json'].join('/'))
+      .then((result: Record<string, unknown>) => {
+        this.jsonMap.set(userId, result)
+        this.jsonLoadingMap.delete(userId)
+        setTimeout(() => this.jsonMap.delete(userId), 8000)
+        return result
+      })
+      .catch((e) => {
+        this.jsonLoadingMap.delete(userId)
+        throw e
+      })
+    this.jsonLoadingMap.set(userId, promise)
+    return promise
   }
-
-  async getAvatarPath(userId: string, strategy: string, avatarUrl: string): Promise<string | null> {
+  private async getAvatarPath(userId: string, strategy: string, avatarUrl: string): Promise<string | null> {
     try {
-      // // {userData}/cache/avatar/{userId}/{strategy}/{obj}
-      const filePath = join(
-        urlUtil.cachePaths['avatar'],
-        userId,
-        strategy,
-        this.extractObjectFromUrl(avatarUrl)
-      )
-      urlUtil.ensureDir(join(urlUtil.cachePaths['avatar'], userId, strategy))
-
-      console.info('debug:downloadAvatar:  ', [userId, avatarUrl, filePath].join(' !!! '))
-
+      const filePath = join(urlUtil.cachePaths['avatar'], userId, strategy, this.extractObjectFromUrl(avatarUrl))
+      urlUtil.ensureDir(join(urlUtil.cachePaths['avatar'], userId, strategy))  // {userData}/cache/avatar/{userId}/{strategy}/{obj}
+      console.info('avatar-cache:getAvatarPath:准备下载头像:  ', [userId, avatarUrl, filePath].join('-'))
       const success = await this.downloadAvatar(avatarUrl, filePath)
       if (success) {
         this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath)
@@ -140,33 +116,45 @@ class AvatarCacheService {
       return false
     }
   }
-  private updateCacheIndex(
-    userId: string,
-    strategy: string,
-    version: string,
-    filePath: string
-  ): void {
+  private updateCacheIndex(userId: string, strategy: string, version: string, filePath: string): void {
+    // 读取磁盘并与内存合并，避免覆盖其他 strategy
     let item = this.cacheMap.get(userId)
-    if (item) {
-      item[strategy] = { version: version, localPath: filePath }
-    } else {
-      item = {
-        [strategy]: { version: version, localPath: filePath }
-      } as CacheItem
+    if (!item) {
+      const jsonPath = this.getJsonPath(userId)
+      if (existsSync(jsonPath)) {
+        try {
+          item = JSON.parse(readFileSync(jsonPath, 'utf-8')) as CacheItem
+        } catch {
+          item = {} as CacheItem
+        }
+      } else {
+        item = {} as CacheItem
+      }
     }
+    item[strategy] = { version: version, localPath: filePath }
     this.cacheMap.set(userId, item)
     this.saveItem(userId, item)
   }
-
-  private cleanupOldCache(): void {}
-  private startCleanupTimer(): void {
-    setInterval(
-      () => {
-        this.cleanupOldCache()
-      },
-      60 * 60 * 1000
-    )
+  private checkVersion(item: CacheItem, strategy: string, version: string): boolean {
+    return item[strategy] && Number.parseInt(item[strategy].version) >= Number.parseInt(version)
   }
+  private extractVersionFromUrl(url: string): string {
+    return new URL(url).pathname.split('/').at(-2) || ''
+  }
+  private extractObjectFromUrl(url: string): string {
+    return new URL(url).pathname.split('/').at(-1) || ''
+  }
+  private saveItem(userId: string, cacheItem: CacheItem): void {
+    try {
+      const jsonPath = this.getJsonPath(userId)
+      const tmpPath = jsonPath + '.tmp'
+      writeFileSync(tmpPath, JSON.stringify(cacheItem, null, 2))
+      renameSync(tmpPath, jsonPath)
+    } catch (error) {
+      log.error('Failed to save cache index:', error)
+    }
+  }
+  private getJsonPath = (userId: string): string => join(urlUtil.cachePaths['avatar'], userId, 'index.json') // {userData}/cache/avatar/{userId}/index.json
 }
 
 const avatarCacheService = new AvatarCacheService()

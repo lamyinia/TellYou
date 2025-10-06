@@ -32,10 +32,527 @@ const fs = require("fs");
 const axios = require("axios");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
+const sharp = require("sharp");
 const sqlite3 = require("sqlite3");
 const WebSocket = require("ws");
-const sharp = require("sharp");
 const icon = path.join(__dirname, "../../resources/icon.png");
+class UrlUtil {
+  protocolHost = ["avatar", "picture", "voice", "video", "file"];
+  mimeByExt = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif"
+  };
+  nodeEnv = process.env.NODE_ENV || "production";
+  homeDir = os.homedir();
+  appPath = path.join(this.homeDir, this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou");
+  tempPath = path.join(this.appPath, "temp");
+  sqlPath = this.appPath;
+  atomPath = "http://113.44.158.255:32788/lanye/static";
+  instanceId = process.env.ELECTRON_INSTANCE_ID || "";
+  cacheRootPath = "";
+  cachePaths = {
+    avatar: "",
+    picture: "",
+    voice: "",
+    video: "",
+    file: ""
+  };
+  ensureDir(path2) {
+    if (!fs.existsSync(path2)) {
+      console.info("debug:ensureDir   ", path2);
+      fs.mkdirSync(path2, { recursive: true });
+    }
+  }
+  init() {
+    this.cacheRootPath = path.join(electron.app.getPath("userData"), "caching");
+    this.tempPath = path.join(electron.app.getPath("userData"), "temp");
+    this.protocolHost.forEach((host) => {
+      this.cachePaths[host] = path.join(this.cacheRootPath, host);
+      this.ensureDir(this.cachePaths[host]);
+    });
+  }
+  registerProtocol() {
+    electron.protocol.handle("tellyou", async (request) => {
+      try {
+        const url = new URL(request.url);
+        if (!this.protocolHost.includes(url.hostname)) return new Response("", { status: 403 });
+        const filePath = decodeURIComponent(url.searchParams.get("path") || "");
+        const normalized = path.resolve(filePath);
+        const ext = path.extname(normalized).toLowerCase();
+        const mime = this.mimeByExt[ext] || "application/octet-stream";
+        const data = await fs.promises.readFile(normalized);
+        return new Response(data, {
+          headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" }
+        });
+      } catch (e) {
+        console.error("tellyou protocol error:", e);
+        return new Response("", { status: 500 });
+      }
+    });
+  }
+  redirectSqlPath(userId) {
+    this.sqlPath = path.join(this.appPath, "_" + userId);
+    console.info("数据库操作目录 " + this.sqlPath);
+    if (!fs.existsSync(this.sqlPath)) {
+      fs.mkdirSync(this.sqlPath, { recursive: true });
+    }
+  }
+  signByApp(path2) {
+    return `tellyou://avatar?path=${encodeURIComponent(path2)}`;
+  }
+  extractObjectName(url) {
+    return new URL(url).pathname.split("/").slice(2).join("/");
+  }
+  // /lanye/avatar/original/1948031012053333361/6/index.png -> avatar/original/1948031012053333361/6/index.png
+}
+const urlUtil = new UrlUtil();
+const NON_COMPRESSIBLE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "application/x-rar-compressed",
+  "application/x-7z-compressed",
+  "text/plain",
+  "application/json",
+  "application/xml"
+];
+const MOTION_IMAGE_TYPES = ["image/gif", "image/webp", "image/avif"];
+const IM_COMPRESSION_CONFIG = {
+  thumbnail: {
+    format: "avif",
+    maxSize: 300,
+    quality: 80,
+    crf: 63,
+    cpuUsed: 4
+  },
+  original: {
+    maxSize: 1920,
+    quality: 90,
+    progressive: true,
+    crf: 50,
+    cpuUsed: 2
+  }
+};
+class MediaUtil {
+  maxVideoSize = 1280;
+  thumbnailSize = 300;
+  previewSize = 800;
+  suffixMap = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/avif": ".avif",
+    "image/gif": ".gif"
+  };
+  mimeTypeMap = {
+    ".json": "application/json",
+    ".jpg": "image/jpg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mpeg": "audio/mpeg",
+    ".wav": "audio/wav"
+  };
+  /**
+   * 检查文件是否需要压缩
+   */
+  needsCompression(mimeType) {
+    return !NON_COMPRESSIBLE_TYPES.includes(mimeType);
+  }
+  /**
+   * 检查是否为动图
+   */
+  isMotionImage(mimeType) {
+    return MOTION_IMAGE_TYPES.includes(mimeType);
+  }
+  /**
+   * 获取文件后缀
+   */
+  getSuffixByMimeType(mimeType) {
+    return this.suffixMap[mimeType] || ".jpg";
+  }
+  /**
+   * 获取上传格式
+   */
+  getMimeTypeBySuffix(suffix) {
+    return this.mimeTypeMap[suffix] || "application/octet-stream";
+  }
+  /**
+   * 获取标准参数
+   */
+  async getNormal(filePath) {
+    try {
+      const buffer = await fs.promises.readFile(filePath);
+      return {
+        buffer,
+        size: buffer.length,
+        originalName: path.basename(filePath),
+        mimeType: this.getMimeTypeBySuffix(path.extname(filePath))
+      };
+    } catch (e) {
+      console.error("获取文件失败");
+      throw e;
+    }
+  }
+  async processImage(mediaFile, strategy) {
+    const { mimeType } = mediaFile;
+    if (this.isMotionImage(mimeType)) {
+      return this.processMotion(mediaFile, strategy);
+    } else {
+      if (strategy === "thumb") {
+        return this.processStaticThumbnail(mediaFile);
+      } else {
+        return this.processStaticOriginal(mediaFile);
+      }
+    }
+  }
+  /**
+   * 处理动图
+   */
+  async processMotion(mediaFile, strategy) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(
+        urlUtil.tempPath,
+        `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`
+      );
+      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`);
+      console.info("临时目录", urlUtil.tempPath);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const currentConfig = strategy === "thumb" ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original;
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).size(`${currentConfig.maxSize}x?`).outputOptions([
+          "-c:v libaom-av1",
+          "-b:v 0",
+          `-crf ${currentConfig.crf}`,
+          `-cpu-used 8`,
+          "-threads 0",
+          "-pix_fmt yuv420p",
+          "-movflags +faststart",
+          "-vsync cfr",
+          "-f avif"
+        ]).on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", (err) => {
+          console.error("FFmpeg 错误详情:", err.message);
+          reject(err);
+        }).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "image/avif",
+        newSuffix: ".avif"
+      };
+    } catch (error) {
+      throw new Error(`动图缩略图转码失败: ${error.message}`);
+    }
+  }
+  /**
+   * 处理静态图片缩略图
+   */
+  async processStaticThumbnail(mediaFile) {
+    const { buffer } = mediaFile;
+    const config = IM_COMPRESSION_CONFIG.thumbnail;
+    try {
+      const sharpInstance = sharp(buffer);
+      const metadata = await sharpInstance.metadata();
+      const { width = 0, height = 0 } = metadata;
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      const compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "cover" }).avif({ quality: config.quality }).toBuffer();
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "image/avif",
+        newSuffix: ".avif"
+      };
+    } catch (error) {
+      throw new Error(`静态图片缩略图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 处理静态图片原图
+   */
+  async processStaticOriginal(mediaFile) {
+    const { buffer, mimeType } = mediaFile;
+    const config = IM_COMPRESSION_CONFIG.original;
+    try {
+      const sharpInstance = sharp(buffer);
+      const metadata = await sharpInstance.metadata();
+      const { width = 0, height = 0 } = metadata;
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      let compressedBuffer;
+      let newMimeType = mimeType;
+      if (mimeType === "image/png") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).webp({ quality: config.quality }).toBuffer();
+        newMimeType = "image/webp";
+      } else if (mimeType === "image/jpeg") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+      } else if (mimeType == "image/avif") {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).avif({ quality: config.quality }).toBuffer();
+        newMimeType = "image/avif";
+      } else {
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+        newMimeType = "image/jpeg";
+      }
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType,
+        newSuffix: this.getSuffixByMimeType(newMimeType)
+      };
+    } catch (error) {
+      throw new Error(`静态图片原图处理失败: ${error.message}`);
+    }
+  }
+  /**
+   * 压缩视频
+   */
+  async compressVideo(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp4`);
+      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp4`);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).size(`${this.maxVideoSize}x?`).videoBitrate("1000k").audioBitrate("128k").format("mp4").outputOptions([
+          "-c:v libx264",
+          // 使用更高效的 H.264 编码器
+          "-crf 23",
+          // 降低 CRF 值，提高压缩率
+          "-preset fast",
+          // 平衡速度和质量
+          "-threads 0",
+          "-movflags +faststart"
+        ]).on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "video/mp4",
+        newSuffix: ".mp4"
+      };
+    } catch (error) {
+      throw new Error(`视频压缩失败: ${error.message}`);
+    }
+  }
+  /**
+   * 压缩音频
+   */
+  async compressAudio(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp3`);
+      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp3`);
+      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
+      await fs.promises.writeFile(tempInputPath, buffer);
+      const compressedBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempInputPath).audioBitrate("128k").format("mp3").on("end", async () => {
+          try {
+            const compressedData = await fs.promises.readFile(tempOutputPath);
+            resolve(compressedData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject).save(tempOutputPath);
+      });
+      await fs.promises.unlink(tempInputPath).catch(() => {
+      });
+      await fs.promises.unlink(tempOutputPath).catch(() => {
+      });
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
+      return {
+        compressedBuffer,
+        compressedSize: compressedBuffer.length,
+        compressionRatio,
+        newMimeType: "audio/mp3",
+        newSuffix: ".mp3"
+      };
+    } catch (error) {
+      throw new Error(`音频压缩失败: ${error.message}`);
+    }
+  }
+  /**
+   * 生成视频缩略图
+   */
+  async generateVideoThumbnail(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      const tempThumbnailPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.jpg`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const snap = Math.floor(Math.random() * 100);
+      const thumbnailBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempVideoPath).screenshots({
+          timestamps: [`${snap}%`],
+          filename: path.basename(tempThumbnailPath),
+          folder: path.dirname(tempThumbnailPath),
+          size: `${this.thumbnailSize}x?`
+        }).on("end", async () => {
+          try {
+            const thumbnailData = await fs.promises.readFile(tempThumbnailPath);
+            resolve(thumbnailData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject);
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      await fs.promises.unlink(tempThumbnailPath).catch(() => {
+      });
+      return {
+        thumbnailBuffer,
+        thumbnailSize: thumbnailBuffer.length,
+        dimensions: { width: this.thumbnailSize, height: this.thumbnailSize }
+      };
+    } catch (error) {
+      throw new Error(`视频缩略图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 生成预览图
+   */
+  async generatePreview(mediaFile) {
+    const { mimeType } = mediaFile;
+    if (mimeType.startsWith("video/")) {
+      return this.generateVideoPreview(mediaFile);
+    } else {
+      throw new Error(`不支持的预览图类型: ${mimeType}`);
+    }
+  }
+  /**
+   * 生成视频预览图
+   */
+  async generateVideoPreview(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      const tempPreviewPath = path.join(process.cwd(), "temp", `preview_${Date.now()}.jpg`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const snap = Math.floor(Math.random() * 100);
+      const previewBuffer = await new Promise((resolve, reject) => {
+        ffmpeg(tempVideoPath).screenshots({
+          timestamps: [`${snap}%`],
+          filename: path.basename(tempPreviewPath),
+          folder: path.dirname(tempPreviewPath),
+          size: `${this.previewSize}x?`
+        }).on("end", async () => {
+          try {
+            const previewData = await fs.promises.readFile(tempPreviewPath);
+            resolve(previewData);
+          } catch (error) {
+            reject(error);
+          }
+        }).on("error", reject);
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      await fs.promises.unlink(tempPreviewPath).catch(() => {
+      });
+      return {
+        thumbnailBuffer: previewBuffer,
+        thumbnailSize: previewBuffer.length,
+        dimensions: { width: this.previewSize, height: this.previewSize }
+      };
+    } catch (error) {
+      throw new Error(`视频预览图生成失败: ${error.message}`);
+    }
+  }
+  /**
+   * 获取视频信息
+   */
+  async getVideoInfo(mediaFile) {
+    const { buffer } = mediaFile;
+    try {
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
+      await fs.promises.writeFile(tempVideoPath, buffer);
+      const videoInfo = await new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
+          if (!videoStream) {
+            reject(new Error("未找到视频流"));
+            return;
+          }
+          resolve({
+            duration: metadata.format.duration || 0,
+            width: videoStream.width || 0,
+            height: videoStream.height || 0,
+            bitrate: parseInt(String(metadata.format.bit_rate || "0")),
+            codec: videoStream.codec_name || "unknown"
+          });
+        });
+      });
+      await fs.promises.unlink(tempVideoPath).catch(() => {
+      });
+      return videoInfo;
+    } catch (error) {
+      throw new Error(`获取视频信息失败: ${error.message}`);
+    }
+  }
+  /**
+   * 计算压缩尺寸
+   */
+  calculateDimensions(originalWidth, originalHeight, maxSize) {
+    if (originalWidth <= maxSize && originalHeight <= maxSize) {
+      return { newWidth: originalWidth, newHeight: originalHeight };
+    }
+    const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
+    return {
+      newWidth: Math.round(originalWidth * ratio),
+      newHeight: Math.round(originalHeight * ratio)
+    };
+  }
+}
+const mediaUtil = new MediaUtil();
 const getMimeType = (ext) => {
   const mimeTypes = {
     ".png": "image/png",
@@ -45,19 +562,6 @@ const getMimeType = (ext) => {
     ".webp": "image/webp"
   };
   return mimeTypes[ext] || "application/octet-stream";
-};
-const generateThumbnail = async (filePath) => {
-  try {
-    const sharp2 = await import("sharp");
-    const thumbnailBuffer = await sharp2.default(filePath).resize(200, 200, {
-      fit: "cover",
-      position: "center"
-    }).jpeg({ quality: 80 }).toBuffer();
-    return thumbnailBuffer;
-  } catch (error) {
-    console.error("生成缩略图失败:", error);
-    return await fs.promises.readFile(filePath);
-  }
 };
 class MediaTaskService {
   tasks = /* @__PURE__ */ new Map();
@@ -138,14 +642,15 @@ class MediaTaskService {
     });
     electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
       try {
-        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-A3zHNMwX.js"));
+        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-Cy3meAR6.js"));
         console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
         const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
-        const originalFileBuffer = await fs.promises.readFile(filePath);
-        const thumbnailBuffer = await generateThumbnail(filePath);
-        await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix));
-        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, "image/jpeg");
-        await confirmUpload();
+        const mediaFile = await mediaUtil.getNormal(filePath);
+        const originalFile = await mediaUtil.processImage(mediaFile, "original");
+        const thumbnailFile = await mediaUtil.processImage(mediaFile, "thumb");
+        await uploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType);
+        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType);
+        await confirmUpload(uploadUrls);
         console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl);
         return {
           success: true,
@@ -361,75 +866,6 @@ const add_indexes = [
   "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
   "create index if not exists idx_applications_status on contact_applications(status);"
 ];
-class UrlUtil {
-  protocolHost = ["avatar", "picture", "voice", "video", "file"];
-  mimeByExt = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".gif": "image/gif"
-  };
-  nodeEnv = process.env.NODE_ENV || "production";
-  homeDir = os.homedir();
-  appPath = path.join(this.homeDir, this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou");
-  tempPath = path.join(this.appPath, "temp");
-  sqlPath = this.appPath;
-  atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || "";
-  instanceId = process.env.ELECTRON_INSTANCE_ID || "";
-  cacheRootPath = "";
-  cachePaths = {
-    avatar: "",
-    picture: "",
-    voice: "",
-    video: "",
-    file: ""
-  };
-  ensureDir(path2) {
-    if (!fs.existsSync(path2)) {
-      console.info("debug:ensureDir   ", path2);
-      fs.mkdirSync(path2, { recursive: true });
-    }
-  }
-  init() {
-    this.cacheRootPath = path.join(electron.app.getPath("userData"), "caching");
-    this.tempPath = path.join(electron.app.getPath("userData"), "temp");
-    this.protocolHost.forEach((host) => {
-      this.cachePaths[host] = path.join(this.cacheRootPath, host);
-      this.ensureDir(this.cachePaths[host]);
-    });
-  }
-  registerProtocol() {
-    electron.protocol.handle("tellyou", async (request) => {
-      try {
-        const url = new URL(request.url);
-        if (!this.protocolHost.includes(url.hostname)) return new Response("", { status: 403 });
-        const filePath = decodeURIComponent(url.searchParams.get("path") || "");
-        const normalized = path.resolve(filePath);
-        const ext = path.extname(normalized).toLowerCase();
-        const mime = this.mimeByExt[ext] || "application/octet-stream";
-        const data = await fs.promises.readFile(normalized);
-        return new Response(data, {
-          headers: { "content-type": mime, "Access-Control-Allow-Origin": "*" }
-        });
-      } catch (e) {
-        console.error("tellyou protocol error:", e);
-        return new Response("", { status: 500 });
-      }
-    });
-  }
-  redirectSqlPath(userId) {
-    this.sqlPath = path.join(this.appPath, "_" + userId);
-    console.info("数据库操作目录 " + this.sqlPath);
-    if (!fs.existsSync(this.sqlPath)) {
-      fs.mkdirSync(this.sqlPath, { recursive: true });
-    }
-  }
-  signByApp(path2) {
-    return `tellyou://avatar?path=${encodeURIComponent(path2)}`;
-  }
-}
-const urlUtil = new UrlUtil();
 const globalColumnMap = {};
 let dataBase;
 const redirectDataBase = () => {
@@ -1130,6 +1566,7 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.error(error);
     if (error.response) {
       const status = error.response.status;
       console.log("netMinIO AxiosError", error);
@@ -1276,6 +1713,8 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
   Api2["ACK_CONFIRM"] = "/message/ack-confirm";
   Api2["SEARCH_USER"] = "/user-info/search-by-uid";
+  Api2["GET_AVATAR_UPLOAD_URL"] = "/media/avatar/upload-url";
+  Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
   return Api2;
 })(Api || {});
 class ProxyService {
@@ -1462,451 +1901,6 @@ const initializeUserData = async (uid) => {
   await pullService.pullStrongTransactionData();
   await pullService.pullOfflineMessages();
 };
-const NON_COMPRESSIBLE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/zip",
-  "application/x-rar-compressed",
-  "application/x-7z-compressed",
-  "text/plain",
-  "application/json",
-  "application/xml"
-];
-const MOTION_IMAGE_TYPES = ["image/gif", "image/webp", "image/avif"];
-const IM_COMPRESSION_CONFIG = {
-  thumbnail: {
-    format: "avif",
-    maxSize: 300,
-    quality: 80,
-    crf: 35,
-    cpuUsed: 4
-  },
-  original: {
-    maxSize: 1920,
-    quality: 90,
-    progressive: true,
-    crf: 25,
-    cpuUsed: 2
-  }
-};
-class MediaUtil {
-  maxVideoSize = 1280;
-  thumbnailSize = 300;
-  previewSize = 800;
-  suffixMap = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/avif": ".avif",
-    "image/gif": ".gif"
-  };
-  mimeTypeMap = {
-    ".json": "application/json",
-    ".jpg": "image/jpg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".avif": "image/avif",
-    ".gif": "image/gif",
-    ".mp4": "video/mp4",
-    ".webm": "video/webm",
-    ".mpeg": "audio/mpeg",
-    ".wav": "audio/wav"
-  };
-  /**
-   * 检查文件是否需要压缩
-   */
-  needsCompression(mimeType) {
-    return !NON_COMPRESSIBLE_TYPES.includes(mimeType);
-  }
-  /**
-   * 检查是否为动图
-   */
-  isMotionImage(mimeType) {
-    return MOTION_IMAGE_TYPES.includes(mimeType);
-  }
-  /**
-   * 获取文件后缀
-   */
-  getSuffixByMimeType(mimeType) {
-    return this.suffixMap[mimeType] || ".jpg";
-  }
-  /**
-   * 获取上传格式
-   */
-  getMimeTypeBySuffix(suffix) {
-    return this.mimeTypeMap[suffix] || "application/octet-stream";
-  }
-  /**
-   * 获取标准参数
-   */
-  async getNormal(filePath) {
-    try {
-      const buffer = await fs.promises.readFile(filePath);
-      console.info(buffer.length);
-      return {
-        buffer,
-        size: buffer.length,
-        originalName: path.basename(filePath),
-        mimeType: this.getMimeTypeBySuffix(path.extname(filePath))
-      };
-    } catch (e) {
-      console.error("获取文件失败");
-      throw e;
-    }
-  }
-  async processImage(mediaFile, strategy) {
-    const { mimeType } = mediaFile;
-    if (this.isMotionImage(mimeType)) {
-      return this.processMotion(mediaFile, strategy);
-    } else {
-      if (strategy === "thumb") {
-        return this.processStaticThumbnail(mediaFile);
-      } else {
-        return this.processStaticOriginal(mediaFile);
-      }
-    }
-  }
-  /**
-   * 处理动图
-   */
-  async processMotion(mediaFile, strategy) {
-    const { buffer } = mediaFile;
-    try {
-      const tempInputPath = path.join(
-        urlUtil.tempPath,
-        `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`
-      );
-      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`);
-      console.info("临时目录", urlUtil.tempPath);
-      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
-      await fs.promises.writeFile(tempInputPath, buffer);
-      const currentConfig = strategy === "thumb" ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original;
-      const compressedBuffer = await new Promise((resolve, reject) => {
-        ffmpeg(tempInputPath).size(`${currentConfig.maxSize}x?`).outputOptions([
-          "-c:v libaom-av1",
-          "-b:v 0",
-          `-crf ${currentConfig.crf}`,
-          `-cpu-used 8`,
-          "-threads 0",
-          "-pix_fmt yuv420p",
-          "-movflags +faststart",
-          "-vsync cfr",
-          "-f avif"
-        ]).on("end", async () => {
-          try {
-            const compressedData = await fs.promises.readFile(tempOutputPath);
-            resolve(compressedData);
-          } catch (error) {
-            reject(error);
-          }
-        }).on("error", (err) => {
-          console.error("FFmpeg 错误详情:", err.message);
-          reject(err);
-        }).save(tempOutputPath);
-      });
-      await fs.promises.unlink(tempInputPath).catch(() => {
-      });
-      await fs.promises.unlink(tempOutputPath).catch(() => {
-      });
-      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
-      return {
-        compressedBuffer,
-        compressedSize: compressedBuffer.length,
-        compressionRatio,
-        newMimeType: "image/avif",
-        newSuffix: ".avif"
-      };
-    } catch (error) {
-      throw new Error(`动图缩略图转码失败: ${error.message}`);
-    }
-  }
-  /**
-   * 处理静态图片缩略图
-   */
-  async processStaticThumbnail(mediaFile) {
-    const { buffer } = mediaFile;
-    const config = IM_COMPRESSION_CONFIG.thumbnail;
-    try {
-      const sharpInstance = sharp(buffer);
-      const metadata = await sharpInstance.metadata();
-      const { width = 0, height = 0 } = metadata;
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
-      const compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "cover" }).avif({ quality: config.quality }).toBuffer();
-      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
-      return {
-        compressedBuffer,
-        compressedSize: compressedBuffer.length,
-        compressionRatio,
-        newMimeType: "image/avif",
-        newSuffix: ".avif"
-      };
-    } catch (error) {
-      throw new Error(`静态图片缩略图生成失败: ${error.message}`);
-    }
-  }
-  /**
-   * 处理静态图片原图
-   */
-  async processStaticOriginal(mediaFile) {
-    const { buffer, mimeType } = mediaFile;
-    const config = IM_COMPRESSION_CONFIG.original;
-    try {
-      const sharpInstance = sharp(buffer);
-      const metadata = await sharpInstance.metadata();
-      const { width = 0, height = 0 } = metadata;
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
-      let compressedBuffer;
-      let newMimeType = mimeType;
-      if (mimeType === "image/png") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).webp({ quality: config.quality }).toBuffer();
-        newMimeType = "image/webp";
-      } else if (mimeType === "image/jpeg") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
-      } else if (mimeType == "image/avif") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).avif({ quality: config.quality, progressive: config.progressive }).toBuffer();
-        newMimeType = "image/avif";
-      } else {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
-        newMimeType = "image/jpeg";
-      }
-      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
-      return {
-        compressedBuffer,
-        compressedSize: compressedBuffer.length,
-        compressionRatio,
-        newMimeType,
-        newSuffix: this.getSuffixByMimeType(newMimeType)
-      };
-    } catch (error) {
-      throw new Error(`静态图片原图处理失败: ${error.message}`);
-    }
-  }
-  /**
-   * 压缩视频
-   */
-  async compressVideo(mediaFile) {
-    const { buffer } = mediaFile;
-    try {
-      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp4`);
-      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp4`);
-      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
-      await fs.promises.writeFile(tempInputPath, buffer);
-      const compressedBuffer = await new Promise((resolve, reject) => {
-        ffmpeg(tempInputPath).size(`${this.maxVideoSize}x?`).videoBitrate("1000k").audioBitrate("128k").format("mp4").outputOptions([
-          "-c:v libx264",
-          // 使用更高效的 H.264 编码器
-          "-crf 23",
-          // 降低 CRF 值，提高压缩率
-          "-preset fast",
-          // 平衡速度和质量
-          "-threads 0",
-          "-movflags +faststart"
-        ]).on("end", async () => {
-          try {
-            const compressedData = await fs.promises.readFile(tempOutputPath);
-            resolve(compressedData);
-          } catch (error) {
-            reject(error);
-          }
-        }).on("error", reject).save(tempOutputPath);
-      });
-      await fs.promises.unlink(tempInputPath).catch(() => {
-      });
-      await fs.promises.unlink(tempOutputPath).catch(() => {
-      });
-      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
-      return {
-        compressedBuffer,
-        compressedSize: compressedBuffer.length,
-        compressionRatio,
-        newMimeType: "video/mp4",
-        newSuffix: ".mp4"
-      };
-    } catch (error) {
-      throw new Error(`视频压缩失败: ${error.message}`);
-    }
-  }
-  /**
-   * 压缩音频
-   */
-  async compressAudio(mediaFile) {
-    const { buffer } = mediaFile;
-    try {
-      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp3`);
-      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp3`);
-      await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
-      await fs.promises.writeFile(tempInputPath, buffer);
-      const compressedBuffer = await new Promise((resolve, reject) => {
-        ffmpeg(tempInputPath).audioBitrate("128k").format("mp3").on("end", async () => {
-          try {
-            const compressedData = await fs.promises.readFile(tempOutputPath);
-            resolve(compressedData);
-          } catch (error) {
-            reject(error);
-          }
-        }).on("error", reject).save(tempOutputPath);
-      });
-      await fs.promises.unlink(tempInputPath).catch(() => {
-      });
-      await fs.promises.unlink(tempOutputPath).catch(() => {
-      });
-      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
-      return {
-        compressedBuffer,
-        compressedSize: compressedBuffer.length,
-        compressionRatio,
-        newMimeType: "audio/mp3",
-        newSuffix: ".mp3"
-      };
-    } catch (error) {
-      throw new Error(`音频压缩失败: ${error.message}`);
-    }
-  }
-  /**
-   * 生成视频缩略图
-   */
-  async generateVideoThumbnail(mediaFile) {
-    const { buffer } = mediaFile;
-    try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
-      const tempThumbnailPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.jpg`);
-      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
-      await fs.promises.writeFile(tempVideoPath, buffer);
-      const snap = Math.floor(Math.random() * 100);
-      const thumbnailBuffer = await new Promise((resolve, reject) => {
-        ffmpeg(tempVideoPath).screenshots({
-          timestamps: [`${snap}%`],
-          filename: path.basename(tempThumbnailPath),
-          folder: path.dirname(tempThumbnailPath),
-          size: `${this.thumbnailSize}x?`
-        }).on("end", async () => {
-          try {
-            const thumbnailData = await fs.promises.readFile(tempThumbnailPath);
-            resolve(thumbnailData);
-          } catch (error) {
-            reject(error);
-          }
-        }).on("error", reject);
-      });
-      await fs.promises.unlink(tempVideoPath).catch(() => {
-      });
-      await fs.promises.unlink(tempThumbnailPath).catch(() => {
-      });
-      return {
-        thumbnailBuffer,
-        thumbnailSize: thumbnailBuffer.length,
-        dimensions: { width: this.thumbnailSize, height: this.thumbnailSize }
-      };
-    } catch (error) {
-      throw new Error(`视频缩略图生成失败: ${error.message}`);
-    }
-  }
-  /**
-   * 生成预览图
-   */
-  async generatePreview(mediaFile) {
-    const { mimeType } = mediaFile;
-    if (mimeType.startsWith("video/")) {
-      return this.generateVideoPreview(mediaFile);
-    } else {
-      throw new Error(`不支持的预览图类型: ${mimeType}`);
-    }
-  }
-  /**
-   * 生成视频预览图
-   */
-  async generateVideoPreview(mediaFile) {
-    const { buffer } = mediaFile;
-    try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
-      const tempPreviewPath = path.join(process.cwd(), "temp", `preview_${Date.now()}.jpg`);
-      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
-      await fs.promises.writeFile(tempVideoPath, buffer);
-      const snap = Math.floor(Math.random() * 100);
-      const previewBuffer = await new Promise((resolve, reject) => {
-        ffmpeg(tempVideoPath).screenshots({
-          timestamps: [`${snap}%`],
-          filename: path.basename(tempPreviewPath),
-          folder: path.dirname(tempPreviewPath),
-          size: `${this.previewSize}x?`
-        }).on("end", async () => {
-          try {
-            const previewData = await fs.promises.readFile(tempPreviewPath);
-            resolve(previewData);
-          } catch (error) {
-            reject(error);
-          }
-        }).on("error", reject);
-      });
-      await fs.promises.unlink(tempVideoPath).catch(() => {
-      });
-      await fs.promises.unlink(tempPreviewPath).catch(() => {
-      });
-      return {
-        thumbnailBuffer: previewBuffer,
-        thumbnailSize: previewBuffer.length,
-        dimensions: { width: this.previewSize, height: this.previewSize }
-      };
-    } catch (error) {
-      throw new Error(`视频预览图生成失败: ${error.message}`);
-    }
-  }
-  /**
-   * 获取视频信息
-   */
-  async getVideoInfo(mediaFile) {
-    const { buffer } = mediaFile;
-    try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
-      await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
-      await fs.promises.writeFile(tempVideoPath, buffer);
-      const videoInfo = await new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
-          if (!videoStream) {
-            reject(new Error("未找到视频流"));
-            return;
-          }
-          resolve({
-            duration: metadata.format.duration || 0,
-            width: videoStream.width || 0,
-            height: videoStream.height || 0,
-            bitrate: parseInt(String(metadata.format.bit_rate || "0")),
-            codec: videoStream.codec_name || "unknown"
-          });
-        });
-      });
-      await fs.promises.unlink(tempVideoPath).catch(() => {
-      });
-      return videoInfo;
-    } catch (error) {
-      throw new Error(`获取视频信息失败: ${error.message}`);
-    }
-  }
-  /**
-   * 计算压缩尺寸
-   */
-  calculateDimensions(originalWidth, originalHeight, maxSize) {
-    if (originalWidth <= maxSize && originalHeight <= maxSize) {
-      return { newWidth: originalWidth, newHeight: originalHeight };
-    }
-    const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
-    return {
-      newWidth: Math.round(originalWidth * ratio),
-      newHeight: Math.round(originalHeight * ratio)
-    };
-  }
-}
-const mediaUtil = new MediaUtil();
 const test = async () => {
   const inputPath = "D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg";
   const outPutPath = "D:/multi-media-material/compress/out12.jpg";
@@ -1977,28 +1971,22 @@ class DeviceService {
 const deviceService = new DeviceService();
 class AvatarCacheService {
   cacheMap = /* @__PURE__ */ new Map();
-  maxCacheSize = 100 * 1024 * 1024;
-  // 100MB
-  maxCacheAge = 7 * 24 * 60 * 60 * 1e3;
-  // 7 days
-  maxFiles = 1e3;
-  getJsonPath = (userId) => path.join(urlUtil.cachePaths["avatar"], userId, "index.json");
-  // {userData}/cache/avatar/{userId}/index.json
+  jsonLoadingMap = /* @__PURE__ */ new Map();
+  jsonMap = /* @__PURE__ */ new Map();
   beginServe() {
-    this.startCleanupTimer();
     electron.ipcMain.handle(
       "avatar:cache:seek-by-version",
       async (_, params) => {
         let item = this.cacheMap.get(params.userId);
         if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+          console.info("avatar:cache:seek-by-version 命中 主进程缓存");
           return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
         } else if (fs.existsSync(this.getJsonPath(params.userId))) {
           try {
-            item = JSON.parse(
-              fs.readFileSync(this.getJsonPath(params.userId), "utf-8")
-            );
-            console.info("avatar:cache:seek-by-version: ", item);
+            item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), "utf-8"));
+            console.info("avatar:cache:seek-by-version:比较版本 ", item, params);
             if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
+              console.info("avatar:cache:seek-by-version 命中 json 文件");
               this.cacheMap.set(params.userId, item);
               return {
                 success: true,
@@ -2009,10 +1997,8 @@ class AvatarCacheService {
             console.error(error);
           }
         }
-        console.info("debug:downloadJson:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
-        const result = await netMinIO.downloadJson(
-          [urlUtil.atomPath, params.userId + ".json"].join("/")
-        );
+        console.info("debug:downloadJson:下载元信息:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
+        const result = await this.getMetaJson(params.userId);
         return { success: false, pathResult: result[params.strategy] };
       }
     );
@@ -2027,32 +2013,34 @@ class AvatarCacheService {
       }
     });
   }
-  checkVersion(item, strategy, version) {
-    return item[strategy] && item[strategy].version >= version;
-  }
-  extractVersionFromUrl(url) {
-    return new URL(url).pathname.split("/").at(-2) || "";
-  }
-  extractObjectFromUrl(url) {
-    return new URL(url).pathname.split("/").at(-1) || "";
-  }
-  saveItem(userId, cacheItem) {
-    try {
-      fs.writeFileSync(this.getJsonPath(userId), JSON.stringify(cacheItem, null, 2));
-    } catch (error) {
-      log.error("Failed to save cache index:", error);
+  async getMetaJson(userId) {
+    const cached = this.jsonMap.get(userId);
+    if (cached) {
+      console.info("avatar-cache:get-meta-json:命中jsonMap", cached);
+      return cached;
     }
+    const inflight = this.jsonLoadingMap.get(userId);
+    if (inflight) {
+      console.info("avatar-cache:get-meta-json:命中jsonLoadingMap", inflight);
+      return inflight;
+    }
+    const promise = netMinIO.downloadJson([urlUtil.atomPath, userId + ".json"].join("/")).then((result) => {
+      this.jsonMap.set(userId, result);
+      this.jsonLoadingMap.delete(userId);
+      setTimeout(() => this.jsonMap.delete(userId), 8e3);
+      return result;
+    }).catch((e) => {
+      this.jsonLoadingMap.delete(userId);
+      throw e;
+    });
+    this.jsonLoadingMap.set(userId, promise);
+    return promise;
   }
   async getAvatarPath(userId, strategy, avatarUrl) {
     try {
-      const filePath = path.join(
-        urlUtil.cachePaths["avatar"],
-        userId,
-        strategy,
-        this.extractObjectFromUrl(avatarUrl)
-      );
+      const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
       urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
-      console.info("debug:downloadAvatar:  ", [userId, avatarUrl, filePath].join(" !!! "));
+      console.info("debug:downloadAvatar:准备下载头像:  ", [userId, avatarUrl, filePath].join("-"));
       const success = await this.downloadAvatar(avatarUrl, filePath);
       if (success) {
         this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath);
@@ -2080,26 +2068,43 @@ class AvatarCacheService {
   }
   updateCacheIndex(userId, strategy, version, filePath) {
     let item = this.cacheMap.get(userId);
-    if (item) {
-      item[strategy] = { version, localPath: filePath };
-    } else {
-      item = {
-        [strategy]: { version, localPath: filePath }
-      };
+    if (!item) {
+      const jsonPath = this.getJsonPath(userId);
+      if (fs.existsSync(jsonPath)) {
+        try {
+          item = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+        } catch {
+          item = {};
+        }
+      } else {
+        item = {};
+      }
     }
+    item[strategy] = { version, localPath: filePath };
     this.cacheMap.set(userId, item);
     this.saveItem(userId, item);
   }
-  cleanupOldCache() {
+  checkVersion(item, strategy, version) {
+    return item[strategy] && Number.parseInt(item[strategy].version) >= Number.parseInt(version);
   }
-  startCleanupTimer() {
-    setInterval(
-      () => {
-        this.cleanupOldCache();
-      },
-      60 * 60 * 1e3
-    );
+  extractVersionFromUrl(url) {
+    return new URL(url).pathname.split("/").at(-2) || "";
   }
+  extractObjectFromUrl(url) {
+    return new URL(url).pathname.split("/").at(-1) || "";
+  }
+  saveItem(userId, cacheItem) {
+    try {
+      const jsonPath = this.getJsonPath(userId);
+      const tmpPath = jsonPath + ".tmp";
+      fs.writeFileSync(tmpPath, JSON.stringify(cacheItem, null, 2));
+      fs.renameSync(tmpPath, jsonPath);
+    } catch (error) {
+      log.error("Failed to save cache index:", error);
+    }
+  }
+  getJsonPath = (userId) => path.join(urlUtil.cachePaths["avatar"], userId, "index.json");
+  // {userData}/cache/avatar/{userId}/index.json
 }
 const avatarCacheService = new AvatarCacheService();
 const Store = __Store.default || __Store;
@@ -2222,6 +2227,9 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 };
+exports.Api = Api;
 exports.netMaster = netMaster;
 exports.netMinIO = netMinIO;
 exports.store = store;
+exports.uidKey = uidKey;
+exports.urlUtil = urlUtil;

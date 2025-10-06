@@ -25,8 +25,6 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const uploading = ref(false)
-
-// 从 userStore 获取头像 URL
 const previewUrl = computed(() => userStore.avatarUrl || '')
 
 const onPick = async (): Promise<void> => {

@@ -18,7 +18,7 @@ class UrlUtil {
   public appPath = join(this.homeDir, this.nodeEnv === 'development' ? '.tellyoudev' : '.tellyou')
   public tempPath: string = join(this.appPath, 'temp')
   public sqlPath = this.appPath
-  public atomPath = process.env.VITE_REQUEST_OBJECT_ATOM || ''
+  public atomPath = import.meta.env.VITE_REQUEST_OBJECT_ATOM || ''
   public instanceId = (process.env.ELECTRON_INSTANCE_ID as string) || ''
 
   public cacheRootPath = ''
@@ -84,6 +84,9 @@ class UrlUtil {
   public signByApp(path: string): string {
     return `tellyou://avatar?path=${encodeURIComponent(path)}`
   }
+  public extractObjectName(url: string): string {
+    return new URL(url).pathname.split('/').slice(2).join('/')
+  }  // /lanye/avatar/original/1948031012053333361/6/index.png -> avatar/original/1948031012053333361/6/index.png
 }
 
 const urlUtil: UrlUtil = new UrlUtil()

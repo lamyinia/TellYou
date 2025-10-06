@@ -1,19 +1,9 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const index = require("./index.js");
-const getApiConfig = () => {
-  const baseUrl = "http://localhost:8081";
-  return { baseUrl };
-};
 const getUploadUrl = async (fileSize, fileSuffix) => {
-  const { baseUrl } = getApiConfig();
-  const response = await index.netMaster.get(`${baseUrl}/media/avatar/upload-url`, {
-    params: {
-      fileSize,
-      fileSuffix
-    }
-  });
-  return response.data;
+  const response = await index.netMaster.post(index.Api.GET_AVATAR_UPLOAD_URL, { fileSize, fileSuffix });
+  return response.data.data;
 };
 const uploadFile = async (uploadUrl, fileBuffer, mimeType) => {
   console.log("上传URL:", uploadUrl);
@@ -25,15 +15,13 @@ const uploadFile = async (uploadUrl, fileBuffer, mimeType) => {
     throw new Error(`无效的上传URL: ${uploadUrl}`);
   }
   try {
-    const response = await index.netMinIO.getAxiosInstance().put(uploadUrl, fileBuffer, {
-      headers: {
-        "Content-Type": mimeType
-      }
-    });
-    console.log("上传响应状态码:", response.status);
-    console.log("上传响应头:", response.headers);
+    const response = await index.netMinIO.getAxiosInstance().put(
+      uploadUrl,
+      fileBuffer,
+      { headers: { "Content-Type": mimeType, "Content-Length": fileBuffer.length.toString(), "Connection": "close" } }
+    );
+    console.log("上传响应:", response);
     if (response.status >= 200 && response.status < 300) {
-      console.log("上传成功");
       return;
     } else {
       throw new Error(`上传失败，状态码: ${response.status}`);
@@ -43,9 +31,12 @@ const uploadFile = async (uploadUrl, fileBuffer, mimeType) => {
     throw error;
   }
 };
-const confirmUpload = async () => {
-  const { baseUrl } = getApiConfig();
-  await index.netMaster.post(`${baseUrl}/media/avatar/upload-confirm`);
+const confirmUpload = async (uploadUrls) => {
+  await index.netMaster.post(index.Api.CONFIRM_UPLOAD, {
+    fromId: index.store.get(index.uidKey),
+    originalUploadUrl: index.urlUtil.extractObjectName(uploadUrls.originalUploadUrl),
+    thumbnailUploadUrl: index.urlUtil.extractObjectName(uploadUrls.thumbnailUploadUrl)
+  });
 };
 exports.confirmUpload = confirmUpload;
 exports.getUploadUrl = getUploadUrl;

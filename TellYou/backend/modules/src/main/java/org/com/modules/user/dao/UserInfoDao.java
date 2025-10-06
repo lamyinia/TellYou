@@ -6,6 +6,7 @@ import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.resp.SearchByUidResp;
 import org.com.modules.user.mapper.UserInfoMapper;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,11 @@ public class UserInfoDao extends ServiceImpl<UserInfoMapper, UserInfo> {
                 .select(UserInfo::getIdentifier)
                 .one();
         return one != null ? one.getIdentifier() : null;
+    }
+
+    @CacheEvict(value = "identifierCache", key = "#id")
+    public void evictIdentifierCache(Long id) {
+        // 空方法，仅用于触发缓存清除
     }
 
     public SearchByUidResp getBaseInfo(Long uid){

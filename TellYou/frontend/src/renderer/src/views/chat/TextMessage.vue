@@ -7,6 +7,7 @@ import Avatar from '@renderer/components/Avatar.vue'
 const props = defineProps<{ message: ChatMessage }>()
 const userStore = useUserStore()
 const isSelf = computed(() => props.message.senderId === userStore.myId)
+const showStrategy = 'thumbedAvatarUrl'
 </script>
 
 <template>
@@ -15,7 +16,8 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
       <Avatar
         :version="props.message.avatarVersion"
         :name="props.message.senderName"
-        :userId="props.message.senderId"
+        :user-id="props.message.senderId"
+        :show-strategy="showStrategy"
         side="left"
       />
       <div class="bubble left">{{ props.message.content }}</div>
@@ -25,7 +27,8 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
       <Avatar
         :version="props.message.avatarVersion"
         :name="props.message.senderName"
-        :userId="props.message.senderId"
+        :user-id="props.message.senderId"
+        :show-strategy="showStrategy"
         side="right"
       />
     </template>

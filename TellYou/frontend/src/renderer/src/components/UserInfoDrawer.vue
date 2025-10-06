@@ -5,45 +5,31 @@ import { axio } from '../utils/request'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
 const props = withDefaults(
-  defineProps<{
-    modelValue?: boolean
-    uid?: string
-    name?: string
-    avatarUrl?: string
-    signature?: string
-  }>(),
+  defineProps<{ modelValue?: boolean, uid?: string, name?: string, avatarUrl?: string, signature?: string }>(),
   { modelValue: false }
 )
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'logout'): void
-  (
-    e: 'save',
-    payload: { uid?: string; name?: string; avatarFile?: File | null; signature?: string }
-  ): void
 }>()
 
 const userStore = useUserStore()
 
 const open = ref(false)
-watch(
-  () => props.modelValue,
+watch(() => props.modelValue,
   (v) => (open.value = v),
   { immediate: true }
 )
 
-// 使用 userStore 的数据，但允许本地编辑
 const localName = ref(userStore.nickname || '')
 const localSignature = ref(userStore.signature || '')
 let avatarFile: File | null = null
 
-// 获取剩余次数
 const nicknameResidue = computed(() => userStore.nicknameResidue || 0)
 const signatureResidue = computed(() => userStore.signatureResidue || 0)
 const avatarResidue = computed(() => userStore.avatarResidue || 0)
 
-// 监听 userStore 变化，同步到本地编辑状态
 watch(
   () => userStore.nickname,
   (newVal) => {
@@ -73,8 +59,7 @@ const signatureSaved = ref(false)
 const errorMessage = ref('')
 const showError = ref(false)
 const showUnsavedDialog = ref(false)
-const close = (): void => {
-  // 检查是否有未保存的更改
+const close = (): void => {  // 检查是否有未保存的更改
   const hasUnsavedChanges =
     (localName.value.trim() !== userStore.nickname && localName.value.trim()) ||
     localSignature.value.trim() !== userStore.signature
@@ -83,19 +68,15 @@ const close = (): void => {
     showUnsavedDialog.value = true
     return
   }
-
   emit('update:modelValue', false)
 }
-
 const confirmClose = (): void => {
   showUnsavedDialog.value = false
   emit('update:modelValue', false)
 }
-
 const cancelClose = (): void => {
   showUnsavedDialog.value = false
 }
-
 const showErrorMessage = (message: string): void => {
   errorMessage.value = message
   showError.value = true
@@ -122,11 +103,10 @@ const saveAvatar = async (): Promise<void> => {
       fileSuffix: '.' + avatarFile.name.split('.').pop()?.toLowerCase()
     })
     if (result.success) {
-      const uploadResult = result as { success: boolean; avatarUrl?: string }
-      if (uploadResult.avatarUrl) {
-        console.log('头像更新', uploadResult.avatarUrl)
-        await userStore.updateUserField('avatarUrl', uploadResult.avatarUrl)
-      }
+      const uploadResult = result as { success: boolean; avatarUrl: string }
+
+      console.log('头像更新', uploadResult.avatarUrl)
+      await userStore.updateUserField('avatarUrl', uploadResult.avatarUrl)
       await userStore.updateUserField('avatarResidue', avatarResidue.value - 1)
 
       avatarSaved.value = true
@@ -156,8 +136,7 @@ const saveName = async (): Promise<void> => {
     // 更新 userStore
     await userStore.updateUserField('nickname', localName.value.trim())
     await userStore.updateUserField('nicknameResidue', nicknameResidue.value - 1)
-    // 通知父组件
-    emit('save', { name: localName.value.trim() })
+
     nameSaved.value = true
     setTimeout(() => {
       nameSaved.value = false
@@ -177,12 +156,11 @@ const saveSignature = async (): Promise<void> => {
   }
   savingSignature.value = true
   try {
+
     await updateUserInfo({ signature: localSignature.value.trim() })
-    // 更新 userStore
     await userStore.updateUserField('signature', localSignature.value.trim())
     await userStore.updateUserField('signatureResidue', signatureResidue.value - 1)
-    // 通知父组件
-    emit('save', { signature: localSignature.value.trim() })
+
     signatureSaved.value = true
     setTimeout(() => {
       signatureSaved.value = false
@@ -313,13 +291,9 @@ const onLogout = (): void => emit('logout')
     <div class="actions">
       <v-btn color="error" variant="tonal" @click="onLogout">退出登录</v-btn>
     </div>
-
-    <!-- 错误提示 -->
     <v-snackbar v-model="showError" :timeout="3000" color="error" location="top">
       {{ errorMessage }}
     </v-snackbar>
-
-    <!-- 未保存更改确认对话框 -->
     <v-dialog v-model="showUnsavedDialog" max-width="400">
       <v-card>
         <v-card-title>未保存的更改</v-card-title>

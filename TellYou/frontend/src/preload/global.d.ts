@@ -83,6 +83,7 @@ declare global {
     readonly VITE_BASE_URL
     readonly VITE_REQUEST_URL
     readonly VITE_REQUEST_WS_URL
+    readonly VITE_REQUEST_OBJECT_ATOM
   }
 
   interface ImportMeta {

@@ -8,7 +8,9 @@ export enum Api {
   REGISTER = '/user-account/register',
   PULL_MAILBOX = '/message/pull-mailbox',
   ACK_CONFIRM = '/message/ack-confirm',
-  SEARCH_USER = '/user-info/search-by-uid'
+  SEARCH_USER = '/user-info/search-by-uid',
+  GET_AVATAR_UPLOAD_URL = '/media/avatar/upload-url',
+  CONFIRM_UPLOAD = '/media/avatar/upload-confirm'
 }
 
 class ProxyService {

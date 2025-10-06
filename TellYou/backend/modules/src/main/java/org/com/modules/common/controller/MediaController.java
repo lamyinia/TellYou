@@ -20,7 +20,7 @@ public class MediaController {
     private final MediaService mediaService;
     private final UserInfoService userInfoService;
 
-    @GetMapping("/avatar/upload-url")
+    @PostMapping("/avatar/upload-url")
     @Operation(summary = "获取头像上传预签名URL")
     public ApiResult<AvatarUploadResp> getAvatarUploadUrl(@Valid @RequestBody AvatarUploadReq req){
         return ApiResult.success(mediaService.getAvatarUploadResp(req));

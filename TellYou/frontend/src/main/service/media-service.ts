@@ -5,6 +5,7 @@ import axios from 'axios'
 import log from 'electron-log'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
+import { mediaUtil } from '@main/util/media-util'
 
 export enum MediaTaskStatus {
   PENDING = 'pending',
@@ -54,23 +55,6 @@ const getMimeType = (ext: string): string => {
     '.webp': 'image/webp'
   }
   return mimeTypes[ext] || 'application/octet-stream'
-}
-const generateThumbnail = async (filePath: string): Promise<Buffer> => {
-  try {
-    const sharp = await import('sharp')
-    const thumbnailBuffer = await sharp
-      .default(filePath)
-      .resize(200, 200, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .jpeg({ quality: 80 })
-      .toBuffer()
-    return thumbnailBuffer
-  } catch (error) {
-    console.error('生成缩略图失败:', error)
-    return await fs.promises.readFile(filePath)
-  }
 }
 
 class MediaTaskService {
@@ -164,11 +148,12 @@ class MediaTaskService {
         const { getUploadUrl, uploadFile, confirmUpload } = await import('./avatar-upload-service')
         console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
         const uploadUrls = await getUploadUrl(fileSize, fileSuffix)
-        const originalFileBuffer = await fs.promises.readFile(filePath)
-        const thumbnailBuffer = await generateThumbnail(filePath)
-        await uploadFile(uploadUrls.originalUploadUrl, originalFileBuffer, getMimeType(fileSuffix))
-        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailBuffer, 'image/jpeg')
-        await confirmUpload()
+        const mediaFile = await mediaUtil.getNormal(filePath)
+        const originalFile = await mediaUtil.processImage(mediaFile, 'original')
+        const thumbnailFile = await mediaUtil.processImage(mediaFile, 'thumb')
+        await uploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType)
+        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType)
+        await confirmUpload(uploadUrls)
         console.log('确认上传完成头像URL:', uploadUrls.originalUploadUrl)
         return {
           success: true,

@@ -120,18 +120,15 @@ export const useMessageStore = defineStore('message', () => {
   const loadOlderMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingOlder.value) return false
     const pageInfo = pageInfoCache[String(sessionId)]
-    console.log('pageInfo:', pageInfo)
     if (!pageInfo?.hasMore) return false
 
-    console.log('缓存消息', pageInfo)
+    console.log('messageStore:缓存消息', pageInfo)
 
     isLoadingOlder.value = true
     try {
-      const result = (await window.electronAPI.requestMessages(sessionId, {
-        limit: config.pageSize,
-        beforeId: pageInfo.oldestMessageId,
-        direction: 'older'
-      })) as unknown as MessagesResponse
+      const result = (await window.electronAPI.requestMessages(sessionId,
+        { limit: config.pageSize, beforeId: pageInfo.oldestMessageId, direction: 'older' })) as unknown as MessagesResponse
+      console.log('messageStore:查到消息: ', result)
       if (result.messages.length > 0) {
         const currentMessages = messageCache[String(sessionId)] || []
         const newMessages = [...currentMessages, ...result.messages]
@@ -145,6 +142,8 @@ export const useMessageStore = defineStore('message', () => {
           oldestMessageId: newMessages[newMessages.length - 1]?.id || null
         }
         return true
+      } else {
+        pageInfoCache[String(sessionId)].hasMore = false
       }
       return false
     } catch (error) {
@@ -210,12 +209,7 @@ export const useMessageStore = defineStore('message', () => {
     )
   }
 
-  const checkPreload = async (
-    sessionId: string | number,
-    scrollTop: number,
-    scrollHeight: number,
-    clientHeight: number
-  ): void => {
+  const checkPreload = async (sessionId: string | number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {
     const pageInfo = pageInfoCache[String(sessionId)]
     if (!pageInfo) return
     if (pageInfo.hasMore && scrollTop < config.preloadThreshold) {

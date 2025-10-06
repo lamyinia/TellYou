@@ -189,6 +189,7 @@ public class UserInfoServiceImpl implements UserInfoService {
                     .set(UserInfo::getResidues, residuesJson)
                     .set(UserInfo::getAvatar, minioTemplate.getHost() + req.getOriginalUploadUrl())
                     .update();
+            userInfoDao.evictIdentifierCache(uid);
             uploadFileService.writeAtomJson(String.valueOf(uid), atomFile);
 
             log.info("用户 {} 头像版本号已更新: {} -> {}", uid, currentAvatarVersion, currentAvatarVersion + 1);

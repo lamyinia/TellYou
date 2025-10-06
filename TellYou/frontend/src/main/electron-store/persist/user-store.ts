@@ -117,6 +117,7 @@ export const useUserStore = defineStore('user', {
       if (keyMap[field]) {
         await window.electronAPI.storeSet(keyMap[field], value)
         ;(this as Record<string, string | number>)[field] = value
+        console.log('keyMap', this.avatarUrl)
       }
     },
     async clearUserData() {

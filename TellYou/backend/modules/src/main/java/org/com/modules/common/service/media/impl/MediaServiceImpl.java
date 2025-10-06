@@ -51,7 +51,7 @@ public class MediaServiceImpl implements MediaService {
     }
 
     public String getOriginalAvatarSuffix(String suffix){
-        if (ArrayUtil.contains(needCompressedSuffix, suffix)) return ".avif";
+        if (ArrayUtil.contains(needCompressedSuffix, suffix)) return ".avif";  // 就算是原图，动图也需要压缩
         else return suffix;
     }
     public String getThumbedAvatarSuffix(){

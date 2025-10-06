@@ -27,11 +27,11 @@ onMounted(() => {
     <div class="chat-container">
       <div class="main-content">
         <div class="chat-panel-wrap">
-          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
+<!--          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>-->
           <ChatPanel :current-contact="selectedContact" />
         </div>
         <div class="contact-list-wrap">
-          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>
+<!--          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>-->
           <ContactList @contact-selected="handleContactSelected" />
         </div>
       </div>

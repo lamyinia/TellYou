@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 
 interface AvatarCacheItem {
   version: string
@@ -21,7 +21,8 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const getCacheKey = (userId: string, strategy: string): string => userId + '_' + strategy
   // 例子 http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/6/index.png?hash=3，这里返回 6
-  const extractVersionFromUrl = (url: string): string => new URL(url).pathname.split('/').at(-2) || '0'
+  const extractVersionFromUrl = (url: string): string =>
+    new URL(url).pathname.split('/').at(-2) || '0'
 
   const cleanupMemoryCache = (): void => {
     if (memoryCache.size <= maxMemoryCache) return
@@ -36,18 +37,16 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const seekCache = async (userId: string, strategy: string, version: string): Promise<{ needUpdated: boolean; pathResult: string }> => {
     const item = memoryCache.get(getCacheKey(userId, strategy))
-
-    console.info('debug:seekCache:   ', [userId, strategy, version].join('---'))
-
-    if (item && item.localPath && item.version >= version) {
+    // console.info('debug:seekCache:   ', [userId, strategy, version].join('---'))
+    if (item && item.localPath && Number.parseInt(item.version) >= Number.parseInt(version)) {
       // 渲染进程缓存命中
-      console.info('debug:seekCache:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
+      // console.info('avatarStore:seekCache:渲染进程缓存命中   ', item, [userId, strategy, version].join(','))
       return { needUpdated: false, pathResult: item.localPath }
     }
     const resp = await window.electronAPI.invoke('avatar:cache:seek-by-version', { userId, strategy, version })
     if (resp.success) {
       // 主进程缓存命中
-      console.info('debug:seekCache:主进程缓存命中   ', resp)
+      // console.info('avatarStore:seekCache:主进程缓存命中 ', resp)
       memoryCache.set(getCacheKey(userId, strategy), {
         version: version,
         localPath: resp.pathResult,
@@ -65,21 +64,24 @@ export const useAvatarStore = defineStore('avatar', () => {
     const version = extractVersionFromUrl(avatarUrl)
     const cached = memoryCache.get(key)
 
-    if (cached && cached.localPath && cached.version >= version) {
-      console.info('debug:getAvatar:渲染进程缓存命中   ', [userId, strategy, version].join('---'))
-      cached.lastAccessed = Date.now()
+    if (cached && cached.localPath && Number.parseInt(cached.version) >= Number.parseInt(version)) {
+      // console.info('avatarStore:getAvatar:渲染进程缓存命中   ', cached)
+      // cached.lastAccessed = Date.now()
       return cached.localPath
     }
     if (cached?.loading) {
-      console.info('debug:getAvatar:正在加载，等待其它任务完成')
+      // console.info('debug:getAvatar:正在加载，等待其它任务完成')
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           const current = memoryCache.get(key)
           if (current && !current.loading) {
+            console.log('avatarStore:getAvatar:loading:命中 ', current.localPath)
             clearInterval(checkInterval)
             resolve(current.localPath)
+          } else {
+            console.log('avatarStore:getAvatar:loading:未命中')
           }
-        }, 50)
+        }, 200)
       })
     }
 
@@ -94,9 +96,10 @@ export const useAvatarStore = defineStore('avatar', () => {
 
     try {
       const localPath = await window.electronAPI.getAvatar({ userId, strategy, avatarUrl })
+      // console.log('获取localPath成功:', localPath)
       if (localPath) {
         cacheItem.localPath = localPath
-        cacheItem.error = null
+        await nextTick()
         return localPath
       } else {
         cacheItem.error = 'Download failed'

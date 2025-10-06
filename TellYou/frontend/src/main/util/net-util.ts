@@ -109,6 +109,7 @@ axiosInstance.interceptors.response.use(
     return response
   },
   (error: AxiosError) => {
+    console.error(error)
     if (error.response) {
       const status = error.response.status
       console.log('netMinIO AxiosError', error)

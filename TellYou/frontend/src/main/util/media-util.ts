@@ -50,14 +50,14 @@ const IM_COMPRESSION_CONFIG = {
     format: 'avif',
     maxSize: 300,
     quality: 80,
-    crf: 35,
+    crf: 63,
     cpuUsed: 4
   },
   original: {
     maxSize: 1920,
     quality: 90,
     progressive: true,
-    crf: 25,
+    crf: 50,
     cpuUsed: 2
   }
 }
@@ -124,7 +124,6 @@ class MediaUtil {
   public async getNormal(filePath: string): Promise<MediaFile> {
     try {
       const buffer: Buffer = await fs.readFile(filePath)
-      console.info(buffer.length)
       return {
         buffer: buffer,
         size: buffer.length,
@@ -137,12 +136,8 @@ class MediaUtil {
     }
   }
 
-  async processImage(
-    mediaFile: MediaFile,
-    strategy: 'thumb' | 'original'
-  ): Promise<CompressionResult> {
+  async processImage(mediaFile: MediaFile, strategy: 'thumb' | 'original'): Promise<CompressionResult> {
     const { mimeType } = mediaFile
-
     if (this.isMotionImage(mimeType)) {
       return this.processMotion(mediaFile, strategy)
     } else {
@@ -157,10 +152,7 @@ class MediaUtil {
   /**
    * 处理动图
    */
-  async processMotion(
-    mediaFile: MediaFile,
-    strategy: 'thumb' | 'original'
-  ): Promise<CompressionResult> {
+  async processMotion(mediaFile: MediaFile, strategy: 'thumb' | 'original'): Promise<CompressionResult> {
     const { buffer } = mediaFile
     try {
       const tempInputPath = path.join(
@@ -283,7 +275,7 @@ class MediaUtil {
       } else if (mimeType == 'image/avif') {
         compressedBuffer = await sharpInstance
           .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-          .avif({ quality: config.quality, progressive: config.progressive })
+          .avif({ quality: config.quality})
           .toBuffer()
         newMimeType = 'image/avif'
       } else {
@@ -557,11 +549,7 @@ class MediaUtil {
   /**
    * 计算压缩尺寸
    */
-  private calculateDimensions(
-    originalWidth: number,
-    originalHeight: number,
-    maxSize: number
-  ): { newWidth: number; newHeight: number } {
+  private calculateDimensions(originalWidth: number, originalHeight: number, maxSize: number): { newWidth: number; newHeight: number } {
     if (originalWidth <= maxSize && originalHeight <= maxSize) {
       return { newWidth: originalWidth, newHeight: originalHeight }
     }
