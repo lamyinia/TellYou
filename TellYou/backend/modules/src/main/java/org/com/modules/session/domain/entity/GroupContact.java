@@ -4,11 +4,15 @@ package org.com.modules.session.domain.entity;
 import java.util.Date;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Schema(description = "群关系实体类")
 public class GroupContact {
     @Schema(description = "成员id")
@@ -28,6 +32,9 @@ public class GroupContact {
 
     @Schema(description = "最后活跃时间")
     private Date lastActive;
+
+    @Schema(description = "0 = 好友, 1 = 删除或者黑名单")
+    private Integer isDeleted;
 
     @Schema(description = "第几次进入群聊")
     private Integer contactVersion;

@@ -117,7 +117,6 @@ class AvatarCacheService {
     }
   }
   private updateCacheIndex(userId: string, strategy: string, version: string, filePath: string): void {
-    // 读取磁盘并与内存合并，避免覆盖其他 strategy
     let item = this.cacheMap.get(userId)
     if (!item) {
       const jsonPath = this.getJsonPath(userId)

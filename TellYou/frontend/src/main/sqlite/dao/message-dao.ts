@@ -1,18 +1,5 @@
 import { insertOrIgnore, queryAll } from '../atom'
-import { rawMessageToBeInserted } from '@main/sqlite/adapter'
 
-export type rawMessage = {
-  sessionId: string
-  sequenceId: string | number
-  senderId: string
-  messageId: string
-  senderName?: string
-  msgType: number
-  text?: string
-  extData?: string
-  sendTime: string
-  isRead?: number
-}
 type MessageQueryOptions = {
   limit?: number
   direction?: 'newest' | 'older' | 'newer'
@@ -33,8 +20,8 @@ type MessageRow = {
   isRead: number
 }
 class MessageDao {
-  public async addLocalMessage(data: rawMessage): Promise<number> {
-    const changes = await insertOrIgnore('messages', rawMessageToBeInserted(data))
+  public async addLocalMessage(data: any): Promise<number> {
+    const changes = await insertOrIgnore('messages', data)
     if (!changes) return 0
     const rows = (await queryAll(
       'SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1',
@@ -42,10 +29,8 @@ class MessageDao {
     )) as Array<{ id: number }>
     return rows[0].id
   }
-  public async getMessageBySessionId(
-    sessionId: string,
-    options: MessageQueryOptions
-  ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
+  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions):
+    Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
       const limit = Number(options?.limit) || 50
       const direction: 'newest' | 'older' | 'newer' = options?.direction || 'newest'

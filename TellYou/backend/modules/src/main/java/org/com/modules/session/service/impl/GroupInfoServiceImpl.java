@@ -12,10 +12,15 @@ import org.com.modules.session.dao.SessionDao;
 import org.com.modules.session.domain.entity.GroupInfo;
 import org.com.modules.session.domain.enums.GroupRoleEnum;
 import org.com.modules.session.domain.vo.req.*;
+import org.com.modules.session.domain.vo.resp.SimpleGroupInfo;
+import org.com.modules.session.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.session.service.GroupInfoService;
+import org.com.modules.user.domain.vo.req.BaseInfoReq;
 import org.com.tools.utils.AssertUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * 群组管理的服务
@@ -77,5 +82,11 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     @Override
     public void banChat(BanChatReq req) {
         groupInfoDao.metaChatMode(req.getGroupId(), req.getChatMode());
+    }
+
+    @Override
+    public SimpleGroupInfoList getBaseInfoList(List<Long> groupIds) {
+        List<SimpleGroupInfo> resp = groupInfoDao.getBaseInfoList(groupIds);
+        return new SimpleGroupInfoList(resp);
     }
 }

@@ -7,7 +7,6 @@ import lombok.Data;
 
 @Data
 public class Message {
-
     @Schema(description="会话id")
     private Long sessionId;
 

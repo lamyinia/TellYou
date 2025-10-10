@@ -4,11 +4,15 @@ package org.com.modules.user.domain.entity;
 import java.util.Date;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class FriendContact {
     @Schema(description = "用户id")
     private Long userId;

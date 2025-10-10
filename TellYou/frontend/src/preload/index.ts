@@ -28,7 +28,6 @@ if (process.contextIsolated) {
       getSessionsWithOrder: () => ipcRenderer.invoke('get-sessions-with-order'),
       updateSessionLastMessage: (sessionId: number, content: string, time: Date) =>
         ipcRenderer.invoke('update-session-last-message', sessionId, content, time),
-      toggleSessionPin: (sessionId: number) => ipcRenderer.invoke('toggle-session-pin', sessionId),
       addSession: (session: Session) => ipcRenderer.invoke('add-session', session),
       requestMessages: (sessionId: number, obj: object) =>
         ipcRenderer.invoke('message:get-by-sessionId', sessionId, obj),

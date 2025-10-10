@@ -32,7 +32,7 @@ public class NettyStarter implements Runnable {
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
     private EventLoopGroup workerGroup = new NioEventLoopGroup();
     private final NettyProperties nettyProperties;
-    private final BaseHandler baseHandler;
+    private final BaseHandler businessHandler;
     private final JwtUtil jwtUtil;
 
     @PreDestroy
@@ -56,7 +56,7 @@ public class NettyStarter implements Runnable {
                         pipeline.addLast(new JwtAuthHandler(jwtUtil));
                         pipeline.addLast(new IdleStateHandler(90, 0, 0));
                         pipeline.addLast(new WebSocketServerProtocolHandler("/ws", null, true, 64 * 1024, true, true, 10000L));
-                        pipeline.addLast(baseHandler);
+                        pipeline.addLast(businessHandler);
                     }
                 });
         try {

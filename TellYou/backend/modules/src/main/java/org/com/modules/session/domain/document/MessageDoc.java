@@ -14,12 +14,12 @@ import java.util.Map;
 
 /**
  * 消息内容实体 - 信箱机制的核心消息存储
- * 
+ *
  * 设计原则：
  * 1. 消息内容与用户信箱分离，一条消息内容可被多个用户信箱引用
  * 2. 支持消息的时序性、幂等性、状态管理
  * 3. 优化存储空间，避免重复存储相同消息内容
- * 
+ *
  * @author lanye
  * @date 2025/07/27
  */
@@ -36,7 +36,6 @@ import java.util.Map;
 public class MessageDoc {
     @Id
     private String messageId;
-    
     /** 会话ID */
     @Indexed
     @Field("session_id")

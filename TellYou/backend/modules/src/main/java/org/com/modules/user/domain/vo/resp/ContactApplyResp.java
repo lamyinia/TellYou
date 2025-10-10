@@ -22,7 +22,7 @@ public class ContactApplyResp {
     @Schema(description = "投递 id")
     private Long deliverId;
 
-    @Schema(description = "联系人类型 0:好友 1:群组")
+    @Schema(description = "联系人类型 1:好友 2:群组")
     private Integer contactType;
 
     @Schema(description = "最后申请时间")

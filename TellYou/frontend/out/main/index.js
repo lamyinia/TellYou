@@ -850,7 +850,7 @@ class JsonStoreService {
 }
 const jsonStoreService = new JsonStoreService();
 const add_tables = [
-  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime);",
+  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime,   status integer);",
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
   "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
@@ -1113,24 +1113,9 @@ const getMessageId = () => {
   const rand = BigInt(Math.floor(Math.random() * 1e6));
   return (time << 20n | rand).toString();
 };
-const rawMessageToBeInserted = (data) => {
-  return {
-    sessionId: data.sessionId,
-    sequenceId: String(data.sequenceId),
-    senderId: data.senderId,
-    msgId: data.messageId,
-    senderName: data.senderName ?? "",
-    msgType: data.msgType,
-    isRecalled: 0,
-    text: data.text ?? "",
-    extData: data.extData ?? "",
-    sendTime: data.sendTime,
-    isRead: data.isRead ?? 1
-  };
-};
 class MessageDao {
   async addLocalMessage(data) {
-    const changes = await insertOrIgnore("messages", rawMessageToBeInserted(data));
+    const changes = await insertOrIgnore("messages", data);
     if (!changes) return 0;
     const rows = await queryAll(
       "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
@@ -1224,36 +1209,38 @@ const messageDao = new MessageDao();
 class SessionDao {
   async selectSessions() {
     const sql = `
-    SELECT
-      session_id,
-      contact_id,
-      contact_type,
-      contact_name,
-      contact_avatar,
-      contact_signature,
-      last_msg_content,
-      last_msg_time,
-      unread_count,
-      is_pinned,
-      is_muted,
-      created_at,
-      updated_at,
-      member_count,
-      max_members,
-      join_mode,
-      msg_mode,
-      group_card,
-      group_notification,
-      my_role,
-      join_time,
-      last_active
-    FROM sessions
-  `;
+      SELECT session_id,
+             contact_id,
+             contact_type,
+             contact_name,
+             contact_avatar,
+             contact_signature,
+             last_msg_content,
+             last_msg_time,
+             unread_count,
+             is_pinned,
+             is_muted,
+             created_at,
+             updated_at,
+             member_count,
+             max_members,
+             join_mode,
+             msg_mode,
+             group_card,
+             group_notification,
+             my_role,
+             join_time,
+             last_active
+      FROM sessions
+    `;
     const result = await queryAll(sql, []);
     return result;
   }
   async updateSessionByMessage(data) {
-    await update("sessions", { lastMsgContent: data.content, lastMsgTime: data.sendTime }, { sessionId: data.sessionId });
+    await update("sessions", {
+      lastMsgContent: data.content,
+      lastMsgTime: data.sendTime
+    }, { sessionId: data.sessionId });
   }
   async updatePartial(params, sessionId) {
     try {
@@ -1269,53 +1256,55 @@ class SessionDao {
 const sessionDao = new SessionDao();
 const uidKey = "newest:user:uid";
 const tokenKey = "newest:user:token";
-const handleMessage = async (msg, ws2) => {
-  console.log(msg);
-  const snap = Number(msg.adjustedTimestamp);
-  const insertId = await messageDao.addLocalMessage({
-    sessionId: msg.sessionId,
-    sequenceId: msg.sequenceNumber,
-    senderId: msg.senderId,
-    messageId: msg.messageId,
-    senderName: msg.fromName ?? "",
-    msgType: 1,
-    text: String(msg.content ?? ""),
-    extData: JSON.stringify(msg.extra),
-    sendTime: new Date(snap).toISOString(),
-    isRead: 1
-  });
-  if (!insertId || insertId <= 0) return;
-  const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-  await sessionDao.updateSessionByMessage({
-    content: msg.content,
-    sendTime: new Date(snap).toISOString(),
-    sessionId: msg.sessionId
-  });
-  const vo = {
-    id: Number(insertId) || 0,
-    sessionId: msg.sessionId,
-    content: String(msg.content ?? ""),
-    messageType: "text",
-    senderId: msg.senderId,
-    senderName: msg.fromName ?? "",
-    timestamp: new Date(snap),
-    isRead: true,
-    avatarVersion: String(msg.extra["avatarVersion"]),
-    nicknameVersion: String(msg.extra["nicknameVersion"])
-  };
-  ws2.send(
-    JSON.stringify({
+class WebsocketHandler {
+  async handleTextMessage(msg, ws2) {
+    console.log("handleMessage", msg);
+    const snap = Number(msg.adjustedTimestamp);
+    const insertId = await messageDao.addLocalMessage({
+      sessionId: msg.sessionId,
+      sequenceId: msg.sequenceNumber,
+      senderId: msg.senderId,
+      msgId: msg.messageId,
+      senderName: msg.fromName ?? "",
+      msgType: 1,
+      isRecalled: 0,
+      text: String(msg.content ?? ""),
+      extData: JSON.stringify(msg.extra),
+      sendTime: new Date(snap).toISOString(),
+      isRead: 1
+    });
+    if (!insertId || insertId <= 0) return;
+    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+    await sessionDao.updateSessionByMessage({
+      content: msg.content,
+      sendTime: new Date(snap).toISOString(),
+      sessionId: msg.sessionId
+    });
+    const vo = {
+      id: Number(insertId) || 0,
+      sessionId: msg.sessionId,
+      content: String(msg.content ?? ""),
+      messageType: "text",
+      senderId: msg.senderId,
+      senderName: msg.fromName ?? "",
+      timestamp: new Date(snap),
+      isRead: true,
+      avatarVersion: String(msg.extra["avatarVersion"]),
+      nicknameVersion: String(msg.extra["nicknameVersion"])
+    };
+    ws2.send(JSON.stringify({
       messageId: msg.messageId,
       type: 101,
       fromUid: store.get(uidKey)
-    })
-  );
-  const session = (await queryAll("select * from sessions where session_id = ?", [
-    msg.sessionId
-  ]))[0];
-  mainWindow?.webContents.send("loadMessageDataCallback", [vo]);
-  mainWindow?.webContents.send("loadSessionDataCallback", [session]);
-};
+    }));
+    const session = (await queryAll("select * from sessions where session_id = ?", [
+      msg.sessionId
+    ]))[0];
+    mainWindow?.webContents.send("message:call-back:load-data", [vo]);
+    mainWindow?.webContents.send("session:call-back:load-data", [session]);
+  }
+}
+const websocketHandler = new WebsocketHandler();
 let ws = null;
 let maxReConnectTimes = null;
 let lockReconnect = false;
@@ -1390,10 +1379,6 @@ const connectWs = () => {
   ws.on("open", () => {
     console.info("客户端连接成功");
     maxReConnectTimes = 20;
-    const mainWindow = electron.BrowserWindow.getFocusedWindow();
-    if (mainWindow) {
-      mainWindow.webContents.send("ws-connected");
-    }
   });
   ws.on("close", () => {
     reconnect();
@@ -1406,7 +1391,7 @@ const connectWs = () => {
     const msg = JSON.parse(data);
     switch (msg.messageType) {
       case 1:
-        await handleMessage(msg, ws);
+        await websocketHandler.handleTextMessage(msg, ws);
         break;
     }
   });
@@ -1435,11 +1420,11 @@ class SessionService {
     electron.ipcMain.handle("get-sessions-with-order", async () => {
       try {
         const sql = `
-        SELECT *
-        FROM sessions
-        WHERE contact_type IN (1, 2)
-        ORDER BY is_pinned DESC, last_msg_time DESC
-      `;
+          SELECT *
+          FROM sessions
+          WHERE contact_type IN (1, 2)
+          ORDER BY is_pinned DESC, last_msg_time DESC
+        `;
         const result = await queryAll(sql, []);
         return result;
       } catch (error) {
@@ -1452,12 +1437,12 @@ class SessionService {
       async (_, sessionId, content, time) => {
         try {
           const sql = `
-        UPDATE sessions
-        SET last_msg_content = ?,
-            last_msg_time    = ?,
-            updated_at       = ?
-        WHERE session_id = ?
-      `;
+            UPDATE sessions
+            SET last_msg_content = ?,
+                last_msg_time    = ?,
+                updated_at       = ?
+            WHERE session_id = ?
+          `;
           const result = await sqliteRun(sql, [
             content,
             time.toISOString(),
@@ -1474,10 +1459,10 @@ class SessionService {
     electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
       try {
         const sql = `
-        UPDATE sessions
-        SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
-        WHERE session_id = ?
-      `;
+          UPDATE sessions
+          SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
+          WHERE session_id = ?
+        `;
         const result = await sqliteRun(sql, [String(sessionId)]);
         return result > 0;
       } catch (error) {
@@ -1492,8 +1477,11 @@ class SessionService {
       console.log("开始查询session");
       const result = await sessionDao.selectSessions();
       console.log("查询结果:", result);
-      event.sender.send("session:load-data:callback", result);
+      event.sender.send("session:call-back:load-data", result);
     });
+  }
+  // 整理所有会话的最后一条消息
+  async tidySession() {
   }
 }
 const sessionService = new SessionService();
@@ -1715,6 +1703,8 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["SEARCH_USER"] = "/user-info/search-by-uid";
   Api2["GET_AVATAR_UPLOAD_URL"] = "/media/avatar/upload-url";
   Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
+  Api2["PULL_CONTACT"] = "/contact/pull-contact";
+  Api2["PULL_APPLICATION"] = "";
   return Api2;
 })(Api || {});
 class ProxyService {
@@ -1746,60 +1736,68 @@ class PullService {
   async pullStrongTransactionData() {
     console.log(`正在拉取强事务数据...`);
     try {
-      await this.pullFriendContact();
-      await this.pullApply();
-      await this.pullGroup();
-      await this.pullBlackList();
+      await this.pullContact();
       console.log(`拉取强事务数据完成`);
     } catch (error) {
       console.error(`拉取强事务数据失败:`, error);
       throw error;
     }
   }
-  // 拉取好友联系人
-  async pullFriendContact() {
+  async pullContact() {
+    const response = await netMaster.get(Api.PULL_CONTACT);
+    if (!response.data.success) {
+      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
+      return;
+    }
+    const result = response.data.data;
+    console.log("pull-service:pullContact:result", result);
   }
-  // 拉取申请信息
   async pullApply() {
+    const response = await netMaster.get(Api.PULL_MAILBOX);
+    if (!response.data.success) {
+      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
+      return;
+    }
   }
-  // 拉取群组信息
-  async pullGroup() {
-  }
-  // 拉取黑名单
   async pullBlackList() {
+    const response = await netMaster.get(Api.PULL_MAILBOX);
+    if (!response.data.success) {
+      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
+      return;
+    }
   }
-  // 拉取离线消息
   async pullOfflineMessages() {
     try {
-      console.info("开始拉取用户离线消息...", `${Api.PULL_MAILBOX}`);
+      console.info("pull-service:pull-offline-message:开始拉取用户离线消息...", `${Api.PULL_MAILBOX}`);
       const response = await netMaster.get(Api.PULL_MAILBOX);
       if (!response.data.success) {
-        console.error("拉取离线消息失败:", response.data.errMsg);
+        console.error("pull-service:pull-offline-message:拉取离线消息失败:", response.data.errMsg);
         return;
       }
       const pullResult = response.data.data;
       if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
-        console.info("没有离线消息需要拉取");
+        console.info("pull-service:pull-offline-message:没有离线消息需要拉取");
         return;
       }
-      console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`);
+      console.info(`pull-service:拉取到 ${pullResult.messageList.length} 条离线消息`);
       const messageIds = [];
       const sessionUpdates = /* @__PURE__ */ new Map();
       const chatMessages = [];
       for (const message of pullResult.messageList) {
         const date = new Date(Number(message.adjustedTimestamp)).toISOString();
-        console.log(message);
+        console.log("pull-service:pull-offline-message:pull-result", message);
         const messageData = {
           sessionId: String(message.sessionId),
           sequenceId: message.sequenceNumber,
           senderId: String(message.senderId),
-          messageId: message.messageId,
+          msgId: message.messageId,
           senderName: "",
           msgType: message.messageType,
+          isRecalled: 0,
           text: message.content,
           extData: JSON.stringify(message.extra),
           sendTime: date,
-          isRead: 0
+          isRead: 1
         };
         const insertId = await messageDao.addLocalMessage(messageData);
         messageIds.push(message.messageId);
@@ -1852,8 +1850,8 @@ class PullService {
              WHERE session_id IN (${sessionIds.map(() => "?").join(",")})`,
             sessionIds
           );
-          mainWindow.webContents.send("loadMessageDataCallback", chatMessages);
-          mainWindow.webContents.send("loadSessionDataCallback", sessions);
+          mainWindow.webContents.send("message:call-back:load-data", chatMessages);
+          mainWindow.webContents.send("session:call-back:load-data", sessions);
           console.info(`发送 ${chatMessages.length} 条消息到渲染进程`);
         } catch (error) {
           console.error("发送消息到渲染进程失败:", error);
@@ -1900,6 +1898,7 @@ const initializeUserData = async (uid) => {
   await initTable();
   await pullService.pullStrongTransactionData();
   await pullService.pullOfflineMessages();
+  await sessionService.tidySession();
 };
 const test = async () => {
   const inputPath = "D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg";
@@ -1929,12 +1928,14 @@ class DeviceService {
     });
     electron.ipcMain.on("LoginSuccess", (_, uid) => {
       wsConfigInit();
-      mainWindow.setResizable(true);
-      mainWindow.setSize(920, 740);
-      mainWindow.setMaximizable(true);
-      mainWindow.setMinimumSize(800, 600);
-      mainWindow.center();
-      initializeUserData(uid).then();
+      initializeUserData(uid).then(() => {
+        mainWindow.setResizable(true);
+        mainWindow.setSize(920, 740);
+        mainWindow.setMaximizable(true);
+        mainWindow.setMinimumSize(800, 600);
+        mainWindow.center();
+        mainWindow.webContents.send("ws-connected");
+      });
     });
     electron.ipcMain.on("window-ChangeScreen", (event, status) => {
       const webContents = event.sender;
@@ -2040,7 +2041,7 @@ class AvatarCacheService {
     try {
       const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
       urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
-      console.info("debug:downloadAvatar:准备下载头像:  ", [userId, avatarUrl, filePath].join("-"));
+      console.info("avatar-cache:getAvatarPath:准备下载头像:  ", [userId, avatarUrl, filePath].join("-"));
       const success = await this.downloadAvatar(avatarUrl, filePath);
       if (success) {
         this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath);

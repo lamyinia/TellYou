@@ -2,8 +2,9 @@ package org.com.modules.session.dao;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
-import org.com.modules.session.domain.document.SessionDocument;
+import org.com.modules.session.domain.document.SessionDoc;
 import org.com.modules.session.domain.entity.Session;
 import org.com.tools.constant.ValueConstant;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -31,18 +32,21 @@ public class MongoSessionDao {
      * @param sessionId 会话ID
      * @return 自增后的sequenceId
      */
+    @RedissonLocking(prefixKey = "msg:seq", key = "#sessionId")
     public Long getAndIncrementSequenceId(Long sessionId) {
         Query query = new Query(Criteria.where("sessionId").is(sessionId));
-        Update update = new Update().inc("sequenceId", 1);
+        query.fields().include("sessionId", "sequence_id");
 
-        SessionDocument result = mongoTemplate.findAndModify(
+        Update update = new Update().inc("sequence_id", 1);
+
+        SessionDoc result = mongoTemplate.findAndModify(
                 query,
                 update,
-                SessionDocument.class
+                SessionDoc.class
         );
 
         if (result == null) {
-            SessionDocument newSession = SessionDocument.builder()
+            SessionDoc newSession = SessionDoc.builder()
                             .sessionId(sessionId).sequenceId(0L).isDeleted(YesOrNoEnum.NO.getStatus()).build();
             mongoTemplate.save(newSession);
             return 1L;
@@ -56,9 +60,9 @@ public class MongoSessionDao {
      * @param sessionId 会话ID
      * @return 会话文档
      */
-    public SessionDocument findBySessionId(Long sessionId) {
+    public SessionDoc findBySessionId(Long sessionId) {
         Query query = new Query(Criteria.where("sessionId").is(sessionId));
-        return mongoTemplate.findOne(query, SessionDocument.class);
+        return mongoTemplate.findOne(query, SessionDoc.class);
     }
 
     /**
@@ -66,8 +70,8 @@ public class MongoSessionDao {
      * @param session 会话文档
      * @return 保存后的会话文档
      */
-    public SessionDocument save(Session session) {
-        SessionDocument document = SessionDocument.builder().sessionId(session.getSessionId()).sessionType(session.getSessionType())
+    public SessionDoc save(Session session) {
+        SessionDoc document = SessionDoc.builder().sessionId(session.getSessionId()).sessionType(session.getSessionType())
                 .createdAt(ValueConstant.getDefaultDate()).updatedAt(ValueConstant.getDefaultDate())
                 .sequenceId(ValueConstant.DEFAULT_ZERO).isDeleted(YesOrNoEnum.NO.getStatus()).build();
 
@@ -81,13 +85,13 @@ public class MongoSessionDao {
                 .set("lastMsgContent", lastMsgContent)
                 .set("lastMsgTime", lastMsgTime)
                 .set("updatedAt", ValueConstant.getDefaultDate());
-        mongoTemplate.updateFirst(query, update, SessionDocument.class);
+        mongoTemplate.updateFirst(query, update, SessionDoc.class);
     }
 
     public void updateStatus(Long sessionId, Integer status){
         Query query = new Query(Criteria.where("sessionId").is(sessionId));
         Update update = new Update().set("isDeleted", status);
-        mongoTemplate.updateFirst(query, update, SessionDocument.class);
+        mongoTemplate.updateFirst(query, update, SessionDoc.class);
     }
 
     public void abandon(Long sessionId) {

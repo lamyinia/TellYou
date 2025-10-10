@@ -10,7 +10,9 @@ export enum Api {
   ACK_CONFIRM = '/message/ack-confirm',
   SEARCH_USER = '/user-info/search-by-uid',
   GET_AVATAR_UPLOAD_URL = '/media/avatar/upload-url',
-  CONFIRM_UPLOAD = '/media/avatar/upload-confirm'
+  CONFIRM_UPLOAD = '/media/avatar/upload-confirm',
+  PULL_CONTACT = '/contact/pull-contact',
+  PULL_APPLICATION = ''
 }
 
 class ProxyService {

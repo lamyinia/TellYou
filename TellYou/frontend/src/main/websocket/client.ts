@@ -2,7 +2,7 @@ import WebSocket from 'ws'
 import { store } from '../index'
 import { BrowserWindow } from 'electron'
 import { getMessageId } from '../../utils/process'
-import { handleMessage } from '@main/websocket/handler'
+import websocketHandler from '@main/websocket/handler'
 import { tokenKey } from '@main/electron-store/key'
 
 let ws: WebSocket | null = null
@@ -90,18 +90,12 @@ export const connectWs = (): void => {
     return
   }
   const urlWithToken: string = wsUrl.includes('?')
-    ? `${wsUrl}&token=${token}`
-    : `${wsUrl}?token=${token}`
+    ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`
 
   ws = new WebSocket(urlWithToken)
-
   ws.on('open', () => {
     console.info('客户端连接成功')
     maxReConnectTimes = 20
-    const mainWindow = BrowserWindow.getFocusedWindow()
-    if (mainWindow) {
-      mainWindow.webContents.send('ws-connected')
-    }
   })
   ws.on('close', () => {
     reconnect()
@@ -115,8 +109,8 @@ export const connectWs = (): void => {
     const msg = JSON.parse(data)
 
     switch (msg.messageType) {
-      case 1:
-        await handleMessage(msg, ws)
+      case 1:  // 聊天消息
+        await websocketHandler.handleTextMessage(msg, ws)
         break
     }
   })

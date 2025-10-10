@@ -28,7 +28,7 @@ public class MessageAdapter {
         resp.setMessageId(doc.getQuoteId());
         resp.setSessionId(doc.getSessionId());
 
-        Long sequenceId  = (Long) doc.getExtra().get("sequenceId");
+        Long sequenceId = (Long) doc.getExtra().get("sequenceId");
         if (sequenceId != null) resp.setSequenceNumber(sequenceId);
         else resp.setSequenceNumber(System.currentTimeMillis());
 
@@ -42,10 +42,10 @@ public class MessageAdapter {
     }
 
     public MessageDoc buildMessage(MessageReq req) {
-        Long sequenceId = getSequenceIdFromSession(req.getSessionId());
+        Long sequenceId = mongoSessionDao.getAndIncrementSequenceId(req.getSessionId());
         Long currentTime = System.currentTimeMillis();
         Map<String, Object> identifier = JsonUtils.toMap(userInfoDao.getIdentifierById(req.getFromUid()));
-        if (identifier != null){
+        if (identifier != null) {
             identifier.forEach((key, value) -> {
                 req.getExtra().put(key, value);
             });
@@ -69,12 +69,6 @@ public class MessageAdapter {
         MessageResp resp = new MessageResp();
         BeanUtils.copyProperties(messageDoc, resp);
         return resp;
-    }
-
-    @RedissonLocking(prefixKey = "msg:seq", key = "#sessionId")
-    private Long getSequenceIdFromSession(Long sessionId){
-        Long sequenceId = mongoSessionDao.getAndIncrementSequenceId(sessionId);
-        return sequenceId;
     }
 
     private String calculateAdjustedTimestamp(Long clientTimestamp, Long serverTimestamp) {

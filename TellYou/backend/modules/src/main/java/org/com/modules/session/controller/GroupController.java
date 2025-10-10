@@ -8,9 +8,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.domain.vo.req.*;
+import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
+import org.com.modules.session.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.session.service.GroupContactService;
 import org.com.modules.session.service.GroupInfoService;
+import org.com.modules.user.domain.vo.req.BaseInfoReq;
+import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.TimeUnit;
@@ -28,7 +33,14 @@ public class GroupController {
     private final GroupContactService groupContactService;
     private final GroupInfoService groupInfoService;
 
-    @PostMapping("/createGroup")
+    @PostMapping("/base-info-list")
+    @Operation(summary = "头像名字批量获取")
+    public ApiResult<SimpleGroupInfoList> getBaseInfoList(@RequestBody BaseInfoReq req){
+        SimpleGroupInfoList resp = groupInfoService.getBaseInfoList(req.getTargetList());
+        return ApiResult.success(resp);
+    }
+
+    @PostMapping("/create-group")
     @Operation(summary = "创建群聊")
     @FlowControl(time = 3, unit = TimeUnit.MINUTES, count = 3, target = FlowControl.Target.UID)
     public ApiResult<Void> createGroup(@Check @Valid @RequestBody CreateGroupReq req){
@@ -147,5 +159,4 @@ public class GroupController {
     public ApiResult<Void> SearchGid(){
         return ApiResult.success();
     }
-
 }

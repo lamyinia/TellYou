@@ -2,10 +2,16 @@ package org.com.modules.session.dao;
 
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.session.domain.entity.GroupContact;
+import org.com.modules.session.domain.vo.resp.ContactResp;
 import org.com.modules.session.mapper.GroupContactMapper;
+import org.com.modules.user.domain.enums.ContactTypeEnum;
+import org.com.modules.user.domain.enums.SessionTypeEnum;
 import org.com.tools.constant.ValueConstant;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact> {
@@ -32,5 +38,22 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                 .eq(GroupContact::getGroupId, groupId)
                 .set(GroupContact::getLastActive, ValueConstant.getDefaultDate())
                 .set(GroupContact::getRole, role).update();
+    }
+
+    public List<ContactResp> selectGroupContactById(Long userId){
+        List<GroupContact> list = lambdaQuery()
+                .eq(GroupContact::getUserId, userId)
+                .eq(GroupContact::getIsDeleted, YesOrNoEnum.NO.getStatus())
+                .select(GroupContact::getGroupId, GroupContact::getSessionId, GroupContact::getRole)
+                .list();
+
+        return list.stream().map(contact -> {
+            return ContactResp.builder()
+                    .sessionId(contact.getSessionId())
+                    .contactId(contact.getGroupId())
+                    .role(contact.getRole())
+                    .sessionType(SessionTypeEnum.PUBLIC.getStatus())
+                    .build();
+        }).toList();
     }
 }

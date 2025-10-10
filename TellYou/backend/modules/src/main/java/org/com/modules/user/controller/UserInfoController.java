@@ -6,12 +6,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.Check;
-import org.com.modules.user.domain.vo.req.ModifyNicknameReq;
-import org.com.modules.user.domain.vo.req.ModifySignatureReq;
-import org.com.modules.user.domain.vo.req.RegisterReq;
+import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.common.domain.vo.resp.ApiResult;
-import org.com.modules.user.domain.vo.req.SearchByUidReq;
 import org.com.modules.user.domain.vo.resp.SearchByUidResp;
+import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import org.com.modules.user.service.UserInfoService;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +24,13 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserInfoController {
     private final UserInfoService userInfoService;
+
+    @PostMapping("/base-info-list")
+    @Operation(summary = "头像名字批量获取")
+    public ApiResult<SimpleUserInfoList> getBaseInfoList(@RequestBody BaseInfoReq req){
+        SimpleUserInfoList resp = userInfoService.getBaseInfoList(req.getTargetList());
+        return null;
+    }
 
     @PutMapping("/modify-nickname")
     @Operation(summary = "名字修改")

@@ -10,9 +10,12 @@ import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.event.FriendApplyEvent;
 import org.com.modules.common.util.RequestHolder;
+import org.com.modules.session.dao.GroupContactDao;
 import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.dao.SessionDao;
 import org.com.modules.session.domain.entity.Session;
+import org.com.modules.session.domain.vo.resp.ContactResp;
+import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.dao.BlackDao;
 import org.com.modules.user.dao.ContactApplyDao;
 import org.com.modules.user.dao.FriendContactDao;
@@ -23,6 +26,8 @@ import org.com.modules.user.domain.enums.ConfirmEnum;
 import org.com.modules.user.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
+import org.com.modules.user.domain.vo.resp.SimpleApplyInfo;
+import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;
 import org.com.modules.user.service.UserContactService;
 import org.com.modules.user.service.adapter.ContactApplyAdapter;
 import org.com.modules.user.service.adapter.BlackAdapter;
@@ -33,6 +38,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,9 +48,10 @@ import java.util.stream.Collectors;
 public class UserContactServiceImpl implements UserContactService {
     private final ContactApplyDao contactApplyDao;
     private final FriendContactDao friendContactDao;
+    private final GroupContactDao groupContactDao;
     private final SessionDao sessionDao;
-    private final MongoSessionDao mongoSessionDao;
     private final BlackDao blackDao;
+    private final MongoSessionDao mongoSessionDao;
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -153,5 +160,19 @@ public class UserContactServiceImpl implements UserContactService {
                 }).collect(Collectors.toList());
 
         return CursorPageResp.init(friendPage, friendList);
+    }
+
+    @Override
+    public PullFriendContactResp pullFriendContact(Long uid) {
+        List<ContactResp> resp = new ArrayList<>();
+        resp.addAll(friendContactDao.selectFriendContactById(uid));
+        resp.addAll(groupContactDao.selectGroupContactById(uid));
+        return new PullFriendContactResp(resp);
+    }
+
+    @Override
+    public SimpleApplyInfoList pullApplyInfoList(Long uid) {
+        List<SimpleApplyInfo> simpleApplyInfos = contactApplyDao.selectApplyInfoById(uid);
+        return new SimpleApplyInfoList(simpleApplyInfos);
     }
 }

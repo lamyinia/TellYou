@@ -1,6 +1,5 @@
 package org.com.modules.session.domain.document;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 import org.springframework.data.annotation.Id;

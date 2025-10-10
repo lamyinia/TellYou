@@ -28,7 +28,7 @@ export const useSessionStore = defineStore('session', () => {
       console.log(sortedSessions.value)
     }
 
-    window.electronAPI.on('session:load-data:callback', loadSessionFunction)
+    window.electronAPI.on('session:call-back:load-data', loadSessionFunction)
     window.electronAPI.send('session:load-data')
 
     isInitialized.value = true
@@ -37,7 +37,7 @@ export const useSessionStore = defineStore('session', () => {
   const destroy = (): void => {
     sessionManager.value.clear()
     isInitialized.value = false
-    window.electronAPI.removeListener('loadSessionDataCallback', loadSessionFunction!)
+    window.electronAPI.removeListener('session:call-back:load-data', loadSessionFunction!)
   }
   const getSession = (sessionId: string | number): Session | undefined => {
     return sessionManager.value.getSession(String(sessionId))

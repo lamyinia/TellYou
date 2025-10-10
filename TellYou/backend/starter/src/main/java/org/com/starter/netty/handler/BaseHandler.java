@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @ChannelHandler.Sharable
-@RequiredArgsConstructor  // TODO 在 websocket 长连接层做流量控制
+@RequiredArgsConstructor
 public class BaseHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChannelManagerUtil channelManagerUtil;
     private final RocketMQTemplate rocketMQTemplate;

@@ -4,6 +4,9 @@ import org.com.modules.common.domain.vo.req.AvatarUploadConfirmReq;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.domain.vo.resp.SearchByUidResp;
+import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
+
+import java.util.List;
 
 /**
 * @author lanye
@@ -25,4 +28,6 @@ public interface UserInfoService {
     void modifySignature(ModifySignatureReq req);
 
     SearchByUidResp SearchByUidResp(SearchByUidReq req);
+
+    SimpleUserInfoList getBaseInfoList(List<Long> targetList);
 }

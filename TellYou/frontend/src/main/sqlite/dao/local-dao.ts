@@ -1,7 +1,8 @@
-import { redirectDataBase, initTable } from '@main/sqlite/atom'
+import { initTable, redirectDataBase } from '@main/sqlite/atom'
 import { connectWs } from '@main/websocket/client'
 import { pullService } from '@main/service/pull-service'
 import urlUtil from '@main/util/url-util'
+import { sessionService } from '@main/service/session-service'
 
 export const initializeUserData = async (uid: string): Promise<void> => {
   connectWs()
@@ -12,4 +13,5 @@ export const initializeUserData = async (uid: string): Promise<void> => {
   await initTable()
   await pullService.pullStrongTransactionData()
   await pullService.pullOfflineMessages()
+  await sessionService.tidySession()
 }

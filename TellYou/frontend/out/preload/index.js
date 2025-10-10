@@ -18,7 +18,6 @@ if (process.contextIsolated) {
       offWsConnected: (callback) => electron.ipcRenderer.removeListener("ws-connected", callback),
       getSessionsWithOrder: () => electron.ipcRenderer.invoke("get-sessions-with-order"),
       updateSessionLastMessage: (sessionId, content, time) => electron.ipcRenderer.invoke("update-session-last-message", sessionId, content, time),
-      toggleSessionPin: (sessionId) => electron.ipcRenderer.invoke("toggle-session-pin", sessionId),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("message:get-by-sessionId", sessionId, obj),
       wsSend: (msg) => electron.ipcRenderer.invoke("websocket:send", msg),

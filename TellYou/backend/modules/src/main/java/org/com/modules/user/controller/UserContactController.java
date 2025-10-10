@@ -9,8 +9,11 @@ import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
+import org.com.modules.common.util.RequestHolder;
+import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
+import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;
 import org.com.modules.user.service.UserContactService;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +28,19 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserContactController {
     private final UserContactService userContactService;
+
+    @GetMapping("/pull-contact")
+    @Operation(description = "拉取好友关系、群组关系")
+    public ApiResult<PullFriendContactResp> pullFriendContact(){
+        PullFriendContactResp resp = userContactService.pullFriendContact(RequestHolder.get().getUid());
+        return ApiResult.success(resp);
+    }
+    @GetMapping("/pull-application")
+    @Operation(description = "拉取申请通知")
+    public ApiResult<SimpleApplyInfoList> pullApplication(){
+        SimpleApplyInfoList resp = userContactService.pullApplyInfoList(RequestHolder.get().getUid());
+        return ApiResult.success(resp);
+    }
 
     @PostMapping("/applySend")
     @Operation(description = "发送好友申请")

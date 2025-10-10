@@ -22,7 +22,8 @@ const add_tables = [
     '   group_notification text,' + // 群公告
     '   my_role integer,' + // 1:成员 2:管理员 3:群主
     '   join_time datetime,' +
-    '   last_active datetime' +
+    '   last_active datetime,' +
+    '   status integer' +
     ');',
 
   'create table if not exists messages(' +

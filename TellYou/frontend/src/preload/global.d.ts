@@ -11,24 +11,19 @@ declare global {
       storeSet: (key: string, value: unknown) => Promise<boolean>
       storeDelete: (key: string) => Promise<boolean>
       storeClear: () => Promise<boolean>
-
       invoke: (channel: string, ...args: unknown[]) => Promise<any>
       send: (channel: string, ...args: unknown[]) => void
       on: (channel: string, callback: (...args: unknown[]) => void) => void
       removeListener: (channel: string, callback: (...args: unknown[]) => void) => void
-
       onWsConnected: (callback: () => void) => void
       offWsConnected: (callback: () => void) => void
-
       wsSend: (msg: unknown) => Promise<boolean>
-
       getSessionsWithOrder: () => Promise<unknown[]>
       updateSessionLastMessage: (
         sessionId: string | number,
         content: string,
         time: Date
       ) => Promise<boolean>
-      toggleSessionPin: (sessionId: number) => Promise<boolean>
       addSession: (session: Session) => Promise<boolean>
       requestMessages: (
         sessionId: string | number,

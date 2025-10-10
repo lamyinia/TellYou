@@ -35,14 +35,14 @@ export const useMessageStore = defineStore('message', () => {
         addMessage(message.sessionId, message)
       })
     }
-    window.electronAPI.on('loadMessageDataCallback', loadMessageFunction)
+    window.electronAPI.on('message:call-back:load-data', loadMessageFunction)
     isInitialized.value = true
     console.log('messageStore 初始化完成')
   }
   const destroy = (): void => {
     clearAllCache()
     isInitialized.value = false
-    window.electronAPI.removeListener('loadMessageDataCallback', loadMessageFunction!)
+    window.electronAPI.removeListener('message:call-back:load-data', loadMessageFunction!)
   }
   const getCurrentSessionMessages = (sessionId: string | number): ChatMessage[] => {
     const key = String(sessionId)
@@ -204,9 +204,7 @@ export const useMessageStore = defineStore('message', () => {
         totalCount: pageInfo.totalCount + 1
       }
     }
-    console.log(
-      `消息已添加到缓存: sessionId=${sessionId}, messageId=${message.id}, 当前消息数=${newMessages.length}`
-    )
+    console.log(`消息已添加到缓存: sessionId=${sessionId}, messageId=${message.id}, 当前消息数=${newMessages.length}`)
   }
 
   const checkPreload = async (sessionId: string | number, scrollTop: number, scrollHeight: number, clientHeight: number): void => {

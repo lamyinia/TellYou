@@ -49,7 +49,7 @@ const avatarSrc = computed(() => {
 const isLoading = computed(() => loading.value && props.showLoading)
 
 const loadAvatar = async (): Promise<void> => {
-  console.info('loadAvatar')
+  console.info('Avatar.vue:loadAvatar')
   if (!props.userId) {
     localPath.value = null
     forceUpdate.value++ // 强制重新渲染
@@ -103,7 +103,7 @@ watch(
   async (newCacheItem) => {
     // console.log('头像缓存更新 0:', newCacheItem)
     if (newCacheItem && !newCacheItem.loading && newCacheItem.localPath) {
-      console.log('头像缓存更新:', newCacheItem.localPath, '版本:', newCacheItem.version)
+      console.log('avatar.vue:头像缓存更新:', newCacheItem.localPath, '版本:', newCacheItem.version)
       localPath.value = newCacheItem.localPath
       forceUpdate.value++
       await nextTick()

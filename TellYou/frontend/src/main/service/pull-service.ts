@@ -9,10 +9,10 @@ class PullService {
   async pullStrongTransactionData(): Promise<void> {
     console.log(`正在拉取强事务数据...`)
     try {
-      await this.pullFriendContact()
-      await this.pullApply()
-      await this.pullGroup()
-      await this.pullBlackList()
+      await this.pullContact()
+      // await this.pullGroup()
+      // await this.pullApply()
+      // await this.pullBlackList()
 
       console.log(`拉取强事务数据完成`)
     } catch (error) {
@@ -20,59 +20,61 @@ class PullService {
       throw error
     }
   }
-
-  // 拉取好友联系人
-  private async pullFriendContact(): Promise<void> {
-    // TODO: 实现拉取好友联系人逻辑
+  private async pullContact(): Promise<void> {
+    const response = await netMaster.get(Api.PULL_CONTACT)
+    if (!response.data.success) {
+      console.error('pull-service:pull-friend-contact:拉取 session 失败:', response.data.errMsg)
+      return
+    }
+    const result = response.data.data
+    console.log('pull-service:pullContact:result', result)
   }
-
-  // 拉取申请信息
   private async pullApply(): Promise<void> {
-    // TODO: 实现拉取申请信息逻辑
+    const response = await netMaster.get(Api.PULL_MAILBOX)
+    if (!response.data.success) {
+      console.error('pull-service:pull-friend-contact:拉取 session 失败:', response.data.errMsg)
+      return
+    }
   }
-
-  // 拉取群组信息
-  private async pullGroup(): Promise<void> {
-    // TODO: 实现拉取群组信息逻辑
-  }
-
-  // 拉取黑名单
   private async pullBlackList(): Promise<void> {
-    // TODO: 实现拉取黑名单逻辑
+    const response = await netMaster.get(Api.PULL_MAILBOX)
+    if (!response.data.success) {
+      console.error('pull-service:pull-friend-contact:拉取 session 失败:', response.data.errMsg)
+      return
+    }
   }
-
-  // 拉取离线消息
   async pullOfflineMessages(): Promise<void> {
     try {
-      console.info('开始拉取用户离线消息...', `${Api.PULL_MAILBOX}`)
+      console.info('pull-service:pull-offline-message:开始拉取用户离线消息...', `${Api.PULL_MAILBOX}`)
       const response = await netMaster.get(Api.PULL_MAILBOX)
       if (!response.data.success) {
-        console.error('拉取离线消息失败:', response.data.errMsg)
+        console.error('pull-service:pull-offline-message:拉取离线消息失败:', response.data.errMsg)
         return
       }
       const pullResult = response.data.data
       if (!pullResult || !pullResult.messageList || pullResult.messageList.length === 0) {
-        console.info('没有离线消息需要拉取')
+        console.info('pull-service:pull-offline-message:没有离线消息需要拉取')
         return
       }
-      console.info(`拉取到 ${pullResult.messageList.length} 条离线消息`)
+      console.info(`pull-service:拉取到 ${pullResult.messageList.length} 条离线消息`)
       const messageIds: string[] = []
       const sessionUpdates = new Map<string, { content: string; sendTime: string }>()
       const chatMessages: unknown[] = []
       for (const message of pullResult.messageList) {
         const date = new Date(Number(message.adjustedTimestamp)).toISOString()
-        console.log(message)
+        console.log('pull-service:pull-offline-message:pull-result', message)
         const messageData = {
           sessionId: String(message.sessionId),
           sequenceId: message.sequenceNumber,
           senderId: String(message.senderId),
-          messageId: message.messageId,
+          msgId: message.messageId,
           senderName: '',
           msgType: message.messageType,
+          isRecalled: 0,
           text: message.content,
           extData: JSON.stringify(message.extra),
           sendTime: date,
-          isRead: 0
+          isRead: 1
         }
         const insertId = await messageDao.addLocalMessage(messageData)
         messageIds.push(message.messageId)
@@ -125,8 +127,8 @@ class PullService {
              WHERE session_id IN (${sessionIds.map(() => '?').join(',')})`,
             sessionIds
           )
-          mainWindow.webContents.send('loadMessageDataCallback', chatMessages)
-          mainWindow.webContents.send('loadSessionDataCallback', sessions)
+          mainWindow.webContents.send('message:call-back:load-data', chatMessages)
+          mainWindow.webContents.send('session:call-back:load-data', sessions)
           console.info(`发送 ${chatMessages.length} 条消息到渲染进程`)
         } catch (error) {
           console.error('发送消息到渲染进程失败:', error)
@@ -164,6 +166,6 @@ class PullService {
     }
   }
 }
-// 创建 PullService 实例
+
 const pullService = new PullService()
 export { pullService }

@@ -1,6 +1,5 @@
 package org.com.modules.session.domain.entity;
 
-
 import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -11,22 +10,12 @@ import lombok.Data;
 @Data
 @Builder
 public class Session {
-
-    @Schema(description="会话id（雪花算法）")
     @TableId
+    @Schema(description="会话id（雪花算法）")
     private Long sessionId;
 
     @Schema(description="会话类型：1单聊 2群聊 3系统")
     private Integer sessionType;
-
-    @Schema(description="最后一条消息id")
-    private Long lastMsgId;
-
-    @Schema(description="最后消息摘要")
-    private String lastMsgContent;
-
-    @Schema(description="最后消息时间（毫秒精度）")
-    private Date lastMsgTime;
 
     @Schema(description="乐观锁版本")
     private Integer version;

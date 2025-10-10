@@ -219,12 +219,12 @@ const convertDb2Biz = (data: Record<string, unknown> | null): Record<string, unk
 }
 
 const createTable = async (): Promise<void> => {
-  const add_table = async () => {
+  const add_table = async (): Promise<void> => {
     for (const item of add_tables) {
       dataBase.run(item)
     }
   }
-  const add_index = async () => {
+  const add_index = async (): Promise<void> => {
     for (const item of add_indexes) {
       dataBase.run(item)
     }

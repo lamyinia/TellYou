@@ -2,9 +2,12 @@ package org.com.modules.session.dao;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.com.modules.session.domain.entity.GroupInfo;
+import org.com.modules.session.domain.vo.resp.SimpleGroupInfo;
 import org.com.modules.session.mapper.GroupInfoMapper;
 import org.com.tools.constant.ValueConstant;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class GroupInfoDao extends ServiceImpl<GroupInfoMapper, GroupInfo> {
@@ -42,5 +45,17 @@ public class GroupInfoDao extends ServiceImpl<GroupInfoMapper, GroupInfo> {
                 .set(GroupInfo::getMsgMode, mode)
                 .set(GroupInfo::getUpdateTime, ValueConstant.getDefaultDate())
                 .update();
+    }
+
+    public List<SimpleGroupInfo> getBaseInfoList(List<Long> groupIds) {
+        List<GroupInfo> list = lambdaQuery()
+                .in(GroupInfo::getId, groupIds)
+                .select(GroupInfo::getId, GroupInfo::getName, GroupInfo::getAvatar)
+                .list();
+        return list.stream().map(info -> SimpleGroupInfo.builder()
+                .groupId(info.getId())
+                .groupName(info.getName())
+                .avatar(info.getAvatar())
+                .build()).toList();
     }
 }

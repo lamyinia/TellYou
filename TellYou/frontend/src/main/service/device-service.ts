@@ -21,12 +21,14 @@ class DeviceService {
     })
     ipcMain.on('LoginSuccess', (_, uid: string) => {
       wsConfigInit()
-      mainWindow.setResizable(true)
-      mainWindow.setSize(920, 740)
-      mainWindow.setMaximizable(true)
-      mainWindow.setMinimumSize(800, 600)
-      mainWindow.center()
-      initializeUserData(uid).then()
+      initializeUserData(uid).then(() => {
+        mainWindow.setResizable(true)
+        mainWindow.setSize(920, 740)
+        mainWindow.setMaximizable(true)
+        mainWindow.setMinimumSize(800, 600)
+        mainWindow.center()
+        mainWindow.webContents.send('ws-connected')
+      })
     })
     ipcMain.on('window-ChangeScreen', (event, status: number) => {
       const webContents = event.sender

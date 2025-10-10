@@ -16,6 +16,8 @@ import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.domain.vo.resp.SearchByUidResp;
+import org.com.modules.user.domain.vo.resp.SimpleUserInfo;
+import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.constant.UrlConstant;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -275,6 +278,11 @@ public class UserInfoServiceImpl implements UserInfoService {
         return userInfoDao.getBaseInfo(req.getSearchedId());
     }
 
+    @Override
+    public SimpleUserInfoList getBaseInfoList(List<Long> targetList) {
+        List<SimpleUserInfo> resp = userInfoDao.getBaseInfoList(targetList);
+        return new SimpleUserInfoList(resp);
+    }
 }
 
 

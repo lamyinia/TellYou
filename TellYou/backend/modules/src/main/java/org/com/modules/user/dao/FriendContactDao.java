@@ -7,10 +7,14 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.util.CursorUtil;
+import org.com.modules.session.domain.vo.resp.ContactResp;
 import org.com.modules.user.domain.entity.FriendContact;
 import org.com.modules.user.domain.enums.ContactStatusEnum;
+import org.com.modules.user.domain.enums.SessionTypeEnum;
 import org.com.modules.user.mapper.FriendContactMapper;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -52,5 +56,22 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
     public CursorPageResp<FriendContact> getFriendPage(Long uid, CursorPageReq cursorPageReq) {
         return CursorUtil.getCursorPageByMysql(this, cursorPageReq,
                 wrapper -> wrapper.eq(FriendContact::getUserId, uid), FriendContact::getCreatedAt);
+    }
+
+    public List<ContactResp> selectFriendContactById(Long userId){
+        List<FriendContact> list = lambdaQuery()
+                .eq(FriendContact::getUserId, userId)
+                .eq(FriendContact::getIsDeleted, YesOrNoEnum.NO.getStatus())
+                .select(FriendContact::getContactId, FriendContact::getSessionId)
+                .list();
+
+        return list.stream().map(contact -> {
+            return ContactResp.builder()
+                    .sessionId(contact.getSessionId())
+                    .contactId(contact.getContactId())
+                    .sessionType(SessionTypeEnum.PRIVATE.getStatus())
+                    .role(null)
+                    .build();
+        }).toList();
     }
 }
