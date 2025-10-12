@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@renderer': resolve('src/renderer/src'),
-          '@main': resolve('src/main')
+          '@main': resolve('src/main'),
+          '@shared': resolve('src/shared')
         }
       }
     },
@@ -21,7 +22,8 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@renderer': resolve('src/renderer/src'),
-          '@main': resolve('src/main')
+          '@main': resolve('src/main'),
+          '@shared': resolve('src/shared')
         }
       }
     },
@@ -30,7 +32,8 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@renderer': resolve('src/renderer/src'),
-          '@main': resolve('src/main')
+          '@main': resolve('src/main'),
+          '@shared': resolve('src/shared')
         }
       },
       plugins: [vue()],

@@ -65,13 +65,11 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
                 .select(FriendContact::getContactId, FriendContact::getSessionId)
                 .list();
 
-        return list.stream().map(contact -> {
-            return ContactResp.builder()
-                    .sessionId(contact.getSessionId())
-                    .contactId(contact.getContactId())
-                    .sessionType(SessionTypeEnum.PRIVATE.getStatus())
-                    .role(null)
-                    .build();
-        }).toList();
+        return list.stream().map(contact -> ContactResp.builder()
+                .sessionId(contact.getSessionId())
+                .contactId(contact.getContactId())
+                .contactType(SessionTypeEnum.PRIVATE.getStatus())
+                .role(null)
+                .build()).toList();
     }
 }

@@ -1,7 +1,6 @@
 import WebSocket from 'ws'
 import { store } from '../index'
-import { BrowserWindow } from 'electron'
-import { getMessageId } from '../../utils/process'
+import { getMessageId } from '@shared/utils/process'
 import websocketHandler from '@main/websocket/handler'
 import { tokenKey } from '@main/electron-store/key'
 
@@ -25,18 +24,15 @@ export const sendText = (payload: Record<string, unknown>): void => {
     console.warn('WebSocket 未连接，发送取消')
     throw new Error('WebSocket is not connected')
   }
-
   const fromUId = String(payload.fromUId || '')
   const toUserId = String(payload.toUserId || '')
   const sessionId = String(payload.sessionId || '')
   const content = payload.content as unknown
-
   if (!fromUId || !sessionId) {
     console.warn('缺少必要字段 fromUId 或 sessionId，发送取消')
     throw new Error('Missing required fields: fromUId/sessionId')
   }
-
-  let base = {
+  const base = {
     messageId: getMessageId(),
     type: 1,
     fromUId,
@@ -46,14 +42,7 @@ export const sendText = (payload: Record<string, unknown>): void => {
     timestamp: Date.now(),
     extra: { platform: 'desktop' }
   }
-
   ws.send(JSON.stringify(base))
-  /*  for (let i: number = 0; i < 999; i++){
-    base.messageId = getMessageId()
-    base.content = `${payload.content} - 测试消息 #${i + 1} - 时间: ${new Date().toLocaleTimeString()} - ID: ${base.messageId}`
-    base.timestamp = Date.now() + i
-    ws.send(JSON.stringify(base))
-  }*/
 }
 
 const reconnect = (): void => {
@@ -89,9 +78,7 @@ export const connectWs = (): void => {
     console.info('token 不满足条件')
     return
   }
-  const urlWithToken: string = wsUrl.includes('?')
-    ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`
-
+  const urlWithToken: string = wsUrl.includes('?') ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`
   ws = new WebSocket(urlWithToken)
   ws.on('open', () => {
     console.info('客户端连接成功')
@@ -103,11 +90,9 @@ export const connectWs = (): void => {
   ws.on('error', () => {
     reconnect()
   })
-
   ws.on('message', async (data) => {
     console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
-
     switch (msg.messageType) {
       case 1:  // 聊天消息
         await websocketHandler.handleTextMessage(msg, ws)

@@ -15,7 +15,7 @@ import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.dao.SessionDao;
 import org.com.modules.session.domain.entity.Session;
 import org.com.modules.session.domain.vo.resp.ContactResp;
-import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
+import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.dao.BlackDao;
 import org.com.modules.user.dao.ContactApplyDao;
 import org.com.modules.user.dao.FriendContactDao;

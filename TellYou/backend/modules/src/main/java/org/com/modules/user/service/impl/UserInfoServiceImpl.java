@@ -20,7 +20,6 @@ import org.com.modules.user.domain.vo.resp.SimpleUserInfo;
 import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import org.com.modules.user.service.UserInfoService;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
-import org.com.tools.constant.UrlConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.template.MinioTemplate;

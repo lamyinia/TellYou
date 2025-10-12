@@ -9,8 +9,8 @@ import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import java.util.List;
 
 /**
+ * 针对表 user_info(用户信息) 的数据库操作Service
 * @author lanye
-* @description 针对表 user_info(用户信息) 的数据库操作Service
 * @createDate 2025-07-22 20:27:43
 */
 public interface UserInfoService {

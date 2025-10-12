@@ -18,40 +18,13 @@ declare global {
       onWsConnected: (callback: () => void) => void
       offWsConnected: (callback: () => void) => void
       wsSend: (msg: unknown) => Promise<boolean>
-      getSessionsWithOrder: () => Promise<unknown[]>
-      updateSessionLastMessage: (
-        sessionId: string | number,
-        content: string,
-        time: Date
-      ) => Promise<boolean>
       addSession: (session: Session) => Promise<boolean>
-      requestMessages: (
-        sessionId: string | number,
-        obj: Record<string, unknown>
-      ) => Promise<unknown>
-
-      getAvatar: (params: {
-        userId: string
-        strategy: string
-        avatarUrl: string
-      }) => Promise<string | null>
-      preloadAvatars: (params: {
-        avatarMap: Record<string, string>
-        size?: number
-      }) => Promise<boolean>
+      requestMessages: (sessionId: string | number, obj: Record<string, unknown>) => Promise<unknown>
+      getAvatar: (params: { userId: string, strategy: string, avatarUrl: string }) => Promise<string | null>
+      preloadAvatars: (params: { avatarMap: Record<string, string>, size?: number }) => Promise<boolean>
       clearAvatarCache: (userId: string) => Promise<boolean>
-      getAvatarCacheStats: () => Promise<{
-        totalUsers: number
-        totalFiles: number
-        totalSize: number
-      }>
-
-      startMediaTask: (params: {
-        type: string
-        filePath: string
-        fileName: string
-        mimeType: string
-      }) => Promise<{ taskId: string; success: boolean; error?: string }>
+      getAvatarCacheStats: () => Promise<{ totalUsers: number, totalFiles: number, totalSize: number }>
+      startMediaTask: (params: { type: string, filePath: string, fileName: string, mimeType: string }) => Promise<{ taskId: string; success: boolean; error?: string }>
       cancelMediaTask: (taskId: string) => Promise<boolean>
       retryMediaTask: (taskId: string) => Promise<boolean>
       getMediaTaskStatus: (taskId: string) => Promise<any>

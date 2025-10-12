@@ -1,6 +1,7 @@
-package org.com.modules.session.domain.vo.resp;
+package org.com.modules.user.domain.vo.resp;
 
 import lombok.*;
+import org.com.modules.session.domain.vo.resp.ContactResp;
 
 import java.util.List;
 

@@ -29,9 +29,10 @@ class UrlUtil {
     video: '',
     file: ''
   }
+  // 保证目录存在
   public ensureDir(path: string): void {
     if (!existsSync(path)) {
-      console.info('debug:ensureDir   ', path)
+      console.info('url-util:ensure-dir:', path)
       mkdirSync(path, { recursive: true })
     }
   }
@@ -43,6 +44,7 @@ class UrlUtil {
       this.ensureDir(this.cachePaths[host])
     })
   }
+  // 注册本地文件访问协议
   public registerProtocol(): void {
     protocol.handle('tellyou', async (request) => {
       try {
@@ -52,7 +54,9 @@ class UrlUtil {
 
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
         const normalized = path.resolve(filePath)
-/*        const rootResolved = path.resolve(this.cacheRootPath)
+/*
+        // 因为 dev 模式，会开多个 electron 实例，不同实例的缓存路径不同，这里判断先不写了
+        const rootResolved = path.resolve(this.cacheRootPath)
         const hasAccess =
           normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) ||
           normalized.toLowerCase() === rootResolved.toLowerCase()
@@ -60,7 +64,8 @@ class UrlUtil {
         if (!hasAccess) {
           console.error('tellyou protocol denied:', { normalized, rootResolved })
           return new Response('', { status: 403 })
-        }*/
+        }
+*/
 
         const ext = path.extname(normalized).toLowerCase()
         const mime = this.mimeByExt[ext] || 'application/octet-stream'
@@ -74,6 +79,7 @@ class UrlUtil {
       }
     })
   }
+  // 资源定位符：重定向数据库目录
   public redirectSqlPath(userId: string): void {
     this.sqlPath = join(this.appPath, '_' + userId)
     console.info('数据库操作目录 ' + this.sqlPath)
@@ -81,6 +87,7 @@ class UrlUtil {
       fs.mkdirSync(this.sqlPath, { recursive: true })
     }
   }
+  //  文件自定义协议签名
   public signByApp(path: string): string {
     return `tellyou://avatar?path=${encodeURIComponent(path)}`
   }

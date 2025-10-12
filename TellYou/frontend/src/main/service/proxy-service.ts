@@ -12,7 +12,9 @@ export enum Api {
   GET_AVATAR_UPLOAD_URL = '/media/avatar/upload-url',
   CONFIRM_UPLOAD = '/media/avatar/upload-confirm',
   PULL_CONTACT = '/contact/pull-contact',
-  PULL_APPLICATION = ''
+  PULL_APPLICATION = '',
+  GET_BASE_USER = '/user-info/base-info-list',
+  GET_BASE_GROUP = '/group/base-info-list'
 }
 
 class ProxyService {

@@ -22,5 +22,5 @@ public class ContactResp {
     private Integer role;
 
     @Schema(description = "会话类型")
-    private Integer sessionType;
+    private Integer contactType;
 }

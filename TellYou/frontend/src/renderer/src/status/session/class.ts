@@ -1,12 +1,14 @@
+import { Session } from '@shared/types/session'
+
 export class SessionManager {
   private sessions = new Map<string, Session>()
   private sortedSessions: SortedMap<SortKey, Session>
   private sessionIdToSortKey = new Map<string, SortKey>()
   private lastUpdateTime = 0
-  private cacheExpireTime = 5 * 60 * 1000
 
   constructor() {
     this.sortedSessions = new SortedMap<SortKey, Session>((a, b) => {
+      //  左边更优先，返回 -1，否则返回 1
       if (a.isPinned !== b.isPinned) {
         return b.isPinned ? 1 : -1
       }
@@ -83,13 +85,11 @@ export class SessionManager {
   removeSession(sessionId: string): void {
     const session = this.sessions.get(sessionId)
     if (!session) return
-
     const sortKey = this.sessionIdToSortKey.get(sessionId)
     if (sortKey) {
       this.sortedSessions.delete(sortKey)
       this.sessionIdToSortKey.delete(sessionId)
     }
-
     this.sessions.delete(sessionId)
     this.lastUpdateTime = Date.now()
   }
@@ -103,14 +103,6 @@ export class SessionManager {
 
   getOrderedSessions(): Session[] {
     return this.sortedSessions.values()
-  }
-
-  isCacheExpired(): boolean {
-    return Date.now() - this.lastUpdateTime > this.cacheExpireTime
-  }
-
-  getSessionCount(): number {
-    return this.sessions.size
   }
 
   searchSessions(keyword: string): Session[] {
@@ -152,14 +144,14 @@ export class SessionManager {
 
 interface SortKey {
   isPinned: boolean
-  lastMsgTime: number // 时间戳
-  sessionId: string // 用于稳定排序
+  lastMsgTime: number
+  sessionId: string
 }
-
+// 自定义 sortedMap，渲染友好，按照 isPinned 第一关键字、lastMsgTime 第二关键字排序，插入、删除时间复杂度从 O(nlog(n)) 优化至线性 O(n)
 class SortedMap<K, V> {
   private map = new Map<K, V>()
   private sortedKeys: K[] = []
-  private compareFn: (a: K, b: K) => number
+  private readonly compareFn: (a: K, b: K) => number
 
   constructor(compareFn: (a: K, b: K) => number) {
     this.compareFn = compareFn
@@ -220,7 +212,7 @@ class SortedMap<K, V> {
       this.sortedKeys.splice(index, 1)
     }
   }
-
+  //  二分查找需要插入的下标
   private findInsertIndex(key: K): number {
     let left = 0
     let right = this.sortedKeys.length
@@ -235,32 +227,7 @@ class SortedMap<K, V> {
         left = mid + 1
       }
     }
-
     return left
   }
 }
 
-export interface Session {
-  sessionId: string
-  contactId: string
-  contactType: number
-  contactName: string
-  contactAvatar: string
-  contactSignature: string
-  lastMsgContent: string
-  lastMsgTime: string
-  unreadCount: number
-  isPinned: boolean
-  isMuted: boolean
-  created_at: string
-  updated_at: string
-  memberCount?: number
-  maxMembers?: number
-  joinMode?: number
-  msgMode?: number
-  groupCard?: string
-  groupNotification?: string
-  myRole?: number
-  joinTime?: string
-  lastActive?: string
-}

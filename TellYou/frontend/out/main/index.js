@@ -35,7 +35,7 @@ const ffmpegStatic = require("ffmpeg-static");
 const sharp = require("sharp");
 const sqlite3 = require("sqlite3");
 const WebSocket = require("ws");
-const icon = path.join(__dirname, "../../resources/icon.png");
+const icon = path.join(__dirname, "./chunks/icon-Mz5fn9fh.png");
 class UrlUtil {
   protocolHost = ["avatar", "picture", "voice", "video", "file"];
   mimeByExt = {
@@ -60,9 +60,10 @@ class UrlUtil {
     video: "",
     file: ""
   };
+  // 保证目录存在
   ensureDir(path2) {
     if (!fs.existsSync(path2)) {
-      console.info("debug:ensureDir   ", path2);
+      console.info("url-util:ensure-dir:", path2);
       fs.mkdirSync(path2, { recursive: true });
     }
   }
@@ -74,6 +75,7 @@ class UrlUtil {
       this.ensureDir(this.cachePaths[host]);
     });
   }
+  // 注册本地文件访问协议
   registerProtocol() {
     electron.protocol.handle("tellyou", async (request) => {
       try {
@@ -93,6 +95,7 @@ class UrlUtil {
       }
     });
   }
+  // 资源定位符：重定向数据库目录
   redirectSqlPath(userId) {
     this.sqlPath = path.join(this.appPath, "_" + userId);
     console.info("数据库操作目录 " + this.sqlPath);
@@ -100,6 +103,7 @@ class UrlUtil {
       fs.mkdirSync(this.sqlPath, { recursive: true });
     }
   }
+  //  文件自定义协议签名
   signByApp(path2) {
     return `tellyou://avatar?path=${encodeURIComponent(path2)}`;
   }
@@ -553,25 +557,277 @@ class MediaUtil {
   }
 }
 const mediaUtil = new MediaUtil();
-const getMimeType = (ext) => {
-  const mimeTypes = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp"
-  };
-  return mimeTypes[ext] || "application/octet-stream";
-};
+const uidKey = "newest:user:uid";
+const tokenKey = "newest:user:token";
+class ApiError extends Error {
+  constructor(errCode, message, response) {
+    super(message);
+    this.errCode = errCode;
+    this.message = message;
+    this.response = response;
+    this.name = "ApiError";
+  }
+}
+const masterInstance = axios.create({
+  withCredentials: true,
+  baseURL: "http://localhost:8081",
+  timeout: 180 * 1e3,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+const minioInstance = axios.create({
+  timeout: 30 * 1e3,
+  // 文件上传下载超时时间更长
+  headers: {
+    "Content-Type": "application/octet-stream"
+  }
+});
+class NetMaster {
+  axiosInstance;
+  constructor(axiosInstance) {
+    this.axiosInstance = axiosInstance;
+    this.setupInterceptors();
+  }
+  setupInterceptors() {
+    this.axiosInstance.interceptors.request.use(
+      (config) => {
+        const token = store.get(tokenKey);
+        if (token && config.headers) {
+          config.headers.token = token;
+        }
+        return config;
+      },
+      (_error) => {
+        return Promise.reject("请求发送失败");
+      }
+    );
+    this.axiosInstance.interceptors.response.use(
+      (response) => {
+        const { errCode, errMsg, success } = response.data;
+        if (success) {
+          return response;
+        } else {
+          throw new ApiError(errCode, errMsg, response);
+        }
+      },
+      (error) => {
+        if (error.response) {
+          const status = error.response.status;
+          console.log("netMaster AxiosError", error);
+          const errorData = error.response.data;
+          throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
+        } else {
+          throw new ApiError(-1, "网络连接异常");
+        }
+      }
+    );
+  }
+  async get(url, config) {
+    return this.axiosInstance.get(url, config);
+  }
+  async post(url, data, config) {
+    return this.axiosInstance.post(url, data, config);
+  }
+  async put(url, data, config) {
+    return this.axiosInstance.put(url, data, config);
+  }
+  async delete(url, config) {
+    return this.axiosInstance.delete(url, config);
+  }
+  async patch(url, data, config) {
+    return this.axiosInstance.patch(url, data, config);
+  }
+  getAxiosInstance() {
+    return this.axiosInstance;
+  }
+}
+minioInstance.interceptors.request.use(
+  (config) => {
+    return config;
+  },
+  (_error) => {
+    return Promise.reject("文件请求发送失败");
+  }
+);
+minioInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error(error);
+    if (error.response) {
+      const status = error.response.status;
+      console.log("netMinIO AxiosError", error);
+      throw new ApiError(status, "文件操作失败", error.response);
+    } else {
+      throw new ApiError(-1, "文件网络连接异常");
+    }
+  }
+);
+class NetMinIO {
+  axiosInstance;
+  constructor(axiosInstance) {
+    this.axiosInstance = axiosInstance;
+  }
+  async simpleUploadFile(uploadUrl, fileBuffer, mimeType) {
+    console.info("上传URL，文件大小，MIME类型:", uploadUrl, fileBuffer.length, mimeType);
+    try {
+      new URL(uploadUrl);
+    } catch {
+      throw new Error(`无效的上传URL: ${uploadUrl}`);
+    }
+    try {
+      const response = await netMinIO.getAxiosInstance().put(uploadUrl, fileBuffer, {
+        headers: {
+          "Content-Type": mimeType,
+          "Content-Length": fileBuffer.length.toString(),
+          Connection: "close"
+        }
+      });
+      console.log("上传响应:", response);
+      if (response.status >= 200 && response.status < 300) {
+        return;
+      } else {
+        throw new Error(`上传失败，状态码: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("上传请求错误:", error);
+      throw error;
+    }
+  }
+  async uploadImage(presignedUrl, imageFile) {
+    const response = await this.axiosInstance.put(presignedUrl, imageFile, {
+      headers: {
+        "Content-Type": imageFile.type,
+        "Content-Length": imageFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadImage(imageUrl) {
+    const response = await this.axiosInstance.get(imageUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "image/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadAudio(presignedUrl, audioFile) {
+    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
+      headers: {
+        "Content-Type": audioFile.type,
+        "Content-Length": audioFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadAudio(audioUrl) {
+    const response = await this.axiosInstance.get(audioUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "audio/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadVideo(presignedUrl, videoFile) {
+    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
+      headers: {
+        "Content-Type": videoFile.type,
+        "Content-Length": videoFile.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadVideo(videoUrl) {
+    const response = await this.axiosInstance.get(videoUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "video/*"
+      }
+    });
+    return response.data;
+  }
+  async uploadFile(presignedUrl, file) {
+    const response = await this.axiosInstance.put(presignedUrl, file, {
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "Content-Length": file.size.toString()
+      }
+    });
+    return response;
+  }
+  async downloadFile(fileUrl, filename) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "*/*"
+      }
+    });
+    const blob = response.data;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "download";
+    link.click();
+    window.URL.revokeObjectURL(url);
+    return blob;
+  }
+  async downloadFileAsArrayBuffer(fileUrl, userAgent) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": userAgent || "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadFileAsBlob(fileUrl, userAgent) {
+    const response = await this.axiosInstance.get(fileUrl, {
+      responseType: "blob",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": userAgent || "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadAvatar(avatarUrl) {
+    return this.downloadFileAsArrayBuffer(avatarUrl, "TellYou-Client/1.0");
+  }
+  async downloadJson(jsonUrl) {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  async downloadJsonAsString(jsonUrl) {
+    const response = await this.axiosInstance.get(jsonUrl, {
+      responseType: "text",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "TellYou-Client/1.0"
+      }
+    });
+    return response.data;
+  }
+  getAxiosInstance() {
+    return this.axiosInstance;
+  }
+}
+const netMaster = new NetMaster(masterInstance);
+const netMinIO = new NetMinIO(minioInstance);
 class MediaTaskService {
   tasks = /* @__PURE__ */ new Map();
   tempDir = "";
   CHUNK_SIZE = 5 * 1024 * 1024;
   // 5MB 分块
-  MAX_CONCURRENT = 3;
-  // 最大并发上传数
-  RETRY_TIMES = 3;
-  // 重试次数
   beginServe() {
     ffmpeg.setFfmpegPath(ffmpegStatic);
     this.tempDir = path.join(electron.app.getPath("userData"), ".tellyou", "media", "temp");
@@ -602,54 +858,16 @@ class MediaTaskService {
     electron.ipcMain.handle("media:send:list", async () => {
       return this.getAllTasks();
     });
-    electron.ipcMain.handle("avatar:select-file", async () => {
-      try {
-        const { dialog } = await import("electron");
-        const result = await dialog.showOpenDialog({
-          title: "选择头像文件",
-          filters: [{ name: "图片文件", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }],
-          properties: ["openFile"]
-        });
-        if (result.canceled || result.filePaths.length === 0) {
-          return null;
-        }
-        const filePath = result.filePaths[0];
-        const stats = await fs.promises.stat(filePath);
-        const maxSize = 10 * 1024 * 1024;
-        if (stats.size > maxSize) {
-          throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
-        }
-        const ext = path.extname(filePath).toLowerCase();
-        const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
-        if (!allowedExts.includes(ext)) {
-          throw new Error("只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片");
-        }
-        const fileBuffer = await fs.promises.readFile(filePath);
-        const base64Data = fileBuffer.toString("base64");
-        const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`;
-        return {
-          filePath,
-          fileName: path.basename(filePath),
-          fileSize: stats.size,
-          fileSuffix: ext,
-          mimeType: getMimeType(ext),
-          dataUrl
-        };
-      } catch (error) {
-        console.error("Failed to select avatar file:", error);
-        throw error;
-      }
-    });
     electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
       try {
-        const { getUploadUrl, uploadFile, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-Cy3meAR6.js"));
+        const { getUploadUrl, confirmUpload } = await Promise.resolve().then(() => require("./avatar-upload-service-DM-fHz_w.js"));
         console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
         const uploadUrls = await getUploadUrl(fileSize, fileSuffix);
         const mediaFile = await mediaUtil.getNormal(filePath);
         const originalFile = await mediaUtil.processImage(mediaFile, "original");
         const thumbnailFile = await mediaUtil.processImage(mediaFile, "thumb");
-        await uploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType);
-        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType);
+        await netMinIO.simpleUploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType);
+        await netMinIO.simpleUploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType);
         await confirmUpload(uploadUrls);
         console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl);
         return {
@@ -744,9 +962,6 @@ class MediaTaskService {
     const chunkSize = this.CHUNK_SIZE;
     const totalChunks = Math.ceil(fileSize / chunkSize);
     for (let i = 0; i < totalChunks; i++) {
-      if (task.status === "cancelled") {
-        throw new Error("Upload cancelled");
-      }
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, fileSize);
       const chunk = fs.createReadStream(task.filePath, { start, end });
@@ -773,18 +988,7 @@ class MediaTaskService {
       timeout: 3e4
     });
   }
-  async commitUpload(task) {
-    const response = await axios.post("/api/media/commit", {
-      fileName: task.fileName,
-      fileSize: task.fileSize,
-      mimeType: task.mimeType,
-      type: task.type
-    });
-    task.result = {
-      originUrl: response.data.originUrl,
-      thumbnailUrl: response.data.thumbnailUrl,
-      fileId: response.data.fileId
-    };
+  async commitUpload(_task) {
   }
   async cancelTask(taskId) {
     const task = this.tasks.get(taskId);
@@ -850,14 +1054,14 @@ class JsonStoreService {
 }
 const jsonStoreService = new JsonStoreService();
 const add_tables = [
-  "create table if not exists sessions(   session_id text primary key,   session_type integer not null,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   created_at datetime,   updated_at datetime,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime,   status integer);",
+  "create table if not exists sessions(   session_id text primary key,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime,   status integer default 1);",
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
   "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
-  "create index if not exists idx_sessions_type_time on sessions(session_type, last_msg_time desc);",
+  "create index if not exists idx_sessions_contact_type_time on sessions(contact_type, last_msg_time desc);",
   "create index if not exists idx_sessions_contact on sessions(contact_id, contact_type);",
   "create index if not exists idx_sessions_unread on sessions(unread_count desc, last_msg_time desc);",
   "create index if not exists idx_messages_session_time on messages(session_id, send_time desc);",
@@ -1113,195 +1317,152 @@ const getMessageId = () => {
   const rand = BigInt(Math.floor(Math.random() * 1e6));
   return (time << 20n | rand).toString();
 };
-class MessageDao {
-  async addLocalMessage(data) {
-    const changes = await insertOrIgnore("messages", data);
-    if (!changes) return 0;
-    const rows = await queryAll(
-      "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
-      [data.sessionId, String(data.sequenceId)]
-    );
-    return rows[0].id;
-  }
-  async getMessageBySessionId(sessionId, options) {
-    try {
-      const limit = Number(options?.limit) || 50;
-      const direction = options?.direction || "newest";
-      const beforeId = options?.beforeId;
-      const afterId = options?.afterId;
-      let where = "WHERE session_id = ?";
-      const params = [sessionId];
-      if (direction === "older" && beforeId) {
-        const beforeMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
-          beforeId
-        ]);
-        if (beforeMessage.length > 0) {
-          where += " AND send_time < ?";
-          params.push(beforeMessage[0].sendTime);
-        }
-      } else if (direction === "newer" && afterId) {
-        const afterMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
-          afterId
-        ]);
-        if (afterMessage.length > 0) {
-          where += " AND send_time > ?";
-          params.push(afterMessage[0].sendTime);
-        }
-      }
-      const sql = `
-        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
-               text, ext_data, send_time, is_read
-        FROM messages
-        ${where}
-        ORDER BY send_time DESC, id DESC
-        LIMIT ${limit}
-      `;
-      const rows = await queryAll(sql, params);
-      const messages = rows.map((r) => {
-        const extData = JSON.parse(r.extData);
-        return {
-          id: r.id,
-          sessionId: r.sessionId,
-          content: r.text ?? "",
-          messageType: (() => {
-            switch (r.msgType) {
-              case 1:
-                return "text";
-              case 2:
-                return "image";
-              case 5:
-                return "file";
-              default:
-                return "system";
-            }
-          })(),
-          senderId: r.senderId,
-          senderName: r.senderName || "",
-          timestamp: new Date(r.sendTime),
-          isRead: !!r.isRead,
-          avatarVersion: String(extData.avatarVersion),
-          nicknameVersion: String(extData.nicknameVersion)
-        };
-      });
-      const totalCountRow = await queryAll(
-        "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
-        [sessionId]
-      );
-      const totalCount = totalCountRow[0]?.total || 0;
-      let hasMore = false;
-      if (messages.length > 0) {
-        const lastMessage = messages.at(-1);
-        const moreRow = await queryAll(
-          "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
-          [sessionId, lastMessage.timestamp.toString()]
-        );
-        hasMore = (moreRow[0]?.cnt || 0) > 0;
-      }
-      console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
-      return { messages, hasMore, totalCount };
-    } catch (error) {
-      console.error("获取会话消息失败:", error);
-      return { messages: [], hasMore: false, totalCount: 0 };
-    }
-  }
-}
-const messageDao = new MessageDao();
-class SessionDao {
-  async selectSessions() {
-    const sql = `
-      SELECT session_id,
-             contact_id,
-             contact_type,
-             contact_name,
-             contact_avatar,
-             contact_signature,
-             last_msg_content,
-             last_msg_time,
-             unread_count,
-             is_pinned,
-             is_muted,
-             created_at,
-             updated_at,
-             member_count,
-             max_members,
-             join_mode,
-             msg_mode,
-             group_card,
-             group_notification,
-             my_role,
-             join_time,
-             last_active
-      FROM sessions
-    `;
-    const result = await queryAll(sql, []);
-    return result;
-  }
-  async updateSessionByMessage(data) {
-    await update("sessions", {
-      lastMsgContent: data.content,
-      lastMsgTime: data.sendTime
-    }, { sessionId: data.sessionId });
-  }
-  async updatePartial(params, sessionId) {
-    try {
-      console.log(params);
-      const result = await update("sessions", params, { sessionId });
-      return result;
-    } catch {
-      console.error("updateSession 失败");
-      return 0;
-    }
-  }
-}
-const sessionDao = new SessionDao();
-const uidKey = "newest:user:uid";
-const tokenKey = "newest:user:token";
-class WebsocketHandler {
-  async handleTextMessage(msg, ws2) {
-    console.log("handleMessage", msg);
-    const snap = Number(msg.adjustedTimestamp);
-    const insertId = await messageDao.addLocalMessage({
-      sessionId: msg.sessionId,
-      sequenceId: msg.sequenceNumber,
-      senderId: msg.senderId,
-      msgId: msg.messageId,
-      senderName: msg.fromName ?? "",
-      msgType: 1,
-      isRecalled: 0,
-      text: String(msg.content ?? ""),
-      extData: JSON.stringify(msg.extra),
-      sendTime: new Date(snap).toISOString(),
-      isRead: 1
-    });
-    if (!insertId || insertId <= 0) return;
-    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-    await sessionDao.updateSessionByMessage({
-      content: msg.content,
-      sendTime: new Date(snap).toISOString(),
-      sessionId: msg.sessionId
-    });
-    const vo = {
+class MessageAdapter {
+  /**
+   * 将 WebSocket 消息转换为 Message 对象
+   */
+  adaptWebSocketMessage(msg, insertId) {
+    return {
       id: Number(insertId) || 0,
       sessionId: msg.sessionId,
       content: String(msg.content ?? ""),
       messageType: "text",
       senderId: msg.senderId,
       senderName: msg.fromName ?? "",
-      timestamp: new Date(snap),
+      timestamp: new Date(Number(msg.adjustedTimestamp)),
       isRead: true,
       avatarVersion: String(msg.extra["avatarVersion"]),
       nicknameVersion: String(msg.extra["nicknameVersion"])
     };
-    ws2.send(JSON.stringify({
-      messageId: msg.messageId,
-      type: 101,
-      fromUid: store.get(uidKey)
-    }));
-    const session = (await queryAll("select * from sessions where session_id = ?", [
-      msg.sessionId
-    ]))[0];
-    mainWindow?.webContents.send("message:call-back:load-data", [vo]);
-    mainWindow?.webContents.send("session:call-back:load-data", [session]);
+  }
+  /**
+   * 将 WebSocket 消息转换为数据库消息格式
+   */
+  adaptToDatabaseMessage(message) {
+    const date = new Date(Number(message.adjustedTimestamp)).toISOString();
+    return {
+      sessionId: String(message.sessionId),
+      sequenceId: message.sequenceNumber,
+      senderId: String(message.senderId),
+      msgId: message.messageId,
+      senderName: message.fromName || "",
+      msgType: message.messageType,
+      isRecalled: 0,
+      text: message.content,
+      extData: JSON.stringify(message.extra),
+      sendTime: date,
+      isRead: 1
+    };
+  }
+  /**
+   * 将数据库消息行转换为 Message 对象
+   */
+  adaptMessageRowToMessage(row) {
+    const extData = JSON.parse(row.extData || "{}");
+    const getMessageType = (msgType) => {
+      switch (msgType) {
+        case 1:
+          return "text";
+        case 2:
+          return "image";
+        case 5:
+          return "file";
+        default:
+          return "text";
+      }
+    };
+    return {
+      id: row.id,
+      sessionId: row.sessionId,
+      content: row.text ?? "",
+      messageType: getMessageType(row.msgType),
+      senderId: row.senderId,
+      senderName: row.senderName || "",
+      timestamp: new Date(row.sendTime),
+      isRead: !!row.isRead,
+      avatarVersion: String(extData.avatarVersion || ""),
+      nicknameVersion: String(extData.nicknameVersion || "")
+    };
+  }
+}
+const messageAdapter = new MessageAdapter();
+class SessionDao {
+  async selectSessions() {
+    const sql = "select * from sessions";
+    const result = await queryAll(sql, []);
+    return result;
+  }
+  async selectSingleSession(sessionId) {
+    const sql = "select * from sessions where session_id = ?";
+    const result = await queryAll(sql, [sessionId]);
+    return result[0];
+  }
+  // 为了校正无效的 session，先全部弃用
+  async abandonAllSession() {
+    try {
+      const sql = "UPDATE sessions SET status = 0";
+      const result = await sqliteRun(sql, []);
+      console.log(`session-dao:已弃用 ${result} 个会话`);
+      return result;
+    } catch (error) {
+      console.error("session-dao:弃用所有会话失败:", error);
+      throw error;
+    }
+  }
+  async insertOrIgnoreContact(contact) {
+    return insertOrIgnore("sessions", contact);
+  }
+  // 只有消息更新，才需要更新会话
+  async keepSessionFresh(data) {
+    const sql = `UPDATE sessions
+                 SET last_msg_time = ?, last_msg_content = ?
+                 WHERE session_id = ? AND datetime(?) > datetime(last_msg_time)`;
+    return sqliteRun(sql, [data.sendTime, data.content, data.sessionId, data.sendTime]);
+  }
+  //  根据 sessionId，更新会话的某些字段
+  async updatePartialBySessionId(params, sessionId) {
+    try {
+      const result = await update("sessions", params, { sessionId });
+      return result;
+    } catch {
+      console.error("updatePartialBySessionId:updateSession 失败");
+      return 0;
+    }
+  }
+  //  根据 contactId，更新会话的某些字段
+  async updatePartialByContactId(params, contactId) {
+    try {
+      const result = await update("sessions", params, { contactId });
+      return result;
+    } catch {
+      console.error("updatePartialByContactId:updateSession 失败");
+      return 0;
+    }
+  }
+  async selectAllSessionId() {
+    const sql = "SELECT session_id FROM sessions";
+    const result = await queryAll(sql, []);
+    return result;
+  }
+}
+const sessionDao = new SessionDao();
+class WebsocketHandler {
+  async handleTextMessage(msg, ws2) {
+    console.log("handleMessage", msg);
+    const insertId = await messageService.handleSingleMessage(msg);
+    if (!insertId || insertId <= 0) return;
+    const vo = messageAdapter.adaptWebSocketMessage(msg, insertId);
+    ws2.send(
+      JSON.stringify({
+        messageId: msg.messageId,
+        type: 101,
+        fromUid: store.get(uidKey)
+      })
+    );
+    const session = await sessionDao.selectSingleSession(msg.sessionId);
+    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+    mainWindow.webContents.send("message:call-back:load-data", [vo]);
+    mainWindow.webContents.send("session:call-back:load-data", [session]);
   }
 }
 const websocketHandler = new WebsocketHandler();
@@ -1330,7 +1491,7 @@ const sendText = (payload) => {
     console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
     throw new Error("Missing required fields: fromUId/sessionId");
   }
-  let base = {
+  const base = {
     messageId: getMessageId(),
     type: 1,
     fromUId,
@@ -1396,6 +1557,74 @@ const connectWs = () => {
     }
   });
 };
+class MessageDao {
+  async addLocalMessage(data) {
+    const changes = await insertOrIgnore("messages", data);
+    if (!changes) return 0;
+    const rows = await queryAll(
+      "SELECT id FROM messages WHERE session_id = ? AND sequence_id = ? LIMIT 1",
+      [data.sessionId, String(data.sequenceId)]
+    );
+    return rows[0].id;
+  }
+  async getMessageBySessionId(sessionId, options) {
+    try {
+      const limit = Number(options?.limit) || 50;
+      const direction = options?.direction || "newest";
+      const beforeId = options?.beforeId;
+      const afterId = options?.afterId;
+      let where = "WHERE session_id = ?";
+      const params = [sessionId];
+      if (direction === "older" && beforeId) {
+        const beforeMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
+          beforeId
+        ]);
+        if (beforeMessage.length > 0) {
+          where += " AND send_time < ?";
+          params.push(beforeMessage[0].sendTime);
+        }
+      } else if (direction === "newer" && afterId) {
+        const afterMessage = await queryAll("SELECT send_time FROM messages WHERE id = ?", [
+          afterId
+        ]);
+        if (afterMessage.length > 0) {
+          where += " AND send_time > ?";
+          params.push(afterMessage[0].sendTime);
+        }
+      }
+      const sql = `
+        SELECT id, session_id, sequence_id, sender_id, sender_name, msg_type, is_recalled,
+               text, ext_data, send_time, is_read
+        FROM messages
+        ${where}
+        ORDER BY send_time DESC, id DESC
+        LIMIT ${limit}
+      `;
+      const rows = await queryAll(sql, params);
+      const messages = rows.map((r) => messageAdapter.adaptMessageRowToMessage(r));
+      const totalCountRow = await queryAll(
+        "SELECT COUNT(1) as total FROM messages WHERE session_id = ?",
+        [sessionId]
+      );
+      const totalCount = totalCountRow[0]?.total || 0;
+      let hasMore = false;
+      if (messages.length > 0) {
+        const lastMessage = messages.at(-1);
+        const moreRow = await queryAll(
+          "SELECT COUNT(1) as cnt FROM messages WHERE session_id = ? AND send_time < ?",
+          [sessionId, lastMessage.timestamp.toString()]
+        );
+        hasMore = (moreRow[0]?.cnt || 0) > 0;
+      }
+      console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
+      return { messages, hasMore, totalCount };
+    } catch (error) {
+      console.error("获取会话消息失败:", error);
+      return { messages: [], hasMore: false, totalCount: 0 };
+    }
+  }
+}
+const messageDao = new MessageDao();
 class MessageService {
   beginServe() {
     electron.ipcMain.handle("websocket:send", async (_, msg) => {
@@ -1413,65 +1642,23 @@ class MessageService {
       return messageDao.getMessageBySessionId(String(sessionId), options);
     });
   }
+  async handleSingleMessage(message) {
+    console.log("message-service:handle-single-message", message);
+    const messageData = messageAdapter.adaptToDatabaseMessage(message);
+    const msgId = await messageDao.addLocalMessage(messageData);
+    await sessionDao.keepSessionFresh({
+      content: message.content,
+      sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
+      sessionId: message.sessionId
+    });
+    return msgId;
+  }
 }
 const messageService = new MessageService();
 class SessionService {
   beginServe() {
-    electron.ipcMain.handle("get-sessions-with-order", async () => {
-      try {
-        const sql = `
-          SELECT *
-          FROM sessions
-          WHERE contact_type IN (1, 2)
-          ORDER BY is_pinned DESC, last_msg_time DESC
-        `;
-        const result = await queryAll(sql, []);
-        return result;
-      } catch (error) {
-        console.error("获取会话列表失败:", error);
-        return [];
-      }
-    });
-    electron.ipcMain.handle(
-      "update-session-last-message",
-      async (_, sessionId, content, time) => {
-        try {
-          const sql = `
-            UPDATE sessions
-            SET last_msg_content = ?,
-                last_msg_time    = ?,
-                updated_at       = ?
-            WHERE session_id = ?
-          `;
-          const result = await sqliteRun(sql, [
-            content,
-            time.toISOString(),
-            (/* @__PURE__ */ new Date()).toISOString(),
-            String(sessionId)
-          ]);
-          return result > 0;
-        } catch (error) {
-          console.error("更新会话最后消息失败:", error);
-          return false;
-        }
-      }
-    );
-    electron.ipcMain.handle("toggle-session-pin", async (_, sessionId) => {
-      try {
-        const sql = `
-          UPDATE sessions
-          SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
-          WHERE session_id = ?
-        `;
-        const result = await sqliteRun(sql, [String(sessionId)]);
-        return result > 0;
-      } catch (error) {
-        console.error("切换置顶状态失败:", error);
-        return false;
-      }
-    });
     electron.ipcMain.handle("session:update:partial", async (_, params, sessionId) => {
-      return await sessionDao.updatePartial(params, sessionId);
+      return await sessionDao.updatePartialBySessionId(params, sessionId);
     });
     electron.ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session");
@@ -1480,221 +1667,58 @@ class SessionService {
       event.sender.send("session:call-back:load-data", result);
     });
   }
+  // 批量设置用户头像、名字
+  async updateBaseUserInfoList(list) {
+    for (const info of list) {
+      await sessionDao.updatePartialByContactId(
+        { contactName: info.nickname, contactAvatar: info.avatar },
+        info.userId
+      );
+    }
+  }
+  // 批量设置群组头像、群名
+  async updateBaseGroupInfoList(list) {
+    for (const info of list) {
+      await sessionDao.updatePartialByContactId(
+        { contactName: info.groupName, contactAvatar: info.avatar },
+        info.groupId
+      );
+    }
+  }
+  // 如果插入后发现不存在，或者 contact_name 或者 contact_avatar 字段缺失，返回 contact，代表要查 api
+  async checkSession(contact) {
+    const obj = { sessionId: contact.sessionId, contactType: contact.contactType, contactId: contact.contactId };
+    if (contact.myRole) Object.assign(obj, { myRole: contact.myRole });
+    const change = await sessionDao.insertOrIgnoreContact(obj);
+    console.info("session-service:check-session:insert:", obj);
+    if (change > 0) {
+      return contact;
+    } else {
+      await sessionDao.updatePartialBySessionId({ status: 1 }, contact.sessionId);
+    }
+    const one = await sessionDao.selectSingleSession(contact.sessionId);
+    if (one?.contactAvatar && one?.contactName) {
+      return { sessionId: contact.sessionId };
+    } else {
+      return contact;
+    }
+  }
   // 整理所有会话的最后一条消息
   async tidySession() {
+    const result = await sessionDao.selectAllSessionId();
+    for (const session of result) {
+      const msgResult = await messageDao.getMessageBySessionId(session.sessionId, { limit: 1, direction: "newest" });
+      if (msgResult.messages.length > 0) {
+        const obj = { lastMsgTime: msgResult.messages[0].timestamp.toISOString(), lastMsgContent: msgResult.messages[0].content };
+        console.info("session-service:tidy-session:update-session:", obj, session.sessionId);
+        await sessionDao.updatePartialBySessionId(obj, session.sessionId);
+      } else {
+        console.info("session-service:tidy-session:no-message:", session.sessionId);
+      }
+    }
   }
 }
 const sessionService = new SessionService();
-class ApiError extends Error {
-  constructor(errCode, message, response) {
-    super(message);
-    this.errCode = errCode;
-    this.message = message;
-    this.response = response;
-    this.name = "ApiError";
-  }
-}
-const netMaster = axios.create({
-  withCredentials: true,
-  baseURL: "http://localhost:8081",
-  timeout: 180 * 1e3,
-  headers: {
-    "Content-Type": "application/json"
-  }
-});
-const axiosInstance = axios.create({
-  timeout: 30 * 1e3,
-  // 文件上传下载超时时间更长
-  headers: {
-    "Content-Type": "application/octet-stream"
-  }
-});
-netMaster.interceptors.request.use(
-  (config) => {
-    const token = store.get(tokenKey);
-    if (token && config.headers) {
-      config.headers.token = token;
-    }
-    return config;
-  },
-  (_error) => {
-    return Promise.reject("请求发送失败");
-  }
-);
-netMaster.interceptors.response.use(
-  (response) => {
-    const { errCode, errMsg, success } = response.data;
-    if (success) {
-      return response;
-    } else {
-      throw new ApiError(errCode, errMsg, response);
-    }
-  },
-  (error) => {
-    if (error.response) {
-      const status = error.response.status;
-      console.log("netMaster AxiosError", error);
-      const errorData = error.response.data;
-      throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
-    } else {
-      throw new ApiError(-1, "网络连接异常");
-    }
-  }
-);
-axiosInstance.interceptors.request.use(
-  (config) => {
-    return config;
-  },
-  (_error) => {
-    return Promise.reject("文件请求发送失败");
-  }
-);
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error(error);
-    if (error.response) {
-      const status = error.response.status;
-      console.log("netMinIO AxiosError", error);
-      throw new ApiError(status, "文件操作失败", error.response);
-    } else {
-      throw new ApiError(-1, "文件网络连接异常");
-    }
-  }
-);
-class NetMinIO {
-  axiosInstance;
-  constructor(axiosInstance2) {
-    this.axiosInstance = axiosInstance2;
-  }
-  async uploadImage(presignedUrl, imageFile) {
-    const response = await this.axiosInstance.put(presignedUrl, imageFile, {
-      headers: {
-        "Content-Type": imageFile.type,
-        "Content-Length": imageFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadImage(imageUrl) {
-    const response = await this.axiosInstance.get(imageUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "image/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadAudio(presignedUrl, audioFile) {
-    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
-      headers: {
-        "Content-Type": audioFile.type,
-        "Content-Length": audioFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadAudio(audioUrl) {
-    const response = await this.axiosInstance.get(audioUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "audio/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadVideo(presignedUrl, videoFile) {
-    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
-      headers: {
-        "Content-Type": videoFile.type,
-        "Content-Length": videoFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadVideo(videoUrl) {
-    const response = await this.axiosInstance.get(videoUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "video/*"
-      }
-    });
-    return response.data;
-  }
-  async uploadFile(presignedUrl, file) {
-    const response = await this.axiosInstance.put(presignedUrl, file, {
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-        "Content-Length": file.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadFile(fileUrl, filename) {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "*/*"
-      }
-    });
-    const blob = response.data;
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "download";
-    link.click();
-    window.URL.revokeObjectURL(url);
-    return blob;
-  }
-  async downloadFileAsArrayBuffer(fileUrl, userAgent) {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "arraybuffer",
-      headers: {
-        Accept: "*/*",
-        "User-Agent": userAgent || "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
-  async downloadFileAsBlob(fileUrl, userAgent) {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "blob",
-      headers: {
-        Accept: "*/*",
-        "User-Agent": userAgent || "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
-  async downloadAvatar(avatarUrl) {
-    return this.downloadFileAsArrayBuffer(avatarUrl, "TellYou-Client/1.0");
-  }
-  async downloadJson(jsonUrl) {
-    const response = await this.axiosInstance.get(jsonUrl, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
-  async downloadJsonAsString(jsonUrl) {
-    const response = await this.axiosInstance.get(jsonUrl, {
-      responseType: "text",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
-  getAxiosInstance() {
-    return this.axiosInstance;
-  }
-}
-const netMinIO = new NetMinIO(axiosInstance);
 var Api = /* @__PURE__ */ ((Api2) => {
   Api2["LOGIN"] = "/user-account/login";
   Api2["REGISTER"] = "/user-account/register";
@@ -1705,6 +1729,8 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
   Api2["PULL_CONTACT"] = "/contact/pull-contact";
   Api2["PULL_APPLICATION"] = "";
+  Api2["GET_BASE_USER"] = "/user-info/base-info-list";
+  Api2["GET_BASE_GROUP"] = "/group/base-info-list";
   return Api2;
 })(Api || {});
 class ProxyService {
@@ -1751,22 +1777,10 @@ class PullService {
     }
     const result = response.data.data;
     console.log("pull-service:pullContact:result", result);
+    await this.adjustLocalDb(result);
   }
-  async pullApply() {
-    const response = await netMaster.get(Api.PULL_MAILBOX);
-    if (!response.data.success) {
-      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
-      return;
-    }
-  }
-  async pullBlackList() {
-    const response = await netMaster.get(Api.PULL_MAILBOX);
-    if (!response.data.success) {
-      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
-      return;
-    }
-  }
-  async pullOfflineMessages() {
+  // 拉取用户信箱的所有消息
+  async pullMailboxMessages() {
     try {
       console.info("pull-service:pull-offline-message:开始拉取用户离线消息...", `${Api.PULL_MAILBOX}`);
       const response = await netMaster.get(Api.PULL_MAILBOX);
@@ -1780,90 +1794,20 @@ class PullService {
         return;
       }
       console.info(`pull-service:拉取到 ${pullResult.messageList.length} 条离线消息`);
+      const promiseList = [];
       const messageIds = [];
-      const sessionUpdates = /* @__PURE__ */ new Map();
-      const chatMessages = [];
       for (const message of pullResult.messageList) {
-        const date = new Date(Number(message.adjustedTimestamp)).toISOString();
-        console.log("pull-service:pull-offline-message:pull-result", message);
-        const messageData = {
-          sessionId: String(message.sessionId),
-          sequenceId: message.sequenceNumber,
-          senderId: String(message.senderId),
-          msgId: message.messageId,
-          senderName: "",
-          msgType: message.messageType,
-          isRecalled: 0,
-          text: message.content,
-          extData: JSON.stringify(message.extra),
-          sendTime: date,
-          isRead: 1
-        };
-        const insertId = await messageDao.addLocalMessage(messageData);
+        promiseList.push(messageService.handleSingleMessage(message));
         messageIds.push(message.messageId);
-        if (insertId <= 0) continue;
-        const sessionId = String(message.sessionId);
-        const existingSession = sessionUpdates.get(sessionId);
-        if (!existingSession || date > existingSession.sendTime) {
-          sessionUpdates.set(sessionId, {
-            content: message.content,
-            sendTime: date
-          });
-        }
-        chatMessages.push({
-          id: insertId,
-          sessionId: message.sessionId,
-          content: message.content,
-          messageType: "text",
-          senderId: message.senderId,
-          senderName: "",
-          senderAvatar: "",
-          timestamp: new Date(Number(message.adjustedTimestamp)),
-          isRead: false
-        });
       }
-      const sessionUpdatePromises = [];
-      for (const [sessionId, updateData] of sessionUpdates) {
-        sessionUpdatePromises.push(
-          sessionDao.updateSessionByMessage({
-            content: updateData.content,
-            sendTime: updateData.sendTime,
-            sessionId
-          })
-        );
-      }
-      if (sessionUpdatePromises.length > 0) {
-        try {
-          await Promise.all(sessionUpdatePromises);
-          console.info(`批量更新 ${sessionUpdatePromises.length} 个会话`);
-        } catch (error) {
-          console.error("批量更新会话失败:", error);
-        }
-      }
-      const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-      if (mainWindow && chatMessages.length > 0) {
-        try {
-          const sessionIds = Array.from(sessionUpdates.keys());
-          const sessions = await queryAll(
-            `SELECT *
-             FROM sessions
-             WHERE session_id IN (${sessionIds.map(() => "?").join(",")})`,
-            sessionIds
-          );
-          mainWindow.webContents.send("message:call-back:load-data", chatMessages);
-          mainWindow.webContents.send("session:call-back:load-data", sessions);
-          console.info(`发送 ${chatMessages.length} 条消息到渲染进程`);
-        } catch (error) {
-          console.error("发送消息到渲染进程失败:", error);
-        }
-      }
+      await Promise.all(promiseList);
       if (messageIds.length > 0) {
         await this.ackConfirmMessages(messageIds);
       }
       if (pullResult.hasMore) {
         console.info("还有更多离线消息，继续拉取...");
         setTimeout(() => {
-          this.pullOfflineMessages();
+          this.pullMailboxMessages();
         }, 0);
       } else {
         console.info("离线消息拉取完成");
@@ -1872,7 +1816,7 @@ class PullService {
       console.error("拉取离线消息异常:", error);
     }
   }
-  // 确认消息
+  // 批量 ack 确认
   async ackConfirmMessages(messageIds) {
     try {
       console.info(`确认 ${messageIds.length} 条消息`, messageIds);
@@ -1887,19 +1831,82 @@ class PullService {
       console.error("消息确认异常:", error);
     }
   }
+  // 修正本地数据库，策略化请求 api 拿头像、名字信息
+  async adjustLocalDb(myContactList) {
+    try {
+      if (!myContactList || !myContactList.contactList || !Array.isArray(myContactList.contactList)) {
+        console.warn("pull-service:adjust-local-db:contactList 数据无效:", myContactList);
+        return;
+      }
+      console.info("pull-service:adjust-local-db:开始处理联系人列表，数量:", myContactList.contactList.length);
+      await sessionDao.abandonAllSession();
+      const groupList = [];
+      const userList = [];
+      const promiseList = [];
+      myContactList.contactList.forEach((contact) => {
+        promiseList.push(sessionService.checkSession(contact));
+      });
+      const resultList = await Promise.all(promiseList);
+      for (const result of resultList) {
+        if (result && result.contactId) {
+          if (result.contactType === 1) {
+            userList.push(result.contactId);
+          } else if (result.contactType === 2) {
+            groupList.push(result.contactId);
+          }
+        }
+      }
+      if (userList.length > 0) {
+        console.info("pull-service:adjust-local-db:需要获取用户信息，数量:", userList.length);
+        try {
+          const response = await netMaster.post(Api.GET_BASE_USER, { targetList: userList });
+          if (response.data.success) {
+            const data = response.data.data;
+            console.info("pull-service:adjust-local-db:获取用户信息成功，数量:", data.userInfoList?.length || 0);
+            await sessionService.updateBaseUserInfoList(data.userInfoList);
+          } else {
+            console.error("pull-service:adjust-local-db:获取用户信息失败:", response.data.errMsg);
+          }
+        } catch (error) {
+          console.error("pull-service:adjust-local-db:获取用户信息异常:", error);
+        }
+      }
+      if (groupList.length > 0) {
+        console.info("pull-service:adjust-local-db:需要获取群组信息，数量:", groupList.length);
+        try {
+          const response = await netMaster.post(Api.GET_BASE_GROUP, { targetList: groupList });
+          if (response.data.success) {
+            const data = response.data.data;
+            console.info("pull-service:adjust-local-db:获取群组信息成功，数量:", data.groupInfoList?.length || 0);
+            await sessionService.updateBaseGroupInfoList(data.groupInfoList);
+          } else {
+            console.error("pull-service:adjust-local-db:获取群组信息失败:", response.data.errMsg);
+          }
+        } catch (error) {
+          console.error("pull-service:adjust-local-db:获取群组信息异常:", error);
+        }
+      }
+    } catch (error) {
+      console.error("pull-service:adjust-local-db:处理失败:", error);
+      throw error;
+    }
+  }
 }
 const pullService = new PullService();
-const initializeUserData = async (uid) => {
-  connectWs();
-  urlUtil.redirectSqlPath(uid);
-  if (!redirectDataBase()) {
-    console.info("未检测到本地数据，新创建数据库");
+class AtomDao {
+  async initializeUserData(userId) {
+    connectWs();
+    urlUtil.redirectSqlPath(userId);
+    if (!redirectDataBase()) {
+      console.info("initializeUserData: 未检测到本地数据库，新创建数据库");
+    }
+    await initTable();
+    await pullService.pullStrongTransactionData();
+    await pullService.pullMailboxMessages();
+    await sessionService.tidySession();
   }
-  await initTable();
-  await pullService.pullStrongTransactionData();
-  await pullService.pullOfflineMessages();
-  await sessionService.tidySession();
-};
+}
+const atomDao = new AtomDao();
 const test = async () => {
   const inputPath = "D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg";
   const outPutPath = "D:/multi-media-material/compress/out12.jpg";
@@ -1926,9 +1933,9 @@ class DeviceService {
       }
       mainWindow.setResizable(false);
     });
-    electron.ipcMain.on("LoginSuccess", (_, uid) => {
+    electron.ipcMain.on("LoginSuccess", (_, userId) => {
       wsConfigInit();
-      initializeUserData(uid).then(() => {
+      atomDao.initializeUserData(userId).then(() => {
         mainWindow.setResizable(true);
         mainWindow.setSize(920, 740);
         mainWindow.setMaximizable(true);
@@ -1962,6 +1969,44 @@ class DeviceService {
           win?.setSkipTaskbar(true);
           win?.hide();
           break;
+      }
+    });
+    electron.ipcMain.handle("device:select-file", async () => {
+      try {
+        const { dialog } = await import("electron");
+        const result = await dialog.showOpenDialog({
+          title: "选择头像文件",
+          filters: [{ name: "图片文件", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }],
+          properties: ["openFile"]
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+          return null;
+        }
+        const filePath = result.filePaths[0];
+        const stats = await fs.promises.stat(filePath);
+        const maxSize = 10 * 1024 * 1024;
+        if (stats.size > maxSize) {
+          throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
+        }
+        const ext = path.extname(filePath).toLowerCase();
+        const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+        if (!allowedExts.includes(ext)) {
+          throw new Error("只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片");
+        }
+        const fileBuffer = await fs.promises.readFile(filePath);
+        const base64Data = fileBuffer.toString("base64");
+        const dataUrl = `data:${mediaUtil.getMimeTypeBySuffix(ext)};base64,${base64Data}`;
+        return {
+          filePath,
+          fileName: path.basename(filePath),
+          fileSize: stats.size,
+          fileSuffix: ext,
+          mimeType: mediaUtil.getMimeTypeBySuffix(ext),
+          dataUrl
+        };
+      } catch (error) {
+        console.error("Failed to select avatar file:", error);
+        throw error;
       }
     });
     electron.ipcMain.handle("test", (_) => {
@@ -2230,7 +2275,6 @@ const createWindow = () => {
 };
 exports.Api = Api;
 exports.netMaster = netMaster;
-exports.netMinIO = netMinIO;
 exports.store = store;
 exports.uidKey = uidKey;
 exports.urlUtil = urlUtil;

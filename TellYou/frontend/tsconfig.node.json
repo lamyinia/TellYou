@@ -1,6 +1,6 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
+  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
   "compilerOptions": {
     "composite": true,
     "module": "ESNext",
@@ -9,7 +9,8 @@
     "esModuleInterop": true,
     "paths": {
       "@main/*": ["src/main/*"],
-      "@renderer/*": ["src/renderer/src/*"]
+      "@renderer/*": ["src/renderer/src/*"],
+      "@shared/*": ["src/shared/*"]
     }
   }
 }

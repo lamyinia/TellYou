@@ -8,14 +8,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.resp.ApiResult;
-import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.domain.vo.req.*;
-import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.session.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.session.service.GroupContactService;
 import org.com.modules.session.service.GroupInfoService;
 import org.com.modules.user.domain.vo.req.BaseInfoReq;
-import org.com.modules.user.domain.vo.resp.SimpleUserInfoList;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.TimeUnit;

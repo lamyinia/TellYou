@@ -16,8 +16,6 @@ if (process.contextIsolated) {
       removeListener: (channel, callback) => electron.ipcRenderer.removeListener(channel, callback),
       onWsConnected: (callback) => electron.ipcRenderer.on("ws-connected", callback),
       offWsConnected: (callback) => electron.ipcRenderer.removeListener("ws-connected", callback),
-      getSessionsWithOrder: () => electron.ipcRenderer.invoke("get-sessions-with-order"),
-      updateSessionLastMessage: (sessionId, content, time) => electron.ipcRenderer.invoke("update-session-last-message", sessionId, content, time),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("message:get-by-sessionId", sessionId, obj),
       wsSend: (msg) => electron.ipcRenderer.invoke("websocket:send", msg),
@@ -30,7 +28,7 @@ if (process.contextIsolated) {
       retryMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:retry", taskId),
       getMediaTaskStatus: (taskId) => electron.ipcRenderer.invoke("media:send:status", taskId),
       getAllMediaTasks: () => electron.ipcRenderer.invoke("media:send:list"),
-      selectAvatarFile: () => electron.ipcRenderer.invoke("avatar:select-file"),
+      selectAvatarFile: () => electron.ipcRenderer.invoke("device:select-file"),
       uploadAvatar: (params) => electron.ipcRenderer.invoke("avatar:upload", params)
     });
   } catch (error) {

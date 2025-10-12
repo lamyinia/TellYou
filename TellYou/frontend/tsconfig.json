@@ -22,6 +22,9 @@
       ],
       "@main/*": [
         "./src/main/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
       ]
     },
     "types": [

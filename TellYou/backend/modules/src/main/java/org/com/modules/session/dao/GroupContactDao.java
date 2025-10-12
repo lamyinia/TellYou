@@ -6,7 +6,6 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.session.domain.entity.GroupContact;
 import org.com.modules.session.domain.vo.resp.ContactResp;
 import org.com.modules.session.mapper.GroupContactMapper;
-import org.com.modules.user.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.enums.SessionTypeEnum;
 import org.com.tools.constant.ValueConstant;
 import org.springframework.stereotype.Service;
@@ -52,7 +51,7 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                     .sessionId(contact.getSessionId())
                     .contactId(contact.getGroupId())
                     .role(contact.getRole())
-                    .sessionType(SessionTypeEnum.PUBLIC.getStatus())
+                    .contactType(SessionTypeEnum.PUBLIC.getStatus())
                     .build();
         }).toList();
     }

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
 import type { Session } from '@renderer/status/session/class'
-import { briefMsg, formatTime, onAvatarError } from '../../../../utils/process'
+import { briefMsg, formatTime, onAvatarError } from '@shared/utils/process'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)

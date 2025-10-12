@@ -1,63 +1,13 @@
 import { ipcMain } from 'electron'
-import { queryAll, sqliteRun, update } from '@main/sqlite/atom'
-import { Session } from '@renderer/status/session/class'
 import sessionDao from '@main/sqlite/dao/session-dao'
+import { Session } from '@shared/types/session'
+import { Contact } from '@main/service/pull-service'
+import messageDao from '@main/sqlite/dao/message-dao'
 
 class SessionService {
   public beginServe(): void {
-    ipcMain.handle('get-sessions-with-order', async () => {
-      try {
-        const sql = `
-          SELECT *
-          FROM sessions
-          WHERE contact_type IN (1, 2)
-          ORDER BY is_pinned DESC, last_msg_time DESC
-        `
-        const result = await queryAll(sql, [])
-        return result
-      } catch (error) {
-        console.error('获取会话列表失败:', error)
-        return []
-      }
-    })
-    ipcMain.handle('update-session-last-message',
-      async (_, sessionId: string | number, content: string, time: Date) => {
-        try {
-          const sql = `
-            UPDATE sessions
-            SET last_msg_content = ?,
-                last_msg_time    = ?,
-                updated_at       = ?
-            WHERE session_id = ?
-          `
-          const result = await sqliteRun(sql, [
-            content,
-            time.toISOString(),
-            new Date().toISOString(),
-            String(sessionId)
-          ])
-          return result > 0
-        } catch (error) {
-          console.error('更新会话最后消息失败:', error)
-          return false
-        }
-      })
-    ipcMain.handle('toggle-session-pin', async (_, sessionId: string | number) => {
-      try {
-        const sql = `
-          UPDATE sessions
-          SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END
-          WHERE session_id = ?
-        `
-        const result = await sqliteRun(sql, [String(sessionId)])
-        return result > 0
-      } catch (error) {
-        console.error('切换置顶状态失败:', error)
-        return false
-      }
-    })
     ipcMain.handle('session:update:partial', async (_, params: any, sessionId: string) => {
-      return await sessionDao.updatePartial(params, sessionId)
+      return await sessionDao.updatePartialBySessionId(params, sessionId)
     })
     ipcMain.on('session:load-data', async (event) => {
       console.log('开始查询session')
@@ -66,9 +16,52 @@ class SessionService {
       event.sender.send('session:call-back:load-data', result)
     })
   }
+  // 批量设置用户头像、名字
+  public async updateBaseUserInfoList(list: any[]): Promise<void> {
+    for (const info of list) {
+      await sessionDao.updatePartialByContactId(
+        {contactName: info.nickname, contactAvatar: info.avatar}, info.userId)
+    }
+  }
+  // 批量设置群组头像、群名
+  public async updateBaseGroupInfoList(list: any[]): Promise<void> {
+    for (const info of list) {
+      await sessionDao.updatePartialByContactId(
+        {contactName: info.groupName, contactAvatar: info.avatar}, info.groupId)
+    }
+  }
+  // 如果插入后发现不存在，或者 contact_name 或者 contact_avatar 字段缺失，返回 contact，代表要查 api
+  public async checkSession(contact: Contact): Promise<any> {
+    const obj = {sessionId:contact.sessionId, contactType:contact.contactType, contactId:contact.contactId}
+    if (contact.myRole) Object.assign(obj, {myRole:contact.myRole})
+    const change = await sessionDao.insertOrIgnoreContact(obj)
+    console.info('session-service:check-session:insert:', obj)
+    if (change > 0){
+      return contact
+    } else {
+      await sessionDao.updatePartialBySessionId({status: 1} as Partial<Session>, contact.sessionId)
+    }
+    const one = await sessionDao.selectSingleSession(contact.sessionId)
+    if (one?.contactAvatar && one?.contactName){    // session 存在且信息完整
+      return {sessionId: contact.sessionId}
+    } else {
+      return contact
+    }
+  }
   // 整理所有会话的最后一条消息
   public async tidySession(): Promise<void> {
-
+    const result: Array<{sessionId: string}> = await sessionDao.selectAllSessionId()
+    for (const session of result){
+      const msgResult: any = await messageDao.getMessageBySessionId(session.sessionId, {limit: 1, direction: 'newest'})
+      if (msgResult.messages.length > 0){
+        const obj =
+          {lastMsgTime: msgResult.messages[0].timestamp.toISOString(), lastMsgContent: msgResult.messages[0].content}
+        console.info('session-service:tidy-session:update-session:', obj, session.sessionId)
+        await sessionDao.updatePartialBySessionId(obj as Partial<Session>, session.sessionId)
+      } else {
+        console.info('session-service:tidy-session:no-message:', session.sessionId)
+      }
+    }
   }
 }
 

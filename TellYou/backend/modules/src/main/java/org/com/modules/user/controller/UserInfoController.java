@@ -29,7 +29,7 @@ public class UserInfoController {
     @Operation(summary = "头像名字批量获取")
     public ApiResult<SimpleUserInfoList> getBaseInfoList(@RequestBody BaseInfoReq req){
         SimpleUserInfoList resp = userInfoService.getBaseInfoList(req.getTargetList());
-        return null;
+        return ApiResult.success(resp);
     }
 
     @PutMapping("/modify-nickname")

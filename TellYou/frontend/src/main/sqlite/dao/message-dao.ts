@@ -1,4 +1,5 @@
 import { insertOrIgnore, queryAll } from '../atom'
+import messageAdapter from '../adapter/message-adapter'
 
 type MessageQueryOptions = {
   limit?: number
@@ -29,8 +30,8 @@ class MessageDao {
     )) as Array<{ id: number }>
     return rows[0].id
   }
-  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions):
-    Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
+  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions
+  ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
       const limit = Number(options?.limit) || 50
       const direction: 'newest' | 'older' | 'newer' = options?.direction || 'newest'
@@ -52,7 +53,6 @@ class MessageDao {
         const afterMessage = (await queryAll('SELECT send_time FROM messages WHERE id = ?', [
           afterId
         ])) as Array<{ sendTime: string }>
-
         if (afterMessage.length > 0) {
           where += ' AND send_time > ?'
           params.push(afterMessage[0].sendTime)
@@ -67,32 +67,7 @@ class MessageDao {
         LIMIT ${limit}
       `
       const rows = (await queryAll(sql, params)) as MessageRow[]
-      const messages = rows.map((r) => {
-        const extData = JSON.parse(r.extData)
-        return {
-          id: r.id,
-          sessionId: r.sessionId,
-          content: r.text ?? '',
-          messageType: ((): 'text' | 'image' | 'file' | 'system' => {
-            switch (r.msgType) {
-              case 1:
-                return 'text'
-              case 2:
-                return 'image'
-              case 5:
-                return 'file'
-              default:
-                return 'system'
-            }
-          })(),
-          senderId: r.senderId,
-          senderName: r.senderName || '',
-          timestamp: new Date(r.sendTime),
-          isRead: !!r.isRead,
-          avatarVersion: String(extData.avatarVersion),
-          nicknameVersion: String(extData.nicknameVersion)
-        }
-      })
+      const messages = rows.map((r) => messageAdapter.adaptMessageRowToMessage(r))
       const totalCountRow = (await queryAll(
         'SELECT COUNT(1) as total FROM messages WHERE session_id = ?',
         [sessionId]

@@ -4,10 +4,16 @@ import { add_indexes, add_tables } from './table'
 import urlUtil from '@main/util/url-util'
 import { join } from 'path'
 
+/**
+ * sqlite 数据库的简单封装，包括数据库的创建、库表初始化、索引创建、字段映射、换账号的重定向
+ * @author lanye
+ * @date 2025/10/12 16:19
+ */
+
+
 type ColumnMap = { [bizField: string]: string }
 type GlobalColumnMap = { [tableName: string]: ColumnMap }
 const globalColumnMap: GlobalColumnMap = {}
-
 let dataBase: sqlite3.Database
 
 export const redirectDataBase = (): boolean => {
@@ -19,6 +25,7 @@ export const redirectDataBase = (): boolean => {
       : new sqlite3.Database(path) // 开发模式输出日志
   return result
 }
+
 export const initTable = async () => {
   dataBase.serialize(async () => {
     await createTable()
@@ -42,6 +49,7 @@ export const queryAll = (sql: string, params: unknown[]): Promise<Record<string,
     stmt.finalize()
   })
 }
+
 export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
@@ -56,6 +64,7 @@ export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
     stmt.finalize()
   })
 }
+
 export const queryOne = (
   sql: string,
   params: unknown[]
@@ -89,11 +98,8 @@ export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
     stmt.finalize()
   })
 }
-export const insert = (
-  sqlPrefix: string,
-  tableName: string,
-  data: Record<string, unknown>
-): Promise<number> => {
+
+export const insert = (sqlPrefix: string, tableName: string, data: Record<string, unknown>): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const columns: string[] = []
   const params: unknown[] = []
@@ -107,6 +113,7 @@ export const insert = (
   const sql = `${sqlPrefix} ${tableName}(${columns.join(',')}) values(${prepare})`
   return sqliteRun(sql, params)
 }
+
 export const insertOrReplace = (
   tableName: string,
   data: Record<string, unknown>
@@ -114,16 +121,12 @@ export const insertOrReplace = (
   console.log(data)
   return insert('insert or replace into', tableName, data)
 }
-export const insertOrIgnore = (
-  tableName: string,
-  data: Record<string, unknown>
-): Promise<number> => {
+
+export const insertOrIgnore = (tableName: string, data: Record<string, unknown>): Promise<number> => {
   return insert('insert or ignore into', tableName, data)
 }
-export const batchInsert = (
-  tableName: string,
-  dataList: Record<string, unknown>[]
-): Promise<number> => {
+
+export const batchInsert = (tableName: string, dataList: Record<string, unknown>[]): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const firstData = dataList[0]
   const columns: string[] = []
@@ -146,10 +149,8 @@ export const batchInsert = (
 
   return sqliteRun(sql, params)
 }
-export const batchInsertWithIds = async (
-  tableName: string,
-  dataList: Record<string, unknown>[]
-): Promise<number[]> => {
+
+export const batchInsertWithIds = async (tableName: string, dataList: Record<string, unknown>[]): Promise<number[]> => {
   if (dataList.length === 0) return []
   await batchInsert(tableName, dataList)
   const columnMap = globalColumnMap[tableName]
@@ -177,11 +178,7 @@ export const batchInsertWithIds = async (
   return results.map((r) => r.id as number)
 }
 
-export const update = (
-  tableName: string,
-  data: Record<string, unknown>,
-  paramData: Record<string, unknown>
-): Promise<number> => {
+export const update = (tableName: string, data: Record<string, unknown>, paramData: Record<string, unknown>): Promise<number> => {
   const columnMap = globalColumnMap[tableName]
   const columns: string[] = []
   const params: unknown[] = []

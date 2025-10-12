@@ -10,7 +10,7 @@ import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.util.RequestHolder;
-import org.com.modules.session.domain.vo.resp.PullFriendContactResp;
+import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
 import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;

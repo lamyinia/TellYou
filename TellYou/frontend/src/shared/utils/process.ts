@@ -1,4 +1,4 @@
-import updateBg from '@renderer/assets/img/update_bg.png'
+import updateBg from '@shared/resources/update_bg.png'
 
 export const resolveAvatar = (url?: string): string => {
   if (!url || url.trim() === '') return updateBg

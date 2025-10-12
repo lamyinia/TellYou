@@ -1,11 +1,12 @@
 import { app, ipcMain } from 'electron'
-import path, { join } from 'path'
-import fs, { createReadStream, existsSync, mkdirSync, statSync } from 'fs'
+import { join } from 'path'
+import { createReadStream, existsSync, mkdirSync, statSync } from 'fs'
 import axios from 'axios'
 import log from 'electron-log'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { mediaUtil } from '@main/util/media-util'
+import { netMinIO } from '@main/util/net-util'
 
 export enum MediaTaskStatus {
   PENDING = 'pending',
@@ -46,27 +47,13 @@ export interface MediaTask {
   chunkCursor?: number // 分块上传游标
 }
 
-const getMimeType = (ext: string): string => {
-  const mimeTypes: Record<string, string> = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp'
-  }
-  return mimeTypes[ext] || 'application/octet-stream'
-}
-
 class MediaTaskService {
   private tasks = new Map<string, MediaTask>()
   private tempDir: string = ''
   private readonly CHUNK_SIZE = 5 * 1024 * 1024 // 5MB 分块
-  private readonly MAX_CONCURRENT = 3 // 最大并发上传数
-  private readonly RETRY_TIMES = 3 // 重试次数
 
   public beginServe(): void {
     ffmpeg.setFfmpegPath(ffmpegStatic as string)
-
     this.tempDir = join(app.getPath('userData'), '.tellyou', 'media', 'temp')
     this.ensureTempDir()
     this.setupIpcHandlers()
@@ -83,12 +70,7 @@ class MediaTaskService {
       'media:send:start',
       async (
         event,
-        params: {
-          type: MediaType
-          filePath: string
-          fileName: string
-          mimeType: string
-        }
+        params: { type: MediaType, filePath: string, fileName: string, mimeType: string }
       ) => {
         return this.startTask(params)
       }
@@ -105,54 +87,16 @@ class MediaTaskService {
     ipcMain.handle('media:send:list', async () => {
       return this.getAllTasks()
     })
-    ipcMain.handle('avatar:select-file', async () => {
-      try {
-        const { dialog } = await import('electron')
-        const result = await dialog.showOpenDialog({
-          title: '选择头像文件',
-          filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
-          properties: ['openFile']
-        })
-        if (result.canceled || result.filePaths.length === 0) {
-          return null
-        }
-        const filePath = result.filePaths[0]
-        const stats = await fs.promises.stat(filePath)
-        const maxSize = 10 * 1024 * 1024
-        if (stats.size > maxSize) {
-          throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`)
-        }
-        const ext = path.extname(filePath).toLowerCase()
-        const allowedExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-        if (!allowedExts.includes(ext)) {
-          throw new Error('只支持 .png, .jpg, .jpeg, .gif, .webp 格式的图片')
-        }
-        const fileBuffer = await fs.promises.readFile(filePath)
-        const base64Data = fileBuffer.toString('base64')
-        const dataUrl = `data:${getMimeType(ext)};base64,${base64Data}`
-        return {
-          filePath,
-          fileName: path.basename(filePath),
-          fileSize: stats.size,
-          fileSuffix: ext,
-          mimeType: getMimeType(ext),
-          dataUrl
-        }
-      } catch (error) {
-        console.error('Failed to select avatar file:', error)
-        throw error
-      }
-    })
     ipcMain.handle('avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
       try {
-        const { getUploadUrl, uploadFile, confirmUpload } = await import('./avatar-upload-service')
+        const { getUploadUrl, confirmUpload } = await import('./avatar-upload-service')
         console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
         const uploadUrls = await getUploadUrl(fileSize, fileSuffix)
         const mediaFile = await mediaUtil.getNormal(filePath)
         const originalFile = await mediaUtil.processImage(mediaFile, 'original')
         const thumbnailFile = await mediaUtil.processImage(mediaFile, 'thumb')
-        await uploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType)
-        await uploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType)
+        await netMinIO.simpleUploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType)
+        await netMinIO.simpleUploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType)
         await confirmUpload(uploadUrls)
         console.log('确认上传完成头像URL:', uploadUrls.originalUploadUrl)
         return {
@@ -166,11 +110,7 @@ class MediaTaskService {
     })
   }
 
-  async startTask(params: {
-    type: MediaType
-    filePath: string
-    fileName: string
-    mimeType: string
+  async startTask(params: { type: MediaType, filePath: string, fileName: string, mimeType: string
   }): Promise<{ taskId: string; success: boolean; error?: string }> {
     try {
       const taskId = this.generateTaskId()
@@ -208,11 +148,6 @@ class MediaTaskService {
     if (!task) return
     try {
       await this.getUploadUrls(task)
-
-      // if (task.type === MediaType.IMAGE || task.type === MediaType.VIDEO) {
-      //   await this.generateThumbnail(task)
-      // }
-
       await this.uploadFile(task)
       await this.commitUpload(task)
 
@@ -269,16 +204,10 @@ class MediaTaskService {
     const totalChunks = Math.ceil(fileSize / chunkSize)
 
     for (let i = 0; i < totalChunks; i++) {
-      if (task.status === MediaTaskStatus.CANCELLED) {
-        throw new Error('Upload cancelled')
-      }
-
       const start = i * chunkSize
       const end = Math.min(start + chunkSize, fileSize)
       const chunk = createReadStream(task.filePath, { start, end })
-
       await this.uploadChunk(task, chunk, i, totalChunks)
-
       // 更新进度
       task.progress = Math.round(((i + 1) / totalChunks) * 80) // 80% for upload
       task.chunkCursor = i + 1
@@ -292,12 +221,7 @@ class MediaTaskService {
     }
   }
 
-  private async uploadChunk(
-    task: MediaTask,
-    chunk: any,
-    chunkIndex: number,
-    totalChunks: number
-  ): Promise<void> {
+  private async uploadChunk(task: MediaTask, chunk: any, chunkIndex: number, totalChunks: number): Promise<void> {
     const formData = new FormData()
     formData.append('file', chunk, `${task.fileName}.part${chunkIndex}`)
     formData.append('chunkIndex', chunkIndex.toString())
@@ -311,19 +235,8 @@ class MediaTaskService {
     })
   }
 
-  private async commitUpload(task: MediaTask): Promise<void> {
-    const response = await axios.post('/api/media/commit', {
-      fileName: task.fileName,
-      fileSize: task.fileSize,
-      mimeType: task.mimeType,
-      type: task.type
-    })
-
-    task.result = {
-      originUrl: response.data.originUrl,
-      thumbnailUrl: response.data.thumbnailUrl,
-      fileId: response.data.fileId
-    }
+  private async commitUpload(_task: MediaTask): Promise<void> {
+    // TODO
   }
 
   async cancelTask(taskId: string): Promise<boolean> {

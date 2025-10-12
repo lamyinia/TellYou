@@ -32,7 +32,7 @@ class ApiError extends Error {
   }
 }
 
-const netMaster: AxiosInstance = axios.create({
+const masterInstance: AxiosInstance = axios.create({
   withCredentials: true,
   baseURL: import.meta.env.VITE_REQUEST_URL,
   timeout: 180 * 1000,
@@ -40,62 +40,93 @@ const netMaster: AxiosInstance = axios.create({
     'Content-Type': 'application/json'
   }
 })
-const axiosInstance: AxiosInstance = axios.create({
+const minioInstance: AxiosInstance = axios.create({
   timeout: 30 * 1000, // 文件上传下载超时时间更长
   headers: {
     'Content-Type': 'application/octet-stream'
   }
 })
-netMaster.interceptors.request.use(
-  (config) => {
-    const token: string = store.get(tokenKey)
-    if (token && config.headers) {
-      config.headers.token = token
-    }
-    return config
-  },
-  (_error: AxiosError) => {
-    Message.error('请求发送失败')
-    return Promise.reject('请求发送失败')
-  }
-)
-netMaster.interceptors.response.use(
-  (response: AxiosResponse<ApiResponse>) => {
-    const { errCode, errMsg, success } = response.data
-    if (success) {
-      return response
-    } else {
-      throw new ApiError(errCode, errMsg, response)
-    }
-  },
-  (error: AxiosError) => {
-    if (error.response) {
-      const status = error.response.status
-      console.log('netMaster AxiosError', error)
 
-      switch (status) {
-        case 401:
-          Message.error('未授权，请重新登录')
-          break
-        case 403:
-          Message.error('权限不足')
-          break
-        case 404:
-          Message.error('请求的资源不存在')
-          break
-        case 500:
-          Message.error('服务器内部错误')
-          break
+class NetMaster {
+  private readonly axiosInstance: AxiosInstance
+
+  constructor(axiosInstance: AxiosInstance) {
+    this.axiosInstance = axiosInstance
+    this.setupInterceptors()
+  }
+
+  private setupInterceptors(): void {
+    this.axiosInstance.interceptors.request.use(
+      (config) => {
+        const token: string = store.get(tokenKey)
+        if (token && config.headers) {
+          config.headers.token = token
+        }
+        return config
+      },
+      (_error: AxiosError) => {
+        Message.error('请求发送失败')
+        return Promise.reject('请求发送失败')
       }
+    )
+    this.axiosInstance.interceptors.response.use(
+      (response: AxiosResponse<ApiResponse>) => {
+        const { errCode, errMsg, success } = response.data
+        if (success) {
+          return response
+        } else {
+          throw new ApiError(errCode, errMsg, response)
+        }
+      },
+      (error: AxiosError) => {
+        if (error.response) {
+          const status = error.response.status
+          console.log('netMaster AxiosError', error)
 
-      const errorData = error.response.data as any
-      throw new ApiError(status, errorData?.errMsg || '请求失败', error.response)
-    } else {
-      throw new ApiError(-1, '网络连接异常')
-    }
+          switch (status) {
+            case 401:
+              Message.error('未授权，请重新登录')
+              break
+            case 403:
+              Message.error('权限不足')
+              break
+            case 404:
+              Message.error('请求的资源不存在')
+              break
+            case 500:
+              Message.error('服务器内部错误')
+              break
+          }
+
+          const errorData = error.response.data as any
+          throw new ApiError(status, errorData?.errMsg || '请求失败', error.response)
+        } else {
+          throw new ApiError(-1, '网络连接异常')
+        }
+      }
+    )
   }
-)
-axiosInstance.interceptors.request.use(
+  public async get<T = any>(url: string, config?: any): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.axiosInstance.get(url, config)
+  }
+  public async post<T = any>(url: string, data?: any, config?: any): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.axiosInstance.post(url, data, config)
+  }
+  public async put<T = any>(url: string, data?: any, config?: any): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.axiosInstance.put(url, data, config)
+  }
+  public async delete<T = any>(url: string, config?: any): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.axiosInstance.delete(url, config)
+  }
+  public async patch<T = any>(url: string, data?: any, config?: any): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.axiosInstance.patch(url, data, config)
+  }
+
+  public getAxiosInstance(): AxiosInstance {
+    return this.axiosInstance
+  }
+}
+minioInstance.interceptors.request.use(
   (config) => {
     return config
   },
@@ -104,7 +135,7 @@ axiosInstance.interceptors.request.use(
     return Promise.reject('文件请求发送失败')
   }
 )
-axiosInstance.interceptors.response.use(
+minioInstance.interceptors.response.use(
   (response: AxiosResponse) => {
     return response
   },
@@ -135,10 +166,41 @@ axiosInstance.interceptors.response.use(
 )
 
 class NetMinIO {
-  private axiosInstance: AxiosInstance
+  private readonly axiosInstance: AxiosInstance
 
   constructor(axiosInstance: AxiosInstance) {
     this.axiosInstance = axiosInstance
+  }
+
+  public async simpleUploadFile(
+    uploadUrl: string,
+    fileBuffer: Buffer,
+    mimeType: string
+  ): Promise<void> {
+    console.info('上传URL，文件大小，MIME类型:', uploadUrl, fileBuffer.length, mimeType)
+    try {
+      new URL(uploadUrl)
+    } catch {
+      throw new Error(`无效的上传URL: ${uploadUrl}`)
+    }
+    try {
+      const response = await netMinIO.getAxiosInstance().put(uploadUrl, fileBuffer, {
+        headers: {
+          'Content-Type': mimeType,
+          'Content-Length': fileBuffer.length.toString(),
+          Connection: 'close'
+        }
+      })
+      console.log('上传响应:', response)
+      if (response.status >= 200 && response.status < 300) {
+        return
+      } else {
+        throw new Error(`上传失败，状态码: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('上传请求错误:', error)
+      throw error
+    }
   }
 
   async uploadImage(presignedUrl: string, imageFile: File): Promise<AxiosResponse> {
@@ -275,7 +337,8 @@ class NetMinIO {
   }
 }
 
-const netMinIO = new NetMinIO(axiosInstance)
+const netMaster = new NetMaster(masterInstance)
+const netMinIO = new NetMinIO(minioInstance)
 
 export { netMaster, netMinIO }
 export type { ApiResponse, ApiError }
