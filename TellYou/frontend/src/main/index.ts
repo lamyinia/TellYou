@@ -12,7 +12,7 @@ import { blackService } from '@main/service/black-service'
 import { messageService } from '@main/service/message-service'
 import { sessionService } from '@main/service/session-service'
 import { deviceService } from '@main/service/device-service'
-import { avatarCacheService } from '@main/cache/avatar-cache'
+import { avatarCache } from '@main/cache/avatar-cache'
 import urlUtil from '@main/util/url-util'
 import proxyService from '@main/service/proxy-service'
 
@@ -102,7 +102,7 @@ const createWindow = (): void => {
   })
 
   proxyService.beginServe()
-  avatarCacheService.beginServe()
+  avatarCache.beginServe()
   mediaTaskService.beginServe()
   jsonStoreService.beginServe()
   sessionService.beginServe()

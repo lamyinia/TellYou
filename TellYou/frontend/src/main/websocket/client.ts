@@ -1,8 +1,8 @@
 import WebSocket from 'ws'
 import { store } from '../index'
-import { getMessageId } from '@shared/utils/process'
 import websocketHandler from '@main/websocket/handler'
 import { tokenKey } from '@main/electron-store/key'
+import channelUtil from '@main/util/channel-util'
 
 let ws: WebSocket | null = null
 let maxReConnectTimes: number | null = null
@@ -15,34 +15,6 @@ export const wsConfigInit = (): void => {
   console.info(`wsUrl 连接的url地址:  ${wsUrl}`)
   needReconnect = true
   maxReConnectTimes = 20
-}
-
-const isWsOpen = (): boolean => !!ws && ws.readyState === WebSocket.OPEN
-
-export const sendText = (payload: Record<string, unknown>): void => {
-  if (!isWsOpen()) {
-    console.warn('WebSocket 未连接，发送取消')
-    throw new Error('WebSocket is not connected')
-  }
-  const fromUId = String(payload.fromUId || '')
-  const toUserId = String(payload.toUserId || '')
-  const sessionId = String(payload.sessionId || '')
-  const content = payload.content as unknown
-  if (!fromUId || !sessionId) {
-    console.warn('缺少必要字段 fromUId 或 sessionId，发送取消')
-    throw new Error('Missing required fields: fromUId/sessionId')
-  }
-  const base = {
-    messageId: getMessageId(),
-    type: 1,
-    fromUId,
-    toUserId,
-    sessionId,
-    content,
-    timestamp: Date.now(),
-    extra: { platform: 'desktop' }
-  }
-  ws.send(JSON.stringify(base))
 }
 
 const reconnect = (): void => {
@@ -80,9 +52,10 @@ export const connectWs = (): void => {
   }
   const urlWithToken: string = wsUrl.includes('?') ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`
   ws = new WebSocket(urlWithToken)
+  channelUtil.registerChannel(ws)
   ws.on('open', () => {
     console.info('客户端连接成功')
-    maxReConnectTimes = 20
+    maxReConnectTimes = 100
   })
   ws.on('close', () => {
     reconnect()
@@ -90,13 +63,12 @@ export const connectWs = (): void => {
   ws.on('error', () => {
     reconnect()
   })
-  ws.on('message', async (data) => {
+  ws.on('message', async (data: any) => {
     console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
-    switch (msg.messageType) {
-      case 1:  // 聊天消息
-        await websocketHandler.handleTextMessage(msg, ws)
-        break
+    const type: number = msg.messageType
+    if (type >= 1 && type <= 30){
+      await websocketHandler.handleChatMessage(msg)
     }
   })
 }

@@ -1,24 +1,17 @@
 import { BrowserWindow } from 'electron'
 import { Session } from '@shared/types/session'
-import { store } from '@main/index'
-import { uidKey } from '@main/electron-store/key'
 import { messageService } from '@main/service/message-service'
 import messageAdapter from '@main/sqlite/adapter/message-adapter'
 import sessionDao from '@main/sqlite/dao/session-dao'
+import channelUtil from '@main/util/channel-util'
 
 class WebsocketHandler {
-  public async handleTextMessage(msg: any, ws: WebSocket): Promise<void> {
+  public async handleChatMessage(msg: any): Promise<void> {
     console.log('handleMessage', msg)
     const insertId = await messageService.handleSingleMessage(msg)
     if (!insertId || insertId <= 0) return
     const vo = messageAdapter.adaptWebSocketMessage(msg, insertId)
-    ws.send(
-      JSON.stringify({
-        messageId: msg.messageId,
-        type: 101,
-        fromUid: store.get(uidKey)
-      })
-    )
+    channelUtil.sendSingleAckConfirm(msg)
     const session: Session = await sessionDao.selectSingleSession(msg.sessionId)
 
     const mainWindow = BrowserWindow.getAllWindows()[0]

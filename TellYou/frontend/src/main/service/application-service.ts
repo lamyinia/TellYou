@@ -17,9 +17,6 @@ class ApplicationService {
     ipcMain.on('application:incoming:reject', async (_event, { ids }) => {
       await applicationDao.rejectIncoming(ids || [])
     })
-    ipcMain.on('application:outgoing:cancel', async (_event, { ids }) => {
-      await applicationDao.cancelOutgoing(ids || [])
-    })
     ipcMain.on('application:send', async (_event, { toUserId, remark }) => {
       await applicationDao.insertApplication('', toUserId, remark)
     })

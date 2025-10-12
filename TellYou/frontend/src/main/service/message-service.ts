@@ -1,15 +1,15 @@
 import { ipcMain } from 'electron'
-import { sendText } from '@main/websocket/client'
 import messageDao from '@main/sqlite/dao/message-dao'
 import sessionDao from '@main/sqlite/dao/session-dao'
 import messageAdapter from '@main/sqlite/adapter/message-adapter'
+import channelUtil from '@main/util/channel-util'
 
 class MessageService {
   public beginServe(): void {
     ipcMain.handle('websocket:send', async (_, msg) => {
       console.log(msg)
       try {
-        sendText(msg)
+        channelUtil.sendText(msg)
         console.log('发送成功')
         return true
       } catch (error) {

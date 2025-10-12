@@ -29,8 +29,8 @@ public class MessageRetryService {
 
     @Retryable(value = RuntimeException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
     public void retryDelivery(Long uid, Object vo) {
-        boolean success = channelManagerUtil.doDeliver(uid, vo);
-        if (success){
+        boolean exist = channelManagerUtil.doDeliver(uid, vo);
+        if (exist){
             messageDelayQueue.initCache4Deliver(uid, vo);
             messageDelayQueue.submitWithDelay(uid, vo, 1, TimeUnit.SECONDS);
         } else {

@@ -29,13 +29,61 @@ class ProxyService {
         Object.assign(data, params)
         const response = await netMaster.post(Api.REGISTER, data)
         return response.data
-    })
-    ipcMain.handle('proxy:search:user-or-group', async (_, params: {contactId: string, contactType: number}) => {
-      if (params.contactType === 1){
-        const  result = await netMaster.post(Api.SEARCH_USER, {fromId: store.get(uidKey), searchedId: params.contactId})
+      })
+    ipcMain.handle('proxy:search:user-or-group', async (_, params: { contactId: string, contactType: number }) => {
+      if (params.contactType === 1) {
+        const result = await netMaster.post(Api.SEARCH_USER, {
+          fromId: store.get(uidKey),
+          searchedId: params.contactId
+        })
         return result.data.data
       }
       return null
+    })
+    ipcMain.handle('proxy:application:send-user', async (_, params: any) => {
+      return null
+    })
+    ipcMain.handle('proxy:application:send-group', async (_, params: any) => {
+      return null
+    })
+    ipcMain.handle('proxy:application:accept-friend', async (_, params: any) => {
+      return null
+    })
+    ipcMain.handle('proxy:application:accept-group-member', async (_, params: any) => {
+      return null
+    })
+    ipcMain.handle('proxy:group:create-group', async (_, params: any) => {
+      return null
+    })
+    ipcMain.handle('proxy:group:invite-friend', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:dissolve-group', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:leave-group', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:kick-out-member', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:modify-group-name', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:modify-group-card', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:transfer-owner', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:add-manager', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:withdraw-manager', async (_, params: any) => {
+
+    })
+    ipcMain.handle('proxy:group:get-member-list', async (_, params: any) => {
+
     })
   }
 }

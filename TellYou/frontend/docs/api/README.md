@@ -14,11 +14,42 @@
 - 生产环境部署建议
 - 监控和诊断工具
 
+## 网络请求相关文档
+
+### 🌐 [NetUtil 网络工具类文档](./net-util.md)
+- NetMaster 和 NetMinIO 类的完整使用指南
+- HTTP 请求和文件操作功能说明
+- 拦截器机制和错误处理策略
+- 类型安全和最佳实践
+
+### 📡 [Axios 最佳实践指南](./axios-best-practices.md)
+- Axios 在 Electron + TypeScript 环境中的最佳实践
+- 实例配置、拦截器、错误处理策略
+- 性能优化、安全考虑、监控日志
+- 常见陷阱和解决方案
+
 ## 其他 API 文档
 
 - [Electron APIs](./electron-apis.md) - Electron 相关 API 使用说明
 
 ## 快速开始
+
+### 网络请求示例
+
+```typescript
+import { netMaster, netMinIO } from '@main/util/net-util'
+
+// HTTP 请求
+const response = await netMaster.get<User[]>('/api/users')
+const users = response.data.data
+
+// 文件上传
+const imageFile = new File([...], 'image.jpg', { type: 'image/jpeg' })
+await netMinIO.uploadImage(presignedUrl, imageFile)
+
+// 文件下载
+const imageBlob = await netMinIO.downloadImage(imageUrl)
+```
 
 ### 媒体处理示例
 
@@ -57,6 +88,13 @@ const av1Config = {
 
 ## 技术栈
 
+### 网络请求
+- **HTTP 客户端**: Axios
+- **类型安全**: TypeScript
+- **错误处理**: 自定义 ApiError 类
+- **拦截器**: 请求/响应拦截器
+
+### 媒体处理
 - **图片处理**: Sharp
 - **音视频处理**: Fluent-FFmpeg
 - **编码格式**: AV1, H.264, H.265
@@ -64,6 +102,7 @@ const av1Config = {
 
 ## 更新日志
 
+- **2025-01-10**: 创建 NetUtil 和 Axios 最佳实践文档
 - **2025-01-10**: 创建 MediaUtil 和 Fluent-FFmpeg 文档
 - 基于项目实际代码整理最佳实践
 - 补充生产环境部署建议

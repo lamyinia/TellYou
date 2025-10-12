@@ -7,7 +7,6 @@ import org.com.modules.session.domain.vo.resp.MessageResp;
 import org.com.modules.user.domain.vo.resp.ContactApplyResp;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
-import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +64,7 @@ public class MessageDelayQueue {
         String letterId = getLetterId(vo);
         letterCache.put(letterId, vo);
         scheduleCleanup(letterId);
-        letterRetryCount.put(locating(uid, vo), 1);
+        letterRetryCount.put(getRetryKey(uid, vo), 1);
     }
 
     public void initCache4Group(List<Long> uidList, Object vo) {
@@ -73,7 +72,7 @@ public class MessageDelayQueue {
         letterCache.put(letterId, vo);
         scheduleCleanup(letterId);
 
-        uidList.forEach(uid -> letterRetryCount.put(locating(uid, vo), 1));
+        uidList.forEach(uid -> letterRetryCount.put(getRetryKey(uid, vo), 1));
     }
 
     /**
@@ -85,7 +84,7 @@ public class MessageDelayQueue {
      */
     public void submitWithDelay(Long uid, Object vo, long delay, TimeUnit timeUnit) {
         RScoredSortedSet<String> scoredSortedSet = redissonClient.getScoredSortedSet(DELAY_SORTED_SET + node);
-        scoredSortedSet.add(System.currentTimeMillis() + timeUnit.toMillis(delay), locating(uid, vo));
+        scoredSortedSet.add(System.currentTimeMillis() + timeUnit.toMillis(delay), getRetryKey(uid, vo));
     }
 
     @Scheduled(fixedDelay = 1000)
@@ -141,9 +140,7 @@ public class MessageDelayQueue {
         if (existingTask != null && !existingTask.isDone()) {
             existingTask.cancel(false);
         }
-
 //        log.info("准备安排清理任务，消息ID: {}", messageId);
-
         ScheduledFuture<?> cleanupTask = scheduler.schedule(() -> {
             try {
 //                log.info("开始执行缓存清理任务，消息ID: {}", messageId);
@@ -153,13 +150,13 @@ public class MessageDelayQueue {
             } catch (Exception e) {
                 log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
             }
-        }, 25, TimeUnit.SECONDS);
+        }, 30, TimeUnit.SECONDS);
 
         cleanupTasks.put(messageId, cleanupTask);
     }
 
 
-    private String locating(Long uid, Object vo) {
+    private String getRetryKey(Long uid, Object vo) {
         return String.valueOf(uid) + ":" + getLetterId(vo);
     }
 

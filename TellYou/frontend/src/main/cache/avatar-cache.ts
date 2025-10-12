@@ -13,7 +13,7 @@ interface CacheItem {
   [strategy: string]: ImageInfo
 }
 
-class AvatarCacheService {
+class AvatarCache {
   private cacheMap: Map<string, CacheItem> = new Map()
   private jsonLoadingMap: Map<string, Promise<Record<string, unknown>>> = new Map()
   private jsonMap: Map<string, Record<string, unknown>> = new Map()
@@ -156,6 +156,6 @@ class AvatarCacheService {
   private getJsonPath = (userId: string): string => join(urlUtil.cachePaths['avatar'], userId, 'index.json') // {userData}/cache/avatar/{userId}/index.json
 }
 
-const avatarCacheService = new AvatarCacheService()
+const avatarCache = new AvatarCache()
 
-export { avatarCacheService }
+export { avatarCache }
