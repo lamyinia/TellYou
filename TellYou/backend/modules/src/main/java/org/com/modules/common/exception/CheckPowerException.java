@@ -4,7 +4,7 @@ import lombok.Data;
 import org.com.tools.exception.ErrorEnum;
 
 @Data
-public class UnifyException extends RuntimeException implements ErrorEnum{
+public class CheckPowerException extends RuntimeException implements ErrorEnum{
 
     private static final long serialVersionUID = 1L;
 
@@ -18,16 +18,16 @@ public class UnifyException extends RuntimeException implements ErrorEnum{
      */
     protected String errorMsg;
 
-    public UnifyException() {
+    public CheckPowerException() {
         super();
     }
 
-    public UnifyException(String errorMsg) {
+    public CheckPowerException(String errorMsg) {
         super(errorMsg);
         this.errorMsg = errorMsg;
     }
 
-    public UnifyException(ErrorEnum error) {
+    public CheckPowerException(ErrorEnum error) {
         super(error.getErrorMsg());
         this.errorCode = error.getErrorCode();
         this.errorMsg = error.getErrorMsg();

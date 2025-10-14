@@ -129,7 +129,7 @@ class WebsocketHandler {
 
 **渲染进程：**
 ```typescript
-// frontend/src/renderer/src/status/session/class.ts
+// frontend/src/renderer/src/status/session/application.ts
 import { Session } from '@shared/types/session'
 
 export class SessionManager {
@@ -168,7 +168,7 @@ class WebsocketHandler {
   public async handleTextMessage(msg: any, ws: WebSocket): Promise<void> {
     // 处理消息
     const sessionData = await this.getSessionData(msg.sessionId)
-    
+
     // 发送到渲染进程
     const mainWindow = BrowserWindow.getAllWindows()[0]
     mainWindow?.webContents.send('session:update', sessionData)
@@ -308,5 +308,5 @@ export function handleCrossProcessError(error: unknown, process: 'main' | 'rende
 
 选择哪种方案取决于你的具体需求：
 - 简单的类型共享 → 方案一
-- 复杂的数据交互 → 方案二  
+- 复杂的数据交互 → 方案二
 - 高安全要求 → 方案三

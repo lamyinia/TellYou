@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import MediaUpload from './MediaUpload.vue'
 import type { MediaType } from '@renderer/status/media/class'
 

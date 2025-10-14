@@ -8,7 +8,7 @@ import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.com.modules.common.annotation.Check;
 import org.com.modules.common.annotation.CheckMark;
-import org.com.modules.common.exception.UnifyException;
+import org.com.modules.common.exception.CheckPowerException;
 import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.dao.GroupContactDao;
 import org.com.modules.session.domain.enums.GroupRoleEnum;
@@ -62,7 +62,7 @@ public class CheckAspect {
                         if (currentUid == null) return;
                         if (fromId == null || !fromId.equals(currentUid)) {
                             log.warn("UID 不匹配: 请求 UID = {}, 当前用户 UID = {}", fromId, currentUid);
-                            throw new UnifyException(CommonErrorEnum.UNIFY_ERROR);
+                            throw new CheckPowerException(CommonErrorEnum.UNIFY_ERROR);
                         }
                     }
                     if (CheckMark.Target.GROUP_ID.equals(anno.target())) {
@@ -85,11 +85,11 @@ public class CheckAspect {
                 validation &= groupContactDao.validatePower(fromId, groupId, GroupRoleEnum.OWNER.getRole());
             }
 
-            if (!validation) throw new UnifyException(CommonErrorEnum.ROLE_ERROR);
+            if (!validation) throw new CheckPowerException(CommonErrorEnum.ROLE_ERROR);
 
         } catch(IllegalAccessException e){
             log.error("验证UID时发生异常", e);
-            throw new UnifyException("UID验证异常");
+            throw new CheckPowerException("UID验证异常");
         }
     }
 }

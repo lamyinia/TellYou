@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted } from 'vue'
 import { useBlackStore } from '@renderer/status/black/store'
 
-const open = ref(false)
+const props = defineProps<{outTab: string}>()
+const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
 const blackStore = useBlackStore()
-
 onMounted(() => blackStore.init())
-const toggle = (): void => {
-  open.value = !open.value
-}
+
 </script>
 
 <template>
@@ -18,13 +16,13 @@ const toggle = (): void => {
     size="large"
     :ripple="true"
     rounded="xl"
-    @click="toggle"
+    @click="emit('toggle', 'black-management')"
   >
     <v-icon icon="mdi-account-cancel-outline" size="22"></v-icon>
   </v-btn>
 
   <transition name="fade">
-    <div v-if="open" class="panel-wrap" @click.self="toggle">
+    <div v-if="props.outTab === 'black-management'" class="panel-wrap" @click.self="emit('toggle', '')">
       <div class="panel" @click.stop>
         <div class="panel-inner">黑名单管理（占位，待接入）</div>
       </div>
@@ -67,13 +65,5 @@ const toggle = (): void => {
   border-radius: 16px;
   padding: 16px;
   color: #e0e6f0;
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

@@ -23,6 +23,7 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,mts,tsx,vue}'],
     rules: {
+      'linebreak-style': 'off',
       'vue/require-default-prop': 'off',
       'vue/multi-word-component-names': 'off',
       'vue/block-lang': [

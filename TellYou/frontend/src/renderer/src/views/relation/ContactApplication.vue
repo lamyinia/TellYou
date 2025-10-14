@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useApplicationStore } from '@renderer/status/application/store'
 import IncomingList from './page/IncomingList.vue'
 import OutcomingList from './page/OutcomingList.vue'
+import SearchPage from './page/SearchPage.vue'
 
-const open = ref(false)
-const toggle = (): void => {
-  open.value = !open.value
-}
-
+const props = defineProps<{outTab: string}>()
+const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
+const appStore = useApplicationStore()
 const activeTab = ref<'incoming' | 'outgoing' | 'search'>('incoming')
 
 const snackbar = ref({
@@ -20,16 +19,8 @@ const notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): 
   snackbar.value = { show: true, text, color }
 }
 
-const appStore = useApplicationStore()
 onMounted(() => appStore.init())
 
-const sendRequest = (): void => {
-  appStore.sendRequest('target-user-id', remark.value)
-  notify('已发送好友申请')
-}
-
-const keyword = ref('')
-const remark = ref('')
 </script>
 
 <template>
@@ -40,13 +31,13 @@ const remark = ref('')
     variant="elevated"
     :ripple="true"
     rounded="xl"
-    @click="toggle"
+    @click="emit('toggle', 'application-management')"
   >
     <v-icon icon="mdi-bell-outline" size="24"></v-icon>
   </v-btn>
 
   <transition name="slide-in">
-    <div v-if="open" class="drawer-wrap" @click.self="toggle">
+    <div v-if="props.outTab === 'application-management'" class="drawer-wrap" @click.self="emit('toggle', '')">
       <div class="drawer-panel" @click.stop>
         <div class="drawer-inner drawer-theme">
           <div class="drawer-header">
@@ -55,24 +46,20 @@ const remark = ref('')
                 :variant="activeTab === 'incoming' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'incoming'"
-                >好友申请</v-btn
-              >
+                >收到的申请</v-btn>
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'outgoing' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'outgoing'"
-                >我发起的</v-btn
-              >
+                >我发起的</v-btn>
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'search' ? 'elevated' : 'tonal'"
                 size="small"
-                @click="activeTab = 'search'"
-                >搜索加好友</v-btn
-              >
+                @click="activeTab = 'search'">搜索加好友</v-btn>
             </div>
-            <v-btn icon="mdi-close" variant="text" @click="toggle" />
+            <v-btn icon="mdi-close" variant="text" @click="emit('toggle', '')" />
           </div>
 
           <div class="drawer-content list-surface">
@@ -83,25 +70,7 @@ const remark = ref('')
               <OutcomingList />
             </div>
             <div v-else>
-              <div class="search-box">
-                <v-text-field
-                  v-model="keyword"
-                  density="compact"
-                  label="搜索账号/昵称/手机号"
-                  variant="outlined"
-                  hide-details
-                />
-                <v-text-field
-                  v-model="remark"
-                  class="ml-2"
-                  density="compact"
-                  label="申请备注(可选)"
-                  variant="outlined"
-                  hide-details
-                />
-                <v-btn class="ml-2" color="primary" @click="sendRequest">发送申请</v-btn>
-              </div>
-              <div class="list-placeholder">搜索结果占位，待接入接口</div>
+              <SearchPage @notify="notify" />
             </div>
           </div>
         </div>
@@ -159,15 +128,6 @@ const remark = ref('')
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-/* 左->右滑入 */
-.slide-in-enter-from,
-.slide-in-leave-to {
-  opacity: 0;
-}
-.slide-in-enter-active,
-.slide-in-leave-active {
-  transition: opacity 0.2s ease;
-}
 .drawer-inner {
   max-width: 960px;
   margin: 0 auto;
@@ -198,17 +158,5 @@ const remark = ref('')
 .list-surface :deep(.v-btn),
 .list-surface :deep(.v-chip) {
   --v-theme-on-surface: #e0e6f0;
-}
-.toolbar {
-  display: flex;
-  align-items: center;
-}
-.list-placeholder {
-  opacity: 0.7;
-  padding: 16px 0;
-}
-.search-box {
-  display: flex;
-  align-items: center;
 }
 </style>

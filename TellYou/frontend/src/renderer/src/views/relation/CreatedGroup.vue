@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 
-const open = ref(false)
-const toggle = (): void => {
-  open.value = !open.value
-}
+const props = defineProps<{outTab: string}>()
+const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
+
 </script>
 
 <template>
@@ -14,13 +12,13 @@ const toggle = (): void => {
     size="large"
     :ripple="true"
     rounded="xl"
-    @click="toggle"
+    @click="emit('toggle', 'group-management')"
   >
     <v-icon icon="mdi-account-group-outline" size="22"></v-icon>
   </v-btn>
 
   <transition name="fade">
-    <div v-if="open" class="panel-wrap" @click.self="toggle">
+    <div v-if="props.outTab === 'group-management'" class="panel-wrap" @click.self="emit('toggle', '')">
       <div class="panel" @click.stop>
         <div class="panel-inner">我创建的群聊（占位，待接入）</div>
       </div>

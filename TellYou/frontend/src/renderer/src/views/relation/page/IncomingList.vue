@@ -45,13 +45,6 @@ const approveSelected = (): void => {
   selected.value.clear()
   appStore.reloadIncoming(page.value.pageNo)
 }
-const rejectSelected = (): void => {
-  const ids = Array.from(selected.value).map(String)
-  appStore.bulkReject(ids)
-  selected.value.clear()
-  appStore.reloadIncoming(page.value.pageNo)
-}
-
 const onPageChange = (newPage: number): void => {
   appStore.reloadIncoming(newPage)
 }
@@ -62,9 +55,6 @@ const onPageChange = (newPage: number): void => {
     <v-checkbox v-model="allChecked" label="全选" hide-details density="compact" />
     <div class="ml-2"></div>
     <v-btn size="small" color="primary" @click="approveSelected">同意</v-btn>
-    <v-btn class="ml-2" size="small" color="error" variant="tonal" @click="rejectSelected"
-      >拒绝</v-btn
-    >
   </div>
 
   <v-list density="compact" class="mt-5">
@@ -86,7 +76,7 @@ const onPageChange = (newPage: number): void => {
             item.status === 0
               ? '待处理'
               : item.status === 1
-                ? '已同意'
+                ? '你已同意'
                 : item.status === 2
                   ? '已拒绝'
                   : '已撤回'

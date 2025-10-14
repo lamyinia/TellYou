@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import ContactDial from './ContactDial.vue'
 import ContactDetail from './ContactDetail.vue'
 import ContactApplication from './ContactApplication.vue'
@@ -21,9 +21,12 @@ export interface DetailContact {
   sex?: string
 }
 
+const activeTab = ref<string>('')
+
 const sessionStore = useSessionStore()
 const selectedContact = ref<DetailContact | null>(null)
-const selectContact = async (sessionId: string): void => {
+
+const selectContact = async (sessionId: string): Promise<void> => {
   let session: any = sessionStore.getSession(sessionId)
   const data: any = await window.electronAPI.invoke('proxy:search:user-or-group', {contactId: session.contactId, contactType: session.contactType})
   console.log(data)
@@ -31,6 +34,16 @@ const selectContact = async (sessionId: string): void => {
     {contactName: data.nickname, contactAvatar: data.avatar, contactSignature: data.signature})
   selectedContact.value = {name: data.nickname, avatar: data.avatar, signature: data.signature, sex: (data.sex===0 ? '女' : '男'), sessionId: sessionId}
 }
+const toggleTab = (newValue: string): void => {
+  if (newValue === activeTab.value){
+    activeTab.value = ''
+  } else {
+    activeTab.value = newValue
+  }
+}
+watch(activeTab, (newV, oldV) => {
+  console.log('contact-management-view-watch:', oldV, ' to ', newV)
+}, {immediate: true})
 </script>
 
 <template>
@@ -42,9 +55,9 @@ const selectContact = async (sessionId: string): void => {
         </div>
       </div>
       <ContactDial @select="selectContact" />
-      <ContactApplication />
-      <CreatedGroup />
-      <ContactBlack />
+      <ContactApplication :out-tab="activeTab" @toggle="toggleTab" />
+      <CreatedGroup :out-tab="activeTab" @toggle="toggleTab" />
+      <ContactBlack :out-tab="activeTab" @toggle="toggleTab" />
     </div>
   </div>
 </template>

@@ -18,8 +18,8 @@ import org.hibernate.validator.constraints.Length;
 public class FriendApplyReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
-    @Schema(description = "申请信息")
-    private Long fromUid;
+    @Schema(description = "发起者 id")
+    private Long fromUserId;
 
     @NotNull
     @Schema(description = "申请的接收者")

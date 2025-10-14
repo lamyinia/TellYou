@@ -77,8 +77,8 @@ app.on('window-all-closed', () => {
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     icon: icon,
-    width: deviceService.loginWidth,
-    height: deviceService.loginHeight,
+    width: deviceService.LOGIN_WIDTH,
+    height: deviceService.LOGIN_HEIGHT,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',

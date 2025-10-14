@@ -69,14 +69,14 @@ public class GlobalExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(value = UnifyException.class)
-    public ApiResult unifyExceptionHandler(UnifyException e) {
+    @ExceptionHandler(value = CheckPowerException.class)
+    public ApiResult checkPowerExceptionHandler(CheckPowerException e) {
         return ApiResult.fail(e);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(value = FlowControlException.class)
-    public ApiResult unifyExceptionHandler(FlowControlException e) {
+    public ApiResult FlowControlExceptionHandler(FlowControlException e) {
         return ApiResult.fail(e);
     }
 }

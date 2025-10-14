@@ -66,8 +66,8 @@ export const connectWs = (): void => {
   ws.on('message', async (data: any) => {
     console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
-    const type: number = msg.messageType
-    if (type >= 1 && type <= 30){
+    const type: number = msg.messageType || null
+    if (type && type >= 1 && type <= 30){
       await websocketHandler.handleChatMessage(msg)
     }
   })

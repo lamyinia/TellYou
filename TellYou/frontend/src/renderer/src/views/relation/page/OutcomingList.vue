@@ -16,7 +16,6 @@ interface Row {
 const rows = computed<Row[]>(() => appStore.outgoing as unknown as Row[])
 const page = computed(() => appStore.outgoingPage)
 
-// 受控分页
 const pageNo = computed<number>({
   get: () => page.value.pageNo,
   set: (val: number) => {
@@ -39,13 +38,6 @@ const toggle = (id: number): void => {
   else selected.value.add(id)
 }
 
-const cancelSelected = (): void => {
-  const ids = Array.from(selected.value).map(String)
-  appStore.bulkCancel(ids)
-  selected.value.clear()
-  appStore.reloadOutgoing(page.value.pageNo)
-}
-
 const onPageChange = (newPage: number): void => {
   appStore.reloadOutgoing(newPage)
 }
@@ -54,7 +46,6 @@ const onPageChange = (newPage: number): void => {
 <template>
   <div class="toolbar">
     <v-checkbox v-model="allChecked" label="全选" hide-details density="compact" />
-    <v-btn class="ml-2" size="small" color="warning" @click="cancelSelected">撤回申请</v-btn>
   </div>
 
   <v-list density="compact" class="mt-2">
@@ -76,7 +67,7 @@ const onPageChange = (newPage: number): void => {
             item.status === 0
               ? '待处理'
               : item.status === 1
-                ? '已同意'
+                ? '对方已同意'
                 : item.status === 2
                   ? '已拒绝'
                   : '已撤回'

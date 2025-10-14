@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import type { Session } from '@renderer/status/session/class'
+import type { Session } from '@shared/types/session'
 import { useMessageStore } from '@renderer/status/message/store'
 import TextMessage from '@renderer/views/chat/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/ImageMessage.vue'

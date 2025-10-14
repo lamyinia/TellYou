@@ -22,12 +22,12 @@ interface ApiResponse<T = unknown> {
   errMsg: string
 }
 class ApiError extends Error {
-  constructor(
-    public errCode: number,
-    public message: string,
-    public response?: AxiosResponse
-  ) {
+  public readonly errMsg: string
+  constructor(public errCode: number, public message: string, public response?: AxiosResponse) {
     super(message)
+    this.response = response
+    this.errCode = errCode
+    this.errMsg = message
     this.name = 'ApiError'
   }
 }
@@ -75,31 +75,38 @@ class NetMaster {
         if (success) {
           return response
         } else {
+          console.log('not-success: ', response)
           throw new ApiError(errCode, errMsg, response)
         }
       },
       (error: AxiosError) => {
         if (error.response) {
           const status = error.response.status
-          console.log('netMaster AxiosError', error)
-
+          console.error('netMaster AxiosError:失败:', error.response)
+          const data = error.response.data as Partial<ApiResponse> | undefined
+          if (data && typeof data.errMsg === 'string') {
+            throw new ApiError(data.errCode || -1, data.errMsg, error.response)
+          }
+          let msg = '请求失败'
           switch (status) {
+            case 400:
+              msg = '请求参数错误'
+              break
             case 401:
-              Message.error('未授权，请重新登录')
+              msg = '未授权，请重新登录'
               break
             case 403:
-              Message.error('权限不足')
+              msg = '权限不足'
               break
             case 404:
-              Message.error('请求的资源不存在')
+              msg = '请求的资源不存在'
               break
             case 500:
-              Message.error('服务器内部错误')
+              msg = '服务器内部错误'
               break
           }
-
-          const errorData = error.response.data as any
-          throw new ApiError(status, errorData?.errMsg || '请求失败', error.response)
+          Message.error(msg)
+          throw new ApiError(status, msg, error.response)
         } else {
           throw new ApiError(-1, '网络连接异常')
         }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, reactive } from 'vue'
-import { FriendApplicationItem, PageInfo } from '@renderer/status/application/class'
+import { FriendApplicationItem, PageInfo } from '@shared/types/application'
 
 export const useApplicationStore = defineStore('application', () => {
   const incoming = ref<FriendApplicationItem[]>([])
@@ -74,22 +74,15 @@ export const useApplicationStore = defineStore('application', () => {
       pageSize: outgoingPage.pageSize
     })
   }
-
   const bulkApprove = (ids: string[]): void => {
     window.electronAPI.send('application:incoming:approve', { ids })
   }
-  const bulkReject = (ids: string[]): void => {
-    window.electronAPI.send('application:incoming:reject', { ids })
-  }
+
   const bulkCancel = (ids: string[]): void => {
     window.electronAPI.send('application:outgoing:cancel', { ids })
   }
-
   const searchUser = (keyword: string): void => {
     window.electronAPI.send('application:user:search', { keyword })
-  }
-  const sendRequest = (toUserId: string, remark?: string): void => {
-    window.electronAPI.send('application:send', { toUserId, remark })
   }
 
   return {
@@ -102,9 +95,7 @@ export const useApplicationStore = defineStore('application', () => {
     reloadIncoming,
     reloadOutgoing,
     bulkApprove,
-    bulkReject,
     bulkCancel,
-    searchUser,
-    sendRequest
+    searchUser
   }
 })

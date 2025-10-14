@@ -21,9 +21,7 @@ const handleSendMessage = (): void => {
   router.push('/chat')
 }
 
-const handleSetRemark = (): void => {
-  // 预留：打开备注设置弹窗
-}
+
 const handleDelete = (): void => {
   // 预留：删除联系人逻辑
 }

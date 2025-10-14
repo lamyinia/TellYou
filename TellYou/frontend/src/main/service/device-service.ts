@@ -14,18 +14,20 @@ import { mediaUtil } from '@main/util/media-util'
 
 
 class DeviceService {
-  public readonly loginWidth: number = 596
-  public readonly loginHeight: number = 400
-  public readonly registerWidth: number = 596
-  public readonly registerHeight: number = 656
+  public readonly LOGIN_WIDTH: number = 500
+  public readonly LOGIN_HEIGHT: number = 430
+  public readonly REGISTER_WIDTH: number = 500
+  public readonly REGISTER_HEIGHT: number = 656
+  public readonly MAIN_WIDTH: number = 800
+  public readonly MAIN_HEIGHT: number = 660
 
   public beginServe(mainWindow: Electron.BrowserWindow): void {
     ipcMain.on('device:login-or-register', (_, isLogin: boolean) => {
       mainWindow.setResizable(true)
       if (isLogin === false) {
-        mainWindow.setSize(this.loginWidth, this.loginHeight)
+        mainWindow.setSize(this.LOGIN_WIDTH, this.LOGIN_HEIGHT)
       } else {
-        mainWindow.setSize(this.registerWidth, this.registerHeight)
+        mainWindow.setSize(this.REGISTER_WIDTH, this.REGISTER_HEIGHT)
       }
       mainWindow.setResizable(false)
     })
@@ -35,7 +37,7 @@ class DeviceService {
         mainWindow.setResizable(true)
         mainWindow.setSize(920, 740)
         mainWindow.setMaximizable(true)
-        mainWindow.setMinimumSize(800, 600)
+        mainWindow.setMinimumSize(this.MAIN_WIDTH, this.MAIN_HEIGHT)
         mainWindow.center()
         mainWindow.webContents.send('ws-connected')
       })

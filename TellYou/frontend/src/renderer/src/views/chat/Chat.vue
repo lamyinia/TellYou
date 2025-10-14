@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
 import ContactList from '@renderer/views/chat/ContactList.vue'
-import { randomStarStyle } from '@renderer/assets/StarFlink'
-import { ref, computed, onMounted } from 'vue'
-import type { Session } from '@renderer/status/session/class'
+import { computed, onMounted, ref } from 'vue'
+import type { Session } from '@shared/types/session'
 import { useSessionStore } from '@renderer/status/session/store'
 
 const sessionStore = useSessionStore()

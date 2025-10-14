@@ -35,6 +35,7 @@ public class UserContactController {
         PullFriendContactResp resp = userContactService.pullFriendContact(RequestHolder.get().getUid());
         return ApiResult.success(resp);
     }
+
     @GetMapping("/pull-application")
     @Operation(description = "拉取申请通知")
     public ApiResult<SimpleApplyInfoList> pullApplication(){
@@ -42,26 +43,27 @@ public class UserContactController {
         return ApiResult.success(resp);
     }
 
-    @PostMapping("/applySend")
+    @PostMapping("/friend-apply-send")
     @Operation(description = "发送好友申请")
     public ApiResult<Void> applySend(@Check @Valid @RequestBody FriendApplyReq friendApplyReq){
-        userContactService.friendApplySend(friendApplyReq.getFromUid(), friendApplyReq);
+        userContactService.friendApplySend(friendApplyReq.getFromUserId(), friendApplyReq);
         return ApiResult.success();
     }
 
-    @PutMapping("/applyAccept")
+    @PutMapping("/apply-accept")
     @Operation(summary = "接受申请")
     public ApiResult<Void> applyAccept(@Check @Valid @RequestBody AcceptFriendApplyReq req){
         userContactService.applyAccept(req);
         return ApiResult.success();
     }
 
-    @PutMapping("/pullBlackList")
+    @PostMapping("/pull-black-list")
     @Operation(summary = "拉入黑名单")
     public ApiResult<Void> pullBlackList(@Check @Valid @RequestBody PullBlackListReq req){
         userContactService.pullBlackList(req);
         return ApiResult.success();
     }
+
     @DeleteMapping("/removeBlackList")
     @Operation(summary = "移除黑名单")
     public ApiResult<Void> removeBlackList(@Check @Valid @RequestBody RemoveBlackListReq req){

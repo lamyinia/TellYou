@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
-import type { Session } from '@renderer/status/session/class'
+import type { Session } from '@shared/types/session'
 import { briefMsg, formatTime, onAvatarError } from '@shared/utils/process'
 
 const store = useSessionStore()
