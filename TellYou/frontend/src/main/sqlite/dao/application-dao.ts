@@ -1,4 +1,4 @@
-import { queryAll, sqliteRun } from '@main/sqlite/atom'
+import { insertOrIgnore, queryAll, sqliteRun } from '@main/sqlite/atom'
 
 export interface ApplicationRow {
   id: number
@@ -51,11 +51,13 @@ class ApplicationDao {
     const sql = `UPDATE contact_applications SET status = 2 WHERE id IN (${placeholders})`
     return sqliteRun(sql, ids)
   }
-  public async insertApplication(applyUserId: string, targetId: string, remark?: string): Promise<number> {
-    const sql = `INSERT INTO contact_applications (apply_user_id, target_id, contact_type, status, apply_info, last_apply_time)
-               VALUES (?, ?, 0, 0, ?, ?)`
-    const now = new Date().toISOString()
-    return sqliteRun(sql, [applyUserId, targetId, remark || '', now])
+  public async insertApplication(params: any): Promise<number> {
+    return insertOrIgnore('contact_applications', params)
+  }
+
+  public async deleteApplication(applyId: string): Promise<number> {
+    const sql = 'delete from contact_applications where apply_id = ?'
+    return sqliteRun(sql, [applyId])
   }
 }
 const applicationDao = new ApplicationDao()

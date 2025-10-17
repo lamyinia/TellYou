@@ -4,19 +4,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.com.modules.common.domain.enums.DeliveryEnum;
-import org.com.modules.session.domain.vo.resp.MessageResp;
-import org.com.modules.user.domain.entity.ContactApply;
-import org.com.modules.user.domain.vo.resp.ContactApplyResp;
+import org.com.modules.user.domain.vo.push.PushedApply;
+import org.com.modules.user.domain.vo.push.PushedChat;
 import org.com.tools.constant.MQConstant;
 import org.com.tools.constant.RedissonConstant;
 import org.redisson.api.RedissonClient;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * 将消息投递到用户，投递前将消息写入信箱
+ * 将消息投递到用户
  * @author lanye
  * @date 2025/08/01
  */
@@ -28,28 +26,23 @@ public class DispatcherService {
     private final RocketMQTemplate rocketMQTemplate;
     private final Integer NEED_DELIVERY_BOUNDARY = 501;
 
-    public void dispatch(DeliveryEnum deliveryEnum, Object message, List<Long> uidList){
-        switch (deliveryEnum){
+    public void dispatch(DeliveryEnum deliveryEnum, Object message, List<Long> uidList) {
+        switch (deliveryEnum) {
             case MESSAGE:
-                dispatchMessage((MessageResp) message, uidList);
+                dispatchChat((PushedChat) message, uidList);
                 break;
             case APPLY:
-                ContactApplyResp resp = new ContactApplyResp();
-                BeanUtils.copyProperties((ContactApply)message, resp);
-                resp.setAvatar("默认url...");
-                resp.setTargetName("无名氏...");
-
-                dispatchApply(resp, uidList);
+                dispatchApply((PushedApply) message, uidList);
                 break;
         }
     }
 
-    private void dispatchMessage(MessageResp resp, List<Long> uidList){
+    private void dispatchChat(PushedChat resp, List<Long> uidList){
         if (uidList.size() <= NEED_DELIVERY_BOUNDARY){
             uidList.forEach(uid -> {
                 String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
                 if (node != null){
-                    resp.setToUserId(uid);
+                    resp.setReceiverId(uid);
                     redissonClient.getTopic(node).publish(resp);
                 }
             });
@@ -57,12 +50,13 @@ public class DispatcherService {
             rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, new SubscribedItem(uidList, resp));
         }
     }
-    private void dispatchApply(ContactApplyResp resp, List<Long> uidList){
+
+    private void dispatchApply(PushedApply resp, List<Long> uidList){
+        PushedApply letter = resp;
         uidList.forEach(uid -> {
-            ContactApplyResp letter = resp;
-            letter.setDeliverId(uid);
             String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
             if (node != null){
+                letter.setReceiverId(uid);
                 redissonClient.getTopic(node).publish(letter);
             } else {
                 log.info("{} 没上线", uid);

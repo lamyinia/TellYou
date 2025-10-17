@@ -8,7 +8,7 @@ import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
-import org.com.modules.common.event.FriendApplyEvent;
+import org.com.modules.common.event.ApplyEvent;
 import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.dao.GroupContactDao;
 import org.com.modules.session.dao.MongoSessionDao;
@@ -55,6 +55,9 @@ public class UserContactServiceImpl implements UserContactService {
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
+    /**
+     * 业务判断，数据入库，本机发布投递申请表的 spring-event 事件
+     */
     @Override
     @RedissonLocking(key = "#uid")
     public void friendApplySend(Long uid, FriendApplyReq friendApplyReq) {
@@ -66,7 +69,7 @@ public class UserContactServiceImpl implements UserContactService {
 
         ContactApply contactApply = ContactApplyAdapter.buildFriendApply(uid, friendApplyReq);
         contactApplyDao.save(contactApply);
-        applicationEventPublisher.publishEvent(new FriendApplyEvent(this, contactApply, List.of(uid, friendApplyReq.getContactId())));
+        applicationEventPublisher.publishEvent(new ApplyEvent(this, contactApply, List.of(uid, friendApplyReq.getContactId())));
     }
 
     @Override
@@ -97,7 +100,7 @@ public class UserContactServiceImpl implements UserContactService {
             friendContactDao.rebuildContact(uid1, uid2);
         }
 
-        applicationEventPublisher.publishEvent(new FriendApplyEvent(this, apply, List.of(uid1, uid2)));
+        applicationEventPublisher.publishEvent(new ApplyEvent(this, apply, List.of(uid1, uid2)));
     }
 
     @Override

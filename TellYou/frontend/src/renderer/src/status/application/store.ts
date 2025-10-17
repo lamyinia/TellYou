@@ -1,16 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, reactive } from 'vue'
-import { FriendApplicationItem, PageInfo } from '@shared/types/application'
+import { ApplicationItem, PageInfo } from '@shared/types/application'
 
 export const useApplicationStore = defineStore('application', () => {
-  const incoming = ref<FriendApplicationItem[]>([])
-  const outgoing = ref<FriendApplicationItem[]>([])
+  const incoming = ref<ApplicationItem[]>([])
+  const outgoing = ref<ApplicationItem[]>([])
 
   const incomingPage = reactive<PageInfo>({ pageNo: 1, pageSize: 8, total: 0 })
   const outgoingPage = reactive<PageInfo>({ pageNo: 1, pageSize: 8, total: 0 })
 
   let unsubIncoming: ((...args: unknown[]) => void) | null = null
   let unsubOutgoing: ((...args: unknown[]) => void) | null = null
+  let wsIncomingReload: ((...args: unknown[]) => void) | null = null
+  let wsOutgoingReload: ((...args: unknown[]) => void) | null = null
 
   const init = (): void => {
     console.log('applicationStore 开始初始化')
@@ -19,7 +21,7 @@ export const useApplicationStore = defineStore('application', () => {
     unsubIncoming = (...args: unknown[]) => {
       const [, payload] = args as [
         Electron.IpcRendererEvent,
-        { list: FriendApplicationItem[]; total: number }
+        { list: ApplicationItem[]; total: number }
       ]
       console.log('unsubIncoming 监听', payload)
 
@@ -29,16 +31,25 @@ export const useApplicationStore = defineStore('application', () => {
     unsubOutgoing = (...args: unknown[]) => {
       const [, payload] = args as [
         Electron.IpcRendererEvent,
-        { list: FriendApplicationItem[]; total: number }
+        { list: ApplicationItem[]; total: number }
       ]
       console.log('unsubOutgoing 监听', payload)
 
       outgoing.value = payload.list
       outgoingPage.total = payload.total
     }
+    wsIncomingReload = () => {
+      reloadIncoming(incomingPage.pageNo)
+    }
+    wsOutgoingReload = () => {
+      console.log('ws-outgoing-reload')
+      reloadOutgoing(outgoingPage.pageNo)
+    }
 
     window.electronAPI.on('application:incoming:loaded', unsubIncoming)
     window.electronAPI.on('application:outgoing:loaded', unsubOutgoing)
+    window.electronAPI.on('income-list:call-back:load-data', wsIncomingReload)
+    window.electronAPI.on('out-send-list:call-back:load-data', wsOutgoingReload)
 
     window.electronAPI.send('application:incoming:load', {
       pageNo: incomingPage.pageNo,
@@ -56,8 +67,14 @@ export const useApplicationStore = defineStore('application', () => {
       window.electronAPI.removeListener('application:incoming:loaded', unsubIncoming)
     if (unsubOutgoing)
       window.electronAPI.removeListener('application:outgoing:loaded', unsubOutgoing)
+    if (wsIncomingReload)
+      window.electronAPI.removeListener('income-list:call-back:load-data', wsIncomingReload)
+    if (wsOutgoingReload)
+      window.electronAPI.removeListener('out-send-list:call-back:load-data', wsOutgoingReload)
     unsubIncoming = null
     unsubOutgoing = null
+    wsIncomingReload = null
+    wsOutgoingReload = null
   }
 
   const reloadIncoming = (pageNo = 1): void => {

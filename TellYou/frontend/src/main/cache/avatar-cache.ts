@@ -9,6 +9,7 @@ interface ImageInfo {
   version: string
   localPath: string
 }
+// strategy 缩略图或者原图
 interface CacheItem {
   [strategy: string]: ImageInfo
 }

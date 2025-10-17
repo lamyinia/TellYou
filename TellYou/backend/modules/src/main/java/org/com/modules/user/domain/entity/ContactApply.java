@@ -1,20 +1,17 @@
 package org.com.modules.user.domain.entity;
 
-
-import java.util.Date;
-
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Date;
+
 @Data
 @Builder
 public class ContactApply {
-
-    @Schema(description = "自增ID")
-    @TableId(value = "apply_id", type = IdType.AUTO)
+    @Schema(description = "申请ID")
+    @TableId(value = "apply_id")
     private Long applyId;
 
     @Schema(description = "申请人 id")
@@ -34,5 +31,4 @@ public class ContactApply {
 
     @Schema(description = "申请信息")
     private String applyInfo;
-
 }

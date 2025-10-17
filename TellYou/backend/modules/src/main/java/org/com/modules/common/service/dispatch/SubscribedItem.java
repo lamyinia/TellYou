@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.com.modules.session.domain.vo.resp.MessageResp;
+import org.com.modules.user.domain.vo.push.PushedChat;
 
 import java.io.Serializable;
 import java.util.List;
@@ -19,5 +19,5 @@ public class SubscribedItem implements Serializable {
     @Schema(description = "需要投递的 uid")
     public List<Long> uidList;
     @Schema (description = "回推的 message")
-    public MessageResp vo;
+    public PushedChat vo;
 }

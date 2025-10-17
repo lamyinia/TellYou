@@ -7,12 +7,16 @@ import org.springframework.context.ApplicationEvent;
 import java.util.List;
 
 @Getter
-public class FriendApplyEvent extends ApplicationEvent {
-    private List<Long> uidList;
+public class ApplyEvent extends ApplicationEvent {
+
     private ContactApply contactApply;
-    public FriendApplyEvent(Object source, ContactApply contactApply, List<Long> uidList) {
+
+    private List<Long> uidList;
+
+    public ApplyEvent(Object source, ContactApply contactApply, List<Long> uidList) {
         super(source);
         this.contactApply = contactApply;
         this.uidList = uidList;
     }
+
 }

@@ -15,7 +15,6 @@ import org.apache.commons.lang3.StringUtils;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CursorPageReq {
-
     @Min(0)
     @Max(100)
     @Schema(description = "页面大小")

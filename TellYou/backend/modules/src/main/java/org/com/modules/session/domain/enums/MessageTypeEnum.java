@@ -23,8 +23,11 @@ public enum MessageTypeEnum {
     GROUP_VIDEO(8, MQConstant.SESSION_TOPIC, "视频"),
     GROUP_VICE(9, MQConstant.SESSION_TOPIC, "语音"),
     GROUP_PACKET(10, MQConstant.SESSION_TOPIC, "红包"),
-    CHAT_ACK_CONFIRM(101, MQConstant.ACK_TOPIC, "聊天消息 ack 确认"),
-    APPLICATION_ACK_CONFIRM(102, MQConstant.ACK_TOPIC, "申请表 ack 确认");
+    CHAT_ACK_CONFIRM(101, MQConstant.ACK_TOPIC, "-message"),
+    APPLICATION_ACK_CONFIRM(102, MQConstant.ACK_TOPIC, "-apply"),
+    SESSION_ACK_CONFIRM(103, MQConstant.ACK_TOPIC, "-session"),
+    BEHAVIOUR_ACK_CONFIRM(104, MQConstant.ACK_TOPIC, "-behaviour");
+
 
     private final Integer type;
     private final String topic;

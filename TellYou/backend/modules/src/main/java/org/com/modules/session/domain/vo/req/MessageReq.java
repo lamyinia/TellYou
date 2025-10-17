@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 @ToString
 public class MessageReq implements Serializable {
-    /** 客户端消息ID（用于幂等性） */
+    /** 客户端消息ID（用于幂等性或者ack确认） */
     private String messageId;
 
     /** 消息类型（如 text、image、file、system、heartbeat 等） */
@@ -21,6 +21,7 @@ public class MessageReq implements Serializable {
     /** 接收者ID（单聊/群聊） */
     private Long toUserId;
 
+    /** 会话 id */
     private Long sessionId;
 
     /** 消息内容（文本、图片URL、文件URL等） */

@@ -78,9 +78,6 @@ class MediaTaskService {
     ipcMain.handle('media:send:cancel', async (event, taskId: string) => {
       return this.cancelTask(taskId)
     })
-    ipcMain.handle('media:send:retry', async (event, taskId: string) => {
-      return this.retryTask(taskId)
-    })
     ipcMain.handle('media:send:status', async (event, taskId: string) => {
       return this.getTaskStatus(taskId)
     })

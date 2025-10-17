@@ -38,9 +38,7 @@ const initials = computed(() => {
 })
 const avatarSrc = computed(() => {
   if (localPath.value && forceUpdate.value >= 0) {
-    // 添加时间戳参数强制浏览器重新加载图片
     const separator = localPath.value.includes('?') ? '&' : '?'
-    // 使用 forceUpdate 和当前时间戳确保图片刷新
     const timestamp = forceUpdate.value + '_' + Date.now()
     return `${localPath.value}${separator}t=${timestamp}`
   }
@@ -60,10 +58,9 @@ const loadAvatar = async (): Promise<void> => {
     // 带版本号查url, 判断 props.version 的版本号是不是比自己存的大更大，如果是更大或者自己没有存过，那么主进程访问 static/json 找 props.url，否则 path 更新为本地存的 localPath
     const checkResult = await avatarStore.seekCache(props.userId, props.showStrategy, props.version)
     // console.info('debug:checkResult', checkResult)
-    if (checkResult.needUpdated) {
-      // 需要访问 url
+    if (checkResult.needUpdated) {  // 需要访问 url
       loadingUrl = checkResult.pathResult
-    } else {
+    } else {  //  本地版本号更优
       localPath.value = checkResult.pathResult
       forceUpdate.value++ // 强制重新渲染
       return

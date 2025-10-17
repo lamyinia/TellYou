@@ -34,12 +34,22 @@ class ChannelUtil {
     }
     this.channel.send(JSON.stringify(base))
   }
-  public sendSingleAckConfirm(msg: any): void {
-    if (this.isWsOpen()) return
+  public sendSingleChatAckConfirm(msg: any): void {
+    if (!this.isWsOpen()) return
     this.channel.send(
       JSON.stringify({
         messageId: msg.messageId,
         type: 101,
+        fromUid: store.get(uidKey)
+      })
+    )
+  }
+  public sendSingleApplicationAckConfirm(msg: any): void {
+    if (!this.isWsOpen()) return
+    this.channel.send(
+      JSON.stringify({
+        messageId: msg.applyId,
+        type: 102,
         fromUid: store.get(uidKey)
       })
     )

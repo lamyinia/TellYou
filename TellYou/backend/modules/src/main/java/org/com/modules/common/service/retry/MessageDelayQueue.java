@@ -3,8 +3,10 @@ package org.com.modules.common.service.retry;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.session.domain.vo.resp.MessageResp;
-import org.com.modules.user.domain.vo.resp.ContactApplyResp;
+import org.com.modules.user.domain.vo.push.PushedBehaviour;
+import org.com.modules.user.domain.vo.push.PushedChat;
+import org.com.modules.user.domain.vo.push.PushedApply;
+import org.com.modules.user.domain.vo.push.PushedSession;
 import org.com.tools.utils.ChannelManagerUtil;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RScoredSortedSet;
@@ -18,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.*;
 
 /**
- * 用 redisson 重试实现的延迟队列
+ * 用 RSortedSet + Spring Schedule 重试实现的延时任务
  *
  * @author lanye
  * @date 2025/07/29
@@ -133,20 +135,17 @@ public class MessageDelayQueue {
     }
 
     /**
-     * 安排1分钟后清理指定消息ID的缓存
+     * 安排 30s 后清理指定消息ID的缓存
      */
     private void scheduleCleanup(String messageId) {
         ScheduledFuture<?> existingTask = cleanupTasks.get(messageId);
         if (existingTask != null && !existingTask.isDone()) {
             existingTask.cancel(false);
         }
-//        log.info("准备安排清理任务，消息ID: {}", messageId);
         ScheduledFuture<?> cleanupTask = scheduler.schedule(() -> {
             try {
-//                log.info("开始执行缓存清理任务，消息ID: {}", messageId);
                 letterCache.remove(messageId);
                 cleanupTasks.remove(messageId);
-//                log.info("清理任务完成，消息ID: {}", messageId);
             } catch (Exception e) {
                 log.error("清理任务执行异常，消息ID: {}, 错误: {}", messageId, e.getMessage(), e);
             }
@@ -157,22 +156,22 @@ public class MessageDelayQueue {
 
 
     private String getRetryKey(Long uid, Object vo) {
-        return String.valueOf(uid) + ":" + getLetterId(vo);
+        return uid + ":" + getLetterId(vo);
     }
 
     private String getLetterId(Object vo) {
-        if (vo.getClass() == MessageResp.class) {
-            return ((MessageResp) vo).getMessageId() + "-message";
-        }
-        if (vo.getClass() == ContactApplyResp.class) {
-            return ((ContactApplyResp) vo).getApplyId() + "-apply";
-        }
-        return null;
+        return switch (vo){
+            case PushedChat letter -> letter.getMessageId() + "-message";
+            case PushedApply letter -> letter.getApplyId() + "-apply";
+            case PushedSession letter -> "-session";
+            case PushedBehaviour letter -> "-behaviour";
+            default -> "null";
+        };
     }
 
-    public void deliverConfirm(Long uid, String messageId){
-        log.info("删除键" + String.valueOf(uid) + ":" + messageId + "-message");
-        letterRetryCount.remove(String.valueOf(uid) + ":" + messageId + "-message");
+    public void deliverConfirm(Long uid, String messageId, String suffix){
+        log.info("删除键{}:{}{}", uid, messageId, suffix);
+        letterRetryCount.remove(uid + ":" + messageId + suffix);
     }
 
     /**

@@ -8,6 +8,7 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.service.retry.MessageDelayQueue;
 import org.com.modules.session.dao.UserInBoxDocDao;
+import org.com.modules.session.domain.enums.MessageTypeEnum;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.tools.constant.MQConstant;
 import org.springframework.stereotype.Service;
@@ -45,8 +46,10 @@ public class AckCycleConsumer implements RocketMQListener<String> {
     public void onMessage(String text) {
         try {
             MessageReq req = JSON.parseObject(text, MessageReq.class);
-            userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
-            messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId());
+            Integer type = req.getType();
+            // 只有聊天消息需要 ack 确认入库
+            if (type == 101) userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
+            messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId(), MessageTypeEnum.of(type).getDesc());
         } catch (Exception e){
             throw e;
         }

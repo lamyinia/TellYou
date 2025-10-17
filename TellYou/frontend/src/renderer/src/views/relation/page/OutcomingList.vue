@@ -6,7 +6,6 @@ const appStore = useApplicationStore()
 const selected = ref<Set<number>>(new Set())
 
 interface Row {
-  id: number
   apply_user_id: string
   target_id: string
   status: number
@@ -25,14 +24,6 @@ const pageNo = computed<number>({
 
 const pageLength = computed(() => Math.max(1, Math.ceil(page.value.total / page.value.pageSize)))
 
-const allChecked = computed({
-  get: () => rows.value.length > 0 && rows.value.every((i) => selected.value.has(i.id)),
-  set: (val: boolean) => {
-    selected.value.clear()
-    if (val) rows.value.forEach((i) => selected.value.add(i.id))
-  }
-})
-
 const toggle = (id: number): void => {
   if (selected.value.has(id)) selected.value.delete(id)
   else selected.value.add(id)
@@ -41,13 +32,10 @@ const toggle = (id: number): void => {
 const onPageChange = (newPage: number): void => {
   appStore.reloadOutgoing(newPage)
 }
+
 </script>
 
 <template>
-  <div class="toolbar">
-    <v-checkbox v-model="allChecked" label="全选" hide-details density="compact" />
-  </div>
-
   <v-list density="compact" class="mt-2">
     <v-list-item
       v-for="item in rows"
@@ -59,19 +47,8 @@ const onPageChange = (newPage: number): void => {
         <v-checkbox-btn :model-value="selected.has(item.id)" @click.stop="toggle(item.id)" />
       </template>
       <template #append>
-        <v-chip
-          size="x-small"
-          :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'"
-        >
-          {{
-            item.status === 0
-              ? '待处理'
-              : item.status === 1
-                ? '对方已同意'
-                : item.status === 2
-                  ? '已拒绝'
-                  : '已撤回'
-          }}
+        <v-chip size="x-small" :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'">
+          {{ item.status === 0 ? '待处理' : item.status === 1 ? '对方已同意' : item.status === 2 ? '已拒绝' : '已撤回' }}
         </v-chip>
       </template>
     </v-list-item>

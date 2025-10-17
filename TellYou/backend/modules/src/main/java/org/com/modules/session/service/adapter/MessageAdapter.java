@@ -2,13 +2,11 @@ package org.com.modules.session.service.adapter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.common.annotation.RedissonLocking;
-import org.com.modules.common.event.MessageSendEvent;
 import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.domain.document.MessageDoc;
 import org.com.modules.session.domain.document.UserInBoxDoc;
 import org.com.modules.session.domain.vo.req.MessageReq;
-import org.com.modules.session.domain.vo.resp.MessageResp;
+import org.com.modules.user.domain.vo.push.PushedChat;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.tools.utils.JsonUtils;
 import org.springframework.beans.BeanUtils;
@@ -23,8 +21,8 @@ public class MessageAdapter {
     private final MongoSessionDao mongoSessionDao;
     private final UserInfoDao userInfoDao;
 
-    public static MessageResp mailToMessageResp(UserInBoxDoc doc) {
-        MessageResp resp = new MessageResp();
+    public static PushedChat mailToMessageResp(UserInBoxDoc doc) {
+        PushedChat resp = new PushedChat();
         resp.setMessageId(doc.getQuoteId());
         resp.setSessionId(doc.getSessionId());
 
@@ -34,7 +32,7 @@ public class MessageAdapter {
 
         resp.setMessageType(doc.getQuoteType());
         resp.setSenderId(doc.getSenderId());
-        resp.setToUserId(doc.getUserId());
+        resp.setReceiverId(doc.getUserId());
         resp.setContent(doc.getContent());
         resp.setAdjustedTimestamp(doc.getAdjustedTimestamp());
         resp.setExtra(doc.getExtra());
@@ -65,8 +63,8 @@ public class MessageAdapter {
                 .build();
     }
 
-    public static MessageResp buildVo(MessageDoc messageDoc) {
-        MessageResp resp = new MessageResp();
+    public static PushedChat buildVo(MessageDoc messageDoc) {
+        PushedChat resp = new PushedChat();
         BeanUtils.copyProperties(messageDoc, resp);
         return resp;
     }

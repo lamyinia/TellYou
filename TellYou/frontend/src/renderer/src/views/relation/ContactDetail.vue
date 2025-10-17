@@ -5,6 +5,7 @@ import { useMessageStore } from '@renderer/status/message/store'
 import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
 import { useSessionStore } from '@renderer/status/session/store'
 import { DetailContact } from '@renderer/views/relation/ContactManagementView.vue'
+import Avatar from '@renderer/components/Avatar.vue'
 
 const props = defineProps<{ contact: DetailContact | null }>()
 const contact = computed(() => props.contact)
@@ -21,10 +22,10 @@ const handleSendMessage = (): void => {
   router.push('/chat')
 }
 
-
 const handleDelete = (): void => {
   // 预留：删除联系人逻辑
 }
+
 </script>
 
 <template>
@@ -33,30 +34,20 @@ const handleDelete = (): void => {
       <img class="cm-avatar-lg" :src="resolveAvatar(contact.avatar)" @error="onAvatarError" />
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
-<!--        <div class="cm-remark">备注：{{ contact.name }}</div>-->
       </div>
       <div class="cm-actions">
         <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage"
-          >发消息</v-btn
-        >
-<!--        <v-btn size="small" color="secondary" variant="tonal" class="ml-2" @click="handleSetRemark"-->
-<!--          >设置备注</v-btn-->
-<!--        >-->
+          >发消息</v-btn>
         <v-btn size="small" color="error" variant="tonal" class="ml-2" @click="handleDelete"
           >删除联系人</v-btn
         >
       </div>
     </div>
-
     <div class="cm-info">
       <div class="cm-info-item">
         <span>性别</span>
         <span>{{ contact.sex ? contact.sex : '未知' }}</span>
       </div>
-<!--      <div class="cm-info-item">-->
-<!--        <span>地区</span>-->
-<!--        <span>未知</span>-->
-<!--      </div>-->
       <div class="cm-info-item">
         <span>个性签名</span>
         <span>{{contact.signature ? contact.signature : '这个人很懒，什么都没有写~'}}</span>
@@ -88,12 +79,6 @@ const handleDelete = (): void => {
 .cm-nickname {
   font-size: 20px;
   font-weight: 700;
-}
-.cm-remark,
-.cm-id {
-  font-size: 12px;
-  opacity: 0.85;
-  margin-top: 4px;
 }
 .cm-actions {
   margin-left: auto;

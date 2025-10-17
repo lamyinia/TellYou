@@ -6,11 +6,10 @@ const appStore = useApplicationStore()
 const selected = ref<Set<number>>(new Set())
 
 interface Row {
-  id: number
-  applyId: string
+  applyId: number
   userId: string
   status: number
-  apply_info?: string
+  applyInfo?: string
   applyTime?: string
 }
 const rows = computed<Row[]>(() => appStore.incoming as unknown as Row[])
@@ -27,16 +26,16 @@ const pageNo = computed<number>({
 const pageLength = computed(() => Math.max(1, Math.ceil(page.value.total / page.value.pageSize)))
 
 const allChecked = computed({
-  get: () => rows.value.length > 0 && rows.value.every((i) => selected.value.has(i.id)),
+  get: () => rows.value.length > 0 && rows.value.every((i) => selected.value.has(i.applyId)),
   set: (val: boolean) => {
     selected.value.clear()
-    if (val) rows.value.forEach((i) => selected.value.add(i.id))
+    if (val) rows.value.forEach((i) => selected.value.add(i.applyId))
   }
 })
 
-const toggle = (id: number): void => {
-  if (selected.value.has(id)) selected.value.delete(id)
-  else selected.value.add(id)
+const toggle = (applyId: number): void => {
+  if (selected.value.has(applyId)) selected.value.delete(applyId)
+  else selected.value.add(applyId)
 }
 
 const approveSelected = (): void => {
@@ -48,6 +47,7 @@ const approveSelected = (): void => {
 const onPageChange = (newPage: number): void => {
   appStore.reloadIncoming(newPage)
 }
+
 </script>
 
 <template>
@@ -60,12 +60,12 @@ const onPageChange = (newPage: number): void => {
   <v-list density="compact" class="mt-5">
     <v-list-item
       v-for="item in rows"
-      :key="item.id"
+      :key="item.applyId"
       :title="`申请人: ${item.applyId}`"
-      :subtitle="`${item.apply_info || ''}  ·  ${item.applyTime || ''}`"
+      :subtitle="`${item.applyInfo || ''}  ·  ${item.applyTime || ''}`"
     >
       <template #prepend>
-        <v-checkbox-btn :model-value="selected.has(item.id)" @click.stop="toggle(item.id)" />
+        <v-checkbox-btn :model-value="selected.has(item.applyId)" @click.stop="toggle(item.applyId)" />
       </template>
       <template #append>
         <v-chip

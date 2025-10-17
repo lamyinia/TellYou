@@ -1,9 +1,9 @@
-export interface FriendApplicationItem {
+export interface ApplicationItem {
   applyId: string
-  userId: string
+  applyUserId: string
   nickname: string
   avatar?: string
-  remark?: string
+  applyInfo?: string
   status: 'pending' | 'approved' | 'rejected' | 'canceled'
   direction: 'incoming' | 'outgoing'
   applyTime?: string

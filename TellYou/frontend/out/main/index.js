@@ -565,8 +565,12 @@ class ApiError extends Error {
     this.errCode = errCode;
     this.message = message;
     this.response = response;
+    this.response = response;
+    this.errCode = errCode;
+    this.errMsg = message;
     this.name = "ApiError";
   }
+  errMsg;
 }
 const masterInstance = axios.create({
   withCredentials: true,
@@ -608,15 +612,37 @@ class NetMaster {
         if (success) {
           return response;
         } else {
+          console.log("not-success: ", response);
           throw new ApiError(errCode, errMsg, response);
         }
       },
       (error) => {
         if (error.response) {
           const status = error.response.status;
-          console.log("netMaster AxiosError", error);
-          const errorData = error.response.data;
-          throw new ApiError(status, errorData?.errMsg || "请求失败", error.response);
+          console.error("netMaster AxiosError:失败:", error.response);
+          const data = error.response.data;
+          if (data && typeof data.errMsg === "string") {
+            throw new ApiError(data.errCode || -1, data.errMsg, error.response);
+          }
+          let msg = "请求失败";
+          switch (status) {
+            case 400:
+              msg = "请求参数错误";
+              break;
+            case 401:
+              msg = "未授权，请重新登录";
+              break;
+            case 403:
+              msg = "权限不足";
+              break;
+            case 404:
+              msg = "请求的资源不存在";
+              break;
+            case 500:
+              msg = "服务器内部错误";
+              break;
+          }
+          throw new ApiError(status, msg, error.response);
         } else {
           throw new ApiError(-1, "网络连接异常");
         }
@@ -849,9 +875,6 @@ class MediaTaskService {
     electron.ipcMain.handle("media:send:cancel", async (event, taskId) => {
       return this.cancelTask(taskId);
     });
-    electron.ipcMain.handle("media:send:retry", async (event, taskId) => {
-      return this.retryTask(taskId);
-    });
     electron.ipcMain.handle("media:send:status", async (event, taskId) => {
       return this.getTaskStatus(taskId);
     });
@@ -1057,7 +1080,7 @@ const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime,   status integer default 1);",
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
-  "create table if not exists contact_applications(   id integer primary key autoincrement,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
+  "create table if not exists contact_applications(   apply_id integer primary key,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
@@ -1105,7 +1128,7 @@ const sqliteRun = (sql, params) => {
     const stmt = dataBase.prepare(sql);
     stmt.run(params, function(err) {
       if (err) {
-        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        console.error("SQL执行失败", { sql, params, error: err.message, stack: err.stack });
         reject(-1);
         return;
       }
@@ -1197,15 +1220,8 @@ class ApplicationDao {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE target_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(
-      `
-    SELECT * FROM contact_applications
-    ${where}
-    ORDER BY last_apply_time DESC
-    LIMIT ? OFFSET ?
-  `,
-      params
-    );
+    const rows = await queryAll(`SELECT * FROM contact_applications ${where}
+    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`, params);
     const totalRow = await queryAll(
       `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
       currentUserId ? [currentUserId] : []
@@ -1216,15 +1232,8 @@ class ApplicationDao {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE apply_user_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(
-      `
-    SELECT * FROM contact_applications
-    ${where}
-    ORDER BY last_apply_time DESC
-    LIMIT ? OFFSET ?
-  `,
-      params
-    );
+    const rows = await queryAll(`SELECT * FROM contact_applications ${where}
+    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`, params);
     const totalRow = await queryAll(
       `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
       currentUserId ? [currentUserId] : []
@@ -1243,42 +1252,32 @@ class ApplicationDao {
     const sql = `UPDATE contact_applications SET status = 2 WHERE id IN (${placeholders})`;
     return sqliteRun(sql, ids);
   }
-  async cancelOutgoing(ids) {
-    if (!ids.length) return 0;
-    const placeholders = ids.map(() => "?").join(",");
-    const sql = `UPDATE contact_applications SET status = 3 WHERE id IN (${placeholders})`;
-    return sqliteRun(sql, ids);
+  async insertApplication(params) {
+    return insertOrIgnore("contact_applications", params);
   }
-  async insertApplication(applyUserId, targetId, remark) {
-    const sql = `INSERT INTO contact_applications (apply_user_id, target_id, contact_type, status, apply_info, last_apply_time)
-               VALUES (?, ?, 0, 0, ?, ?)`;
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    return sqliteRun(sql, [applyUserId, targetId, remark || "", now]);
+  async deleteApplication(applyId) {
+    const sql = "delete from contact_applications where apply_id = ?";
+    return sqliteRun(sql, [applyId]);
   }
 }
 const applicationDao = new ApplicationDao();
 class ApplicationService {
   beginServe() {
     electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize);
+      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize, store.get(uidKey));
       event.sender.send("application:incoming:loaded", data);
     });
     electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize);
+      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize, store.get(uidKey));
       event.sender.send("application:outgoing:loaded", data);
     });
-    electron.ipcMain.on("application:incoming:approve", async (_event, { ids }) => {
-      await applicationDao.approveIncoming(ids || []);
-    });
-    electron.ipcMain.on("application:incoming:reject", async (_event, { ids }) => {
-      await applicationDao.rejectIncoming(ids || []);
-    });
-    electron.ipcMain.on("application:outgoing:cancel", async (_event, { ids }) => {
-      await applicationDao.cancelOutgoing(ids || []);
-    });
-    electron.ipcMain.on("application:send", async (_event, { toUserId, remark }) => {
-      await applicationDao.insertApplication("", toUserId, remark);
-    });
+  }
+  // 插入数据库，不负责创建会话，就算是好友同意，也应该与创建会话业务分离
+  async handleSingleApplication(msg) {
+    await applicationDao.deleteApplication(msg.applyId);
+    await applicationDao.insertApplication(msg);
+  }
+  async handleMoreApplication() {
   }
 }
 const applicationService = new ApplicationService();
@@ -1312,11 +1311,6 @@ class BlackService {
   }
 }
 const blackService = new BlackService();
-const getMessageId = () => {
-  const time = BigInt(Date.now());
-  const rand = BigInt(Math.floor(Math.random() * 1e6));
-  return (time << 20n | rand).toString();
-};
 class MessageAdapter {
   /**
    * 将 WebSocket 消息转换为 Message 对象
@@ -1386,177 +1380,6 @@ class MessageAdapter {
   }
 }
 const messageAdapter = new MessageAdapter();
-class SessionDao {
-  async selectSessions() {
-    const sql = "select * from sessions";
-    const result = await queryAll(sql, []);
-    return result;
-  }
-  async selectSingleSession(sessionId) {
-    const sql = "select * from sessions where session_id = ?";
-    const result = await queryAll(sql, [sessionId]);
-    return result[0];
-  }
-  // 为了校正无效的 session，先全部弃用
-  async abandonAllSession() {
-    try {
-      const sql = "UPDATE sessions SET status = 0";
-      const result = await sqliteRun(sql, []);
-      console.log(`session-dao:已弃用 ${result} 个会话`);
-      return result;
-    } catch (error) {
-      console.error("session-dao:弃用所有会话失败:", error);
-      throw error;
-    }
-  }
-  async insertOrIgnoreContact(contact) {
-    return insertOrIgnore("sessions", contact);
-  }
-  // 只有消息更新，才需要更新会话
-  async keepSessionFresh(data) {
-    const sql = `UPDATE sessions
-                 SET last_msg_time = ?, last_msg_content = ?
-                 WHERE session_id = ? AND datetime(?) > datetime(last_msg_time)`;
-    return sqliteRun(sql, [data.sendTime, data.content, data.sessionId, data.sendTime]);
-  }
-  //  根据 sessionId，更新会话的某些字段
-  async updatePartialBySessionId(params, sessionId) {
-    try {
-      const result = await update("sessions", params, { sessionId });
-      return result;
-    } catch {
-      console.error("updatePartialBySessionId:updateSession 失败");
-      return 0;
-    }
-  }
-  //  根据 contactId，更新会话的某些字段
-  async updatePartialByContactId(params, contactId) {
-    try {
-      const result = await update("sessions", params, { contactId });
-      return result;
-    } catch {
-      console.error("updatePartialByContactId:updateSession 失败");
-      return 0;
-    }
-  }
-  async selectAllSessionId() {
-    const sql = "SELECT session_id FROM sessions";
-    const result = await queryAll(sql, []);
-    return result;
-  }
-}
-const sessionDao = new SessionDao();
-class WebsocketHandler {
-  async handleTextMessage(msg, ws2) {
-    console.log("handleMessage", msg);
-    const insertId = await messageService.handleSingleMessage(msg);
-    if (!insertId || insertId <= 0) return;
-    const vo = messageAdapter.adaptWebSocketMessage(msg, insertId);
-    ws2.send(
-      JSON.stringify({
-        messageId: msg.messageId,
-        type: 101,
-        fromUid: store.get(uidKey)
-      })
-    );
-    const session = await sessionDao.selectSingleSession(msg.sessionId);
-    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
-    mainWindow.webContents.send("message:call-back:load-data", [vo]);
-    mainWindow.webContents.send("session:call-back:load-data", [session]);
-  }
-}
-const websocketHandler = new WebsocketHandler();
-let ws = null;
-let maxReConnectTimes = null;
-let lockReconnect = false;
-let needReconnect = null;
-let wsUrl = null;
-const wsConfigInit = () => {
-  wsUrl = "http://localhost:8082/ws";
-  console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
-  needReconnect = true;
-  maxReConnectTimes = 20;
-};
-const isWsOpen = () => !!ws && ws.readyState === WebSocket.OPEN;
-const sendText = (payload) => {
-  if (!isWsOpen()) {
-    console.warn("WebSocket 未连接，发送取消");
-    throw new Error("WebSocket is not connected");
-  }
-  const fromUId = String(payload.fromUId || "");
-  const toUserId = String(payload.toUserId || "");
-  const sessionId = String(payload.sessionId || "");
-  const content = payload.content;
-  if (!fromUId || !sessionId) {
-    console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
-    throw new Error("Missing required fields: fromUId/sessionId");
-  }
-  const base = {
-    messageId: getMessageId(),
-    type: 1,
-    fromUId,
-    toUserId,
-    sessionId,
-    content,
-    timestamp: Date.now(),
-    extra: { platform: "desktop" }
-  };
-  ws.send(JSON.stringify(base));
-};
-const reconnect = () => {
-  if (!needReconnect) {
-    console.info("不允许重试服务");
-    return;
-  }
-  console.info("连接关闭，现在正在重试....");
-  if (ws != null) {
-    ws.close();
-  }
-  if (lockReconnect) {
-    return;
-  }
-  console.info("重试请求发起");
-  lockReconnect = true;
-  if (maxReConnectTimes && maxReConnectTimes > 0) {
-    console.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
-    --maxReConnectTimes;
-    setTimeout(function() {
-      connectWs();
-      lockReconnect = false;
-    }, 5e3);
-  } else {
-    console.info("TCP 连接超时");
-  }
-};
-const connectWs = () => {
-  if (wsUrl == null) return;
-  const token = store.get(tokenKey);
-  if (token === null) {
-    console.info("token 不满足条件");
-    return;
-  }
-  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
-  ws = new WebSocket(urlWithToken);
-  ws.on("open", () => {
-    console.info("客户端连接成功");
-    maxReConnectTimes = 20;
-  });
-  ws.on("close", () => {
-    reconnect();
-  });
-  ws.on("error", () => {
-    reconnect();
-  });
-  ws.on("message", async (data) => {
-    console.info("收到消息:", data.toString());
-    const msg = JSON.parse(data);
-    switch (msg.messageType) {
-      case 1:
-        await websocketHandler.handleTextMessage(msg, ws);
-        break;
-    }
-  });
-};
 class MessageDao {
   async addLocalMessage(data) {
     const changes = await insertOrIgnore("messages", data);
@@ -1625,12 +1448,127 @@ class MessageDao {
   }
 }
 const messageDao = new MessageDao();
+class SessionDao {
+  async selectSessions() {
+    const sql = "select * from sessions";
+    const result = await queryAll(sql, []);
+    return result;
+  }
+  async selectSingleSession(sessionId) {
+    const sql = "select * from sessions where session_id = ?";
+    const result = await queryAll(sql, [sessionId]);
+    return result[0];
+  }
+  // 为了校正无效的 session，先全部弃用
+  async abandonAllSession() {
+    try {
+      const sql = "UPDATE sessions SET status = 0";
+      const result = await sqliteRun(sql, []);
+      console.log(`session-dao:已弃用 ${result} 个会话`);
+      return result;
+    } catch (error) {
+      console.error("session-dao:弃用所有会话失败:", error);
+      throw error;
+    }
+  }
+  async insertOrIgnoreContact(contact) {
+    return insertOrIgnore("sessions", contact);
+  }
+  // 只有消息更新，才需要更新会话
+  async keepSessionFresh(data) {
+    const sql = `UPDATE sessions
+                 SET last_msg_time = ?, last_msg_content = ?
+                 WHERE session_id = ? AND datetime(?) > datetime(last_msg_time)`;
+    return sqliteRun(sql, [data.sendTime, data.content, data.sessionId, data.sendTime]);
+  }
+  //  根据 sessionId，更新会话的某些字段
+  async updatePartialBySessionId(params, sessionId) {
+    try {
+      const result = await update("sessions", params, { sessionId });
+      return result;
+    } catch {
+      console.error("updatePartialBySessionId:updateSession 失败");
+      return 0;
+    }
+  }
+  //  根据 contactId，更新会话的某些字段
+  async updatePartialByContactId(params, contactId) {
+    try {
+      const result = await update("sessions", params, { contactId });
+      return result;
+    } catch {
+      console.error("updatePartialByContactId:updateSession 失败");
+      return 0;
+    }
+  }
+  async selectAllSessionId() {
+    const sql = "SELECT session_id FROM sessions";
+    const result = await queryAll(sql, []);
+    return result;
+  }
+}
+const sessionDao = new SessionDao();
+const getMessageId = () => {
+  const time = BigInt(Date.now());
+  const rand = BigInt(Math.floor(Math.random() * 1e6));
+  return (time << 20n | rand).toString();
+};
+class ChannelUtil {
+  channel = null;
+  isWsOpen = () => !!this.channel && this.channel.readyState === WebSocket.OPEN;
+  registerChannel(channel) {
+    this.channel = channel;
+  }
+  sendText(payload) {
+    if (!this.isWsOpen()) return;
+    const fromUId = String(payload.fromUId || "");
+    const toUserId = String(payload.toUserId || "");
+    const sessionId = String(payload.sessionId || "");
+    const content = payload.content;
+    if (!fromUId || !sessionId) {
+      console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
+      return;
+    }
+    const base = {
+      messageId: getMessageId(),
+      type: 1,
+      fromUId,
+      toUserId,
+      sessionId,
+      content,
+      timestamp: Date.now(),
+      extra: { platform: "desktop" }
+    };
+    this.channel.send(JSON.stringify(base));
+  }
+  sendSingleChatAckConfirm(msg) {
+    if (!this.isWsOpen()) return;
+    this.channel.send(
+      JSON.stringify({
+        messageId: msg.messageId,
+        type: 101,
+        fromUid: store.get(uidKey)
+      })
+    );
+  }
+  sendSingleApplicationAckConfirm(msg) {
+    if (!this.isWsOpen()) return;
+    this.channel.send(
+      JSON.stringify({
+        messageId: msg.applyId,
+        type: 102,
+        fromUid: store.get(uidKey)
+      })
+    );
+  }
+}
+const channelUtil = new ChannelUtil();
 class MessageService {
   beginServe() {
     electron.ipcMain.handle("websocket:send", async (_, msg) => {
       console.log(msg);
       try {
-        sendText(msg);
+        channelUtil.sendText(msg);
         console.log("发送成功");
         return true;
       } catch (error) {
@@ -1719,6 +1657,120 @@ class SessionService {
   }
 }
 const sessionService = new SessionService();
+class WebsocketHandler {
+  async handleChatMessage(msg) {
+    console.log("handleMessage", msg);
+    const insertId = await messageService.handleSingleMessage(msg);
+    if (!insertId || insertId <= 0) return;
+    const vo = messageAdapter.adaptWebSocketMessage(msg, insertId);
+    channelUtil.sendSingleChatAckConfirm(msg);
+    const session = await sessionDao.selectSingleSession(msg.sessionId);
+    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+    mainWindow.webContents.send("message:call-back:load-data", [vo]);
+    mainWindow.webContents.send("session:call-back:load-data", [session]);
+  }
+  // 申请通知
+  async handleApplication(msg) {
+    delete msg.receiverId;
+    await applicationService.handleSingleApplication(msg);
+    channelUtil.sendSingleApplicationAckConfirm(msg);
+    const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+    mainWindow.webContents.send("income-list:call-back:load-data", "ping");
+    mainWindow.webContents.send("out-send-list:call-back:load-data", "ping");
+  }
+  // (单聊、多聊创建，单聊、多聊解散)[往往伴随着会话变更]
+  async handleContact(msg) {
+  }
+  async handleBlack(msg) {
+  }
+  // 被踢、被强制下线、被警告
+  async handleClientEvent(msg) {
+  }
+}
+const websocketHandler = new WebsocketHandler();
+let ws = null;
+let maxReConnectTimes = null;
+let lockReconnect = false;
+let needReconnect = null;
+let wsUrl = null;
+const wsConfigInit = () => {
+  wsUrl = "http://localhost:8082/ws";
+  console.info(`wsUrl 连接的url地址:  ${wsUrl}`);
+  needReconnect = true;
+  maxReConnectTimes = 20;
+};
+const reconnect = () => {
+  if (!needReconnect) {
+    console.info("不允许重试服务");
+    return;
+  }
+  console.info("连接关闭，现在正在重试....");
+  if (ws != null) {
+    ws.close();
+  }
+  if (lockReconnect) {
+    return;
+  }
+  console.info("重试请求发起");
+  lockReconnect = true;
+  if (maxReConnectTimes && maxReConnectTimes > 0) {
+    console.info("重试请求发起，剩余重试次数:" + maxReConnectTimes);
+    --maxReConnectTimes;
+    setTimeout(function() {
+      connectWs();
+      lockReconnect = false;
+    }, 5e3);
+  } else {
+    console.info("TCP 连接超时");
+  }
+};
+const connectWs = () => {
+  if (wsUrl == null) return;
+  const token = store.get(tokenKey);
+  if (token === null) {
+    console.info("token 不满足条件");
+    return;
+  }
+  const urlWithToken = wsUrl.includes("?") ? `${wsUrl}&token=${token}` : `${wsUrl}?token=${token}`;
+  ws = new WebSocket(urlWithToken);
+  channelUtil.registerChannel(ws);
+  ws.on("open", () => {
+    console.info("客户端连接成功");
+    maxReConnectTimes = 100;
+  });
+  ws.on("close", () => {
+    reconnect();
+  });
+  ws.on("error", () => {
+    reconnect();
+  });
+  ws.on("message", async (data) => {
+    console.info("收到消息:", data.toString());
+    const msg = JSON.parse(data);
+    if (msg?.messageType) {
+      console.info("聊天信息处理");
+      await websocketHandler.handleChatMessage(msg);
+      return;
+    }
+    if (msg?.applyInfo) {
+      console.info("申请信息处理");
+      await websocketHandler.handleApplication(msg);
+      return;
+    }
+    if (msg?.metaSessionType) {
+      console.info("会话信息处理");
+      return;
+    }
+    if (msg?.eventType) {
+      console.info("事件处理");
+      return;
+    }
+    if (msg?.behaviourType) {
+      console.info("事件处理");
+      return;
+    }
+  });
+};
 var Api = /* @__PURE__ */ ((Api2) => {
   Api2["LOGIN"] = "/user-account/login";
   Api2["REGISTER"] = "/user-account/register";
@@ -1731,6 +1783,7 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["PULL_APPLICATION"] = "";
   Api2["GET_BASE_USER"] = "/user-info/base-info-list";
   Api2["GET_BASE_GROUP"] = "/group/base-info-list";
+  Api2["SEND_FRIEND_APPLY"] = "/contact/friend-apply-send";
   return Api2;
 })(Api || {});
 class ProxyService {
@@ -1750,10 +1803,57 @@ class ProxyService {
     );
     electron.ipcMain.handle("proxy:search:user-or-group", async (_, params) => {
       if (params.contactType === 1) {
-        const result = await netMaster.post("/user-info/search-by-uid", { fromId: store.get(uidKey), searchedId: params.contactId });
+        const result = await netMaster.post("/user-info/search-by-uid", {
+          fromId: store.get(uidKey),
+          searchedId: params.contactId
+        });
         return result.data.data;
       }
       return null;
+    });
+    electron.ipcMain.handle("proxy:application:send-user", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.post("/contact/friend-apply-send", params);
+        return response.data;
+      } catch (e) {
+        if (e?.name === "ApiError") {
+          return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? "请求失败" };
+        }
+        return { success: false, errCode: -1, errMsg: e?.message || "网络或系统异常" };
+      }
+    });
+    electron.ipcMain.handle("proxy:application:send-group", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:application:accept-friend", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:application:accept-group-member", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:group:create-group", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:group:invite-friend", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:dissolve-group", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:leave-group", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:kick-out-member", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:modify-group-name", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:modify-group-card", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:transfer-owner", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:add-manager", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:withdraw-manager", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:get-member-list", async (_, params) => {
     });
   }
 }
@@ -1919,17 +2019,19 @@ const test = async () => {
   });
 };
 class DeviceService {
-  loginWidth = 596;
-  loginHeight = 400;
-  registerWidth = 596;
-  registerHeight = 656;
+  LOGIN_WIDTH = 500;
+  LOGIN_HEIGHT = 430;
+  REGISTER_WIDTH = 500;
+  REGISTER_HEIGHT = 656;
+  MAIN_WIDTH = 800;
+  MAIN_HEIGHT = 660;
   beginServe(mainWindow) {
     electron.ipcMain.on("device:login-or-register", (_, isLogin) => {
       mainWindow.setResizable(true);
       if (isLogin === false) {
-        mainWindow.setSize(this.loginWidth, this.loginHeight);
+        mainWindow.setSize(this.LOGIN_WIDTH, this.LOGIN_HEIGHT);
       } else {
-        mainWindow.setSize(this.registerWidth, this.registerHeight);
+        mainWindow.setSize(this.REGISTER_WIDTH, this.REGISTER_HEIGHT);
       }
       mainWindow.setResizable(false);
     });
@@ -1939,7 +2041,7 @@ class DeviceService {
         mainWindow.setResizable(true);
         mainWindow.setSize(920, 740);
         mainWindow.setMaximizable(true);
-        mainWindow.setMinimumSize(800, 600);
+        mainWindow.setMinimumSize(this.MAIN_WIDTH, this.MAIN_HEIGHT);
         mainWindow.center();
         mainWindow.webContents.send("ws-connected");
       });
@@ -2015,7 +2117,7 @@ class DeviceService {
   }
 }
 const deviceService = new DeviceService();
-class AvatarCacheService {
+class AvatarCache {
   cacheMap = /* @__PURE__ */ new Map();
   jsonLoadingMap = /* @__PURE__ */ new Map();
   jsonMap = /* @__PURE__ */ new Map();
@@ -2152,7 +2254,7 @@ class AvatarCacheService {
   getJsonPath = (userId) => path.join(urlUtil.cachePaths["avatar"], userId, "index.json");
   // {userData}/cache/avatar/{userId}/index.json
 }
-const avatarCacheService = new AvatarCacheService();
+const avatarCache = new AvatarCache();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -2212,8 +2314,8 @@ electron.app.on("window-all-closed", () => {
 const createWindow = () => {
   const mainWindow = new electron.BrowserWindow({
     icon,
-    width: deviceService.loginWidth,
-    height: deviceService.loginHeight,
+    width: deviceService.LOGIN_WIDTH,
+    height: deviceService.LOGIN_HEIGHT,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
@@ -2236,7 +2338,7 @@ const createWindow = () => {
     mainWindow.show();
   });
   proxyService.beginServe();
-  avatarCacheService.beginServe();
+  avatarCache.beginServe();
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
   sessionService.beginServe();

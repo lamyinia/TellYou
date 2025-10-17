@@ -27,6 +27,7 @@ public class ChannelManagerUtil {
     private String node;
 
     private final ConcurrentHashMap<Long, Channel> USER_CHANNEL_MAP = new ConcurrentHashMap<>();
+
     private final ConcurrentHashMap<ChannelId, Long> CHANNEL_USER_MAP = new ConcurrentHashMap<>();
 
     private final RedissonClient redissonClient;
@@ -43,18 +44,21 @@ public class ChannelManagerUtil {
         redissonClient.getMap(RedissonConstant.ROUTE).put(userId, node);
         log.info(redissonClient.getMap(RedissonConstant.ROUTE).get(userId).toString());
     }
+
     public void unbindById(Long userId){
         Channel oth = USER_CHANNEL_MAP.get(userId);
         if (userId != null) unbindUserId(userId);
         if (oth != null) unbindChannel(oth);
         doRemove(userId, oth);
     }
+
     public void unbindByChannel(Channel channel){
         Long userId = CHANNEL_USER_MAP.get(channel);
         if (userId != null) unbindUserId(userId);
         if (channel != null) unbindChannel(channel);
         doRemove(userId, channel);
     }
+
     private void doRemove(Long userId, Channel channel){
         redissonClient.getMap(RedissonConstant.ROUTE).remove(userId, node);
         log.info("解绑[{}]和[{}]", userId.toString(), channel.id().toString());
@@ -66,18 +70,20 @@ public class ChannelManagerUtil {
     private void unbindUserId(Long userId) {
         USER_CHANNEL_MAP.remove(userId);
     }
+
     private void unbindChannel(Channel channel) {
         CHANNEL_USER_MAP.remove(channel.id());
     }
 
     /**
-     * 根据用户id获取Channel
+     * 根据用户 Id 获取 Channel
      */
     public Channel getChannel(Long userId) {
         return USER_CHANNEL_MAP.get(userId);
     }
+
     /**
-     * 根据Channel获取用户id
+     * 根据 Channel 获取用户 Id
      */
     public Long getUserId(Channel channel) {
         return CHANNEL_USER_MAP.get(channel.id());
@@ -85,7 +91,6 @@ public class ChannelManagerUtil {
 
     /**
      * @description: 向指定用户推送消息
-     * @todo: message可以优化成更轻的
      */
     public boolean doDeliver(Long userId, Object message) {
         Channel channel = getChannel(userId);

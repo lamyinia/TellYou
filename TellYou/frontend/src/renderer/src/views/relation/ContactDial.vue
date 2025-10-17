@@ -24,13 +24,11 @@ const simpleSessions = computed<sessionDial[]>(() => {
     map.set(l, [])
   }
   map.set('#', [])
-
   for (const c of contacts.value) {
     const letter = pinyinUtil.getInitial(c.name)
     const key = pinyinUtil.LETTERS.includes(letter) ? letter : '#'
     map.get(key)!.push(c)
   }
-
   return [...map.entries()]
     .filter(([, items]) => items.length > 0)
     .sort((a, b) => {

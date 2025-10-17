@@ -1,26 +1,29 @@
 import { ipcMain } from 'electron'
 import applicationDao from '@main/sqlite/dao/application-dao'
+import { store } from '@main/index'
+import { uidKey } from '@main/electron-store/key'
 
 class ApplicationService {
   public beginServe(): void {
     ipcMain.on('application:incoming:load', async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize)
+      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize, store.get(uidKey))
       event.sender.send('application:incoming:loaded', data)
     })
     ipcMain.on('application:outgoing:load', async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize)
+      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize, store.get(uidKey))
       event.sender.send('application:outgoing:loaded', data)
     })
-    ipcMain.on('application:incoming:approve', async (_event, { ids }) => {
-      await applicationDao.approveIncoming(ids || [])
-    })
-    ipcMain.on('application:incoming:reject', async (_event, { ids }) => {
-      await applicationDao.rejectIncoming(ids || [])
-    })
-    ipcMain.on('application:send', async (_event, { toUserId, remark }) => {
-      await applicationDao.insertApplication('', toUserId, remark)
-    })
   }
+
+  // 插入数据库，不负责创建会话，就算是好友同意，也应该与创建会话业务分离
+  public async handleSingleApplication(msg: any): Promise<void> {
+    await applicationDao.deleteApplication(msg.applyId)
+    await applicationDao.insertApplication(msg)
+  }
+  public async handleMoreApplication(): Promise<void> {
+
+  }
+
 }
 
 export const applicationService = new ApplicationService()

@@ -66,9 +66,27 @@ export const connectWs = (): void => {
   ws.on('message', async (data: any) => {
     console.info('收到消息:', data.toString())
     const msg = JSON.parse(data)
-    const type: number = msg.messageType || null
-    if (type && type >= 1 && type <= 30){
+    if (msg?.messageType){
+      console.info('聊天信息处理')
       await websocketHandler.handleChatMessage(msg)
+      return
+    }
+    if (msg?.applyInfo){
+      console.info('申请信息处理')
+      await websocketHandler.handleApplication(msg)
+      return
+    }
+    if (msg?.metaSessionType){
+      console.info('会话信息处理')
+      return
+    }
+    if (msg?.eventType){
+      console.info('事件处理')
+      return
+    }
+    if (msg?.behaviourType){
+      console.info('事件处理')
+      return
     }
   })
 }

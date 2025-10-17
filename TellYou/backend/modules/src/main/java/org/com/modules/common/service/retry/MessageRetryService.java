@@ -2,9 +2,8 @@ package org.com.modules.common.service.retry;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.session.domain.vo.resp.MessageResp;
+import org.com.modules.user.domain.vo.push.PushedChat;
 import org.com.tools.utils.ChannelManagerUtil;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -38,7 +37,7 @@ public class MessageRetryService {
         }
     }
 
-    public void retryPublish(List<Long> uidList, MessageResp vo){
+    public void retryPublish(List<Long> uidList, PushedChat vo){
         messageDelayQueue.initCache4Group(uidList, vo);
 
         uidList.forEach(uid -> {

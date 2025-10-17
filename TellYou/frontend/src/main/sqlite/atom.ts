@@ -65,10 +65,7 @@ export const queryCount = (sql: string, params: unknown[]): Promise<number> => {
   })
 }
 
-export const queryOne = (
-  sql: string,
-  params: unknown[]
-): Promise<Record<string, unknown> | null> => {
+export const queryOne = (sql: string, params: unknown[]): Promise<Record<string, unknown> | null> => {
   return new Promise((resolve) => {
     const stmt = dataBase.prepare(sql)
     stmt.get(params, function (err: Error | null, row: unknown) {
@@ -88,7 +85,7 @@ export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
     const stmt = dataBase.prepare(sql)
     stmt.run(params, function (err: Error | null) {
       if (err) {
-        console.error('SQL查询失败', { sql, params, error: err.message, stack: err.stack })
+        console.error('SQL执行失败', { sql, params, error: err.message, stack: err.stack })
         reject(-1)
         return
       }
@@ -97,6 +94,11 @@ export const sqliteRun = (sql: string, params: unknown[]): Promise<number> => {
     })
     stmt.finalize()
   })
+}
+
+export const singleDelete = (tableName: string, params: unknown[]): Promise<void> => {
+  const columnMap = globalColumnMap[tableName]
+  return -1
 }
 
 export const insert = (sqlPrefix: string, tableName: string, data: Record<string, unknown>): Promise<number> => {
@@ -114,10 +116,7 @@ export const insert = (sqlPrefix: string, tableName: string, data: Record<string
   return sqliteRun(sql, params)
 }
 
-export const insertOrReplace = (
-  tableName: string,
-  data: Record<string, unknown>
-): Promise<number> => {
+export const insertOrReplace = (tableName: string, data: Record<string, unknown>): Promise<number> => {
   console.log(data)
   return insert('insert or replace into', tableName, data)
 }

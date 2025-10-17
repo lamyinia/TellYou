@@ -8,16 +8,16 @@ import java.util.List;
 
 @Getter
 public class MessageSendEvent extends ApplicationEvent {
-    private MessageDoc document;
+    private MessageDoc userMail;
     private List<Long> uidList = null;
 
-    public MessageSendEvent(Object source, MessageDoc document) {
+    public MessageSendEvent(Object source, MessageDoc userMail) {
         super(source);
-        this.document = document;
+        this.userMail = userMail;
     }
-    public MessageSendEvent(Object source, MessageDoc document, List<Long> uidList) {
+    public MessageSendEvent(Object source, MessageDoc userMail, List<Long> uidList) {
         super(source);
-        this.document = document;
+        this.userMail = userMail;
         this.uidList = uidList;
     }
 }

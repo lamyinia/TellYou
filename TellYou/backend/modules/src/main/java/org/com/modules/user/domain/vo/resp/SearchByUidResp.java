@@ -1,10 +1,13 @@
 package org.com.modules.user.domain.vo.resp;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
 public class SearchByUidResp {
+    @JsonSerialize(using = ToStringSerializer.class)
     @Schema(description = "被查询的 id")
     private Long userId;
 

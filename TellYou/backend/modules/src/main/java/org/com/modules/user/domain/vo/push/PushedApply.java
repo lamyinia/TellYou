@@ -1,7 +1,8 @@
-package org.com.modules.user.domain.vo.resp;
+package org.com.modules.user.domain.vo.push;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,18 +10,22 @@ import java.util.Date;
 
 @Data
 @NoArgsConstructor
-public class ContactApplyResp {
-    @Schema(description = "自增ID")
+public class PushedApply {
+    @Schema(description = "申请ID")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long applyId;
 
     @Schema(description = "申请人 id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long applyUserId;
 
     @Schema(description = "目标 id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
 
     @Schema(description = "投递 id")
-    private Long deliverId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long receiverId;
 
     @Schema(description = "联系人类型 1:好友 2:群组")
     private Integer contactType;
@@ -33,10 +38,4 @@ public class ContactApplyResp {
 
     @Schema(description = "申请信息")
     private String applyInfo;
-
-    @Schema(description = "目标头像")
-    private String avatar;
-
-    @Schema(description = "目标图片")
-    private String targetName;
 }

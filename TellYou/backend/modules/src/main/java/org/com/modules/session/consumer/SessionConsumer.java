@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.annotation.FlowControl;
-import org.com.modules.session.service.ChatService;
+import org.com.modules.session.service.MailBoxService;
 import org.com.modules.session.domain.document.MessageDoc;
 import org.com.modules.common.event.MessageSendEvent;
 import org.com.modules.common.util.ApplicationContextProvider;
@@ -43,7 +43,7 @@ import java.util.List;
 public class SessionConsumer implements RocketMQListener<String> {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final MessageAdapter messageAdapter;
-    private final ChatService chatService;
+    private final MailBoxService mailBoxService;
 
     @PostConstruct
     public void init() {
@@ -60,19 +60,24 @@ public class SessionConsumer implements RocketMQListener<String> {
         proxy.consumeMessage(req);
     }
 
-    //   @FlowControl(time = 10, count = 20, spEl = "#req.fromUid", target = FlowControl.Target.EL)
+    @FlowControl(time = 10, count = 100, spEl = "#req.fromUid", target = FlowControl.Target.EL)
     public void consumeMessage(MessageReq req) {
         log.info("SessionConsumer 正在消费消息: {}", req.toString());
 
         MessageDoc messageDoc = messageAdapter.buildMessage(req);
         List<Long> uidList = getUidList(req);
-        chatService.save(messageDoc, uidList);
-
+        mailBoxService.insertChatMessage(messageDoc, uidList);
         applicationEventPublisher.publishEvent(new MessageSendEvent(this, messageDoc, uidList));
     }
 
+    /**
+     * 用户发消息，校验用户对会话的权限，如果非法，发布异步事件通知客户端
+     */
     private List<Long> getUidList(MessageReq req) {
-        if (req.getToUserId() < 0) return null;
-        else return List.of(req.getFromUid(), req.getToUserId());
+        if (req.getToUserId() < 0) {
+            return null;
+        } else {
+            return List.of(req.getFromUid(), req.getToUserId());
+        }
     }
 }

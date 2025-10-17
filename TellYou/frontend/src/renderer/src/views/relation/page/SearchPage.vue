@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
-import { ApiError } from '@main/util/net-util'
 
 interface BaseInfo {
   keyId: string
@@ -68,7 +67,7 @@ const sendRequest = async (): Promise<void> => {
       <v-text-field
         v-model="keyword"
         density="compact"
-        label="搜索目标 ID(输入 Enter 搜索)"
+        label="搜索目标 ID (按下 Enter 搜索)"
         variant="outlined"
         hide-details
         @keyup.enter="searchEvent"

@@ -943,20 +943,6 @@ public class RedisUtils {
         return stringRedisTemplate.opsForZSet().reverseRange(key, start, end);
     }
 
-//    /**
-//     * 获取集合的元素, 从大到小排序, 并返回score值
-//     *
-//     * @param key
-//     * @param start
-//     * @param end
-//     * @return
-//     */
-//    public Set<TypedTuple<String>> zReverseRangeWithScores(String key,
-//                                                           long start, long end) {
-//        return redisTemplate.opsForZSet().reverseRangeWithScores(key, start,
-//                end);
-//    }
-
     /**
      * 获取集合的元素, 从大到小排序, 并返回score值
      *
@@ -981,34 +967,6 @@ public class RedisUtils {
         return stringRedisTemplate.opsForZSet().reverseRangeByScoreWithScores(key, Double.MIN_VALUE, max,
                 1, pageSize);
     }
-
-//    /**
-//     * 根据Score值查询集合元素, 从大到小排序
-//     *
-//     * @param key
-//     * @param min
-//     * @param max
-//     * @return
-//     */
-//    public Set<String> zReverseRangeByScore(String key, double min,
-//                                            double max) {
-//        return redisTemplate.opsForZSet().reverseRangeByScore(key, min, max);
-//    }
-
-//    /**
-//     * 根据Score值查询集合元素, 从大到小排序
-//     *
-//     * @param key
-//     * @param min
-//     * @param max
-//     * @return
-//     */
-//    public Set<TypedTuple<String>> zReverseRangeByScoreWithScores(
-//            String key, double min, double max) {
-//        return redisTemplate.opsForZSet().reverseRangeByScoreWithScores(key,
-//                min, max);
-//    }
-
 
     /**
      * 根据score值获取集合元素数量

@@ -47,7 +47,7 @@ const add_tables = [
     ');',
 
   'create table if not exists contact_applications(' +
-    '   id integer primary key autoincrement,' +
+    '   apply_id integer primary key,' +
     '   apply_user_id text not null,' +
     '   target_id text not null,' +
     '   contact_type integer not null,' +

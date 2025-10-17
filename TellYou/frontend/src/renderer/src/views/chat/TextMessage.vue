@@ -18,6 +18,7 @@ const showStrategy = 'thumbedAvatarUrl'
         :name="props.message.senderName"
         :user-id="props.message.senderId"
         :show-strategy="showStrategy"
+        show-shape="normal"
         side="left"
       />
       <div class="bubble left">{{ props.message.content }}</div>

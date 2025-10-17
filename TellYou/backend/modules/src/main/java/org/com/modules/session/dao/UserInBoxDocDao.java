@@ -4,7 +4,7 @@ import com.mongodb.client.result.DeleteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.session.domain.document.UserInBoxDoc;
-import org.com.modules.session.domain.vo.resp.MessageResp;
+import org.com.modules.user.domain.vo.push.PushedChat;
 import org.com.modules.session.domain.vo.resp.PullMessageResp;
 import org.com.modules.session.service.adapter.MessageAdapter;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -77,7 +77,7 @@ public class UserInBoxDocDao {
         boolean hasMore = docs.size() == size + 1;
         if (hasMore) docs.removeLast();
 
-        List<MessageResp> messageList = docs.stream()
+        List<PushedChat> messageList = docs.stream()
                 .map(MessageAdapter::mailToMessageResp)
                 .collect(java.util.stream.Collectors.toList());
 

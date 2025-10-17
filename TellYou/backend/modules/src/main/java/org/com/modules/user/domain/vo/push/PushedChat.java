@@ -1,12 +1,9 @@
-package org.com.modules.session.domain.vo.resp;
+package org.com.modules.user.domain.vo.push;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -15,7 +12,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-public class MessageResp implements Serializable {
+public class PushedChat implements Serializable {
     private String messageId;
 
     @JsonSerialize(using = ToStringSerializer.class)
@@ -31,7 +28,7 @@ public class MessageResp implements Serializable {
     private Long senderId;
 
     @JsonSerialize(using = ToStringSerializer.class)
-    private Long toUserId;
+    private Long receiverId;
 
     private String content;
 

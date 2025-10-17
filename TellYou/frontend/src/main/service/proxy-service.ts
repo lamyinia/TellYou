@@ -41,6 +41,7 @@ class ProxyService {
       }
       return null
     })
+    // 发起好友申请
     ipcMain.handle('proxy:application:send-user', async (_, params: { contactId: string, description: string }) => {
       Object.assign(params, { fromUserId: store.get(uidKey) })
       try {
@@ -53,6 +54,7 @@ class ProxyService {
         return { success: false, errCode: -1, errMsg: e?.message || '网络或系统异常' }
       }
     })
+    // 发起群组申请
     ipcMain.handle('proxy:application:send-group', async (_, params: any) => {
       return null
     })

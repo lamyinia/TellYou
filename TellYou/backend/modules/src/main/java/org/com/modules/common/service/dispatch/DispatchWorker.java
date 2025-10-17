@@ -6,8 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.service.retry.MessageRetryService;
-import org.com.modules.session.domain.vo.resp.MessageResp;
-import org.com.modules.user.domain.vo.resp.ContactApplyResp;
+import org.com.modules.user.domain.vo.push.PushedChat;
+import org.com.modules.user.domain.vo.push.PushedApply;
 import org.com.tools.constant.MQConstant;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
@@ -37,11 +37,11 @@ public class DispatchWorker implements RocketMQListener<SubscribedItem> {
     }
 
     private Long getUid(Object item){
-        if (item.getClass() == MessageResp.class){
-            return ((MessageResp)item).getToUserId();
+        if (item.getClass() == PushedChat.class){
+            return ((PushedChat)item).getReceiverId();
         }
-        if (item.getClass() == ContactApplyResp.class){
-            return ((ContactApplyResp)item).getDeliverId();
+        if (item.getClass() == PushedApply.class){
+            return ((PushedApply)item).getReceiverId();
         }
         return null;
     }
