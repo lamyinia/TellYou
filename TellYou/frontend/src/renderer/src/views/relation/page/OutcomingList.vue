@@ -1,18 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useApplicationStore } from '@renderer/status/application/store'
+import { ApplicationItem } from '@shared/types/application'
+import { formatTime } from '@shared/utils/process'
+import Avatar from '@renderer/components/Avatar.vue'
+import NickName from '@renderer/components/NickName.vue'
 
 const appStore = useApplicationStore()
-const selected = ref<Set<number>>(new Set())
-
-interface Row {
-  apply_user_id: string
-  target_id: string
-  status: number
-  apply_info?: string
-  last_apply_time?: string
-}
-const rows = computed<Row[]>(() => appStore.outgoing as unknown as Row[])
+const rows = computed<ApplicationItem[]>(() => appStore.outgoing as unknown as ApplicationItem[])
 const page = computed(() => appStore.outgoingPage)
 
 const pageNo = computed<number>({
@@ -23,12 +18,6 @@ const pageNo = computed<number>({
 })
 
 const pageLength = computed(() => Math.max(1, Math.ceil(page.value.total / page.value.pageSize)))
-
-const toggle = (id: number): void => {
-  if (selected.value.has(id)) selected.value.delete(id)
-  else selected.value.add(id)
-}
-
 const onPageChange = (newPage: number): void => {
   appStore.reloadOutgoing(newPage)
 }
@@ -37,18 +26,38 @@ const onPageChange = (newPage: number): void => {
 
 <template>
   <v-list density="compact" class="mt-2">
-    <v-list-item
-      v-for="item in rows"
-      :key="item.id"
-      :title="`目标: ${item.target_id}`"
-      :subtitle="`${item.apply_info || ''}  ·  ${item.last_apply_time || ''}`"
-    >
+    <v-list-item v-for="item in rows" :key="item.applyId">
       <template #prepend>
-        <v-checkbox-btn :model-value="selected.has(item.id)" @click.stop="toggle(item.id)" />
+        <Avatar
+          :user-id="item.targetId"
+          :version="'0'"
+          :name="'未知'"
+          :show-strategy="'thumbedAvatarUrl'"
+          show-shape="normal"
+          side="left"
+        />
       </template>
+
+      <template #title>
+        <NickName
+          :user-id="item.targetId"
+          :version="'0'"
+          :name="'未知'"
+          side="left"
+          :truncate="18"
+        />
+      </template>
+      <template #subtitle>
+        <div class="subline">
+          <span class="info">申请备注：{{ item.applyInfo || '无' }}</span>
+          <span class="dot">·</span>
+          <span class="time">{{ formatTime(item.lastApplyTime) || '' }}</span>
+        </div>
+      </template>
+
       <template #append>
         <v-chip size="x-small" :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'">
-          {{ item.status === 0 ? '待处理' : item.status === 1 ? '对方已同意' : item.status === 2 ? '已拒绝' : '已撤回' }}
+          {{ item.status === 0 ? '对方待处理' : '对方已同意'}}
         </v-chip>
       </template>
     </v-list-item>
@@ -81,4 +90,7 @@ const onPageChange = (newPage: number): void => {
   justify-content: center;
   margin-top: 8px;
 }
+.subline { display: flex; gap: 6px; align-items: center; opacity: 0.85; }
+.subline .dot { opacity: 0.6; }
+.subline .time { opacity: 0.8; font-size: 12px; }
 </style>

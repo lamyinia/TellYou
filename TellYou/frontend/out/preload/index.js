@@ -23,6 +23,7 @@ if (process.contextIsolated) {
       preloadAvatars: (params) => electron.ipcRenderer.invoke("avatar:preload", params),
       clearAvatarCache: (userId) => electron.ipcRenderer.invoke("avatar:clear", { userId }),
       getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats"),
+      getProfileName: (userId) => electron.ipcRenderer.invoke("profile:name:get", { userId }),
       startMediaTask: (params) => electron.ipcRenderer.invoke("media:send:start", params),
       cancelMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:cancel", taskId),
       retryMediaTask: (taskId) => electron.ipcRenderer.invoke("media:send:retry", taskId),

@@ -8,6 +8,7 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.service.retry.MessageRetryService;
 import org.com.modules.user.domain.vo.push.PushedChat;
 import org.com.modules.user.domain.vo.push.PushedApply;
+import org.com.modules.user.domain.vo.push.PushedSession;
 import org.com.tools.constant.MQConstant;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
@@ -25,6 +26,7 @@ public class DispatchWorker implements RocketMQListener<SubscribedItem> {
     private final RedissonClient redissonClient;
     private final MessageRetryService messageRetryService;
 
+    // redisson 的 RTopic 监听，推送通道消息
     @PostConstruct
     public void deliverOnSubscriber(){
         RTopic topic = redissonClient.getTopic(node);
@@ -42,6 +44,9 @@ public class DispatchWorker implements RocketMQListener<SubscribedItem> {
         }
         if (item.getClass() == PushedApply.class){
             return ((PushedApply)item).getReceiverId();
+        }
+        if (item.getClass() == PushedSession.class){
+            return ((PushedSession)item).getReceiverId();
         }
         return null;
     }

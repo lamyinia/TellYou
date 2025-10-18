@@ -14,22 +14,28 @@ import { mediaUtil } from '@main/util/media-util'
 
 
 class DeviceService {
-  public readonly LOGIN_WIDTH: number = 500
-  public readonly LOGIN_HEIGHT: number = 430
-  public readonly REGISTER_WIDTH: number = 500
-  public readonly REGISTER_HEIGHT: number = 656
+  public readonly LOGIN_WIDTH: number = 440
+  public readonly LOGIN_HEIGHT: number = 350
+  public readonly REGISTER_WIDTH: number = 440
+  public readonly REGISTER_HEIGHT: number = 600
   public readonly MAIN_WIDTH: number = 800
   public readonly MAIN_HEIGHT: number = 660
 
   public beginServe(mainWindow: Electron.BrowserWindow): void {
-    ipcMain.on('device:login-or-register', (_, isLogin: boolean) => {
+    ipcMain.handle('device:login-or-register', async (_, goRegister: boolean) => {
+      // Ensure window cannot be maximized or resized on login/register screens
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize()
+      }
+      mainWindow.setMaximizable(false)
       mainWindow.setResizable(true)
-      if (isLogin === false) {
+      if (goRegister === false) {
         mainWindow.setSize(this.LOGIN_WIDTH, this.LOGIN_HEIGHT)
       } else {
         mainWindow.setSize(this.REGISTER_WIDTH, this.REGISTER_HEIGHT)
       }
       mainWindow.setResizable(false)
+      mainWindow.center()
     })
     ipcMain.on('LoginSuccess', (_, userId: string) => {
       wsConfigInit()
@@ -45,6 +51,9 @@ class DeviceService {
     ipcMain.on('window-ChangeScreen', (event, status: number) => {
       const webContents = event.sender
       const win = BrowserWindow.fromWebContents(webContents)
+
+      // if (!win?.isResizable() && status === 1 || status === 2) return
+
       switch (status) {
         case 0:
           if (win?.isAlwaysOnTop()) {

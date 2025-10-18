@@ -1,6 +1,8 @@
 package org.com.modules.user.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
@@ -12,12 +14,15 @@ import java.util.Date;
 public class ContactApply {
     @Schema(description = "申请ID")
     @TableId(value = "apply_id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long applyId;
 
     @Schema(description = "申请人 id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long applyUserId;
 
     @Schema(description = "目标 id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
 
     @Schema(description = "联系人类型 0:好友 1:群组")

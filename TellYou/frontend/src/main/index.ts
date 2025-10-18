@@ -112,7 +112,11 @@ const createWindow = (): void => {
   deviceService.beginServe(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
+    // Re-enforce login screen window constraints at startup
+    mainWindow.setResizable(false)
+    mainWindow.setMaximizable(false)
     mainWindow.show()
+    mainWindow.center()
     if (is.dev) {
       mainWindow.webContents.openDevTools({ mode: 'detach', title: 'devTool', activate: false })
       mainWindow.focus()
@@ -138,8 +142,8 @@ const createWindow = (): void => {
   }
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']).then()
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html')).then()
   }
 }

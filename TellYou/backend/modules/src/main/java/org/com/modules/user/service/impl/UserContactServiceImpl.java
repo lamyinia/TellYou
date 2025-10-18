@@ -9,15 +9,18 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.event.ApplyEvent;
+import org.com.modules.common.event.SessionEvent;
 import org.com.modules.common.util.RequestHolder;
 import org.com.modules.session.dao.GroupContactDao;
 import org.com.modules.session.dao.MongoSessionDao;
 import org.com.modules.session.dao.SessionDao;
 import org.com.modules.session.domain.entity.Session;
 import org.com.modules.session.domain.vo.resp.ContactResp;
+import org.com.modules.user.domain.enums.SessionEventEnum;
+import org.com.modules.user.domain.vo.push.PushedSession;
 import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.dao.BlackDao;
-import org.com.modules.user.dao.ContactApplyDao;
+import org.com.modules.user.dao.ApplyDao;
 import org.com.modules.user.dao.FriendContactDao;
 import org.com.modules.user.domain.entity.Black;
 import org.com.modules.user.domain.entity.ContactApply;
@@ -26,13 +29,12 @@ import org.com.modules.user.domain.enums.ConfirmEnum;
 import org.com.modules.user.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
-import org.com.modules.user.domain.vo.resp.SimpleApplyInfo;
-import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;
 import org.com.modules.user.service.UserContactService;
 import org.com.modules.user.service.adapter.ContactApplyAdapter;
 import org.com.modules.user.service.adapter.BlackAdapter;
 import org.com.modules.user.service.adapter.FriendContactAdapter;
 import org.com.modules.session.service.adapter.SessionAdapter;
+import org.com.tools.constant.ValueConstant;
 import org.com.tools.utils.AssertUtil;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -46,7 +48,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserContactServiceImpl implements UserContactService {
-    private final ContactApplyDao contactApplyDao;
+    private final ApplyDao applyDao;
     private final FriendContactDao friendContactDao;
     private final GroupContactDao groupContactDao;
     private final SessionDao sessionDao;
@@ -64,11 +66,11 @@ public class UserContactServiceImpl implements UserContactService {
         if (uid == friendApplyReq.getContactId()) return;
 
         AssertUtil.isEmpty(friendContactDao.getContactByBothId(uid, friendApplyReq.getContactId()), "你们已经是好友了");
-        AssertUtil.isEmpty(contactApplyDao.getFriendApply(uid, friendApplyReq.getContactId()), "你已经发送过好友申请了");
-        AssertUtil.isEmpty(contactApplyDao.getFriendApply(friendApplyReq.getContactId(), uid), "对方已经向你发送过好友申请，请检查通知");
+        AssertUtil.isEmpty(applyDao.getFriendApply(uid, friendApplyReq.getContactId()), "你已经发送过好友申请了");
+        AssertUtil.isEmpty(applyDao.getFriendApply(friendApplyReq.getContactId(), uid), "对方已经向你发送过好友申请，请检查通知");
 
         ContactApply contactApply = ContactApplyAdapter.buildFriendApply(uid, friendApplyReq);
-        contactApplyDao.save(contactApply);
+        applyDao.save(contactApply);
         applicationEventPublisher.publishEvent(new ApplyEvent(this, contactApply, List.of(uid, friendApplyReq.getContactId())));
     }
 
@@ -76,13 +78,13 @@ public class UserContactServiceImpl implements UserContactService {
     @Transactional(rollbackFor = Exception.class)
     @GlobalTransactional(rollbackFor = Exception.class)
     public void applyAccept(AcceptFriendApplyReq req) {
-        ContactApply apply = contactApplyDao.getById(req.getApplyId());
+        ContactApply apply = applyDao.getById(req.getApplyId());
 
-        AssertUtil.isTrue(apply != null && apply.getContactType() == 0, "申请参数错误");
+        AssertUtil.isTrue(apply != null && apply.getContactType() == 1, "申请参数错误");
         AssertUtil.isTrue(apply.getStatus() == ConfirmEnum.WAITING.getStatus(), "你已经接收过这个好友申请了");
 
         apply.setStatus(ConfirmEnum.ACCEPTED.getStatus());
-        contactApplyDao.updateById(apply);
+        applyDao.updateById(apply);
 
         Long uid1 = apply.getApplyUserId(), uid2 = apply.getTargetId();
 
@@ -91,6 +93,8 @@ public class UserContactServiceImpl implements UserContactService {
             Session session = SessionAdapter.buildDefaultFrinedSession();
             sessionDao.save(session);
             List<FriendContact> list = FriendContactAdapter.buildFriendContact(session.getSessionId(), uid1, uid2);
+            contact = new FriendContact();
+            contact.setSessionId(session.getSessionId());
             mongoSessionDao.save(session);
             friendContactDao.saveBatch(list);
         } else {
@@ -100,7 +104,12 @@ public class UserContactServiceImpl implements UserContactService {
             friendContactDao.rebuildContact(uid1, uid2);
         }
 
+        PushedSession pushed1 = new PushedSession(contact.getSessionId(), uid1, uid2, SessionEventEnum.BUILD.getStatus(), System.currentTimeMillis());
+        PushedSession pushed2 = new PushedSession(contact.getSessionId(), uid2, uid1, SessionEventEnum.BUILD.getStatus(), System.currentTimeMillis());
+
         applicationEventPublisher.publishEvent(new ApplyEvent(this, apply, List.of(uid1, uid2)));
+        applicationEventPublisher.publishEvent(new SessionEvent(this, pushed1, List.of(uid2)));  // uid2 的会话创建
+        applicationEventPublisher.publishEvent(new SessionEvent(this, pushed2, List.of(uid1)));  // uid1 的会话创建
     }
 
     @Override
@@ -174,8 +183,8 @@ public class UserContactServiceImpl implements UserContactService {
     }
 
     @Override
-    public SimpleApplyInfoList pullApplyInfoList(Long uid) {
-        List<SimpleApplyInfo> simpleApplyInfos = contactApplyDao.selectApplyInfoById(uid);
-        return new SimpleApplyInfoList(simpleApplyInfos);
+    public CursorPageResp<ContactApply> ApplyInfoListByCursor(CursorPageReq req) {
+        Long uid = RequestHolder.get().getUid();
+        return applyDao.selectApplyByIdAndCursor(req, uid);
     }
 }

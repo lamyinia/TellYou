@@ -12,9 +12,8 @@ class AtomDao {
       console.info('initializeUserData: 未检测到本地数据库，新创建数据库')
     }
     await initTable()
-    await pullService.pullStrongTransactionData()
-    await pullService.pullMailboxMessages()
-    await sessionService.tidySession()
+    await pullService.pullData()
+    await sessionService.tidySessionOfLastMessage()
   }
 }
 

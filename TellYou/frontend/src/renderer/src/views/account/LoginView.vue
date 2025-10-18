@@ -70,9 +70,10 @@ const onLogin = async (): Promise<void> => {
     }
   }
 }
-const goRegister = (): void => {
-  window.electronAPI.send('device:login-or-register', true)
-  router.push('/register')
+const goRegister = async (): Promise<void> => {
+  const p1 = window.electronAPI.invoke('device:login-or-register', true)
+  const p2 = router.push('/register')
+  await Promise.all([p1, p2])
 }
 const goTotest = async (): Promise<void> => {
   window.electronAPI.invoke('test').then()

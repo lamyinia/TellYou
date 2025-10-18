@@ -61,6 +61,7 @@ class AvatarCache {
       }
     })
   }
+  // 单飞防并发设计
   private async getMetaJson(userId: string): Promise<Record<string, unknown>> {
     const cached = this.jsonMap.get(userId)
     if (cached){

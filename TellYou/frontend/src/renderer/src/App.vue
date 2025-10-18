@@ -8,11 +8,11 @@ const isTop = ref(false)
 
 const onTop = (): void => {
   isTop.value = !isTop.value
-  window.ipcRenderer.send('window-ChangeScreen', 0)
+  window.electronAPI.send('window-ChangeScreen', 0)
 }
-const onMinimize = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 1)
-const onScreenChange = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 2)
-const onClose = (): Promise<void> => window.electronAPI.send('window-ChangeScreen', 3)
+const onMinimize = (): void => window.electronAPI.send('window-ChangeScreen', 1)
+const onScreenChange = (): void => window.electronAPI.send('window-ChangeScreen', 2)
+const onClose = (): void => window.electronAPI.send('window-ChangeScreen', 3)
 onMounted(async () => {
   await userStore.initStore()
 })

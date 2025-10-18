@@ -78,6 +78,7 @@ export const connectWs = (): void => {
     }
     if (msg?.metaSessionType){
       console.info('会话信息处理')
+      await websocketHandler.handleSession(msg)
       return
     }
     if (msg?.eventType){

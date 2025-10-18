@@ -17,7 +17,7 @@ import org.com.modules.session.service.GroupContactService;
 import org.com.modules.session.service.adapter.GroupContactAdapter;
 import org.com.modules.session.service.adapter.GroupInfoAdapter;
 import org.com.modules.session.service.adapter.SessionAdapter;
-import org.com.modules.user.dao.ContactApplyDao;
+import org.com.modules.user.dao.ApplyDao;
 import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.service.adapter.ContactApplyAdapter;
 import org.com.tools.constant.GroupConstant;
@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 public class GroupContactServiceImpl implements GroupContactService {
     private final GroupContactDao groupContactDao;
     private final GroupInfoDao groupInfoDao;
-    private final ContactApplyDao contactApplyDao;
+    private final ApplyDao applyDao;
     private final SessionDao sessionDao;
     private final MongoSessionDao mongoSessionDao;
 
@@ -71,8 +71,9 @@ public class GroupContactServiceImpl implements GroupContactService {
 
         List<Long> collectList = req.getTargetList().stream().distinct().collect(Collectors.toList());
         List<GroupContact> contactList = new ArrayList<>();
-        collectList.forEach(targetId -> contactList.add(GroupContactAdapter.buildDefaultContact(
-                targetId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole()))
+        collectList.forEach(targetId -> contactList
+                .add(GroupContactAdapter
+                        .buildDefaultContact(targetId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole()))
         );
 
         group.setMemberCount(group.getMemberCount() + contactList.size());
@@ -89,10 +90,10 @@ public class GroupContactServiceImpl implements GroupContactService {
 
         AssertUtil.isNotEmpty(group, "群聊参数提交错误");
         AssertUtil.isFalse(groupContactDao.validatePower(req.getFromId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole()), "你已经是该群的成员了");
-        AssertUtil.isEmpty(contactApplyDao.getGroupApply(req.getFromId(), req.getGroupId()), "你已经提交过申请了");
+        AssertUtil.isEmpty(applyDao.getGroupApply(req.getFromId(), req.getGroupId()), "你已经提交过申请了");
 
         ContactApply apply = ContactApplyAdapter.buildGroupApply(req.getFromId(), req);
-        contactApplyDao.save(apply);
+        applyDao.save(apply);
     }
 
     @Override

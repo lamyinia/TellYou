@@ -2,20 +2,25 @@ import { netMaster } from '../util/net-util'
 import { Api } from '@main/service/proxy-service'
 import { messageService } from '@main/service/message-service'
 import sessionDao from '@main/sqlite/dao/session-dao'
-import { sessionService } from '@main/service/session-service'
+import { Contact, sessionService } from '@main/service/session-service'
+import applicationDao from '@main/sqlite/dao/application-dao'
+import { applicationService } from '@main/service/application-service'
 
 class PullService {
-  public async pullStrongTransactionData(): Promise<void> {
-    console.log(`正在拉取强事务数据...`)
+  public async pullData(): Promise<void> {
     try {
       await this.pullContact()
-      console.log(`拉取强事务数据完成`)
+      await this.pullApply()
+      await this.pullMailboxMessages()
+      console.log(`pull-service:pull-data:completed`)
     } catch (error) {
-      console.error(`拉取强事务数据失败:`, error)
+      console.error(`pull-service:pull-data:fail:`, error)
       throw error
     }
   }
+  // 重新拉取会话信息
   private async pullContact(): Promise<void> {
+    console.log(`pull-service:pull-session:begin`)
     const response = await netMaster.get(Api.PULL_CONTACT)
     if (!response.data.success) {
       console.error('pull-service:pull-friend-contact:拉取 session 失败:', response.data.errMsg)
@@ -24,6 +29,31 @@ class PullService {
     const result = response.data.data
     console.log('pull-service:pullContact:result', result)
     await this.adjustLocalDb(result)
+  }
+  // 游标拉取申请通知
+  public async pullApply(): Promise<void> {
+    console.log('pull-service:pull-apply:begin')
+    const cursor = await applicationDao.getCursor()
+    console.log('pull-service:pull-apply:cursor', cursor)
+
+    const payload = { pageSize: 100 } as { pageSize: number; cursor?: string }
+    if (cursor) Object.assign(payload, { cursor })
+    let response = await netMaster.get(Api.PULL_APPLICATION, { params: payload })
+    if (!response.data.success) {
+      console.error('pull-service:pull-apply:拉取申请通知失败:', response.data.errMsg)
+      return
+    }
+
+    await applicationService.handleMoreApplication(response.data.data.list)
+    while (!response.data.data.isLast) {
+      payload.cursor = response.data.data.cursor
+      response = await netMaster.get(Api.PULL_APPLICATION, { params: payload })
+      if (!response.data.success) {
+        console.error('pull-service:pull-apply:拉取申请通知失败:', response.data.errMsg)
+        return
+      }
+      await applicationService.handleMoreApplication(response.data.data.list)
+    }
   }
   // 拉取用户信箱的所有消息
   async pullMailboxMessages(): Promise<void> {
@@ -80,7 +110,7 @@ class PullService {
       console.error('消息确认异常:', error)
     }
   }
-  // 修正本地数据库，策略化请求 api 拿头像、名字信息
+  // 修正本地数据库，根据本地数据是否缺失，策略化请求 api 拿头像、名字信息
   private async adjustLocalDb(myContactList: MyContactList): Promise<void> {
     try {
       if (!myContactList || !myContactList.contactList || !Array.isArray(myContactList.contactList)) {
@@ -89,52 +119,7 @@ class PullService {
       }
       console.info('pull-service:adjust-local-db:开始处理联系人列表，数量:', myContactList.contactList.length)
       await sessionDao.abandonAllSession()
-      const groupList: string[] = []
-      const userList: string[] = []
-      const promiseList: Promise<any>[] = []
-      myContactList.contactList.forEach(contact => {
-        promiseList.push(sessionService.checkSession(contact))
-      })
-      const resultList = await Promise.all(promiseList)
-      for (const result of resultList) {
-        if (result && result.contactId) {
-          if (result.contactType === 1) {
-            userList.push(result.contactId)
-          } else if (result.contactType === 2) {
-            groupList.push(result.contactId)
-          }
-        }
-      }
-      if (userList.length > 0) {
-        console.info('pull-service:adjust-local-db:需要获取用户信息，数量:', userList.length)
-        try {
-          const response = await netMaster.post(Api.GET_BASE_USER, { targetList: userList })
-          if (response.data.success) {
-            const data = response.data.data
-            console.info('pull-service:adjust-local-db:获取用户信息成功，数量:', data.userInfoList?.length || 0)
-            await sessionService.updateBaseUserInfoList(data.userInfoList)
-          } else {
-            console.error('pull-service:adjust-local-db:获取用户信息失败:', response.data.errMsg)
-          }
-        } catch (error) {
-          console.error('pull-service:adjust-local-db:获取用户信息异常:', error)
-        }
-      }
-      if (groupList.length > 0) {
-        console.info('pull-service:adjust-local-db:需要获取群组信息，数量:', groupList.length)
-        try {
-          const response = await netMaster.post(Api.GET_BASE_GROUP, { targetList: groupList })
-          if (response.data.success) {
-            const data = response.data.data
-            console.info('pull-service:adjust-local-db:获取群组信息成功，数量:', data.groupInfoList?.length || 0)
-            await sessionService.updateBaseGroupInfoList(data.groupInfoList)
-          } else {
-            console.error('pull-service:adjust-local-db:获取群组信息失败:', response.data.errMsg)
-          }
-        } catch (error) {
-          console.error('pull-service:adjust-local-db:获取群组信息异常:', error)
-        }
-      }
+      await sessionService.fillSession(myContactList.contactList)
     } catch (error) {
       console.error('pull-service:adjust-local-db:处理失败:', error)
       throw error
@@ -142,17 +127,11 @@ class PullService {
   }
 }
 
-interface Contact {
-  sessionId: string
-  contactId: string
-  myRole: number
-  contactType: number
-}
 interface MyContactList {
   contactList: Contact[]
 }
 
-export type { Contact, MyContactList }
+export type { MyContactList }
 
 const pullService = new PullService()
 export { pullService }

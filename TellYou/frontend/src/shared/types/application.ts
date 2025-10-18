@@ -1,12 +1,12 @@
 export interface ApplicationItem {
   applyId: string
   applyUserId: string
+  targetId: string
   nickname: string
-  avatar?: string
-  applyInfo?: string
-  status: 'pending' | 'approved' | 'rejected' | 'canceled'
-  direction: 'incoming' | 'outgoing'
-  applyTime?: string
+  applyInfo: string
+  contactType: number
+  status: number
+  lastApplyTime?: string
 }
 
 export interface PageInfo {

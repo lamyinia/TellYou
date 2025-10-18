@@ -50,7 +50,7 @@ public class CursorUtil {
         return new CursorPageResp<>(cursor, isLast, result);
     }
 
-    public static <T> CursorPageResp<T> getCursorPageByMysql(IService<T> mapper, CursorPageReq request, Consumer<LambdaQueryWrapper<T>> initWrapper, SFunction<T, ?> cursorColumn){
+    public static <T> CursorPageResp<T> getCursorPageByMysqlDesc(IService<T> iService, CursorPageReq request, Consumer<LambdaQueryWrapper<T>> initWrapper, SFunction<T, ?> cursorColumn){
         Class<?> cursorType = LambdaUtil.getReturnType(cursorColumn);
         LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
         initWrapper.accept(wrapper);
@@ -60,7 +60,25 @@ public class CursorUtil {
         }
         wrapper.orderByDesc(cursorColumn);
 
-        Page<T> page = mapper.page(request.plusPage(), wrapper);
+        Page<T> page = iService.page(request.plusPage(), wrapper);
+        String cursor = Optional.ofNullable(CollectionUtil.getLast(page.getRecords()))
+                .map(cursorColumn).map(CursorUtil::toCursor).orElse(null);
+
+        Boolean isLast = page.getRecords().size() != request.getPageSize();
+        return new CursorPageResp<>(cursor, isLast, page.getRecords());
+    }
+
+    public static <T> CursorPageResp<T> getCursorPageByMysqlAsc(IService<T> iService, CursorPageReq request, Consumer<LambdaQueryWrapper<T>> initWrapper, SFunction<T, ?> cursorColumn){
+        Class<?> cursorType = LambdaUtil.getReturnType(cursorColumn);
+        LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
+        initWrapper.accept(wrapper);
+
+        if (StrUtil.isNotBlank(request.getCursor())){
+            wrapper.lt(cursorColumn, parseCursor(request.getCursor(), cursorType));
+        }
+        wrapper.orderByAsc(cursorColumn);
+
+        Page<T> page = iService.page(request.plusPage(), wrapper);
         String cursor = Optional.ofNullable(CollectionUtil.getLast(page.getRecords()))
                 .map(cursorColumn).map(CursorUtil::toCursor).orElse(null);
 

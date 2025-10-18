@@ -1,6 +1,9 @@
 package org.com.modules.user.dao;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.com.modules.common.domain.vo.req.CursorPageReq;
+import org.com.modules.common.domain.vo.resp.CursorPageResp;
+import org.com.modules.common.util.CursorUtil;
 import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.domain.enums.ConfirmEnum;
 import org.com.modules.user.domain.enums.ContactTypeEnum;
@@ -12,7 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class ContactApplyDao extends ServiceImpl<ContactApplyMapper, ContactApply> {
+public class ApplyDao extends ServiceImpl<ContactApplyMapper, ContactApply> {
     public ContactApply getFriendApply(Long uid, Long targetId){
         return lambdaQuery().eq(ContactApply::getApplyUserId, uid)
                 .eq(ContactApply::getTargetId, targetId)
@@ -29,7 +32,7 @@ public class ContactApplyDao extends ServiceImpl<ContactApplyMapper, ContactAppl
                 .one();
     }
 
-    public List<SimpleApplyInfo> selectApplyInfoById(Long userId){
+    public List<SimpleApplyInfo> selectApplyById(Long userId){
         List<ContactApply> resp = lambdaQuery()
                 .eq(ContactApply::getApplyUserId, userId)
                 .select(ContactApply::getApplyUserId, ContactApply::getTargetId, ContactApply::getContactType,
@@ -47,5 +50,10 @@ public class ContactApplyDao extends ServiceImpl<ContactApplyMapper, ContactAppl
             BeanUtils.copyProperties(applyInfo, info);
             return info;
         }).toList();
+    }
+
+    public CursorPageResp<ContactApply> selectApplyByIdAndCursor(CursorPageReq cursorPageReq, Long userId){
+        return CursorUtil.getCursorPageByMysqlAsc(this, cursorPageReq,
+                wrapper -> wrapper.eq(ContactApply::getTargetId, userId), ContactApply::getLastApplyTime);
     }
 }

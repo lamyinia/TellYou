@@ -16,7 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 @NoArgsConstructor
 public class CursorPageReq {
     @Min(0)
-    @Max(100)
+    @Max(300)
     @Schema(description = "页面大小")
     private Integer pageSize = 10;
 

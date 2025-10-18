@@ -104,10 +104,12 @@ public class UserInfoServiceImpl implements UserInfoService {
                 .set(UserInfo::getAvatar, avatarUrl)
                 .update();
 
+        // 写入 minIO 用户信息
         atomFile.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, ValueConstant.DEFAULT_VALUE);
         atomFile.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, ValueConstant.DEFAULT_VALUE);
         atomFile.put(ValueConstant.DEFAULT_ORIGIN_AVATAR_URL_KRY, avatarUrl);
         atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, UrlUtil.getFirstThumbAvatar(minioTemplate.getHost(), uid));
+        atomFile.put(ValueConstant.DEFAULT_NICKNAME_KEY, user.getNickName());
 
         uploadFileService.writeDefaultAvatar(UrlUtil.getFirstOriginalAvatar(uid));
         uploadFileService.writeDefaultAvatar(UrlUtil.getFirstThumbAvatar(uid));
@@ -227,6 +229,7 @@ public class UserInfoServiceImpl implements UserInfoService {
             identifier.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, currentNicknameVersion + 1);
             residues.put(ValueConstant.DEFAULT_NICKNAME_RESIDUE_KEY, nicknameResidue - 1);
             atomFile.put(ValueConstant.DEFAULT_NICKNAME_VERSION_KEY, currentNicknameVersion + 1);
+            atomFile.put(ValueConstant.DEFAULT_NICKNAME_KEY, req.getNewNickname());
 
             userInfoDao.lambdaUpdate()
                     .eq(UserInfo::getUserId, req.getFromUid())

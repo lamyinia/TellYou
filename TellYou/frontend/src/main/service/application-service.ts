@@ -20,8 +20,11 @@ class ApplicationService {
     await applicationDao.deleteApplication(msg.applyId)
     await applicationDao.insertApplication(msg)
   }
-  public async handleMoreApplication(): Promise<void> {
-
+  public async handleMoreApplication(applys: any[]): Promise<void> {
+    if (applys.length > 0){
+      console.info('application-service:handle-more-application', applys)
+      await applicationDao.insertMoreApplication(applys)
+    }
   }
 
 }

@@ -64,8 +64,11 @@ public class MessageDelayQueue {
 
     public void initCache4Deliver(Long uid, Object vo) {
         String letterId = getLetterId(vo);
-        letterCache.put(letterId, vo);
-        scheduleCleanup(letterId);
+        //  复用推送的消息
+        if (!letterCache.containsKey(letterId)) {
+            letterCache.put(letterId, vo);
+            scheduleCleanup(letterId);
+        }
         letterRetryCount.put(getRetryKey(uid, vo), 1);
     }
 
@@ -163,7 +166,7 @@ public class MessageDelayQueue {
         return switch (vo){
             case PushedChat letter -> letter.getMessageId() + "-message";
             case PushedApply letter -> letter.getApplyId() + "-apply";
-            case PushedSession letter -> "-session";
+            case PushedSession letter -> letter.getAckId() + "-session";
             case PushedBehaviour letter -> "-behaviour";
             default -> "null";
         };

@@ -1080,7 +1080,7 @@ const add_tables = [
   "create table if not exists sessions(   session_id text primary key,   contact_id text not null,   contact_type integer not null,   contact_name text,   contact_avatar text,   contact_signature text,   last_msg_content text,   last_msg_time datetime,   unread_count integer default 0,   is_pinned integer default 0,   is_muted integer default 0,   member_count integer,   max_members integer,   join_mode integer,   msg_mode integer,   group_card text,   group_notification text,   my_role integer,   join_time datetime,   last_active datetime,   status integer default 1);",
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
-  "create table if not exists contact_applications(   apply_id integer primary key,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
+  "create table if not exists contact_applications(   apply_id text primary key,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
   "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
 ];
 const add_indexes = [
@@ -1154,6 +1154,28 @@ const insert = (sqlPrefix, tableName, data) => {
 };
 const insertOrIgnore = (tableName, data) => {
   return insert("insert or ignore into", tableName, data);
+};
+const batchInsert = (tableName, dataList) => {
+  const columnMap = globalColumnMap[tableName];
+  const firstData = dataList[0];
+  const columns = [];
+  for (const item in firstData) {
+    if (firstData[item] != void 0 && columnMap[item] != void 0) {
+      columns.push(columnMap[item]);
+    }
+  }
+  const placeholders = Array(columns.length).fill("?").join(",");
+  const valuesPlaceholders = dataList.map(() => `(${placeholders})`).join(",");
+  const sql = `INSERT OR IGNORE INTO ${tableName}(${columns.join(",")}) VALUES ${valuesPlaceholders}`;
+  const params = [];
+  for (const data of dataList) {
+    for (const column of columns) {
+      const bizField = Object.keys(columnMap).find((key) => columnMap[key] === column);
+      params.push(data[bizField]);
+    }
+  }
+  console.log("sql语句", sql, params);
+  return sqliteRun(sql, params);
 };
 const update = (tableName, data, paramData) => {
   const columnMap = globalColumnMap[tableName];
@@ -1246,14 +1268,16 @@ class ApplicationDao {
     const sql = `UPDATE contact_applications SET status = 1 WHERE id IN (${placeholders})`;
     return sqliteRun(sql, ids);
   }
-  async rejectIncoming(ids) {
-    if (!ids.length) return 0;
-    const placeholders = ids.map(() => "?").join(",");
-    const sql = `UPDATE contact_applications SET status = 2 WHERE id IN (${placeholders})`;
-    return sqliteRun(sql, ids);
-  }
   async insertApplication(params) {
     return insertOrIgnore("contact_applications", params);
+  }
+  async insertMoreApplication(paramsList) {
+    return batchInsert("contact_applications", paramsList);
+  }
+  async getCursor() {
+    const sql = "select max(last_apply_time) as cursor from contact_applications where target_id = ?";
+    const cursor = await queryAll(sql, [store.get(uidKey)]);
+    return cursor[0]?.cursor || "";
   }
   async deleteApplication(applyId) {
     const sql = "delete from contact_applications where apply_id = ?";
@@ -1277,7 +1301,11 @@ class ApplicationService {
     await applicationDao.deleteApplication(msg.applyId);
     await applicationDao.insertApplication(msg);
   }
-  async handleMoreApplication() {
+  async handleMoreApplication(applys) {
+    if (applys.length > 0) {
+      console.info("application-service:handle-more-application", applys);
+      await applicationDao.insertMoreApplication(applys);
+    }
   }
 }
 const applicationService = new ApplicationService();
@@ -1474,11 +1502,11 @@ class SessionDao {
   async insertOrIgnoreContact(contact) {
     return insertOrIgnore("sessions", contact);
   }
-  // 只有消息更新，才需要更新会话
+  // 只有消息更新，才需要更新会话 20251019（发现 bug，为 null 时不会更新，已修）
   async keepSessionFresh(data) {
     const sql = `UPDATE sessions
                  SET last_msg_time = ?, last_msg_content = ?
-                 WHERE session_id = ? AND datetime(?) > datetime(last_msg_time)`;
+                 WHERE session_id = ? AND (last_msg_time IS NULL OR datetime(?) > datetime(last_msg_time))`;
     return sqliteRun(sql, [data.sendTime, data.content, data.sessionId, data.sendTime]);
   }
   //  根据 sessionId，更新会话的某些字段
@@ -1501,6 +1529,7 @@ class SessionDao {
       return 0;
     }
   }
+  //  收集所有 session 的 id
   async selectAllSessionId() {
     const sql = "SELECT session_id FROM sessions";
     const result = await queryAll(sql, []);
@@ -1561,6 +1590,16 @@ class ChannelUtil {
       })
     );
   }
+  sendSingleSessionAckConfirm(msg) {
+    if (!this.isWsOpen()) return;
+    this.channel.send(
+      JSON.stringify({
+        messageId: msg.ackId,
+        type: 103,
+        fromUid: store.get(uidKey)
+      })
+    );
+  }
 }
 const channelUtil = new ChannelUtil();
 class MessageService {
@@ -1593,6 +1632,119 @@ class MessageService {
   }
 }
 const messageService = new MessageService();
+var Api = /* @__PURE__ */ ((Api2) => {
+  Api2["LOGIN"] = "/user-account/login";
+  Api2["REGISTER"] = "/user-account/register";
+  Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
+  Api2["ACK_CONFIRM"] = "/message/ack-confirm";
+  Api2["SEARCH_USER"] = "/user-info/search-by-uid";
+  Api2["GET_AVATAR_UPLOAD_URL"] = "/media/avatar/upload-url";
+  Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
+  Api2["PULL_CONTACT"] = "/contact/pull-contact";
+  Api2["PULL_APPLICATION"] = "/contact/cursor-pull-application";
+  Api2["GET_BASE_USER"] = "/user-info/base-info-list";
+  Api2["GET_BASE_GROUP"] = "/group/base-info-list";
+  Api2["SEND_FRIEND_APPLY"] = "/contact/friend-apply-send";
+  Api2["ACCEPT_FRIEND_APPLY"] = "/contact/friend-apply-accept";
+  return Api2;
+})(Api || {});
+class ProxyService {
+  beginServe() {
+    electron.ipcMain.handle("proxy:login", async (_event, params) => {
+      const response = await netMaster.post("/user-account/login", params);
+      return response.data.data;
+    });
+    electron.ipcMain.handle(
+      "proxy:register",
+      async (_event, params) => {
+        const data = { code: "123456" };
+        Object.assign(data, params);
+        try {
+          const response = await netMaster.post("/user-account/register", data);
+          return response.data;
+        } catch (e) {
+          return this.errorResponse(e);
+        }
+      }
+    );
+    electron.ipcMain.handle("proxy:search:user-or-group", async (_, params) => {
+      if (params.contactType === 1) {
+        const result = await netMaster.post("/user-info/search-by-uid", {
+          fromId: store.get(uidKey),
+          searchedId: params.contactId
+        });
+        return result.data.data;
+      }
+      return null;
+    });
+    electron.ipcMain.handle("proxy:application:send-user", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.post("/contact/friend-apply-send", params);
+        return response.data;
+      } catch (e) {
+        return this.errorResponse(e);
+      }
+    });
+    electron.ipcMain.handle("proxy:application:send-group", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:application:accept-friend", async (_, applyId) => {
+      const payload = { fromUserId: store.get(uidKey), applyId };
+      try {
+        const response = await netMaster.put("/contact/friend-apply-accept", payload);
+        return response.data;
+      } catch (e) {
+        return this.errorResponse(e);
+      }
+    });
+    electron.ipcMain.handle("proxy:application:accept-group-member", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:group:create-group", async (_, params) => {
+      return null;
+    });
+    electron.ipcMain.handle("proxy:group:invite-friend", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:dissolve-group", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:leave-group", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:kick-out-member", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:modify-group-name", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:modify-group-card", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:transfer-owner", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:add-manager", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:withdraw-manager", async (_, params) => {
+    });
+    electron.ipcMain.handle("proxy:group:get-member-list", async (_, params) => {
+    });
+    electron.ipcMain.handle("profile:name:get", async (_event, { userId }) => {
+      try {
+        const path2 = [urlUtil.atomPath, userId + ".json"].join("/");
+        const json = await netMinIO.downloadJson(path2);
+        console.log("profile:name:get:json", json);
+        const name = json?.nickname ?? json?.name ?? "";
+        const version = String(json.nicknameVersion || "0");
+        return { name, version };
+      } catch (e) {
+        return { name: "", version: "0" };
+      }
+    });
+  }
+  errorResponse(e) {
+    if (e?.name === "ApiError") {
+      return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? "请求失败" };
+    }
+    return { success: false, errCode: -1, errMsg: e?.message || "网络或系统异常" };
+  }
+}
+const proxyService = new ProxyService();
 class SessionService {
   beginServe() {
     electron.ipcMain.handle("session:update:partial", async (_, params, sessionId) => {
@@ -1604,6 +1756,58 @@ class SessionService {
       console.log("查询结果:", result);
       event.sender.send("session:call-back:load-data", result);
     });
+  }
+  // 填充会话的消息
+  async fillSession(contactList) {
+    const groupList = [];
+    const userList = [];
+    const promiseList = [];
+    contactList.forEach((contact) => {
+      promiseList.push(sessionService.checkSession(contact));
+    });
+    const resultList = await Promise.all(promiseList);
+    for (const result of resultList) {
+      if (result && result.contactId) {
+        if (result.contactType === 1) {
+          userList.push(result.contactId);
+        } else if (result.contactType === 2) {
+          groupList.push(result.contactId);
+        }
+      }
+    }
+    if (userList.length > 0) {
+      console.info("session-service:fill-session:需要获取用户信息，数量:", userList.length);
+      try {
+        const response = await netMaster.post(Api.GET_BASE_USER, { targetList: userList });
+        if (response.data.success) {
+          const data = response.data.data;
+          console.info("session-service:fill-session:获取用户信息成功，数量:", data.userInfoList?.length || 0);
+          await sessionService.updateBaseUserInfoList(data.userInfoList);
+        } else {
+          console.error("session-service:fill-session:获取用户信息失败:", response.data.errMsg);
+        }
+      } catch (error) {
+        console.error("session-service:fill-session:获取用户信息异常:", error);
+      }
+    }
+    if (groupList.length > 0) {
+      console.info("session-service:fill-session:需要获取群组信息，数量:", groupList.length);
+      try {
+        const response = await netMaster.post(Api.GET_BASE_GROUP, { targetList: groupList });
+        if (response.data.success) {
+          const data = response.data.data;
+          console.info("session-service:fill-session:获取群组信息成功，数量:", data.groupInfoList?.length || 0);
+          await sessionService.updateBaseGroupInfoList(data.groupInfoList);
+        } else {
+          console.error("session-service:fill-session:获取群组信息失败:", response.data.errMsg);
+        }
+      } catch (error) {
+        console.error("session-service:fill-session:获取群组信息异常:", error);
+      }
+    }
+  }
+  async selectSingleSessionById(sessionId) {
+    return sessionDao.selectSingleSession(sessionId);
   }
   // 批量设置用户头像、名字
   async updateBaseUserInfoList(list) {
@@ -1642,7 +1846,7 @@ class SessionService {
     }
   }
   // 整理所有会话的最后一条消息
-  async tidySession() {
+  async tidySessionOfLastMessage() {
     const result = await sessionDao.selectAllSessionId();
     for (const session of result) {
       const msgResult = await messageDao.getMessageBySessionId(session.sessionId, { limit: 1, direction: "newest" });
@@ -1678,8 +1882,19 @@ class WebsocketHandler {
     mainWindow.webContents.send("income-list:call-back:load-data", "ping");
     mainWindow.webContents.send("out-send-list:call-back:load-data", "ping");
   }
-  // (单聊、多聊创建，单聊、多聊解散)[往往伴随着会话变更]
-  async handleContact(msg) {
+  // 填充会话信息，发送 ack 确认，发送渲染进程响应    (单聊、多聊创建，单聊、多聊解散)[往往伴随着会话变更]
+  async handleSession(msg) {
+    console.info("handle-session:", msg);
+    const type = msg.metaSessionType <= 2 ? 1 : 2;
+    Object.assign(msg, { contactType: type });
+    await sessionService.fillSession([msg]);
+    channelUtil.sendSingleSessionAckConfirm(msg);
+    const session = await sessionService.selectSingleSessionById(msg.sessionId);
+    console.info("handle-session:select", session);
+    if (session) {
+      const mainWindow = electron.BrowserWindow.getAllWindows()[0];
+      mainWindow.webContents.send("session:call-back:load-data", [session]);
+    }
   }
   async handleBlack(msg) {
   }
@@ -1759,6 +1974,7 @@ const connectWs = () => {
     }
     if (msg?.metaSessionType) {
       console.info("会话信息处理");
+      await websocketHandler.handleSession(msg);
       return;
     }
     if (msg?.eventType) {
@@ -1771,105 +1987,21 @@ const connectWs = () => {
     }
   });
 };
-var Api = /* @__PURE__ */ ((Api2) => {
-  Api2["LOGIN"] = "/user-account/login";
-  Api2["REGISTER"] = "/user-account/register";
-  Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
-  Api2["ACK_CONFIRM"] = "/message/ack-confirm";
-  Api2["SEARCH_USER"] = "/user-info/search-by-uid";
-  Api2["GET_AVATAR_UPLOAD_URL"] = "/media/avatar/upload-url";
-  Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
-  Api2["PULL_CONTACT"] = "/contact/pull-contact";
-  Api2["PULL_APPLICATION"] = "";
-  Api2["GET_BASE_USER"] = "/user-info/base-info-list";
-  Api2["GET_BASE_GROUP"] = "/group/base-info-list";
-  Api2["SEND_FRIEND_APPLY"] = "/contact/friend-apply-send";
-  return Api2;
-})(Api || {});
-class ProxyService {
-  beginServe() {
-    electron.ipcMain.handle("proxy:login", async (_event, params) => {
-      const response = await netMaster.post("/user-account/login", params);
-      return response.data.data;
-    });
-    electron.ipcMain.handle(
-      "proxy:register",
-      async (_event, params) => {
-        const data = { code: "123456" };
-        Object.assign(data, params);
-        const response = await netMaster.post("/user-account/register", data);
-        return response.data;
-      }
-    );
-    electron.ipcMain.handle("proxy:search:user-or-group", async (_, params) => {
-      if (params.contactType === 1) {
-        const result = await netMaster.post("/user-info/search-by-uid", {
-          fromId: store.get(uidKey),
-          searchedId: params.contactId
-        });
-        return result.data.data;
-      }
-      return null;
-    });
-    electron.ipcMain.handle("proxy:application:send-user", async (_, params) => {
-      Object.assign(params, { fromUserId: store.get(uidKey) });
-      try {
-        const response = await netMaster.post("/contact/friend-apply-send", params);
-        return response.data;
-      } catch (e) {
-        if (e?.name === "ApiError") {
-          return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? "请求失败" };
-        }
-        return { success: false, errCode: -1, errMsg: e?.message || "网络或系统异常" };
-      }
-    });
-    electron.ipcMain.handle("proxy:application:send-group", async (_, params) => {
-      return null;
-    });
-    electron.ipcMain.handle("proxy:application:accept-friend", async (_, params) => {
-      return null;
-    });
-    electron.ipcMain.handle("proxy:application:accept-group-member", async (_, params) => {
-      return null;
-    });
-    electron.ipcMain.handle("proxy:group:create-group", async (_, params) => {
-      return null;
-    });
-    electron.ipcMain.handle("proxy:group:invite-friend", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:dissolve-group", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:leave-group", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:kick-out-member", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:modify-group-name", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:modify-group-card", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:transfer-owner", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:add-manager", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:withdraw-manager", async (_, params) => {
-    });
-    electron.ipcMain.handle("proxy:group:get-member-list", async (_, params) => {
-    });
-  }
-}
-const proxyService = new ProxyService();
 class PullService {
-  async pullStrongTransactionData() {
-    console.log(`正在拉取强事务数据...`);
+  async pullData() {
     try {
       await this.pullContact();
-      console.log(`拉取强事务数据完成`);
+      await this.pullApply();
+      await this.pullMailboxMessages();
+      console.log(`pull-service:pull-data:completed`);
     } catch (error) {
-      console.error(`拉取强事务数据失败:`, error);
+      console.error(`pull-service:pull-data:fail:`, error);
       throw error;
     }
   }
+  // 重新拉取会话信息
   async pullContact() {
+    console.log(`pull-service:pull-session:begin`);
     const response = await netMaster.get(Api.PULL_CONTACT);
     if (!response.data.success) {
       console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
@@ -1878,6 +2010,29 @@ class PullService {
     const result = response.data.data;
     console.log("pull-service:pullContact:result", result);
     await this.adjustLocalDb(result);
+  }
+  // 游标拉取申请通知
+  async pullApply() {
+    console.log("pull-service:pull-apply:begin");
+    const cursor = await applicationDao.getCursor();
+    console.log("pull-service:pull-apply:cursor", cursor);
+    const payload = { pageSize: 100 };
+    if (cursor) Object.assign(payload, { cursor });
+    let response = await netMaster.get(Api.PULL_APPLICATION, { params: payload });
+    if (!response.data.success) {
+      console.error("pull-service:pull-apply:拉取申请通知失败:", response.data.errMsg);
+      return;
+    }
+    await applicationService.handleMoreApplication(response.data.data.list);
+    while (!response.data.data.isLast) {
+      payload.cursor = response.data.data.cursor;
+      response = await netMaster.get(Api.PULL_APPLICATION, { params: payload });
+      if (!response.data.success) {
+        console.error("pull-service:pull-apply:拉取申请通知失败:", response.data.errMsg);
+        return;
+      }
+      await applicationService.handleMoreApplication(response.data.data.list);
+    }
   }
   // 拉取用户信箱的所有消息
   async pullMailboxMessages() {
@@ -1931,7 +2086,7 @@ class PullService {
       console.error("消息确认异常:", error);
     }
   }
-  // 修正本地数据库，策略化请求 api 拿头像、名字信息
+  // 修正本地数据库，根据本地数据是否缺失，策略化请求 api 拿头像、名字信息
   async adjustLocalDb(myContactList) {
     try {
       if (!myContactList || !myContactList.contactList || !Array.isArray(myContactList.contactList)) {
@@ -1940,52 +2095,7 @@ class PullService {
       }
       console.info("pull-service:adjust-local-db:开始处理联系人列表，数量:", myContactList.contactList.length);
       await sessionDao.abandonAllSession();
-      const groupList = [];
-      const userList = [];
-      const promiseList = [];
-      myContactList.contactList.forEach((contact) => {
-        promiseList.push(sessionService.checkSession(contact));
-      });
-      const resultList = await Promise.all(promiseList);
-      for (const result of resultList) {
-        if (result && result.contactId) {
-          if (result.contactType === 1) {
-            userList.push(result.contactId);
-          } else if (result.contactType === 2) {
-            groupList.push(result.contactId);
-          }
-        }
-      }
-      if (userList.length > 0) {
-        console.info("pull-service:adjust-local-db:需要获取用户信息，数量:", userList.length);
-        try {
-          const response = await netMaster.post(Api.GET_BASE_USER, { targetList: userList });
-          if (response.data.success) {
-            const data = response.data.data;
-            console.info("pull-service:adjust-local-db:获取用户信息成功，数量:", data.userInfoList?.length || 0);
-            await sessionService.updateBaseUserInfoList(data.userInfoList);
-          } else {
-            console.error("pull-service:adjust-local-db:获取用户信息失败:", response.data.errMsg);
-          }
-        } catch (error) {
-          console.error("pull-service:adjust-local-db:获取用户信息异常:", error);
-        }
-      }
-      if (groupList.length > 0) {
-        console.info("pull-service:adjust-local-db:需要获取群组信息，数量:", groupList.length);
-        try {
-          const response = await netMaster.post(Api.GET_BASE_GROUP, { targetList: groupList });
-          if (response.data.success) {
-            const data = response.data.data;
-            console.info("pull-service:adjust-local-db:获取群组信息成功，数量:", data.groupInfoList?.length || 0);
-            await sessionService.updateBaseGroupInfoList(data.groupInfoList);
-          } else {
-            console.error("pull-service:adjust-local-db:获取群组信息失败:", response.data.errMsg);
-          }
-        } catch (error) {
-          console.error("pull-service:adjust-local-db:获取群组信息异常:", error);
-        }
-      }
+      await sessionService.fillSession(myContactList.contactList);
     } catch (error) {
       console.error("pull-service:adjust-local-db:处理失败:", error);
       throw error;
@@ -2001,9 +2111,8 @@ class AtomDao {
       console.info("initializeUserData: 未检测到本地数据库，新创建数据库");
     }
     await initTable();
-    await pullService.pullStrongTransactionData();
-    await pullService.pullMailboxMessages();
-    await sessionService.tidySession();
+    await pullService.pullData();
+    await sessionService.tidySessionOfLastMessage();
   }
 }
 const atomDao = new AtomDao();
@@ -2019,21 +2128,26 @@ const test = async () => {
   });
 };
 class DeviceService {
-  LOGIN_WIDTH = 500;
-  LOGIN_HEIGHT = 430;
-  REGISTER_WIDTH = 500;
-  REGISTER_HEIGHT = 656;
+  LOGIN_WIDTH = 440;
+  LOGIN_HEIGHT = 350;
+  REGISTER_WIDTH = 440;
+  REGISTER_HEIGHT = 600;
   MAIN_WIDTH = 800;
   MAIN_HEIGHT = 660;
   beginServe(mainWindow) {
-    electron.ipcMain.on("device:login-or-register", (_, isLogin) => {
+    electron.ipcMain.handle("device:login-or-register", async (_, goRegister) => {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      }
+      mainWindow.setMaximizable(false);
       mainWindow.setResizable(true);
-      if (isLogin === false) {
+      if (goRegister === false) {
         mainWindow.setSize(this.LOGIN_WIDTH, this.LOGIN_HEIGHT);
       } else {
         mainWindow.setSize(this.REGISTER_WIDTH, this.REGISTER_HEIGHT);
       }
       mainWindow.setResizable(false);
+      mainWindow.center();
     });
     electron.ipcMain.on("LoginSuccess", (_, userId) => {
       wsConfigInit();
@@ -2161,6 +2275,7 @@ class AvatarCache {
       }
     });
   }
+  // 单飞防并发设计
   async getMetaJson(userId) {
     const cached = this.jsonMap.get(userId);
     if (cached) {
@@ -2347,7 +2462,10 @@ const createWindow = () => {
   blackService.beginServer();
   deviceService.beginServe(mainWindow);
   mainWindow.on("ready-to-show", () => {
+    mainWindow.setResizable(false);
+    mainWindow.setMaximizable(false);
     mainWindow.show();
+    mainWindow.center();
     if (utils.is.dev) {
       mainWindow.webContents.openDevTools({ mode: "detach", title: "devTool", activate: false });
       mainWindow.focus();
@@ -2370,9 +2488,9 @@ const createWindow = () => {
     });
   }
   if (utils.is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]).then();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html")).then();
   }
 };
 exports.Api = Api;

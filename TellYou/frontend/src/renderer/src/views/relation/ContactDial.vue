@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
-import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
+import Avatar from '@renderer/components/Avatar.vue'
 import { SimpleContact } from '@renderer/views/relation/ContactManagementView.vue'
 import pinyinUtil from '@renderer/utils/pinyin'
 
@@ -83,7 +83,15 @@ const onSelect = (contact: SimpleContact): void => emit('select', contact.sessio
       <div class="group-header" :data-letter="g.letter">{{ g.letter }}</div>
       <div class="list">
         <div v-for="item in g.items" :key="item.id" class="item" @click="onSelect(item)">
-          <img class="avatar" :src="resolveAvatar(item.avatar)" @error="onAvatarError" />
+          <Avatar
+            :user-id="String(item.id)"
+            :version="'0'"
+            :name="item.name || '未知'"
+            :size="56"
+            :show-strategy="'thumbedAvatarUrl'"
+            show-shape="circle"
+            side="left"
+          />
           <div class="name">{{ item.name }}</div>
         </div>
       </div>

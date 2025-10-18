@@ -32,8 +32,12 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
     }
 
     public void rebuildContact(Long uid1, Long uid2){
-        Integer version = lambdaQuery().eq(FriendContact::getUserId, uid1)
-                .eq(FriendContact::getContactId, uid2).one().getVersion();
+        Integer version = lambdaQuery()
+                .eq(FriendContact::getUserId, uid1)
+                .eq(FriendContact::getContactId, uid2)
+                .select(FriendContact::getVersion)
+                .one()
+                .getVersion();
 
         lambdaUpdate().eq(FriendContact::getUserId, uid1).eq(FriendContact::getContactId, uid2)
                 .set(FriendContact::getStatus, ContactStatusEnum.FRIEND.getStatus())
@@ -54,7 +58,7 @@ public class FriendContactDao extends ServiceImpl<FriendContactMapper, FriendCon
     }
 
     public CursorPageResp<FriendContact> getFriendPage(Long uid, CursorPageReq cursorPageReq) {
-        return CursorUtil.getCursorPageByMysql(this, cursorPageReq,
+        return CursorUtil.getCursorPageByMysqlDesc(this, cursorPageReq,
                 wrapper -> wrapper.eq(FriendContact::getUserId, uid), FriendContact::getCreatedAt);
     }
 

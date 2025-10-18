@@ -64,7 +64,7 @@ onMounted(() => appStore.init())
 
           <div class="drawer-content list-surface">
             <div v-if="activeTab === 'incoming'">
-              <IncomingList />
+              <IncomingList @notify="notify"/>
             </div>
             <div v-else-if="activeTab === 'outgoing'">
               <OutcomingList />

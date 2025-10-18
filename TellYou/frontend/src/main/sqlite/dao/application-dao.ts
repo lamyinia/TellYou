@@ -1,4 +1,6 @@
-import { insertOrIgnore, queryAll, sqliteRun } from '@main/sqlite/atom'
+import { batchInsert, insertOrIgnore, queryAll, sqliteRun } from '@main/sqlite/atom'
+import { store } from '@main/index'
+import { uidKey } from '@main/electron-store/key'
 
 export interface ApplicationRow {
   id: number
@@ -45,14 +47,18 @@ class ApplicationDao {
     return sqliteRun(sql, ids)
   }
 
-  public async rejectIncoming(ids: string[]): Promise<number> {
-    if (!ids.length) return 0
-    const placeholders = ids.map(() => '?').join(',')
-    const sql = `UPDATE contact_applications SET status = 2 WHERE id IN (${placeholders})`
-    return sqliteRun(sql, ids)
-  }
   public async insertApplication(params: any): Promise<number> {
     return insertOrIgnore('contact_applications', params)
+  }
+
+  public async insertMoreApplication(paramsList: any[]): Promise<number> {
+    return batchInsert('contact_applications', paramsList)
+  }
+
+  public async getCursor(): Promise<string> {
+    const sql = 'select max(last_apply_time) as cursor from contact_applications where target_id = ?'
+    const cursor = (await queryAll(sql, [store.get(uidKey)])) as unknown[] as { cursor: string }[]
+    return cursor[0]?.cursor || ''
   }
 
   public async deleteApplication(applyId: string): Promise<number> {

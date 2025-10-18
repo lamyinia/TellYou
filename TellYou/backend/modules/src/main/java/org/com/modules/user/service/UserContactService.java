@@ -2,10 +2,10 @@ package org.com.modules.user.service;
 
 import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
+import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
-import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;
 
 public interface UserContactService {
     void friendApplySend(Long uid, FriendApplyReq friendApplyReq);
@@ -22,5 +22,5 @@ public interface UserContactService {
 
     PullFriendContactResp pullFriendContact(Long uid);
 
-    SimpleApplyInfoList pullApplyInfoList(Long uid);
+    CursorPageResp<ContactApply> ApplyInfoListByCursor(CursorPageReq req);
 }

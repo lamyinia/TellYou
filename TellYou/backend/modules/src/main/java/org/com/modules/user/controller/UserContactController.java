@@ -10,10 +10,10 @@ import org.com.modules.common.domain.vo.req.CursorPageReq;
 import org.com.modules.common.domain.vo.resp.ApiResult;
 import org.com.modules.common.domain.vo.resp.CursorPageResp;
 import org.com.modules.common.util.RequestHolder;
-import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
+import org.com.modules.user.domain.entity.ContactApply;
 import org.com.modules.user.domain.vo.req.*;
 import org.com.modules.user.domain.vo.resp.FriendContactResp;
-import org.com.modules.user.domain.vo.resp.SimpleApplyInfoList;
+import org.com.modules.user.domain.vo.resp.PullFriendContactResp;
 import org.com.modules.user.service.UserContactService;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,10 +36,11 @@ public class UserContactController {
         return ApiResult.success(resp);
     }
 
-    @GetMapping("/pull-application")
-    @Operation(description = "拉取申请通知")
-    public ApiResult<SimpleApplyInfoList> pullApplication(){
-        SimpleApplyInfoList resp = userContactService.pullApplyInfoList(RequestHolder.get().getUid());
+    @GetMapping("/cursor-pull-application")
+    @Operation(description = "游标拉取申请通知")
+    public ApiResult<CursorPageResp<ContactApply>> CursorPullApplication(@ModelAttribute @Valid CursorPageReq req){
+        CursorPageResp<ContactApply> resp = userContactService.ApplyInfoListByCursor(req);
+        log.info("{} 游标拉取结果：{}", RequestHolder.get().getUid(), resp.toString());
         return ApiResult.success(resp);
     }
 
@@ -50,7 +51,7 @@ public class UserContactController {
         return ApiResult.success();
     }
 
-    @PutMapping("/apply-accept")
+    @PutMapping("/friend-apply-accept")
     @Operation(summary = "接受申请")
     public ApiResult<Void> applyAccept(@Check @Valid @RequestBody AcceptFriendApplyReq req){
         userContactService.applyAccept(req);
@@ -82,12 +83,6 @@ public class UserContactController {
     @Operation(summary = "联系人或者群组的分页查询")
     public ApiResult<CursorPageResp<FriendContactResp>> pageContact(@ModelAttribute @Valid CursorPageReq req){
         return ApiResult.success(userContactService.friendListPage(req));
-    }
-
-    @GetMapping("/pageApply")
-    @Operation(summary = "申请的分页查询")
-    public ApiResult<Void> pageApply(){
-        return ApiResult.success();
     }
 
     @GetMapping("/test")

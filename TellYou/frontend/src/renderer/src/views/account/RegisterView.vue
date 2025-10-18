@@ -9,11 +9,8 @@ const nickname = ref('')
 const gender = ref('')
 const formRef = ref()
 const router = useRouter()
-const snackbar = ref({
-  show: false,
-  text: '',
-  color: 'info' as 'success' | 'error' | 'info'
-})
+const isRegistering = ref(false)
+const snackbar = ref({ show: false, text: '', color: 'info' as 'success' | 'error' | 'info' })
 const _notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): void => {
   snackbar.value = { show: true, text, color }
 }
@@ -54,6 +51,7 @@ const onRegister = async (): Promise<void> => {
     return
   }
 
+  isRegistering.value = true
   try {
     const response = await window.electronAPI.invoke('proxy:register', {
       email: username.value,
@@ -72,17 +70,20 @@ const onRegister = async (): Promise<void> => {
             type: 'success'
           }
         })
-      }, 1000)
+      }, 500)
     } else {
-      throw new Error('注册失败')
+      _notify(response.errMsg, 'error')
     }
-  } catch (err: any) {
-    _notify(err.message, 'error')
+  } finally {
+    setTimeout(() => {
+      isRegistering.value = false
+    }, 1500)
   }
 }
-const goLogin = (): void => {
-  window.electronAPI.send('LoginOrRegister', false)
-  router.push('/login')
+const goLogin = async (): Promise<void> => {
+  const p1 = await window.electronAPI.invoke('device:login-or-register', false)
+  const p2 = await router.push('/login')
+  await Promise.all([p1, p2])
 }
 </script>
 
@@ -93,6 +94,7 @@ const goLogin = (): void => {
         <v-card>
           <v-card-title class="text-h5">注册新账号</v-card-title>
           <v-card-text>
+            <v-progress-linear v-if="isRegistering" indeterminate color="primary" class="mb-4" />
             <v-form ref="formRef" @submit.prevent="onRegister">
               <v-text-field
                 v-model="username"
@@ -130,7 +132,7 @@ const goLogin = (): void => {
                 prepend-inner-icon="mdi-lock"
                 required
               />
-              <v-btn type="submit" color="primary" block class="mt-4">注册</v-btn>
+              <v-btn type="submit" color="primary" block class="mt-4" :loading="isRegistering" :disabled="isRegistering">注册</v-btn>
             </v-form>
             <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="5000">
               {{ snackbar.text }}

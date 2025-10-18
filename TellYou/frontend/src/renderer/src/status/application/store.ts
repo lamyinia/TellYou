@@ -94,7 +94,6 @@ export const useApplicationStore = defineStore('application', () => {
   const bulkApprove = (ids: string[]): void => {
     window.electronAPI.send('application:incoming:approve', { ids })
   }
-
   const bulkCancel = (ids: string[]): void => {
     window.electronAPI.send('application:outgoing:cancel', { ids })
   }

@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.com.modules.common.domain.enums.DeliveryEnum;
+import org.com.modules.session.domain.entity.Message;
 import org.com.modules.user.domain.vo.push.PushedApply;
 import org.com.modules.user.domain.vo.push.PushedChat;
+import org.com.modules.user.domain.vo.push.PushedSession;
 import org.com.tools.constant.MQConstant;
 import org.com.tools.constant.RedissonConstant;
 import org.redisson.api.RedissonClient;
@@ -28,12 +30,9 @@ public class DispatcherService {
 
     public void dispatch(DeliveryEnum deliveryEnum, Object message, List<Long> uidList) {
         switch (deliveryEnum) {
-            case MESSAGE:
-                dispatchChat((PushedChat) message, uidList);
-                break;
-            case APPLY:
-                dispatchApply((PushedApply) message, uidList);
-                break;
+            case MESSAGE -> dispatchChat((PushedChat) message, uidList);
+            case APPLY -> dispatchApply((PushedApply) message, uidList);
+            case SESSION -> dispatchSession((PushedSession) message, uidList);
         }
     }
 
@@ -58,6 +57,18 @@ public class DispatcherService {
             if (node != null){
                 letter.setReceiverId(uid);
                 redissonClient.getTopic(node).publish(letter);
+            } else {
+                log.info("{} 没上线", uid);
+            }
+        });
+    }
+
+    private void dispatchSession(PushedSession resp, List<Long> uidList){
+        uidList.forEach(uid -> {
+            String node = (String) redissonClient.getMap(RedissonConstant.ROUTE).get(uid);
+            if (node != null){
+                resp.setReceiverId(uid);
+                redissonClient.getTopic(node).publish(resp);
             } else {
                 log.info("{} 没上线", uid);
             }

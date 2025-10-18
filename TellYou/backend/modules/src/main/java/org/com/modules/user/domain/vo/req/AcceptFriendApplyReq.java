@@ -17,7 +17,7 @@ public class AcceptFriendApplyReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
-    private Long fromUid;
+    private Long fromUserId;
 
     @NotNull
     @Schema(description = "申请 id")

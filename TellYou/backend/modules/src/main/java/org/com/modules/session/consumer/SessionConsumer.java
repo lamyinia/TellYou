@@ -10,7 +10,7 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.session.service.MailBoxService;
 import org.com.modules.session.domain.document.MessageDoc;
-import org.com.modules.common.event.MessageSendEvent;
+import org.com.modules.common.event.ChatSendEvent;
 import org.com.modules.common.util.ApplicationContextProvider;
 import org.com.modules.session.domain.vo.req.MessageReq;
 import org.com.modules.session.service.adapter.MessageAdapter;
@@ -67,7 +67,7 @@ public class SessionConsumer implements RocketMQListener<String> {
         MessageDoc messageDoc = messageAdapter.buildMessage(req);
         List<Long> uidList = getUidList(req);
         mailBoxService.insertChatMessage(messageDoc, uidList);
-        applicationEventPublisher.publishEvent(new MessageSendEvent(this, messageDoc, uidList));
+        applicationEventPublisher.publishEvent(new ChatSendEvent(this, messageDoc, uidList));
     }
 
     /**

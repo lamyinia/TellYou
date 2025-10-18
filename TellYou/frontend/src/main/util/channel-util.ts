@@ -54,6 +54,16 @@ class ChannelUtil {
       })
     )
   }
+  public sendSingleSessionAckConfirm(msg: any): void {
+    if (!this.isWsOpen()) return
+    this.channel.send(
+      JSON.stringify({
+        messageId: msg.ackId,
+        type: 103,
+        fromUid: store.get(uidKey)
+      })
+    )
+  }
 }
 const channelUtil = new ChannelUtil()
 export default channelUtil

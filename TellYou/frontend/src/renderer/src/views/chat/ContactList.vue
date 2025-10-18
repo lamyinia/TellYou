@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useSessionStore } from '@renderer/status/session/store'
 import type { Session } from '@shared/types/session'
-import { briefMsg, formatTime, onAvatarError } from '@shared/utils/process'
+import { briefMsg, formatTime } from '@shared/utils/process'
+import Avatar from '@renderer/components/Avatar.vue'
 
 const store = useSessionStore()
 const sessions = computed<Session[]>(() => store.sortedSessions)
@@ -30,14 +31,14 @@ const selectContact = (contact: Session): void => {
           <v-list-item v-for="item in sessions" :key="item.sessionId" class="session-item" @click="selectContact(item)">
             <div class="row-wrap">
               <div class="avatar-box">
-                <img
-                  class="contact-avatar"
-                  :src="item.contactAvatar"
-                  alt="avatar"
-                  referrerpolicy="no-referrer"
-                  crossorigin="anonymous"
-                  loading="lazy"
-                  @error="onAvatarError"
+                <Avatar
+                  :user-id="String(item.contactId)"
+                  :version="'0'"
+                  :size="50"
+                  :name="item.contactName || '未知'"
+                  :show-strategy="'thumbedAvatarUrl'"
+                  show-shape="normal"
+                  side="left"
                 />
                 <span v-if="item.contactType === 2" class="contact-tag">群</span>
                 <span v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount > 99 ? '99+' : item.unreadCount }}</span>
@@ -195,6 +196,12 @@ const selectContact = (contact: Session): void => {
   display: flex;
   flex-direction: column;
   padding: 0 14px 14px 14px;
+  overflow-y: auto; /* 让该容器成为真正的滚动容器，便于自定义滚动条生效 */
+  overflow-x: hidden;
+  scrollbar-gutter: stable; /* 避免滚动条出现时布局抖动（Chromium/Edge/Electron 支持） */
+  /* Firefox 自定义滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
 .contact-list :deep(.v-list) {
@@ -203,27 +210,35 @@ const selectContact = (contact: Session): void => {
   flex: 1;
   min-height: 0;
   padding-bottom: 12px;
+  overflow: visible; /* 让父容器负责滚动，避免 vuetify 列表自身产生滚动条 */
 }
 
 .contact-list::-webkit-scrollbar {
-  width: 5px;
-  background: rgba(24, 28, 70, 0.3);
-  border-radius: 8px;
-}
-
-.contact-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #092a43 0%, #04165e 100%);
-  border-radius: 8px;
-  min-height: 40px;
-}
-
-.contact-list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #1d12b5 0%, #2e0c83 100%);
+  width: 6px; /* 更细腻 */
+  height: 6px;
 }
 
 .contact-list::-webkit-scrollbar-track {
-  background: #181c46;
+  background: transparent; /* 让轨道更柔和融入背景 */
+}
+
+.contact-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.18));
   border-radius: 8px;
+  border: 2px solid transparent; /* 通过透明边框营造内边距，更细的视觉效果 */
+  background-clip: padding-box;
+  min-height: 40px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  opacity: 0.7;
+}
+
+.contact-list:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.28));
+}
+
+.contact-list::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.38));
 }
 
 .v-list-item.session-item {
@@ -274,13 +289,19 @@ const selectContact = (contact: Session): void => {
 }
 
 .row-wrap {
-  display: flex;
+  display: grid;
+  grid-template-columns: 52px 1fr; /* 左侧头像固定列 + 右侧内容自适应列，避免内容流到头像下方 */
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
   padding: 12px 14px; /* 增大内边距与高度 */
   width: 100%;
   position: relative;
   z-index: 1;
+}
+
+/* 明确指定内容列在第二列，彻底避免与头像重叠 */
+.row-wrap > .content-col {
+  grid-column: 2;
 }
 
 .avatar-box {
@@ -288,6 +309,8 @@ const selectContact = (contact: Session): void => {
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
+  align-self: start;
+  margin-top: -2px;
 }
 
 .contact-avatar {

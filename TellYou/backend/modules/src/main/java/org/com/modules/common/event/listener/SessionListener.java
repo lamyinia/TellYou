@@ -2,23 +2,20 @@ package org.com.modules.common.event.listener;
 
 import lombok.RequiredArgsConstructor;
 import org.com.modules.common.domain.enums.DeliveryEnum;
-import org.com.modules.common.event.ChatSendEvent;
+import org.com.modules.common.event.SessionEvent;
 import org.com.modules.common.service.dispatch.DispatcherService;
-import org.com.modules.user.domain.vo.push.PushedChat;
-import org.com.modules.session.service.adapter.MessageAdapter;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
-public class ChatSendListener {
+public class SessionListener {
     private final DispatcherService dispatcherService;
 
     @Async
-    @TransactionalEventListener(classes = ChatSendEvent.class, fallbackExecution = true)
-    public void notifyUser(ChatSendEvent event){
-        PushedChat resp = MessageAdapter.buildVo(event.getUserMail());
-        dispatcherService.dispatch(DeliveryEnum.MESSAGE, resp, event.getUidList());
+    @TransactionalEventListener(classes = SessionEvent.class, fallbackExecution = true)
+    public void notifyUser(SessionEvent event){
+        dispatcherService.dispatch(DeliveryEnum.SESSION, event.getPushedSession(), event.getUidList());
     }
 }

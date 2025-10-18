@@ -28,6 +28,8 @@ if (process.contextIsolated) {
       clearAvatarCache: (userId: string) => ipcRenderer.invoke('avatar:clear', { userId }),
       getAvatarCacheStats: () => ipcRenderer.invoke('avatar:stats'),
 
+      getProfileName: (userId: string) => ipcRenderer.invoke('profile:name:get', { userId }),
+
       startMediaTask: (params: { type: string, filePath: string, fileName: string, mimeType: string }) => ipcRenderer.invoke('media:send:start', params),
       cancelMediaTask: (taskId: string) => ipcRenderer.invoke('media:send:cancel', taskId),
       retryMediaTask: (taskId: string) => ipcRenderer.invoke('media:send:retry', taskId),

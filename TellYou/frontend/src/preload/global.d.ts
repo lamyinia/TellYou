@@ -30,6 +30,8 @@ declare global {
       getMediaTaskStatus: (taskId: string) => Promise<any>
       getAllMediaTasks: () => Promise<any[]>
 
+      getProfileName: (userId: string) => Promise<any>
+
       selectAvatarFile: () => Promise<{
         filePath: string
         fileName: string
