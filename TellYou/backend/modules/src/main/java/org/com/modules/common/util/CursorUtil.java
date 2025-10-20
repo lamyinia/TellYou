@@ -50,6 +50,7 @@ public class CursorUtil {
         return new CursorPageResp<>(cursor, isLast, result);
     }
 
+    // select ..... where ... last_apply_time < ? order by last_apply_time desc
     public static <T> CursorPageResp<T> getCursorPageByMysqlDesc(IService<T> iService, CursorPageReq request, Consumer<LambdaQueryWrapper<T>> initWrapper, SFunction<T, ?> cursorColumn){
         Class<?> cursorType = LambdaUtil.getReturnType(cursorColumn);
         LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
@@ -67,14 +68,14 @@ public class CursorUtil {
         Boolean isLast = page.getRecords().size() != request.getPageSize();
         return new CursorPageResp<>(cursor, isLast, page.getRecords());
     }
-
+    // select ..... where ... last_apply_time > ? order by last_apply_time asc
     public static <T> CursorPageResp<T> getCursorPageByMysqlAsc(IService<T> iService, CursorPageReq request, Consumer<LambdaQueryWrapper<T>> initWrapper, SFunction<T, ?> cursorColumn){
         Class<?> cursorType = LambdaUtil.getReturnType(cursorColumn);
         LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
         initWrapper.accept(wrapper);
 
         if (StrUtil.isNotBlank(request.getCursor())){
-            wrapper.lt(cursorColumn, parseCursor(request.getCursor(), cursorType));
+            wrapper.gt(cursorColumn, parseCursor(request.getCursor(), cursorType));
         }
         wrapper.orderByAsc(cursorColumn);
 

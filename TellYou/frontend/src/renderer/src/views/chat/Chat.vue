@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import ChatPanel from '@renderer/views/chat/ChatPanel.vue'
-import ContactList from '@renderer/views/chat/ContactList.vue'
+import ChatPanel from '@renderer/views/chat/left/ChatPanel.vue'
+import ContactList from '@renderer/views/chat/right/contact/ContactList.vue'
 import { computed, onMounted, ref } from 'vue'
 import type { Session } from '@shared/types/session'
 import { useSessionStore } from '@renderer/status/session/store'
@@ -26,11 +26,9 @@ onMounted(() => {
     <div class="chat-container">
       <div class="main-content">
         <div class="chat-panel-wrap">
-<!--          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>-->
           <ChatPanel :current-contact="selectedContact" />
         </div>
         <div class="contact-list-wrap">
-<!--          <div v-for="n in 30" :key="n" class="star" :style="randomStarStyle()"></div>-->
           <ContactList @contact-selected="handleContactSelected" />
         </div>
       </div>
@@ -44,12 +42,6 @@ onMounted(() => {
   min-height: 100vh;
   background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
   overflow: hidden;
-}
-.star {
-  position: relative; /* 确保星星定位基准 */
-  z-index: 1;
-  animation: twinkle 2s infinite alternate;
-  animation-delay: var(--star-delay, 0s);
 }
 @keyframes twinkle {
   0%,

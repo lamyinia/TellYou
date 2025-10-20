@@ -2,10 +2,9 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessageStore } from '@renderer/status/message/store'
-import { resolveAvatar, onAvatarError } from '@renderer/utils/process'
+import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
 import { useSessionStore } from '@renderer/status/session/store'
 import { DetailContact } from '@renderer/views/relation/ContactManagementView.vue'
-import Avatar from '@renderer/components/Avatar.vue'
 
 const props = defineProps<{ contact: DetailContact | null }>()
 const contact = computed(() => props.contact)

@@ -10,11 +10,14 @@ import { SessionManager, Session } from '@renderer/status/session/class'
  * @date 2025/10/12 15:35
  */
 export const useSessionStore = defineStore('session', () => {
-  const sessionManager = ref(new SessionManager())
-  const isInitialized = ref(false)
-  const currentSessionId = ref<string>('')
-  const sortedSessions = computed(() => sessionManager.value.getOrderedSessions())
-  let loadSessionListener: ((...args: unknown[]) => void) | null = null
+  const sessionManager = ref(new SessionManager());
+  const isInitialized = ref(false);
+  const currentSessionId = ref<string>('');
+  const sessionsVersion = ref(0);
+  const sortedSessions = computed(() => {
+    return (sessionsVersion.value, sessionManager.value.getOrderedSessions());
+  });
+  let loadSessionListener: ((...args: unknown[]) => void) | null = null;
 
   const init = (): void => {
     console.log('sessionStore 开始初始化')
@@ -28,32 +31,39 @@ export const useSessionStore = defineStore('session', () => {
       })
       console.log('会话数据已加载:', sessions.length, '条')
       console.log(sortedSessions.value)
-    }
-    window.electronAPI.on('session:call-back:load-data', loadSessionListener)
-    window.electronAPI.send('session:load-data')
+      sessionsVersion.value++;
+    };
+    window.electronAPI.on('session:call-back:load-data', loadSessionListener);
+    window.electronAPI.send('session:load-data');
 
-    isInitialized.value = true
-    console.log('sessionStore 初始化完成')
-  }
+    isInitialized.value = true;
+    console.log('sessionStore 初始化完成');
+  };
   const destroy = (): void => {
-    sessionManager.value.clear()
-    isInitialized.value = false
-    window.electronAPI.removeListener('session:call-back:load-data', loadSessionListener!)
-  }
+    sessionManager.value.clear();
+    isInitialized.value = false;
+    window.electronAPI.removeListener('session:call-back:load-data', loadSessionListener!);
+    sessionsVersion.value++;
+  };
   const getSession = (sessionId: string | number): Session | undefined => {
-    return sessionManager.value.getSession(String(sessionId))
-  }
+    return sessionManager.value.getSession(String(sessionId));
+  };
   const updateSession = async (sessionId: string | number, updates: Partial<Session>): Promise<void> => {
     console.info('更新{}的信息:{}', sessionId, updates)
-    await window.electronAPI.invoke('session:update:partial', updates, sessionId)
-    sessionManager.value.updateSession(String(sessionId), updates)
-  }
+    await window.electronAPI.invoke(
+      'session:update:partial',
+      updates,
+      sessionId,
+    );
+    sessionManager.value.updateSession(String(sessionId), updates);
+    sessionsVersion.value++;
+  };
   const searchSessions = (keyword: string): Session[] => {
-    return sessionManager.value.searchSessions(keyword)
-  }
+    return sessionManager.value.searchSessions(keyword);
+  };
   const setCurrentSessionId = (sessionId: string | number): void => {
-    currentSessionId.value = String(sessionId)
-  }
+    currentSessionId.value = String(sessionId);
+  };
 
   return {
     init,
@@ -65,6 +75,7 @@ export const useSessionStore = defineStore('session', () => {
     getSession,
     updateSession,
     searchSessions,
-    setCurrentSessionId
-  }
-})
+    setCurrentSessionId,
+  };
+});
+

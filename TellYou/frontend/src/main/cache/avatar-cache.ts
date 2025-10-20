@@ -50,9 +50,9 @@ class AvatarCache {
         return { success: false, pathResult: result[params.strategy] }
       }
     )
-    ipcMain.handle('avatar:get', async (_, { userId, strategy, avatarUrl }) => {
+    ipcMain.handle('avatar:get-newer', async (_, { userId, strategy, avatarUrl }) => {
       try {
-        const filePath = await this.getAvatarPath(userId, strategy, avatarUrl)
+        const filePath = await this.setNewAvatar(userId, strategy, avatarUrl)
         if (!filePath) return null
         return urlUtil.signByApp(filePath)
       } catch (error) {
@@ -88,12 +88,13 @@ class AvatarCache {
     this.jsonLoadingMap.set(userId, promise)
     return promise
   }
-  private async getAvatarPath(userId: string, strategy: string, avatarUrl: string): Promise<string | null> {
+
+  private async setNewAvatar(userId: string, strategy: string, avatarUrl: string): Promise<string | null> {
     try {
       const filePath = join(urlUtil.cachePaths['avatar'], userId, strategy, this.extractObjectFromUrl(avatarUrl))
       urlUtil.ensureDir(join(urlUtil.cachePaths['avatar'], userId, strategy))  // {userData}/cache/avatar/{userId}/{strategy}/{obj}
       console.info('avatar-cache:getAvatarPath:准备下载头像:  ', [userId, avatarUrl, filePath].join('-'))
-      const success = await this.downloadAvatar(avatarUrl, filePath)
+      const success = await this.downloadAndSaveAvatar(avatarUrl, filePath)
       if (success) {
         this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath)
         return filePath
@@ -104,7 +105,8 @@ class AvatarCache {
       return null
     }
   }
-  private async downloadAvatar(url: string, filePath: string): Promise<boolean> {
+  // 下载头像，并保存在本地磁盘
+  private async downloadAndSaveAvatar(url: string, filePath: string): Promise<boolean> {
     try {
       const arrayBuffer = await netMinIO.downloadAvatar(url)
       if (arrayBuffer) {
@@ -118,6 +120,7 @@ class AvatarCache {
       return false
     }
   }
+  //  更新本地版本号
   private updateCacheIndex(userId: string, strategy: string, version: string, filePath: string): void {
     let item = this.cacheMap.get(userId)
     if (!item) {
@@ -125,7 +128,7 @@ class AvatarCache {
       if (existsSync(jsonPath)) {
         try {
           item = JSON.parse(readFileSync(jsonPath, 'utf-8')) as CacheItem
-        } catch {
+        } catch {  //  文件可能被删除或者不存在
           item = {} as CacheItem
         }
       } else {
@@ -136,15 +139,19 @@ class AvatarCache {
     this.cacheMap.set(userId, item)
     this.saveItem(userId, item)
   }
+
   private checkVersion(item: CacheItem, strategy: string, version: string): boolean {
     return item[strategy] && Number.parseInt(item[strategy].version) >= Number.parseInt(version)
   }
+
   private extractVersionFromUrl(url: string): string {
     return new URL(url).pathname.split('/').at(-2) || ''
   }
+
   private extractObjectFromUrl(url: string): string {
     return new URL(url).pathname.split('/').at(-1) || ''
   }
+
   private saveItem(userId: string, cacheItem: CacheItem): void {
     try {
       const jsonPath = this.getJsonPath(userId)

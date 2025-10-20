@@ -328,16 +328,6 @@ class NetMinIO {
     return response.data
   }
 
-  async downloadJsonAsString(jsonUrl: string): Promise<string> {
-    const response = await this.axiosInstance.get(jsonUrl, {
-      responseType: 'text',
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'TellYou-Client/1.0'
-      }
-    })
-    return response.data
-  }
 
   getAxiosInstance(): AxiosInstance {
     return this.axiosInstance

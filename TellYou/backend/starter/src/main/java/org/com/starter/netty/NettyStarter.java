@@ -14,7 +14,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.starter.netty.handler.BaseHandler;
+import org.com.modules.mail.producer.ProducerHandler;
 import org.com.starter.netty.handler.JwtAuthHandler;
 import org.com.starter.netty.properties.NettyProperties;
 import org.com.tools.utils.JwtUtil;
@@ -32,7 +32,7 @@ public class NettyStarter implements Runnable {
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
     private EventLoopGroup workerGroup = new NioEventLoopGroup();
     private final NettyProperties nettyProperties;
-    private final BaseHandler businessHandler;
+    private final ProducerHandler businessHandler;
     private final JwtUtil jwtUtil;
 
     @PreDestroy

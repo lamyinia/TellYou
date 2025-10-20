@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.domain.vo.resp.ApiResult;
-import org.com.modules.common.service.file.minio.DownloadService;
-import org.com.modules.common.service.file.minio.UploadFileService;
+import org.com.modules.media.service.minio.DownloadService;
+import org.com.modules.media.service.minio.UploadFileService;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
@@ -18,8 +18,6 @@ import org.com.tools.properties.MinioProperties;
 import org.com.tools.template.MinioTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 

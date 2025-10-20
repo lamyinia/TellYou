@@ -84,7 +84,7 @@ const onSelect = (contact: SimpleContact): void => emit('select', contact.sessio
       <div class="list">
         <div v-for="item in g.items" :key="item.id" class="item" @click="onSelect(item)">
           <Avatar
-            :user-id="String(item.id)"
+            :target-id="String(item.id)"
             :version="'0'"
             :name="item.name || '未知'"
             :size="56"
@@ -111,18 +111,18 @@ const onSelect = (contact: SimpleContact): void => emit('select', contact.sessio
   border-radius: 0 18px 18px 0;
   margin: 0 0 32px 0;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
-  display: block; /* 竖向排布分组 */
+  display: block;
   padding-top: 24px;
 }
 .dial-root::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
 }
 .dial-root::-webkit-scrollbar-track {
   background: transparent;
 }
 .dial-root::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  border-radius: 5px;
 }
 .dial-root::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);

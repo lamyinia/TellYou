@@ -22,8 +22,7 @@ if (process.contextIsolated) {
       requestMessages: (sessionId: number, obj: object) => ipcRenderer.invoke('message:get-by-sessionId', sessionId, obj),
       wsSend: (msg: unknown) => ipcRenderer.invoke('websocket:send', msg),
 
-      getAvatar: (params: { userId: string; strategy: string; avatarUrl: string }) =>
-        ipcRenderer.invoke('avatar:get', params),
+      getNewerAvatar: (params: { userId: string; strategy: string; avatarUrl: string }) => ipcRenderer.invoke('avatar:get-newer', params),
       preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => ipcRenderer.invoke('avatar:preload', params),
       clearAvatarCache: (userId: string) => ipcRenderer.invoke('avatar:clear', { userId }),
       getAvatarCacheStats: () => ipcRenderer.invoke('avatar:stats'),

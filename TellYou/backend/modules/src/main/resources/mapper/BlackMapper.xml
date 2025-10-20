@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.session.mapper.BlackMapper">
+<mapper namespace="org.com.modules.contact.mapper.BlackMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.Black">
+    <resultMap id="BaseResultMap" type="org.com.modules.contact.domain.entity.Black">
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="fromId" column="from_id" jdbcType="BIGINT"/>
             <result property="type" column="type" jdbcType="TINYINT"/>

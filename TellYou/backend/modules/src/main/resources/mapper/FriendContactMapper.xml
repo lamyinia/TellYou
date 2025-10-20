@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.user.mapper.FriendContactMapper">
+<mapper namespace="org.com.modules.contact.mapper.FriendContactMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.FriendContact">
+    <resultMap id="BaseResultMap" type="org.com.modules.contact.domain.entity.FriendContact">
             <id property="userId" column="user_id" jdbcType="BIGINT"/>
             <id property="contactId" column="contact_id" jdbcType="BIGINT"/>
             <result property="sessionId" column="session_id" jdbcType="BIGINT"/>

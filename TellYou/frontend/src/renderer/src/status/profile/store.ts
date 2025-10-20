@@ -24,14 +24,14 @@ export const useProfileStore = defineStore('profile', () => {
     return inc > cur
   }
 
-  const refreshUserName = async (userId: string): Promise<void> => {
+  const refreshName = async (userId: string): Promise<void> => {
     if (inflight.has(userId)) return inflight.get(userId)!
     const p = (async () => {
       try {
         loading.add(userId)
         const res = await window.electronAPI.getProfileName(userId)
-        const name = (res?.name ?? '').toString()
-        const version = (res?.version ?? '0').toString()
+        const name = (res?.nickname ?? '').toString()
+        const version = (res?.nickVersion ?? '0').toString()
         console.log('name:version', name, version)
         names[userId] = { name, version, updatedAt: Date.now() }
       } catch {
@@ -48,7 +48,7 @@ export const useProfileStore = defineStore('profile', () => {
   const ensureUser = (userId: string, incomingVersion?: string, placeholder = '未知'): string => {
     if (!userId) return placeholder
     if (!names[userId]) names[userId] = { name: placeholder, version: '0', updatedAt: 0 }
-    if (needRefresh(userId, incomingVersion)) void refreshUserName(userId)
+    if (needRefresh(userId, incomingVersion)) void refreshName(userId)
     return names[userId]?.name ?? placeholder
   }
 
@@ -56,6 +56,6 @@ export const useProfileStore = defineStore('profile', () => {
     names,
     loading,
     ensureUser,
-    refreshUserName
+    refreshUserName: refreshName
   }
 })

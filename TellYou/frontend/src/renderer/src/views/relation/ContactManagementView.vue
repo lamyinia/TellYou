@@ -2,9 +2,9 @@
 import { ref, watch } from 'vue'
 import ContactDial from './ContactDial.vue'
 import ContactDetail from './ContactDetail.vue'
-import ContactApplication from './ContactApplication.vue'
-import CreatedGroup from './CreatedGroup.vue'
-import ContactBlack from './ContactBlack.vue'
+import ContactApplication from './apply/ContactApplication.vue'
+import CreatedGroup from './group/CreatedGroup.vue'
+import ContactBlack from './black/ContactBlack.vue'
 import { useSessionStore } from '@renderer/status/session/store'
 
 export interface SimpleContact {

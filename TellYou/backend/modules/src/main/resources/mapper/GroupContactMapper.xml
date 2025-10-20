@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.session.mapper.GroupContactMapper">
+<mapper namespace="org.com.modules.contact.mapper.GroupContactMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.session.domain.entity.GroupContact">
+    <resultMap id="BaseResultMap" type="org.com.modules.contact.domain.entity.GroupContact">
             <id property="userId" column="user_id" jdbcType="BIGINT"/>
             <id property="groupId" column="group_id" jdbcType="BIGINT"/>
             <id property="sessionId" column="session_id" jdbcType="BIGINT"/>

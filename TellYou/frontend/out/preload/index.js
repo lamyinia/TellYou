@@ -19,7 +19,7 @@ if (process.contextIsolated) {
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("message:get-by-sessionId", sessionId, obj),
       wsSend: (msg) => electron.ipcRenderer.invoke("websocket:send", msg),
-      getAvatar: (params) => electron.ipcRenderer.invoke("avatar:get", params),
+      getNewerAvatar: (params) => electron.ipcRenderer.invoke("avatar:get-newer", params),
       preloadAvatars: (params) => electron.ipcRenderer.invoke("avatar:preload", params),
       clearAvatarCache: (userId) => electron.ipcRenderer.invoke("avatar:clear", { userId }),
       getAvatarCacheStats: () => electron.ipcRenderer.invoke("avatar:stats"),

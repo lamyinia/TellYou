@@ -2,14 +2,11 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.session.mapper.SessionMapper">
+<mapper namespace="org.com.modules.contact.mapper.SessionMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.session.domain.entity.Session">
+    <resultMap id="BaseResultMap" type="org.com.modules.contact.domain.entity.Session">
             <id property="sessionId" column="session_id" jdbcType="BIGINT"/>
             <result property="sessionType" column="session_type" jdbcType="TINYINT"/>
-            <result property="lastMsgId" column="last_msg_id" jdbcType="BIGINT"/>
-            <result property="lastMsgContent" column="last_msg_content" jdbcType="VARCHAR"/>
-            <result property="lastMsgTime" column="last_msg_time" jdbcType="TIMESTAMP"/>
             <result property="version" column="version" jdbcType="INTEGER"/>
             <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
             <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>

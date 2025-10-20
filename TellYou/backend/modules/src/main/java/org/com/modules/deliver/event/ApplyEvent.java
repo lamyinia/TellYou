@@ -1,0 +1,22 @@
+package org.com.modules.deliver.event;
+
+import lombok.Getter;
+import org.com.modules.contact.domain.entity.ContactApply;
+import org.springframework.context.ApplicationEvent;
+
+import java.util.List;
+
+@Getter
+public class ApplyEvent extends ApplicationEvent {
+
+    private ContactApply contactApply;
+
+    private List<Long> uidList;
+
+    public ApplyEvent(Object source, ContactApply contactApply, List<Long> uidList) {
+        super(source);
+        this.contactApply = contactApply;
+        this.uidList = uidList;
+    }
+
+}

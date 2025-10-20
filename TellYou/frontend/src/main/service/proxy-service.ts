@@ -108,16 +108,29 @@ class ProxyService {
     ipcMain.handle('proxy:group:get-member-list', async (_, params: any) => {
 
     })
+
     ipcMain.handle('profile:name:get', async (_event, { userId }: { userId: string }) => {
       try {
         const path = [urlUtil.atomPath, userId + '.json'].join('/')
         const json: any = await netMinIO.downloadJson(path)
         console.log('profile:name:get:json', json)
-        const name: string = json?.nickname ?? json?.name ?? ''
-        const version: string = String(json.nicknameVersion || '0')
-        return { name, version }
-      } catch (e) {
-        return { name: '', version: '0' }
+        const nickname: string = json?.nickname ?? json?.name ?? ''
+        const nicknameVersion: string = String(json.nicknameVersion || '0')
+        return { nickname, nicknameVersion }
+      } catch {
+        return { nickname: '', nickVersion: '0' }
+      }
+    })
+
+    ipcMain.handle('profile:avatar:get', async (_event, { userId }: { userId: string }) => {
+      try {
+        const path = [urlUtil.atomPath, userId + '.json'].join('/')
+        const json: any = await netMinIO.downloadJson(path)
+        const avatarVersion: string = String(json?.avatarVersion || '0')
+        console.info('profile:avatar:get', avatarVersion)
+        return { avatarVersion }
+      } catch {
+        return { avatarVersion: '0' }
       }
     })
   }

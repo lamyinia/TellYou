@@ -1,0 +1,41 @@
+package org.com.modules.contact.domain.entity;
+
+
+import java.util.Date;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Schema(description = "群关系实体类")
+public class GroupContact {
+    @Schema(description = "成员id")
+    private Long userId;
+
+    @Schema(description = "群组id")
+    private Long groupId;
+
+    @Schema(description = "会话id")
+    private Long sessionId;
+
+    @Schema(description = "1=成员 2=管理员 3=群主")
+    private Integer role;
+
+    @Schema(description = "加入时间")
+    private Date joinTime;
+
+    @Schema(description = "最后活跃时间")
+    private Date lastActive;
+
+    @Schema(description = "0 = 好友, 1 = 删除或者黑名单")
+    private Integer isDeleted;
+
+    @Schema(description = "第几次进入群聊")
+    private Integer contactVersion;
+}

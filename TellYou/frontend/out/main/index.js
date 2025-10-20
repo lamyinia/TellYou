@@ -833,16 +833,6 @@ class NetMinIO {
     });
     return response.data;
   }
-  async downloadJsonAsString(jsonUrl) {
-    const response = await this.axiosInstance.get(jsonUrl, {
-      responseType: "text",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
   getAxiosInstance() {
     return this.axiosInstance;
   }
@@ -1729,11 +1719,22 @@ class ProxyService {
         const path2 = [urlUtil.atomPath, userId + ".json"].join("/");
         const json = await netMinIO.downloadJson(path2);
         console.log("profile:name:get:json", json);
-        const name = json?.nickname ?? json?.name ?? "";
-        const version = String(json.nicknameVersion || "0");
-        return { name, version };
-      } catch (e) {
-        return { name: "", version: "0" };
+        const nickname = json?.nickname ?? json?.name ?? "";
+        const nicknameVersion = String(json.nicknameVersion || "0");
+        return { nickname, nicknameVersion };
+      } catch {
+        return { nickname: "", nickVersion: "0" };
+      }
+    });
+    electron.ipcMain.handle("profile:avatar:get", async (_event, { userId }) => {
+      try {
+        const path2 = [urlUtil.atomPath, userId + ".json"].join("/");
+        const json = await netMinIO.downloadJson(path2);
+        const avatarVersion = String(json?.avatarVersion || "0");
+        console.info("profile:avatar:get", avatarVersion);
+        return { avatarVersion };
+      } catch {
+        return { avatarVersion: "0" };
       }
     });
   }
@@ -2264,9 +2265,9 @@ class AvatarCache {
         return { success: false, pathResult: result[params.strategy] };
       }
     );
-    electron.ipcMain.handle("avatar:get", async (_, { userId, strategy, avatarUrl }) => {
+    electron.ipcMain.handle("avatar:get-newer", async (_, { userId, strategy, avatarUrl }) => {
       try {
-        const filePath = await this.getAvatarPath(userId, strategy, avatarUrl);
+        const filePath = await this.setNewAvatar(userId, strategy, avatarUrl);
         if (!filePath) return null;
         return urlUtil.signByApp(filePath);
       } catch (error) {
@@ -2299,12 +2300,12 @@ class AvatarCache {
     this.jsonLoadingMap.set(userId, promise);
     return promise;
   }
-  async getAvatarPath(userId, strategy, avatarUrl) {
+  async setNewAvatar(userId, strategy, avatarUrl) {
     try {
       const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
       urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
       console.info("avatar-cache:getAvatarPath:准备下载头像:  ", [userId, avatarUrl, filePath].join("-"));
-      const success = await this.downloadAvatar(avatarUrl, filePath);
+      const success = await this.downloadAndSaveAvatar(avatarUrl, filePath);
       if (success) {
         this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath);
         return filePath;
@@ -2315,7 +2316,8 @@ class AvatarCache {
       return null;
     }
   }
-  async downloadAvatar(url, filePath) {
+  // 下载头像，并保存在本地磁盘
+  async downloadAndSaveAvatar(url, filePath) {
     try {
       const arrayBuffer = await netMinIO.downloadAvatar(url);
       if (arrayBuffer) {
@@ -2329,6 +2331,7 @@ class AvatarCache {
       return false;
     }
   }
+  //  更新本地版本号
   updateCacheIndex(userId, strategy, version, filePath) {
     let item = this.cacheMap.get(userId);
     if (!item) {

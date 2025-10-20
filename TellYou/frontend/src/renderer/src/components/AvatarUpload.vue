@@ -63,7 +63,7 @@ const onPick = async (): Promise<void> => {
     }"
     @click="props.uploadOnClick && !props.disabled ? onPick() : null"
   >
-    <Avatar v-if="previewUrl" :user-id="userStore.myId" :url="previewUrl" :size="props.size" />
+    <Avatar v-if="previewUrl" :target-id="userStore.myId" :url="previewUrl" :size="props.size" />
     <Avatar v-else :user-id="userStore.myId" :url="''" :name="'?'" :size="props.size" />
     <button
       v-if="!props.uploadOnClick && !props.disabled"

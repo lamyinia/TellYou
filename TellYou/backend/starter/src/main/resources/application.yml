@@ -3,8 +3,10 @@ server:
   node: 127_0_0_1-8081
   retry:
     threads: 3
-
 tell-you:
+  datacenter-id: 1
+  worker-id: 2
+
   netty:
     port: 8082
   jwt:

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.com.modules.user.mapper.ContactApplyMapper">
+<mapper namespace="org.com.modules.contact.mapper.ContactApplyMapper">
 
-    <resultMap id="BaseResultMap" type="org.com.modules.user.domain.entity.ContactApply">
+    <resultMap id="BaseResultMap" type="org.com.modules.contact.domain.entity.ContactApply">
             <id property="applyId" column="apply_id" jdbcType="BIGINT"/>
             <result property="applyUserId" column="apply_user_id" jdbcType="BIGINT"/>
             <result property="targetId" column="target_id" jdbcType="BIGINT"/>

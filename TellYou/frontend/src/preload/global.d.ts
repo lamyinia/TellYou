@@ -20,7 +20,7 @@ declare global {
       wsSend: (msg: unknown) => Promise<boolean>
       addSession: (session: Session) => Promise<boolean>
       requestMessages: (sessionId: string | number, obj: Record<string, unknown>) => Promise<unknown>
-      getAvatar: (params: { userId: string, strategy: string, avatarUrl: string }) => Promise<string | null>
+      getNewerAvatar: (params: { userId: string, strategy: string, avatarUrl: string }) => Promise<string | null>
       preloadAvatars: (params: { avatarMap: Record<string, string>, size?: number }) => Promise<boolean>
       clearAvatarCache: (userId: string) => Promise<boolean>
       getAvatarCacheStats: () => Promise<{ totalUsers: number, totalFiles: number, totalSize: number }>

@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Slf4j
 @Configuration
-@MapperScan({"org.com.modules.user.mapper", "org.com.modules.session.mapper"})
+@MapperScan("org.com.modules.**.mapper")
 public class MyBatisConfig {
 
     /**
