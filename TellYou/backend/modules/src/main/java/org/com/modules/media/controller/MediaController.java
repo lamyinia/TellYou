@@ -21,33 +21,39 @@ public class MediaController {
     private final SignService signService;
     private final UserInfoService userInfoService;
 
-    @PostMapping("/avatar/upload-url")
-    @Operation(summary = "获取头像上传预签名URL")
-    public ApiResult<AvatarUploadResp> getAvatarUploadUrl(@Valid @RequestBody AvatarUploadReq req){
-        return ApiResult.success(signService.getAvatarUploadResp(req));
+    @GetMapping("/user-avatar/upload-url")
+    @Operation(summary = "获取用户头像上传预签名URL")
+    public ApiResult<AvatarUploadResp> getUserAvatarUploadUrl(@Valid @ModelAttribute AvatarUploadReq req){
+        return ApiResult.success(signService.getUserAvatarUploadResp(req));
+    }
+
+    @GetMapping("/group-avatar/upload-url")
+    @Operation(summary = "获取群头像上传预签名URL")
+    public ApiResult<AvatarUploadResp> getGroupAvatarUploadUrl(@Valid @ModelAttribute AvatarUploadReq req){
+        return ApiResult.success(signService.getGroupAvatarUploadResp(req));
     }
 
     @GetMapping("/picture/upload-url")
     @Operation(summary = "获取图片上传预签名URL")
-    public ApiResult<PictureUploadResp> getPictureUploadUrl(@Valid @RequestBody PictureUploadReq req){
+    public ApiResult<PictureUploadResp> getPictureUploadUrl(@Valid @ModelAttribute PictureUploadReq req){
         return ApiResult.success(signService.getPictureUploadResp(req));
     }
 
     @GetMapping("/voice/upload-url")
     @Operation(summary = "获取语音上传预签名URL")
-    public ApiResult<VoiceUploadResp> getVoiceUploadUrl(@Valid @RequestBody VoiceUploadReq req){
+    public ApiResult<VoiceUploadResp> getVoiceUploadUrl(@Valid @ModelAttribute VoiceUploadReq req){
         return ApiResult.success(signService.getVoiceUploadResp(req));
     }
 
     @GetMapping("/video/upload-url")
     @Operation(summary = "获取视频上传预签名URL")
-    public ApiResult<VideoUploadResp> getVideoUploadUrl(@Valid @RequestBody VideoUploadReq req){
+    public ApiResult<VideoUploadResp> getVideoUploadUrl(@Valid @ModelAttribute VideoUploadReq req){
         return ApiResult.success(signService.getVideoUploadResp(req));
     }
 
     @GetMapping("/file/upload-url")
     @Operation(summary = "获取文件上传预签名URL")
-    public ApiResult<FileUploadResp> getFileUploadUrl(@Valid @RequestBody FileUploadReq req){
+    public ApiResult<FileUploadResp> getFileUploadUrl(@Valid @ModelAttribute FileUploadReq req){
         return ApiResult.success(signService.getFileUploadResp(req));
     }
 
@@ -58,7 +64,7 @@ public class MediaController {
         "thumbnailUploadUrl": "avatar/thumb/1948031012053333361/5/index.png"
     }
     */
-    @PostMapping("/avatar/upload-confirm")
+    @PostMapping("/user-avatar/upload-confirm")
     @Operation(summary = "确认头像上传完成，更新头像版本号")
     public ApiResult<Void> confirmAvatarUpload(@Check @Valid @RequestBody AvatarUploadConfirmReq req){
         userInfoService.confirmAvatarUpload(RequestHolder.get().getUid(), req);

@@ -26,6 +26,8 @@ import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
 import org.com.tools.utils.JwtUtil;
 import org.com.tools.utils.SecurityUtil;
+import org.com.modules.common.util.UploadSecurityUtil;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -50,6 +52,7 @@ import java.util.concurrent.TimeUnit;
 public class UserInfoServiceImpl implements UserInfoService {
     private final MinioTemplate minioTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
     private final UploadFileService uploadFileService;
     private final DownloadService downloadService;
     private final UserInfoDao userInfoDao;
@@ -63,7 +66,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     public LoginResp login(LoginReq loginReq) {
         UserInfo userInfo = userInfoDao.getByEmail(loginReq.getEmail());
         if (Objects.isNull(userInfo) || !userInfo.getPassword().equals( SecurityUtil.encode(loginReq.getPassword()) )){
-            throw new BusinessException(20003, "用户密码错误");  // TODO 错误枚举类完善
+            throw new BusinessException(20003, "用户密码错误");
         }
         if (userInfo.getStatus().equals(0)){
             throw new BusinessException(20004, "改用户已被封号处理");
@@ -171,18 +174,23 @@ public class UserInfoServiceImpl implements UserInfoService {
             Integer currentAvatarVersion = (Integer) identifier.getOrDefault(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, 1);
 
             if (avatarResidue <= 0) throw new BusinessException(20006, "头像修改次数不够");
-            if (!minioTemplate.objectExists(req.getOriginalUploadUrl()) || !minioTemplate.objectExists(req.getThumbnailUploadUrl())
-                    || UrlUtil.extractVersionFromUrl(req.getOriginalUploadUrl()) != currentAvatarVersion + 1
-            || UrlUtil.extractVersionFromUrl(req.getThumbnailUploadUrl()) != currentAvatarVersion + 1){
+
+            UploadSecurityUtil.validateUploadSecurity(req.getOriginalObject(), uid,
+                    UploadSecurityUtil.ResourceType.AVATAR, redissonClient, minioTemplate);
+            UploadSecurityUtil.validateUploadSecurity(req.getThumbnailObject(), uid,
+                    UploadSecurityUtil.ResourceType.AVATAR, redissonClient, minioTemplate);
+
+            if (UrlUtil.extractVersionFromUrl(req.getOriginalObject()) != currentAvatarVersion + 1
+                    || UrlUtil.extractVersionFromUrl(req.getThumbnailObject()) != currentAvatarVersion + 1){
                 throw new BusinessException(20007, "url 路径不合法");
-            }  // 从左到右校验，原图对象不存在、缩略图对象不存在、原图版本错误、缩略图版本错误
+            }  // 从左到右校验，原图版本错误、缩略图版本错误
 
             Map <String, Object> atomFile = downloadService.getAtomJson(String.valueOf(uid));
             residues.put(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, avatarResidue - 1);
             identifier.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
             atomFile.put(ValueConstant.DEFAULT_AVATAR_VERSION_KEY, currentAvatarVersion + 1);
-            atomFile.put(ValueConstant.DEFAULT_ORIGIN_AVATAR_URL_KRY, minioTemplate.getHost() + req.getOriginalUploadUrl());
-            atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, minioTemplate.getHost() + req.getThumbnailUploadUrl());
+            atomFile.put(ValueConstant.DEFAULT_ORIGIN_AVATAR_URL_KRY, minioTemplate.getHost() + req.getOriginalObject());
+            atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, minioTemplate.getHost() + req.getThumbnailObject());
 
             String identifierJson = JsonUtils.toStr(identifier);
             String residuesJson = JsonUtils.toStr(residues);
@@ -191,7 +199,7 @@ public class UserInfoServiceImpl implements UserInfoService {
                     .eq(UserInfo::getUserId, uid)
                     .set(UserInfo::getIdentifier, identifierJson)
                     .set(UserInfo::getResidues, residuesJson)
-                    .set(UserInfo::getAvatar, minioTemplate.getHost() + req.getOriginalUploadUrl())
+                    .set(UserInfo::getAvatar, minioTemplate.getHost() + req.getOriginalObject())
                     .update();
             userInfoDao.evictIdentifierCache(uid);
             uploadFileService.writeAtomJson(String.valueOf(uid), atomFile);
@@ -285,6 +293,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         List<SimpleUserInfo> resp = userInfoDao.getBaseInfoList(targetList);
         return new SimpleUserInfoList(resp);
     }
+
 }
 
 

@@ -12,13 +12,13 @@ public class AvatarUploadConfirmReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
-    private Long fromId;
+    private Long fromUserId;
 
     @NotNull
     @Schema(description = "原图 url")
-    private String originalUploadUrl;
+    private String originalObject;
 
     @NotNull
     @Schema(description = "缩略图 url")
-    private String thumbnailUploadUrl;
+    private String thumbnailObject;
 }

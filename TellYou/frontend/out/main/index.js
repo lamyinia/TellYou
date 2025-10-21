@@ -1540,19 +1540,19 @@ class ChannelUtil {
   }
   sendText(payload) {
     if (!this.isWsOpen()) return;
-    const fromUId = String(payload.fromUId || "");
-    const toUserId = String(payload.toUserId || "");
+    const fromUserId = String(payload.fromUId || "");
+    const targetId = String(payload.toUserId || "");
     const sessionId = String(payload.sessionId || "");
     const content = payload.content;
-    if (!fromUId || !sessionId) {
+    if (!fromUserId || !sessionId) {
       console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
       return;
     }
     const base = {
       messageId: getMessageId(),
       type: 1,
-      fromUId,
-      toUserId,
+      fromUserId,
+      targetId,
       sessionId,
       content,
       timestamp: Date.now(),
@@ -1566,7 +1566,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.messageId,
         type: 101,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     );
   }
@@ -1576,7 +1576,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.applyId,
         type: 102,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     );
   }
@@ -1586,7 +1586,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.ackId,
         type: 103,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     );
   }
@@ -1628,8 +1628,8 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["PULL_MAILBOX"] = "/message/pull-mailbox";
   Api2["ACK_CONFIRM"] = "/message/ack-confirm";
   Api2["SEARCH_USER"] = "/user-info/search-by-uid";
-  Api2["GET_AVATAR_UPLOAD_URL"] = "/media/avatar/upload-url";
-  Api2["CONFIRM_UPLOAD"] = "/media/avatar/upload-confirm";
+  Api2["GET_AVATAR_UPLOAD_URL"] = "/media/user-avatar/upload-url";
+  Api2["CONFIRM_UPLOAD"] = "/media/user-avatar/upload-confirm";
   Api2["PULL_CONTACT"] = "/contact/pull-contact";
   Api2["PULL_APPLICATION"] = "/contact/cursor-pull-application";
   Api2["GET_BASE_USER"] = "/user-info/base-info-list";

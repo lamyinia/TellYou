@@ -60,8 +60,8 @@ public class MailBoxServiceImpl implements MailBoxService {
         List<SimpleUserInfo> baseInfoLists = userInfoDao.getBaseInfoList(userIds);
         String names = baseInfoLists.stream().map(SimpleUserInfo::getNickname).collect(Collectors.joining(","));
         ChatDTO chatDTO = ChatDTO.builder()
-                .fromUid(0L)
-                .toUserId(aggregateDTO.getGroupId())
+                .fromUserId(0L)
+                .targetId(aggregateDTO.getGroupId())
                 .sessionId(aggregateDTO.getSessionId())
                 .type(aggregateDTO.getAggregateType())
                 .content(names)

@@ -44,8 +44,8 @@ public class AckConfirmConsumer implements RocketMQListener<String> {
             ChatDTO req = JSON.parseObject(text, ChatDTO.class);
             Integer type = req.getType();
             // 只有聊天消息需要 ack 确认入库
-            if (type == 101) userInBoxDocDao.ackConfirm(req.getFromUid(), req.getMessageId());
-            messageDelayQueue.deliverConfirm(req.getFromUid(), req.getMessageId(), MessageTypeEnum.of(type).getDesc());
+            if (type == 101) userInBoxDocDao.ackConfirm(req.getFromUserId(), req.getMessageId());
+            messageDelayQueue.deliverConfirm(req.getFromUserId(), req.getMessageId(), MessageTypeEnum.of(type).getDesc());
         } catch (Exception e){
             throw e;
         }

@@ -4,7 +4,7 @@ import org.com.modules.media.domain.vo.req.*;
 import org.com.modules.media.domain.vo.resp.*;
 
 public interface SignService {
-    AvatarUploadResp getAvatarUploadResp(AvatarUploadReq req);
+    AvatarUploadResp getUserAvatarUploadResp(AvatarUploadReq req);
 
     PictureUploadResp getPictureUploadResp(PictureUploadReq req);
 
@@ -21,4 +21,6 @@ public interface SignService {
     void confirmVideoUpload(VideoUploadConfirmReq req);
 
     void confirmFileUpload(FileUploadConfirmReq req);
+
+    AvatarUploadResp getGroupAvatarUploadResp(AvatarUploadReq req);
 }

@@ -18,10 +18,10 @@ public class ChatDTO implements Serializable {
     private Integer type;
 
     /** 发送者ID */
-    private Long fromUid;
+    private Long fromUserId;
 
     /** 接收者ID（单聊/群聊） */
-    private Long toUserId;
+    private Long targetId;
 
     /** 会话 id */
     private Long sessionId;

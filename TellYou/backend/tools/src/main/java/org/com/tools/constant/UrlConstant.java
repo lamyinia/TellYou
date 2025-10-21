@@ -7,6 +7,7 @@ public class UrlConstant {
     public static String originalAvatarPath = "avatar" + slash + "original" + slash;
     public static String thumbedAvatarPath = "avatar" + slash + "thumb" + slash;
     public static String staticPath = "static" + slash;
+    public static String groupAvatarPath = "group" + slash + "avatar" + slash;
     public static String stickerPath = "sticker" + slash;
     public static String videoPath = "video" + slash;
     public static String picturePath = "picture" + slash;

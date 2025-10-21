@@ -58,7 +58,7 @@ public class ChatConsumer implements RocketMQListener<String> {
         proxy.consumeMessage(req);
     }
 
-    @FlowControl(time = 10, count = 100, spEl = "#req.fromUid", target = FlowControl.Target.EL)
+    @FlowControl(time = 10, count = 100, spEl = "#req.fromUserId", target = FlowControl.Target.EL)
     public void consumeMessage(ChatDTO req) {
         log.info("ChatConsumer 正在消费消息: {}", req.toString());
 
@@ -72,10 +72,10 @@ public class ChatConsumer implements RocketMQListener<String> {
      * 用户发消息，校验用户对会话的权限，如果非法，发布异步事件通知客户端
      */
     private List<Long> getUidList(ChatDTO req) {
-        if (req.getToUserId() < 0) {
+        if (req.getTargetId() < 0) {
             return null;
         } else {
-            return List.of(req.getFromUid(), req.getToUserId());
+            return List.of(req.getFromUserId(), req.getTargetId());
         }
     }
 }

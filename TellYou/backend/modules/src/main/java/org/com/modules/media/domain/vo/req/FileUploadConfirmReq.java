@@ -12,12 +12,18 @@ public class FileUploadConfirmReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
-    private Long fromId;
+    private Long fromUserId;
+
+    @Schema(description = "目标 id")
+    private Long targetId;
+
+    @Schema(description = "联系类型")
+    private Integer contactType;
 
     @Schema(description = "会话 id")
     private Long sessionId;
 
     @NotNull
     @Schema(description = "上传的文件 url")
-    private String fileUploadUrl;
+    private String fileObject;
 }

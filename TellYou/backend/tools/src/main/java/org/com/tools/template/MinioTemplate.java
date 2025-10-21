@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -145,6 +146,79 @@ public class MinioTemplate {
     }
 
     /**
+     * 生成安全的预签名URL（带Content-Type约束）
+     * 
+     * 注意：MinIO预签名URL本身不支持文件大小限制，maxFileSize参数主要用于：
+     * 1. 参数验证和日志记录
+     * 2. 配合UploadSecurityUtil在上传确认时进行大小验证
+     * 3. 前端可根据此参数进行预检查
+     *
+     * @param path 对象路径
+     * @param contentType 强制的Content-Type
+     * @param maxFileSize 最大文件大小（字节，用于验证和日志，不直接限制上传）
+     * @param expirySeconds 过期时间（秒，最大300秒）
+     * @return 预签名URL
+     */
+    @SneakyThrows
+    public String getSecurePreSignedObjectUrl(String path, String contentType, long maxFileSize, int expirySeconds) {
+        if (StrUtil.isBlank(path)) {
+            throw new IllegalArgumentException("对象路径不能为空");
+        }
+        if (StrUtil.isBlank(contentType)) {
+            throw new IllegalArgumentException("Content-Type不能为空");
+        }
+        if (maxFileSize <= 0 || maxFileSize > 100 * 1024 * 1024) { // 最大100MB
+            throw new IllegalArgumentException("文件大小必须在1字节到100MB之间");
+        }
+        if (expirySeconds <= 0 || expirySeconds > 300) { // 最大5分钟
+            throw new IllegalArgumentException("过期时间必须在1秒到5分钟之间");
+        }
+
+        try {
+            //  使用extraHeaders强制Content-Type验证
+            Map<String, String> extraHeaders = new HashMap<>();
+            extraHeaders.put("Content-Type", contentType);
+            //  额外的查询参数用于验证
+            Map<String, String> extraQueryParams = new HashMap<>();
+            extraQueryParams.put("response-content-type", contentType);
+
+            String secureUrl = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.PUT)
+                            .bucket(minioProperties.getBucket())
+                            .object(path)
+                            .expiry(expirySeconds)
+                            .extraHeaders(extraHeaders)
+                            .extraQueryParams(extraQueryParams)
+                            .build());
+
+            log.info("生成安全预签名URL成功，路径: {}, 类型: {}, 预期大小: {}字节, 过期: {}秒 (注意: 大小限制将在上传确认时验证)",
+                    path, contentType, maxFileSize, expirySeconds);
+
+            return secureUrl;
+        } catch (Exception e) {
+            log.error("生成安全预签名URL失败，路径: {}, 类型: {}, 大小: {}",
+                     path, contentType, maxFileSize, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 获取对象统计信息
+     *
+     * @param objectName 对象名称
+     * @return 对象统计信息
+     */
+    @SneakyThrows
+    public StatObjectResponse statObject(String objectName) {
+        return minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(minioProperties.getBucket())
+                        .object(objectName)
+                        .build());
+    }
+
+    /**
      * 查询桶的对象信息
      *
      * @param bucketName 桶名
@@ -167,25 +241,6 @@ public class MinioTemplate {
         String suffix = FileNameUtil.getSuffix(req.getFileName());
         String yearAndMonth = DateUtil.format(new Date(), DatePattern.NORM_MONTH_PATTERN);
         return req.getFilePath() + StrUtil.SLASH + yearAndMonth + StrUtil.SLASH + uid + StrUtil.SLASH + uuid + StrUtil.DOT + suffix;
-    }
-
-    /**
-     * 获取带签名的临时上传元数据对象，前端可获取后，直接上传到Minio
-     *
-     * @param bucketName
-     * @param fileName
-     * @return
-     */
-    @SneakyThrows
-    public Map<String, String> getPreSignedPostFormData(String bucketName, String fileName) {
-
-        PostPolicy policy = new PostPolicy(bucketName, ZonedDateTime.now().plusDays(7));
-
-        policy.addEqualsCondition("key", fileName);
-        policy.addStartsWithCondition("Content-Type", "image/");
-        policy.addContentLengthRangeCondition(64 * 1024, 10 * 1024 * 1024);
-
-        return minioClient.getPresignedPostFormData(policy);
     }
 
     /**

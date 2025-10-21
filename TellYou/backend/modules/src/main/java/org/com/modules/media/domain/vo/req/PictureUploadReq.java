@@ -13,17 +13,20 @@ public class PictureUploadReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "发送者 id")
-    private Long fromId;
+    private Long fromUserId;
 
-    @Schema(description = "会话 id")
-    private Long sessionId;
+    @Schema(description = "目标 id")
+    private Long targetId;
+
+    @Schema(description = "单/群 聊类型")
+    private Integer contactType;
 
     @Schema(description = "文件大小")
     private Long fileSize;
 
     @NotNull(message = "文件后缀不能为空")
     @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp)$",
-            message = "头像文件格式只支持 .png, .jpg, .jpeg, .gif, .webp")
+            message = "图片文件格式只支持 .png, .jpg, .jpeg, .gif, .webp")
     @Schema(description = "文件后缀")
     private String fileSuffix;
 

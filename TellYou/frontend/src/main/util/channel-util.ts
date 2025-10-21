@@ -14,19 +14,19 @@ class ChannelUtil {
 
   public sendText(payload: Record<string, unknown>): void {
     if (!this.isWsOpen()) return
-    const fromUId = String(payload.fromUId || '')
-    const toUserId = String(payload.toUserId || '')
+    const fromUserId = String(payload.fromUId || '')
+    const targetId = String(payload.toUserId || '')
     const sessionId = String(payload.sessionId || '')
     const content = payload.content
-    if (!fromUId || !sessionId) {
+    if (!fromUserId || !sessionId) {
       console.warn('缺少必要字段 fromUId 或 sessionId，发送取消')
       return
     }
     const base = {
       messageId: getMessageId(),
       type: 1,
-      fromUId,
-      toUserId,
+      fromUserId,
+      targetId,
       sessionId,
       content,
       timestamp: Date.now(),
@@ -40,7 +40,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.messageId,
         type: 101,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     )
   }
@@ -50,7 +50,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.applyId,
         type: 102,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     )
   }
@@ -60,7 +60,7 @@ class ChannelUtil {
       JSON.stringify({
         messageId: msg.ackId,
         type: 103,
-        fromUid: store.get(uidKey)
+        fromUserId: store.get(uidKey)
       })
     )
   }

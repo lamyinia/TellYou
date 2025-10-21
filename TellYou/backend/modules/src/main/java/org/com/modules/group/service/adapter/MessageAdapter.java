@@ -42,7 +42,7 @@ public class MessageAdapter {
     public MessageDoc buildMessage(ChatDTO req) {
         Long sequenceId = mongoSessionDocDao.getAndIncrementSequenceId(req.getSessionId());
         Long currentTime = System.currentTimeMillis();
-        Map<String, Object> identifier = JsonUtils.toMap(userInfoDao.getIdentifierById(req.getFromUid()));
+        Map<String, Object> identifier = JsonUtils.toMap(userInfoDao.getIdentifierById(req.getFromUserId()));
         if (identifier != null) {
             identifier.forEach((key, value) -> {
                 req.getExtra().put(key, value);
@@ -54,7 +54,7 @@ public class MessageAdapter {
                 .clientMessageId(req.getMessageId())
                 .sequenceNumber(sequenceId)
                 .messageType(req.getType())
-                .senderId(req.getFromUid())
+                .senderId(req.getFromUserId())
                 .content(req.getContent())
                 .adjustedTimestamp(calculateAdjustedTimestamp(req.getTimestamp(), currentTime))
                 .createTime(currentTime)

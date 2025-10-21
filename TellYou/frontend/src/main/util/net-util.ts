@@ -179,11 +179,7 @@ class NetMinIO {
     this.axiosInstance = axiosInstance
   }
 
-  public async simpleUploadFile(
-    uploadUrl: string,
-    fileBuffer: Buffer,
-    mimeType: string
-  ): Promise<void> {
+  public async simpleUploadFile(uploadUrl: string, fileBuffer: Buffer, mimeType: string): Promise<void> {
     console.info('上传URL，文件大小，MIME类型:', uploadUrl, fileBuffer.length, mimeType)
     try {
       new URL(uploadUrl)
