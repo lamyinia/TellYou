@@ -14,7 +14,7 @@ public class CreateGroupReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "群主")
-    private Long fromUid;
+    private Long fromUserId;
 
     @NotBlank
     @Length(max = 30)

@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ChannelHandler.Sharable
 @RequiredArgsConstructor
-public class ProducerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
+public class ChatProducerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChannelManagerUtil channelManagerUtil;
     private final RocketMQTemplate rocketMQTemplate;
 

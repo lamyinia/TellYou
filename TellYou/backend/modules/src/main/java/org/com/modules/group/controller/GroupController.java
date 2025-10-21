@@ -59,6 +59,13 @@ public class GroupController {
         return ApiResult.success();
     }
 
+    @PutMapping("/apply-accept")
+    @Operation(summary = "管理员/群主 接受入群申请")
+    public ApiResult<Void> accept(@Check @Valid @RequestBody GroupApplyAcceptReq req){
+        groupContactService.acceptMember(req);
+        return ApiResult.success();
+    }
+
     @DeleteMapping("/dissolveGroup")
     @Operation(summary = "解散群聊")
     public ApiResult<Void> dissolveGroup(@Check @Valid @RequestBody DissolveGroupReq req){

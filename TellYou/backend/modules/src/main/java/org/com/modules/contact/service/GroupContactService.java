@@ -14,4 +14,6 @@ public interface GroupContactService {
     void addManager(AddManagerReq req);
 
     void withdrawManager(WithdrawManagerReq req);
+
+    void acceptMember(GroupApplyAcceptReq req);
 }

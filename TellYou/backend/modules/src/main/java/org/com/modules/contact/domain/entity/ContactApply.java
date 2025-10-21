@@ -25,6 +25,10 @@ public class ContactApply {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
 
+    @Schema(description = "接收者 id")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long acceptorId;
+
     @Schema(description = "联系人类型 0:好友 1:群组")
     private Integer contactType;
 

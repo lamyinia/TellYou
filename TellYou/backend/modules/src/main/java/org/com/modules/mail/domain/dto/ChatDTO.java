@@ -1,5 +1,6 @@
 package org.com.modules.mail.domain.dto;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 
@@ -7,6 +8,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
+@Builder
 @ToString
 public class ChatDTO implements Serializable {
     /** 客户端消息ID（用于幂等性或者ack确认） */

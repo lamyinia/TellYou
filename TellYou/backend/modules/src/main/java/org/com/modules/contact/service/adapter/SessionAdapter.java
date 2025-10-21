@@ -6,13 +6,17 @@ import org.com.tools.constant.ValueConstant;
 
 public class SessionAdapter {
 
-    public static Session buildDefaultFrinedSession(){
-        return Session.builder().createdAt(ValueConstant.getDefaultDate()).updatedAt(ValueConstant.getDefaultDate())
+    public static Session buildDefaultFrinedSession(Long sessionId){
+        return Session.builder()
+                .sessionId(sessionId)
+                .createdAt(ValueConstant.getDefaultDate())
+                .updatedAt(ValueConstant.getDefaultDate())
                 .sessionType(SessionTypeEnum.PRIVATE.getStatus()).build();
     }
 
-    public static Session buildDefaultGroupSession() {
+    public static Session buildDefaultGroupSession(Long sessionId) {
         return Session.builder()
+                .sessionId(sessionId)
                 .createdAt(ValueConstant.getDefaultDate())
                 .updatedAt(ValueConstant.getDefaultDate())
                 .sessionType(SessionTypeEnum.PUBLIC.getStatus())

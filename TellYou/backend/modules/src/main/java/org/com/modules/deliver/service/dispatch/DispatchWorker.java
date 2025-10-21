@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@RocketMQMessageListener(topic = MQConstant.GROUP_TOPIC, consumerGroup = MQConstant.BROADCAST_GROUP + "-${server.node}")
+@RocketMQMessageListener(topic = MQConstant.BROADCAST_TOPIC, consumerGroup = MQConstant.BROADCAST_GROUP + "-${server.node}")
 public class DispatchWorker implements RocketMQListener<SubscribedItem> {
     @Value("${server.node}")
     private String node;

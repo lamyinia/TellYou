@@ -6,8 +6,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum SessionEventEnum {
-    BUILD(1, "创建"),
-    DELETE(2, "删除");
+    BUILD_PRIVATE(1, "创建单聊"),
+    DELETE_PRIVATE(2, "删除单聊"),
+    BUILD_PUBLIC(3, "创建单聊"),
+    DELETE_PUBLIC(4, "删除单聊");
 
     private final Integer status;
     private final String sessionType;

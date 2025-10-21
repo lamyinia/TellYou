@@ -45,7 +45,7 @@ public class DispatcherService {
                 }
             });
         } else {
-            rocketMQTemplate.convertAndSend(MQConstant.GROUP_TOPIC, new SubscribedItem(uidList, resp));
+            rocketMQTemplate.convertAndSend(MQConstant.BROADCAST_TOPIC, new SubscribedItem(uidList, resp));
         }
     }
 

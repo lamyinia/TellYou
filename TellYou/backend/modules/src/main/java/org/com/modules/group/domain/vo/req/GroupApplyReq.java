@@ -14,7 +14,7 @@ public class GroupApplyReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "申请入群者 id")
-    private Long fromId;
+    private Long fromUserId;
 
     @NotNull
     @Schema(description = "群组 id")

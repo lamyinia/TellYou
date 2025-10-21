@@ -85,16 +85,15 @@ public class UserContactServiceImpl implements UserContactService {
         AssertUtil.isTrue(apply.getStatus() == ConfirmEnum.WAITING.getStatus(), "你已经接收过这个好友申请了");
 
         apply.setStatus(ConfirmEnum.ACCEPTED.getStatus());
+        apply.setAcceptorId(req.getFromUserId());
         applyDao.updateById(apply);
 
         Long uid1 = apply.getApplyUserId(), uid2 = apply.getTargetId();
 
         FriendContact contact = friendContactDao.findByBothId(uid1, uid2);
         if (contact == null) {
-            Session session = SessionAdapter.buildDefaultFrinedSession();
-            session.setSessionId(snowFlakeUtil.nextId());
+            Session session = SessionAdapter.buildDefaultFrinedSession(snowFlakeUtil.nextId());
             mongoSessionDocDao.save(session);
-
             List<FriendContact> list = FriendContactAdapter.buildFriendContact(session.getSessionId(), uid1, uid2);
             contact = new FriendContact();
             contact.setSessionId(session.getSessionId());
@@ -104,9 +103,9 @@ public class UserContactServiceImpl implements UserContactService {
             mongoSessionDocDao.updateStatus(sessionId, YesOrNoEnum.NO.getStatus());
             friendContactDao.rebuildContact(uid1, uid2);
         }
-//        if (true) throw new RuntimeException("测试错误");
-        PushedSession pushed1 = new PushedSession(contact.getSessionId(), uid1, uid2, SessionEventEnum.BUILD.getStatus(), System.currentTimeMillis());
-        PushedSession pushed2 = new PushedSession(contact.getSessionId(), uid2, uid1, SessionEventEnum.BUILD.getStatus(), System.currentTimeMillis());
+
+        PushedSession pushed1 = new PushedSession(contact.getSessionId(), uid1, uid2, SessionEventEnum.BUILD_PRIVATE.getStatus(), System.currentTimeMillis());
+        PushedSession pushed2 = new PushedSession(contact.getSessionId(), uid2, uid1, SessionEventEnum.BUILD_PRIVATE.getStatus(), System.currentTimeMillis());
 
         applicationEventPublisher.publishEvent(new ApplyEvent(this, apply, List.of(uid1, uid2)));
         applicationEventPublisher.publishEvent(new SessionEvent(this, pushed1, List.of(uid2)));  // uid2 的会话创建

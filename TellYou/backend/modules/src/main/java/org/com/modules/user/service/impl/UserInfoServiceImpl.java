@@ -175,7 +175,7 @@ public class UserInfoServiceImpl implements UserInfoService {
                     || UrlUtil.extractVersionFromUrl(req.getOriginalUploadUrl()) != currentAvatarVersion + 1
             || UrlUtil.extractVersionFromUrl(req.getThumbnailUploadUrl()) != currentAvatarVersion + 1){
                 throw new BusinessException(20007, "url 路径不合法");
-            }
+            }  // 从左到右校验，原图对象不存在、缩略图对象不存在、原图版本错误、缩略图版本错误
 
             Map <String, Object> atomFile = downloadService.getAtomJson(String.valueOf(uid));
             residues.put(ValueConstant.DEFAULT_AVATAR_RESIDUE_KEY, avatarResidue - 1);

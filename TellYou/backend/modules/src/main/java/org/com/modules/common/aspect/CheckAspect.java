@@ -19,6 +19,12 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Field;
 import java.lang.reflect.Parameter;
 
+/**
+ * 单聊、群聊权限校验切面
+ * @author lanye
+ * @date 2025/10/21 14:45
+ */
+
 @Slf4j
 @Order(1)
 @Aspect

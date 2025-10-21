@@ -17,7 +17,7 @@ public class PushedSession {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long sessionId;
 
-    @Schema(description = "目标 id")
+    @Schema(description = "对象 id (用户id、群id)")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long contactId;
 

@@ -30,6 +30,10 @@ public class PushedApply {
     @Schema(description = "联系人类型 1:好友 2:群组")
     private Integer contactType;
 
+    @Schema(description = "接收者 id")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long acceptorId;
+
     @Schema(description = "最后申请时间")
     private Date lastApplyTime;
 

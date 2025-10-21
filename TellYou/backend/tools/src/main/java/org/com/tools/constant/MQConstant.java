@@ -12,12 +12,14 @@ public class MQConstant {
      * 单聊和群聊的信息 topic
      */
     public static final String SESSION_TOPIC = "session_msg";
-    public static final String GROUP_TOPIC = "group_msg";
+    public static final String BROADCAST_TOPIC = "broadcast_msg";
     public static final String ACK_TOPIC = "ack_msg";
+    public static final String AGGREGATE_TOPIC = "aggregate_msg";
 
     public static final String SESSION_GROUP = "session-chat-consumer-group";
     public static final String BROADCAST_GROUP = "group-chat-consumer-group";
     public static final String ACK_MANAGER_GROUP = "chat-ack-consumer-group";
+    public static final String AGGREGATE_MANAGER_GROUP = "aggregate-consumer-group";
 }
 
 
