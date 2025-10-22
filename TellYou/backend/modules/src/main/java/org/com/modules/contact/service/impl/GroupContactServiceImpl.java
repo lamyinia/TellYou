@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.util.SnowFlakeUtil;
+import org.com.modules.common.util.UrlUtil;
 import org.com.modules.contact.dao.mongodb.SessionDocDao;
 import org.com.modules.contact.dao.mysql.ApplyDao;
 import org.com.modules.contact.dao.mysql.GroupContactDao;
@@ -28,6 +29,7 @@ import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.service.adapter.GroupInfoAdapter;
 import org.com.modules.mail.domain.dto.AggregateDTO;
 import org.com.modules.mail.domain.enums.MessageTypeEnum;
+import org.com.modules.media.service.minio.UploadFileService;
 import org.com.tools.constant.GroupConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
@@ -50,6 +52,7 @@ public class GroupContactServiceImpl implements GroupContactService {
     private final ApplyDao applyDao;
     private final SnowFlakeUtil snowFlakeUtil;
     private final SessionDocDao mongoSessionDocDao;
+    private final UploadFileService uploadFileService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
@@ -61,12 +64,16 @@ public class GroupContactServiceImpl implements GroupContactService {
 
         GroupInfo groupInfo = GroupInfoAdapter.buildDefaultGroup(req.getFromUserId(), session.getSessionId(), req.getName());
         groupInfoDao.save(groupInfo);
+        String avatarObjectName = UrlUtil.generateGroupAvatar(groupInfo.getId());
+        uploadFileService.writeDefaultGroupAvatar(avatarObjectName);  // 上传默认头像
+        groupInfo.setAvatar(avatarObjectName);
+        groupInfoDao.updateById(groupInfo);
 
         GroupContact groupContact = GroupContactAdapter.buildDefaultContact(req.getFromUserId(), groupInfo.getId(),
                 session.getSessionId(),GroupRoleEnum.OWNER.getRole());
         groupContactDao.save(groupContact);
 
-        PushedSession push = new PushedSession(groupInfo.getSessionId(), groupInfo.getId(), req.getFromUserId(),
+        PushedSession push = new PushedSession(groupInfo.getSessionId(), groupInfo.getId(), req.getFromUserId                      (),
                 SessionEventEnum.BUILD_PUBLIC.getStatus(), System.currentTimeMillis());
 
         applicationEventPublisher.publishEvent(new SessionEvent(this, push, List.of(req.getFromUserId())));
@@ -180,10 +187,10 @@ public class GroupContactServiceImpl implements GroupContactService {
 
         groupContactDao.assignPower(req.getFromId(), req.getGroupId(), GroupRoleEnum.NORMAL.getRole());
         groupInfoDao.updateById(group);
-        
+
         // 发布退群聚合事件
         AggregateDTO leaveAggregateDTO = new AggregateDTO(List.of(req.getFromId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
-        
+
         applicationEventPublisher.publishEvent(new AggregateEvent(this, leaveAggregateDTO));
     }
 

@@ -6,7 +6,7 @@ import log from 'electron-log'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { mediaUtil } from '@main/util/media-util'
-import { netMinIO } from '@main/util/net-util'
+import { netMaster, netMinIO } from '@main/util/net-util'
 
 export enum MediaTaskStatus {
   PENDING = 'pending',
@@ -66,35 +66,20 @@ class MediaTaskService {
   }
 
   private setupIpcHandlers(): void {
-    ipcMain.handle(
-      'media:send:start',
-      async (
-        event,
-        params: { type: MediaType, filePath: string, fileName: string, mimeType: string }
-      ) => {
+    ipcMain.handle('media:send:start', async (event, params: { type: MediaType, filePath: string, fileName: string, mimeType: string }) => {
         return this.startTask(params)
       }
     )
-    ipcMain.handle('media:send:cancel', async (event, taskId: string) => {
-      return this.cancelTask(taskId)
-    })
-    ipcMain.handle('media:send:status', async (event, taskId: string) => {
-      return this.getTaskStatus(taskId)
-    })
-    ipcMain.handle('media:send:list', async () => {
-      return this.getAllTasks()
-    })
     ipcMain.handle('avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
       try {
-        const { getUploadUrl, confirmUpload } = await import('./avatar-upload-service')
         console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
-        const uploadUrls = await getUploadUrl(fileSize, fileSuffix)
+        const uploadUrls = await netMaster.getUserAvatarUploadUrl(fileSize, fileSuffix)
         const mediaFile = await mediaUtil.getNormal(filePath)
         const originalFile = await mediaUtil.processImage(mediaFile, 'original')
         const thumbnailFile = await mediaUtil.processImage(mediaFile, 'thumb')
         await netMinIO.simpleUploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType)
         await netMinIO.simpleUploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType)
-        await confirmUpload(uploadUrls)
+        await netMaster.confirmUserAvatarUploaded(uploadUrls)
         console.log('确认上传完成头像URL:', uploadUrls.originalUploadUrl)
         return {
           success: true,
@@ -107,8 +92,7 @@ class MediaTaskService {
     })
   }
 
-  async startTask(params: { type: MediaType, filePath: string, fileName: string, mimeType: string
-  }): Promise<{ taskId: string; success: boolean; error?: string }> {
+  async startTask(params: { type: MediaType, filePath: string, fileName: string, mimeType: string }): Promise<{ taskId: string; success: boolean; error?: string }> {
     try {
       const taskId = this.generateTaskId()
       const fileStats = statSync(params.filePath)

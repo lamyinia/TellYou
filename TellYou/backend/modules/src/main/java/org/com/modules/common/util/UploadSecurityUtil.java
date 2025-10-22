@@ -73,7 +73,7 @@ public class UploadSecurityUtil {
             // 5.验证文件安全性（恶意内容检测）
             // String expectedContentType = getMimeTypeFromSuffix((String) requestInfo.get("fileSuffix"));
             // FileSecurityUtil.validateFileSecurity(bucketName, objectName, expectedContentType, minioTemplate);
-            // 5.验证成功，清理缓存
+            // 6.验证成功，清理缓存
             bucket.delete();
             log.info("{}上传安全验证通过，对象: {}, 用户: {}",
                     resourceType.getDisplayName(), objectName, userId);
@@ -184,7 +184,7 @@ public class UploadSecurityUtil {
     public static void cacheUploadRequest(String objectName, Long fileSize, String fileSuffix, Long userId, ResourceType resourceType, RedissonClient redissonClient) {
         cacheUploadRequest(objectName, fileSize, fileSuffix, userId, resourceType, null, redissonClient);
     }
-    
+
     /**
      * 缓存上传请求信息（支持额外元数据）
      *
@@ -204,7 +204,7 @@ public class UploadSecurityUtil {
         requestInfo.put("userId", userId);
         requestInfo.put("resourceType", resourceType.name());
         requestInfo.put("timestamp", System.currentTimeMillis());
-        
+
         // 语音文件特殊处理：缓存时长信息
         if (resourceType == ResourceType.VOICE && duration != null) {
             requestInfo.put("duration", duration);
@@ -217,7 +217,7 @@ public class UploadSecurityUtil {
         log.debug("缓存{}上传请求信息，对象: {}, 用户: {}, 大小: {}字节, 时长: {}秒, 缓存时间: {}分钟",
                  resourceType.getDisplayName(), objectName, userId, fileSize, duration, cacheMinutes);
     }
-    
+
     /**
      * 根据文件后缀获取MIME类型
      */

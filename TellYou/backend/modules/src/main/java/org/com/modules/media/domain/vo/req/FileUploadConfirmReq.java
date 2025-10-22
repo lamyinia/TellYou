@@ -23,6 +23,12 @@ public class FileUploadConfirmReq {
     @Schema(description = "会话 id")
     private Long sessionId;
 
+    @Schema(description = "文件名")
+    private String fileName;
+
+    @Schema(description = "文件大小")
+    private Long fileSize;
+
     @NotNull
     @Schema(description = "上传的文件 url")
     private String fileObject;

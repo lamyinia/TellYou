@@ -1,151 +1,36 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
-import MediaUpload from './MediaUpload.vue'
-import type { MediaType } from '@renderer/status/media/class'
+import { ref } from 'vue'
 
 const props = defineProps<{
   currentContact?: any
 }>()
 
-const emit = defineEmits<{
-  (e: 'sent'): void
-}>()
+const emit = defineEmits<{ (e: 'sent'): void }>()
 
-// 状态
-const activeTab = ref<'image' | 'video' | 'audio' | 'file'>('image')
-const selectedMedia = ref<
-  Array<{
-    type: MediaType
-    fileName: string
-    fileSize: number
-    originUrl: string
-    thumbnailUrl?: string
-    fileId: string
-  }>
->([])
+const selectedFiles = ref<File[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
 const error = ref<string>('')
-const isRecording = ref(false)
-const audioDuration = ref(0)
-const mediaRecorder = ref<MediaRecorder | null>(null)
-const audioChunks = ref<Blob[]>([])
-
-// 标签页配置
-const tabs = [
-  { type: 'image' as const, icon: 'iconfont icon-image', label: '图片' },
-  { type: 'video' as const, icon: 'iconfont icon-video', label: '视频' },
-  { type: 'audio' as const, icon: 'iconfont icon-mic', label: '语音' },
-  { type: 'file' as const, icon: 'iconfont icon-file', label: '文件' }
-]
-
-// 计算属性
-const canSend = computed(() => {
-  return selectedMedia.value.length > 0 && props.currentContact
-})
-
-// 处理媒体上传完成
-const handleMediaUploaded = (result: {
-  originUrl: string
-  thumbnailUrl?: string
-  fileId: string
-}) => {
-  // 这里需要从上传结果中获取文件信息
-  // 实际实现中需要从MediaUpload组件传递更多信息
-  const media = {
-    type: activeTab.value as MediaType,
-    fileName: 'uploaded_file', // 需要从上传结果获取
-    fileSize: 0, // 需要从上传结果获取
-    originUrl: result.originUrl,
-    thumbnailUrl: result.thumbnailUrl,
-    fileId: result.fileId
+const selectFiles = () => {
+  fileInput.value?.click()
+}
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  if (!files || files.length === 0) return
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    const isDuplicate = selectedFiles.value.some(
+      existingFile => existingFile.name === file.name && existingFile.size === file.size
+    )
+    if (!isDuplicate) {
+      selectedFiles.value.push(file)
+    }
   }
 
-  selectedMedia.value.push(media)
+  target.value = ''
   error.value = ''
 }
 
-// 处理上传错误
-const handleUploadError = (errorMsg: string) => {
-  error.value = errorMsg
-}
-
-// 开始录音
-const startRecording = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    mediaRecorder.value = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus'
-    })
-
-    audioChunks.value = []
-    audioDuration.value = 0
-
-    mediaRecorder.value.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.value.push(event.data)
-      }
-    }
-
-    mediaRecorder.value.onstop = () => {
-      const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' })
-      handleAudioRecorded(audioBlob)
-    }
-
-    mediaRecorder.value.start()
-    isRecording.value = true
-
-    // 开始计时
-    const timer = setInterval(() => {
-      if (isRecording.value) {
-        audioDuration.value++
-      } else {
-        clearInterval(timer)
-      }
-    }, 1000)
-  } catch (err) {
-    error.value = '无法访问麦克风'
-  }
-}
-
-// 停止录音
-const stopRecording = () => {
-  if (mediaRecorder.value && isRecording.value) {
-    mediaRecorder.value.stop()
-    isRecording.value = false
-
-    // 停止所有音频轨道
-    mediaRecorder.value.stream.getTracks().forEach((track) => track.stop())
-  }
-}
-
-// 处理录音完成
-const handleAudioRecorded = (audioBlob: Blob) => {
-  // 这里需要将音频文件上传
-  // 实际实现中需要调用媒体上传服务
-  console.log('Audio recorded:', audioBlob)
-}
-
-// 播放音频
-const playAudio = () => {
-  if (audioChunks.value.length > 0) {
-    const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' })
-    const audioUrl = URL.createObjectURL(audioBlob)
-    const audio = new Audio(audioUrl)
-    audio.play()
-  }
-}
-
-// 获取文件图标
-const getFileIcon = (type: MediaType): string => {
-  const iconMap = {
-    image: 'iconfont icon-image',
-    video: 'iconfont icon-video',
-    audio: 'iconfont icon-music',
-    file: 'iconfont icon-file'
-  }
-  return iconMap[type]
-}
-
-// 格式化文件大小
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -153,299 +38,180 @@ const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
-
-// 格式化时长
-const formatDuration = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+const removeFile = (index: number): void => {
+  selectedFiles.value.splice(index, 1)
 }
-
-// 移除媒体
-const removeMedia = (index: number) => {
-  selectedMedia.value.splice(index, 1)
-}
-
-// 清空选择
-const clearSelected = () => {
-  selectedMedia.value = []
+const clearAllFiles = (): void => {
+  selectedFiles.value = []
   error.value = ''
 }
-
-// 发送媒体
-const sendMedia = async () => {
-  if (!canSend.value) return
-
+const sendAllFiles = async (): Promise<void> => {
+  if (selectedFiles.value.length === 0) return
   try {
-    // 这里需要调用消息发送API
-    // 实际实现中需要将媒体信息发送到后端
-    console.log('Sending media:', selectedMedia.value)
+    console.log('开始发送文件:', selectedFiles.value.length, '个文件')
 
-    // 清空选择
-    clearSelected()
+    // 检查文件大小限制（例如单个文件不超过100MB）
+    const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
+    for (const file of selectedFiles.value) {
+      if (file.size > MAX_FILE_SIZE) {
+        error.value = `文件 "${file.name}" 超过大小限制（100MB）`
+        return
+      }
+    }
 
-    // 通知父组件
+    // 逐个处理文件
+    for (const file of selectedFiles.value) {
+      console.log(`处理文件: ${file.name}, 大小: ${formatFileSize(file.size)}`)
+
+      // 将文件转换为ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+
+      // 构建文件消息payload
+      console.log(file.path)
+      const filePayload = {
+        messageType: 'file',
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        fileData: Array.from(uint8Array),
+        timestamp: Date.now()
+      }
+      console.log(`发送文件消息:`, {
+        path: file.path,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      })
+
+      // 这里可以调用具体的文件发送API
+      // const success = await window.electronAPI.sendFile(filePayload)
+      // if (!success) {
+      //   throw new Error(`文件 "${file.name}" 发送失败`)
+      // }
+    }
+
+    console.log('所有文件发送完成')
+    clearAllFiles()
     emit('sent')
   } catch (err) {
     error.value = '发送失败'
+    console.error('文件发送失败:', err)
   }
 }
-
-// 清理资源
-onUnmounted(() => {
-  if (mediaRecorder.value && isRecording.value) {
-    stopRecording()
-  }
-})
 </script>
 
 <template>
   <div class="media-send-box">
-    <!-- 媒体选择区域 -->
-    <div class="media-selector">
-      <div class="selector-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.type"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.type }"
-          @click="activeTab = tab.type"
-        >
-          <i :class="tab.icon"></i>
-          <span>{{ tab.label }}</span>
-        </button>
-      </div>
-
-      <!-- 图片选择 -->
-      <div v-if="activeTab === 'image'" class="media-content">
-        <MediaUpload
-          :types="['image']"
-          :max-size="10"
-          accept="image/*"
-          @uploaded="handleMediaUploaded"
-          @error="handleUploadError"
-        />
-      </div>
-
-      <!-- 视频选择 -->
-      <div v-if="activeTab === 'video'" class="media-content">
-        <MediaUpload
-          :types="['video']"
-          :max-size="100"
-          accept="video/*"
-          @uploaded="handleMediaUploaded"
-          @error="handleUploadError"
-        />
-      </div>
-
-      <!-- 语音录制 -->
-      <div v-if="activeTab === 'audio'" class="media-content">
-        <div class="audio-recorder">
-          <button
-            class="record-btn"
-            :class="{ recording: isRecording }"
-            @mousedown="startRecording"
-            @mouseup="stopRecording"
-            @mouseleave="stopRecording"
-          >
-            <i class="iconfont icon-mic"></i>
-            <span>{{ isRecording ? '录音中...' : '按住录音' }}</span>
-          </button>
-          <div v-if="audioDuration > 0" class="audio-info">
-            <span>录音时长: {{ formatDuration(audioDuration) }}</span>
-            <button class="play-btn" @click="playAudio">
-              <i class="iconfont icon-play"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 文件选择 -->
-      <div v-if="activeTab === 'file'" class="media-content">
-        <MediaUpload
-          :types="['file']"
-          :max-size="200"
-          accept="*/*"
-          @uploaded="handleMediaUploaded"
-          @error="handleUploadError"
-        />
-      </div>
+    <div class="file-select-section">
+      <button class="select-file-btn" @click="selectFiles">
+        <i class="iconfont icon-plus"></i>
+        选择文件
+      </button>
     </div>
-
-    <!-- 预览区域 -->
-    <div v-if="selectedMedia.length > 0" class="media-preview">
+    <div v-if="selectedFiles.length > 0" class="file-preview-section">
       <div class="preview-header">
-        <span>已选择 {{ selectedMedia.length }} 个文件</span>
-        <button class="clear-btn" @click="clearSelected">
+        <span>已选择 {{ selectedFiles.length }} 个文件</span>
+        <button class="clear-btn" @click="clearAllFiles">
           <i class="iconfont icon-close"></i>
           清空
         </button>
       </div>
 
-      <div class="preview-list">
-        <div v-for="(media, index) in selectedMedia" :key="index" class="preview-item">
-          <div class="preview-thumbnail">
-            <img
-              v-if="media.type === 'image'"
-              :src="media.thumbnailUrl || media.originUrl"
-              :alt="media.fileName"
-            />
-            <div v-else class="file-icon">
-              <i :class="getFileIcon(media.type)"></i>
-            </div>
+      <div class="file-list">
+        <div v-for="(file, index) in selectedFiles" :key="index" class="file-item">
+          <div class="file-icon">
+            <i class="iconfont icon-file"></i>
           </div>
-
-          <div class="preview-info">
-            <div class="preview-name">{{ media.fileName }}</div>
-            <div class="preview-size">{{ formatFileSize(media.fileSize) }}</div>
+          <div class="file-info">
+            <div class="file-name">{{ file.name }}</div>
+            <div class="file-size">{{ formatFileSize(file.size) }}</div>
           </div>
-
-          <button class="remove-btn" @click="removeMedia(index)">
+          <button class="remove-file-btn" @click="removeFile(index)">
             <i class="iconfont icon-close"></i>
           </button>
         </div>
       </div>
     </div>
-
-    <!-- 发送按钮 -->
-    <div v-if="selectedMedia.length > 0" class="send-actions">
-      <button class="send-btn" :disabled="!canSend" @click="sendMedia">
-        <i class="iconfont icon-send"></i>
-        发送 ({{ selectedMedia.length }})
-      </button>
-    </div>
-
-    <!-- 错误提示 -->
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
+    <div v-if="selectedFiles.length > 0" class="send-section">
+      <button class="send-files-btn" @click="sendAllFiles">
+        <i class="iconfont icon-send"></i>
+        发送 {{ selectedFiles.length }} 个文件
+      </button>
+    </div>
+    <!-- 隐藏的文件输入 -->
+    <input
+      ref="fileInput"
+      type="file"
+      multiple
+      accept="*/*"
+      style="display: none"
+      @change="handleFileSelect"
+    />
   </div>
 </template>
 
 <style scoped>
 .media-send-box {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 70vh;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
-  margin: 12px 0;
+  margin: 0 24px 12px 24px;
+  z-index: 4;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.media-selector {
+.file-select-section {
   margin-bottom: 16px;
 }
 
-.selector-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  color: #bbb;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 13px;
-}
-
-.tab-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.tab-btn.active {
-  background: rgba(100, 181, 246, 0.2);
-  border-color: rgba(100, 181, 246, 0.4);
-  color: #64b5f6;
-}
-
-.media-content {
-  min-height: 120px;
+.select-file-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.audio-recorder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.record-btn {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #64b5f6, #42a5f5);
-  border: none;
-  border-radius: 24px;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(100, 181, 246, 0.1);
+  border: 2px dashed rgba(100, 181, 246, 0.3);
+  border-radius: 8px;
+  color: #64b5f6;
   font-size: 14px;
   font-weight: 500;
-}
-
-.record-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(100, 181, 246, 0.3);
-}
-
-.record-btn.recording {
-  background: linear-gradient(135deg, #f44336, #d32f2f);
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.audio-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #bbb;
-  font-size: 12px;
-}
-
-.play-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(100, 181, 246, 0.2);
-  color: #64b5f6;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.2s ease;
 }
 
-.play-btn:hover {
-  background: rgba(100, 181, 246, 0.3);
+.select-file-btn:hover {
+  background: rgba(100, 181, 246, 0.15);
+  border-color: rgba(100, 181, 246, 0.5);
+  transform: translateY(-1px);
 }
 
-.media-preview {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 16px;
+.select-file-btn i {
+  font-size: 16px;
+}
+
+/* 文件预览区域 */
+.file-preview-section {
+  margin-bottom: 16px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-header {
@@ -453,7 +219,11 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  color: #bbb;
+  padding: 0 4px;
+}
+
+.preview-header span {
+  color: #fff;
   font-size: 13px;
 }
 
@@ -463,136 +233,159 @@ onUnmounted(() => {
   gap: 4px;
   padding: 4px 8px;
   background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  border: 1px solid rgba(244, 67, 54, 0.2);
   border-radius: 4px;
   color: #f44336;
-  cursor: pointer;
   font-size: 12px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .clear-btn:hover {
-  background: rgba(244, 67, 54, 0.2);
+  background: rgba(244, 67, 54, 0.15);
 }
 
-.preview-list {
+/* 文件列表 */
+.file-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
+  padding-right: 4px;
+  min-height: 0;
 }
 
-.preview-item {
+/* 滚动条样式 */
+.file-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 181, 246, 0.5);
+  border-radius: 3px;
+}
+
+.file-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 181, 246, 0.7);
+}
+
+.file-item {
   display: flex;
   align-items: center;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-}
-
-.preview-thumbnail {
-  width: 40px;
-  height: 40px;
-  margin-right: 12px;
-  border-radius: 4px;
-  overflow: hidden;
+  gap: 12px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
-.preview-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.file-item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(100, 181, 246, 0.2);
+  border-radius: 6px;
   color: #64b5f6;
-  font-size: 18px;
 }
 
-.preview-info {
+.file-icon i {
+  font-size: 16px;
+}
+
+.file-info {
   flex: 1;
   min-width: 0;
 }
 
-.preview-name {
-  font-size: 13px;
+.file-name {
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  word-break: break-all;
 }
 
-.preview-size {
-  font-size: 11px;
+.file-size {
   color: #bbb;
-  margin-top: 2px;
+  font-size: 12px;
 }
 
-.remove-btn {
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
-  cursor: pointer;
+.remove-file-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  width: 24px;
+  height: 24px;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 4px;
+  color: #f44336;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.remove-btn:hover {
-  background: rgba(244, 67, 54, 0.3);
+.remove-file-btn:hover {
+  background: rgba(244, 67, 54, 0.2);
 }
 
-.send-actions {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.remove-file-btn i {
+  font-size: 12px;
+}
+
+/* 发送按钮区域 */
+.send-section {
+  margin-top: 16px;
   padding-top: 16px;
-  display: flex;
-  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.send-btn {
+.send-files-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  width: 100%;
+  padding: 12px 16px;
   background: linear-gradient(135deg, #64b5f6, #42a5f5);
   border: none;
-  border-radius: 20px;
+  border-radius: 8px;
   color: #fff;
-  cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.send-btn:hover:not(:disabled) {
+.send-files-btn:hover {
+  background: linear-gradient(135deg, #42a5f5, #2196f3);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(100, 181, 246, 0.3);
 }
 
-.send-btn:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: #666;
-  cursor: not-allowed;
+.send-files-btn i {
+  font-size: 16px;
 }
 
 .error-message {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
-  border-radius: 6px;
   color: #f44336;
   font-size: 12px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 6px;
 }
 </style>

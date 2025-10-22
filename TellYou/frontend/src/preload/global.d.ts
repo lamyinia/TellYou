@@ -21,31 +21,13 @@ declare global {
       addSession: (session: Session) => Promise<boolean>
       requestMessages: (sessionId: string | number, obj: Record<string, unknown>) => Promise<unknown>
       getNewerAvatar: (params: { userId: string, strategy: string, avatarUrl: string }) => Promise<string | null>
-      preloadAvatars: (params: { avatarMap: Record<string, string>, size?: number }) => Promise<boolean>
-      clearAvatarCache: (userId: string) => Promise<boolean>
-      getAvatarCacheStats: () => Promise<{ totalUsers: number, totalFiles: number, totalSize: number }>
       startMediaTask: (params: { type: string, filePath: string, fileName: string, mimeType: string }) => Promise<{ taskId: string; success: boolean; error?: string }>
-      cancelMediaTask: (taskId: string) => Promise<boolean>
-      retryMediaTask: (taskId: string) => Promise<boolean>
-      getMediaTaskStatus: (taskId: string) => Promise<any>
-      getAllMediaTasks: () => Promise<any[]>
 
       getProfileName: (userId: string) => Promise<any>
 
-      selectAvatarFile: () => Promise<{
-        filePath: string
-        fileName: string
-        fileSize: number
-        fileSuffix: string
-        mimeType: string
-        dataUrl: string
-      } | null>
-      uploadAvatar: (params: {
-        filePath: string
-        fileName: string
-        fileSize: number
-        fileSuffix: string
-      }) => Promise<{ success: boolean }>
+      selectAvatarFile: () => Promise<{ filePath: string, fileName: string, fileSize: number, fileSuffix: string, mimeType: string, dataUrl: string } | null>
+      uploadAvatar: (params: { filePath: string, fileName: string, fileSize: number, fileSuffix: string }) => Promise<{ success: boolean }>
+      getAudioStream: (constraints: any) => Promise<{ success: boolean, constraints?: any, electronVerified?: boolean, error?: string }>
     }
   }
 

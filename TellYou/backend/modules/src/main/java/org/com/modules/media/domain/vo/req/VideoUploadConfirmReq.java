@@ -23,6 +23,9 @@ public class VideoUploadConfirmReq {
     @Schema(description = "会话 id")
     private Long sessionId;
 
+    @Schema(description = "文件大小")
+    private Long fileSize;
+
     @NotNull
     @Schema(description = "上传的视频 url")
     private String fileObject;
@@ -30,4 +33,8 @@ public class VideoUploadConfirmReq {
     @NotNull
     @Schema(description = "上传的视频缩略图 url")
     private String thumbnailObject;
+
+    @NotNull
+    @Schema(description = "上传的视频时长")
+    private Integer videoDuration;
 }

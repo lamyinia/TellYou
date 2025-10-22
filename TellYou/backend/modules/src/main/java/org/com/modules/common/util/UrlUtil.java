@@ -31,8 +31,9 @@ public class UrlUtil {
     public static String getFirstThumbAvatar(String uid){
         return UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
-    public static String getGroupAvatar(String groupId){
-        return UrlConstant.groupAvatarPath + groupId + StrUtil.SLASH + "index.avif";
+    public static String generateGroupAvatar(Long groupId){
+        Long hash = System.currentTimeMillis();
+        return UrlConstant.groupAvatarPath + groupId + StrUtil.SLASH + hash + StrUtil.SLASH +"index.avif";
     }
     public static String getMimeType(String fileSuffix) {
         return switch (fileSuffix.toLowerCase()) {

@@ -23,19 +23,11 @@ if (process.contextIsolated) {
       wsSend: (msg: unknown) => ipcRenderer.invoke('websocket:send', msg),
 
       getNewerAvatar: (params: { userId: string; strategy: string; avatarUrl: string }) => ipcRenderer.invoke('avatar:get-newer', params),
-      preloadAvatars: (params: { avatarMap: Record<string, string>; size?: number }) => ipcRenderer.invoke('avatar:preload', params),
-      clearAvatarCache: (userId: string) => ipcRenderer.invoke('avatar:clear', { userId }),
-      getAvatarCacheStats: () => ipcRenderer.invoke('avatar:stats'),
-
       getProfileName: (userId: string) => ipcRenderer.invoke('profile:name:get', { userId }),
-
       startMediaTask: (params: { type: string, filePath: string, fileName: string, mimeType: string }) => ipcRenderer.invoke('media:send:start', params),
-      cancelMediaTask: (taskId: string) => ipcRenderer.invoke('media:send:cancel', taskId),
-      retryMediaTask: (taskId: string) => ipcRenderer.invoke('media:send:retry', taskId),
-      getMediaTaskStatus: (taskId: string) => ipcRenderer.invoke('media:send:status', taskId),
-      getAllMediaTasks: () => ipcRenderer.invoke('media:send:list'),
       selectAvatarFile: () => ipcRenderer.invoke('device:select-file'),
-      uploadAvatar: (params: { filePath: string, fileName: string, fileSize: number, fileSuffix: string }) => ipcRenderer.invoke('avatar:upload', params)
+      uploadAvatar: (params: { filePath: string, fileName: string, fileSize: number, fileSuffix: string }) => ipcRenderer.invoke('avatar:upload', params),
+      getAudioStream: (constraints: any) => ipcRenderer.invoke('device:get-audio-stream', constraints)
     })
   } catch (error) {
     console.error(error)

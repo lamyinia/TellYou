@@ -18,12 +18,19 @@ import java.util.Map;
 public class UploadFileService {
     private final MinioTemplate minioTemplate;
 
-    public void writeDefaultAvatar(String objectName){
-		try (InputStream inputStream = new ClassPathResource("avatar/default.avif").getInputStream()){
+    public void writeDefaultUserAvatar(String objectName){
+		try (InputStream inputStream = new ClassPathResource("avatar/user-default.avif").getInputStream()){
 			minioTemplate.putObject(objectName, inputStream, "image/avif");
 		} catch (Exception e){
-			throw new RuntimeException("上传默认头像失败", e);
+			throw new RuntimeException("上传用户默认头像失败", e);
 		}
+    }
+    public void writeDefaultGroupAvatar(String objectName){
+        try (InputStream inputStream = new ClassPathResource("avatar/group-default.avif").getInputStream()){
+            minioTemplate.putObject(objectName, inputStream, "image/avif");
+        } catch (Exception e){
+            throw new RuntimeException("上传群组默认头像失败", e);
+        }
     }
     public void writeAtomJson(String uid, Map<String, Object> data){
         uploadJsonFile(UrlConstant.staticPath, uid, JsonUtils.toStr(data));

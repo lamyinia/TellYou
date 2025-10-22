@@ -18,6 +18,16 @@ export enum Api {
   GET_BASE_GROUP = '/group/base-info-list',
   SEND_FRIEND_APPLY = '/contact/friend-apply-send',
   ACCEPT_FRIEND_APPLY = '/contact/friend-apply-accept',
+  // 媒体文件预签名URL获取接口
+  GET_PICTURE_UPLOAD_URL = '/media/picture/upload-url',
+  GET_VOICE_UPLOAD_URL = '/media/voice/upload-url',
+  GET_VIDEO_UPLOAD_URL = '/media/video/upload-url',
+  GET_FILE_UPLOAD_URL = '/media/file/upload-url',
+  // 媒体文件上传确认接口
+  CONFIRM_PICTURE_UPLOAD = '/media/picture/upload-confirm',
+  CONFIRM_VOICE_UPLOAD = '/media/voice/upload-confirm',
+  CONFIRM_VIDEO_UPLOAD = '/media/video/upload-confirm',
+  CONFIRM_FILE_UPLOAD = '/media/file/upload-confirm',
 }
 
 class ProxyService {

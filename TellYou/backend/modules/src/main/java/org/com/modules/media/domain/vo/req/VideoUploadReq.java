@@ -24,6 +24,9 @@ public class VideoUploadReq {
     @Schema(description = "文件大小")
     private Long fileSize;
 
+    @Schema(description = "视频时长")
+    private Integer videoDuration;
+
     @NotNull(message = "文件后缀不能为空")
     @Pattern(regexp = "^\\.(mp4|avi|mov|wmv|flv|mkv)$",
             message = "视频文件格式只支持 .mp4, .avi, .mov, .wmv, .flv, .mkv")

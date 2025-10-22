@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios'
 import { store } from '@main/index'
-import { tokenKey } from '@main/electron-store/key'
+import { tokenKey, uidKey } from '@main/electron-store/key'
+import { Api } from '@main/service/proxy-service'
+import urlUtil from '@main/util/url-util'
 
 type MessageType = 'error' | 'success' | 'warning'
 type MessageCallback = (() => void) | undefined
@@ -132,6 +134,125 @@ class NetMaster {
   public getAxiosInstance(): AxiosInstance {
     return this.axiosInstance
   }
+
+  public async getUserAvatarUploadUrl(fileSize: number, fileSuffix: string): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
+    const response = await this.get(Api.GET_AVATAR_UPLOAD_URL, { params: { fileSize, fileSuffix } })
+    return response.data.data
+  }
+  public async confirmUserAvatarUploaded(uploadUrls: any): Promise<any> {
+    return this.post(Api.CONFIRM_UPLOAD, {
+      fromUserId: store.get(uidKey),
+      originalUploadUrl: urlUtil.extractObjectName(uploadUrls.originalUploadUrl),
+      thumbnailUploadUrl: urlUtil.extractObjectName(uploadUrls.thumbnailUploadUrl)
+    })
+  }
+
+  // 图片上传预签名URL获取
+  public async getPictureUploadUrl(params: {fileSize: number, fileSuffix: string, messageId?: string}): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
+    const response = await this.get(Api.GET_PICTURE_UPLOAD_URL, { params })
+    return response.data.data
+  }
+
+  // 语音上传预签名URL获取
+  public async getVoiceUploadUrl(params: {fileSize: number, fileSuffix: string, duration: number, messageId?: string}): Promise<{ uploadUrl: string }> {
+    const response = await this.get(Api.GET_VOICE_UPLOAD_URL, { params })
+    return response.data.data
+  }
+
+  // 视频上传预签名URL获取
+  public async getVideoUploadUrl(params: {fileSize: number, fileSuffix: string, videoDuration: number, messageId?: string}): Promise<{ originalUploadUrl: string; previewUploadUrl: string }> {
+    const response = await this.get(Api.GET_VIDEO_UPLOAD_URL, { params })
+    return response.data.data
+  }
+
+  // 文件上传预签名URL获取
+  public async getFileUploadUrl(params: {fileSize: number, fileSuffix: string, fileName: string, messageId?: string}): Promise<{ uploadUrl: string }> {
+    const response = await this.get(Api.GET_FILE_UPLOAD_URL, { params })
+    return response.data.data
+  }
+
+  // 图片上传确认
+  public async confirmPictureUploaded(params: {uploadUrls: any, targetId: number, contactType: number, sessionId: number, messageId?: string}): Promise<any> {
+    try {
+      const response = await this.post(Api.CONFIRM_PICTURE_UPLOAD, {
+        fromUserId: store.get(uidKey),
+        targetId: params.targetId,
+        contactType: params.contactType,
+        sessionId: params.sessionId,
+        originalUploadUrl: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
+        thumbnailUploadUrl: urlUtil.extractObjectName(params.uploadUrls.thumbnailUploadUrl),
+        messageId: params.messageId
+      })
+      return response.data
+    } catch (e: any) {
+      return this.errorResponse(e)
+    }
+  }
+
+  // 语音上传确认
+  public async confirmVoiceUploaded(params: {uploadUrls: any, targetId: number, contactType: number, sessionId: number, duration: number, messageId?: string}): Promise<any> {
+    try {
+      const response = await this.post(Api.CONFIRM_VOICE_UPLOAD, {
+        fromUserId: store.get(uidKey),
+        targetId: params.targetId,
+        contactType: params.contactType,
+        sessionId: params.sessionId,
+        fileObject: urlUtil.extractObjectName(params.uploadUrls.uploadUrl),
+        duration: params.duration,
+        messageId: params.messageId
+      })
+      return response.data
+    } catch (e: any) {
+      return this.errorResponse(e)
+    }
+  }
+
+  // 视频上传确认
+  public async confirmVideoUploaded(params: {uploadUrls: any, targetId: number, contactType: number, sessionId: number, videoDuration: number, fileSize: number, messageId?: string}): Promise<any> {
+    try {
+      const response = await this.post(Api.CONFIRM_VIDEO_UPLOAD, {
+        fromUserId: store.get(uidKey),
+        targetId: params.targetId,
+        contactType: params.contactType,
+        sessionId: params.sessionId,
+        fileObject: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
+        thumbnailObject: urlUtil.extractObjectName(params.uploadUrls.previewUploadUrl),
+        videoDuration: params.videoDuration,
+        fileSize: params.fileSize,
+        messageId: params.messageId
+      })
+      return response.data
+    } catch (e: any) {
+      return this.errorResponse(e)
+    }
+  }
+
+  // 文件上传确认
+  public async confirmFileUploaded(params: {uploadUrls: any,targetId: number,contactType: number,sessionId: number,fileName: string,fileSize: number, messageId?: string}): Promise<any> {
+    try {
+      const response = await this.post(Api.CONFIRM_FILE_UPLOAD, {
+        fromUserId: store.get(uidKey),
+        targetId: params.targetId,
+        contactType: params.contactType,
+        sessionId: params.sessionId,
+        fileObject: urlUtil.extractObjectName(params.uploadUrls.uploadUrl),
+        fileName: params.fileName,
+        fileSize: params.fileSize,
+        messageId: params.messageId
+      })
+      return response.data
+    } catch (e: any) {
+      return this.errorResponse(e)
+    }
+  }
+
+  public errorResponse(e: any): any {
+    if (e?.name === 'ApiError') {
+      return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? '请求失败' }
+    }
+    return { success: false, errCode: -1, errMsg: e?.message || '网络或系统异常' }
+  }
+
 }
 minioInstance.interceptors.request.use(
   (config) => {

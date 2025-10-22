@@ -24,6 +24,9 @@ public class FileUploadReq {
     @Schema(description = "文件大小")
     private Long fileSize;
 
+    @Schema(description = "文件名")
+    private String fileName;
+
     @NotNull(message = "文件后缀不能为空")
     @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp|mp4|mp3|zip|rar|pdf|doc|docx|xls|xlsx|txt|csv|json|xml|html|css|js|java|py|js|c|cc|cpp|cs|go|rs|rb|rbx)$",
             message = "文件格式只支持 .png, .jpg, .jpeg, .gif, .webp, .mp4, .mp3, .zip, .rar")

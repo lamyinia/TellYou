@@ -213,10 +213,7 @@ export const useMessageStore = defineStore('message', () => {
     if (pageInfo.hasMore && scrollTop < config.preloadThreshold) {
       await loadOlderMessages(String(sessionId))
     }
-    if (
-      pageInfo.hasMoreNewer &&
-      scrollHeight - scrollTop - clientHeight < config.preloadThreshold
-    ) {
+    if (pageInfo.hasMoreNewer && scrollHeight - scrollTop - clientHeight < config.preloadThreshold) {
       await loadNewerMessages(String(sessionId))
     }
   }

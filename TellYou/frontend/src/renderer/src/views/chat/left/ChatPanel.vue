@@ -58,7 +58,7 @@ onMounted(async () => {
   await scrollToBottom()
 })
 
-const onSent = async (): Promise<void> => {
+const goToBottom = async (): Promise<void> => {
   await scrollToBottom()
 }
 const scrollToBottom = async (): Promise<void> => {
@@ -118,7 +118,7 @@ const onScroll = debounce(() => {
       </template>
     </div>
 
-    <MessageSendBox :current-contact="currentContact" @sent="onSent" />
+    <MessageSendBox :current-contact="currentContact" @go-bottom="goToBottom" />
   </div>
 </template>
 

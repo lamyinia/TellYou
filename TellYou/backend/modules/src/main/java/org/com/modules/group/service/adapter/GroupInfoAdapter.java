@@ -15,7 +15,7 @@ public class GroupInfoAdapter {
                 .createTime(ValueConstant.getDefaultDate())
                 .updateTime(ValueConstant.getDefaultDate())
                 .card(GroupCreatedEnum.GROUP_CARD.getMessage())
-                .avatar(GroupConstant.avatar)
+                .avatar("toBeFilled")
                 .notification(GroupCreatedEnum.GROUP_NOTIFICATION.getMessage())
                 .maxMembers(GroupConstant.DEFAULT_MAX_MEMBER_COUNT).memberCount(GroupConstant.DEFAULT_MEMBER_COUNT)
                 .joinMode(GroupJoinModeEnum.REVIEW_NEEDED.getStatus())

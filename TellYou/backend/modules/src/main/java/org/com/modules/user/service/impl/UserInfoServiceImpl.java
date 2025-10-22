@@ -114,8 +114,8 @@ public class UserInfoServiceImpl implements UserInfoService {
         atomFile.put(ValueConstant.DEFAULT_THUMB_AVATAR_URL_KEY, UrlUtil.getFirstThumbAvatar(minioTemplate.getHost(), uid));
         atomFile.put(ValueConstant.DEFAULT_NICKNAME_KEY, user.getNickName());
 
-        uploadFileService.writeDefaultAvatar(UrlUtil.getFirstOriginalAvatar(uid));
-        uploadFileService.writeDefaultAvatar(UrlUtil.getFirstThumbAvatar(uid));
+        uploadFileService.writeDefaultUserAvatar(UrlUtil.getFirstOriginalAvatar(uid));
+        uploadFileService.writeDefaultUserAvatar(UrlUtil.getFirstThumbAvatar(uid));
         uploadFileService.writeAtomJson(uid, atomFile);
     }
 

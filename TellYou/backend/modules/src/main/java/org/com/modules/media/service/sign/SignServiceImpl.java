@@ -116,7 +116,7 @@ public class SignServiceImpl implements SignService {
 
     @Override
     public FileUploadResp getFileUploadResp(FileUploadReq req) {
-        String hash = FileHashUtil.generateFileHash(req.getFromUserId(), req.getTargetId(), req.getFileSize(), "", FileHashUtil.HashStrategy.METADATA_BASED);
+        String hash = FileHashUtil.generateFileHash(req.getFromUserId(), req.getTargetId(), req.getFileSize(), req.getFileName(), FileHashUtil.HashStrategy.METADATA_BASED);
         String suffix = getOriginalFileSuffix(req.getFileSuffix());
         String contentType = UrlUtil.getMimeType(suffix);
         String object = UrlUtil.generateObjectName(MediaTypeEnum.FILE.getValue(), req.getTargetId() + "_" + req.getContactType(), hash, suffix);
@@ -247,6 +247,7 @@ public class SignServiceImpl implements SignService {
     private Message<String> buildVoiceChatDTO(VoiceUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
         map.put("fileObject", req.getFileObject());
+        map.put("duration", req.getDuration());
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_VOICE.getType() : MessageTypeEnum.GROUP_VOICE.getType();
         ChatDTO chatDTO = ChatDTO.builder()
             .fromUserId(req.getFromUserId())
@@ -261,6 +262,9 @@ public class SignServiceImpl implements SignService {
         Map<String, Object> map = new HashMap<>();
         map.put("fileObject", req.getFileObject());
         map.put("thumbnailObject", req.getThumbnailObject());
+        map.put("videoDuration", req.getVideoDuration());
+        map.put("fileSize", req.getFileSize());
+
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_VIDEO.getType() : MessageTypeEnum.GROUP_VIDEO.getType();
         ChatDTO chatDTO = ChatDTO.builder()
             .fromUserId(req.getFromUserId())
@@ -274,6 +278,9 @@ public class SignServiceImpl implements SignService {
     private Message<String> buildFileChatDTO(FileUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
         map.put("fileObject", req.getFileObject());
+        map.put("fileName", req.getFileName());
+        map.put("fileSize", req.getFileSize());
+        
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_FILE.getType() : MessageTypeEnum.GROUP_FILE.getType();
         ChatDTO chatDTO = ChatDTO.builder()
             .fromUserId(req.getFromUserId())
