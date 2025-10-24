@@ -2,7 +2,7 @@ package org.com.modules.media.service.minio;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.constant.UrlConstant;
+import org.com.tools.constant.URLConstant;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.template.domain.OssReq;
 import org.com.tools.utils.JsonUtils;
@@ -33,7 +33,7 @@ public class UploadFileService {
         }
     }
     public void writeAtomJson(String uid, Map<String, Object> data){
-        uploadJsonFile(UrlConstant.staticPath, uid, JsonUtils.toStr(data));
+        uploadJsonFile(URLConstant.staticPath, uid, JsonUtils.toStr(data));
     }
 
     /**

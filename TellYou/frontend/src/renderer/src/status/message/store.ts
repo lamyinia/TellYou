@@ -9,8 +9,8 @@ import {
 
 export const useMessageStore = defineStore('message', () => {
   const config: MessageCacheConfig = {
-    maxMessagesPerSession: 1000,
-    maxCachedSessions: 5,
+    maxMessagesPerSession: 50,
+    maxCachedSessions: 1,
     pageSize: 20,
     preloadThreshold: 10,
     cacheExpireTime: 30 * 60 * 1000
@@ -120,7 +120,7 @@ export const useMessageStore = defineStore('message', () => {
   const loadOlderMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingOlder.value) return false
     const pageInfo = pageInfoCache[String(sessionId)]
-    if (!pageInfo?.hasMore) return false
+    // if (!pageInfo?.hasMore) return false
 
     console.log('messageStore:缓存消息', pageInfo)
 
@@ -139,7 +139,8 @@ export const useMessageStore = defineStore('message', () => {
         pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMore: result.hasMore,
-          oldestMessageId: newMessages[newMessages.length - 1]?.id || null
+          oldestMessageId: newMessages[newMessages.length - 1]?.id || null,
+          newestMessageId: newMessages[0]?.id || null
         }
         return true
       } else {
@@ -156,7 +157,7 @@ export const useMessageStore = defineStore('message', () => {
   const loadNewerMessages = async (sessionId: string): Promise<boolean> => {
     if (isLoadingNewer.value) return false
     const pageInfo = pageInfoCache[String(sessionId)]
-    if (!pageInfo?.hasMoreNewer) return false
+    // if (!pageInfo?.hasMoreNewer) return false
     isLoadingNewer.value = true
     try {
       const result = (await window.electronAPI.requestMessages(sessionId, {
@@ -166,7 +167,7 @@ export const useMessageStore = defineStore('message', () => {
       })) as unknown as MessagesResponse
       if (result.messages.length > 0) {
         const currentMessages = messageCache[String(sessionId)] || []
-        const newMessages = [...result.messages, ...currentMessages]
+        const newMessages = [...result.messages.reverse(), ...currentMessages]
         if (newMessages.length > config.maxMessagesPerSession) {
           newMessages.splice(config.maxMessagesPerSession)
         }
@@ -174,6 +175,7 @@ export const useMessageStore = defineStore('message', () => {
         pageInfoCache[String(sessionId)] = {
           ...pageInfo,
           hasMoreNewer: result.hasMore,
+          oldestMessageId: newMessages[newMessages.length - 1]?.id || null,
           newestMessageId: newMessages[0]?.id || null
         }
         return true
@@ -200,7 +202,8 @@ export const useMessageStore = defineStore('message', () => {
     if (pageInfo) {
       pageInfoCache[key] = {
         ...pageInfo,
-        newestMessageId: message.id,
+        oldestMessageId: newMessages[newMessages.length - 1]?.id || null,
+        newestMessageId: newMessages[0]?.id || null,
         totalCount: pageInfo.totalCount + 1
       }
     }

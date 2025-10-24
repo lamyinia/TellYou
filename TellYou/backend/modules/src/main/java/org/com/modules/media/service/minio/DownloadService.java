@@ -2,7 +2,7 @@ package org.com.modules.media.service.minio;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.tools.constant.UrlConstant;
+import org.com.tools.constant.URLConstant;
 import org.com.tools.template.MinioTemplate;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +16,7 @@ public class DownloadService {
     private final MinioTemplate minioTemplate;
 
     public Map<String, Object> getAtomJson(String uid){
-        return downloadJsonFile(UrlConstant.staticPath, uid);
+        return downloadJsonFile(URLConstant.staticPath, uid);
     }
 
     public Map<String, Object> downloadJsonFile(String path, String fileName) {

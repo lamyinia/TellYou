@@ -2,7 +2,7 @@ package org.com.modules.common.util;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import org.com.tools.constant.UrlConstant;
+import org.com.tools.constant.URLConstant;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -20,20 +20,20 @@ public class UrlUtil {
         return Integer.parseInt(splits[splits.length-2]);
     }
     public static String getFirstOriginalAvatar(String host, String uid){
-        return host + UrlConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
+        return host + URLConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
     public static String getFirstThumbAvatar(String host, String uid){
-        return host + UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
+        return host + URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
     public static String getFirstOriginalAvatar(String uid){
-        return UrlConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
+        return URLConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
     public static String getFirstThumbAvatar(String uid){
-        return UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
+        return URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
     public static String generateGroupAvatar(Long groupId){
         Long hash = System.currentTimeMillis();
-        return UrlConstant.groupAvatarPath + groupId + StrUtil.SLASH + hash + StrUtil.SLASH +"index.avif";
+        return URLConstant.groupAvatarPath + groupId + StrUtil.SLASH + hash + StrUtil.SLASH +"index.avif";
     }
     public static String getMimeType(String fileSuffix) {
         return switch (fileSuffix.toLowerCase()) {

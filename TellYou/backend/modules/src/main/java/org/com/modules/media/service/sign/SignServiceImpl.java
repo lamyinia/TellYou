@@ -20,7 +20,7 @@ import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.entity.UserInfo;
 import org.com.modules.user.service.adapter.UserInfoAdapter;
 import org.com.tools.constant.MQConstant;
-import org.com.tools.constant.UrlConstant;
+import org.com.tools.constant.URLConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.JsonUtils;
@@ -63,9 +63,9 @@ public class SignServiceImpl implements SignService {
         String suffix2 = getThumbedImageSuffix();
 
         // /avatar/[original|thumb]/{uid}/{version}/index{extension}
-        String originalObjectName = UrlConstant.originalAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
+        String originalObjectName = URLConstant.originalAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
                 + ValueConstant.SINGLE_FILE + suffix1;
-        String thumbnailObjectName = UrlConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
+        String thumbnailObjectName = URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
                 + ValueConstant.SINGLE_FILE + suffix2;
 
         // 使用安全的预签名URL生成
@@ -280,7 +280,7 @@ public class SignServiceImpl implements SignService {
         map.put("fileObject", req.getFileObject());
         map.put("fileName", req.getFileName());
         map.put("fileSize", req.getFileSize());
-        
+
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_FILE.getType() : MessageTypeEnum.GROUP_FILE.getType();
         ChatDTO chatDTO = ChatDTO.builder()
             .fromUserId(req.getFromUserId())
