@@ -1,4 +1,4 @@
-import { insertOrIgnore, queryAll } from '../atom'
+import { insertOrIgnore, queryAll, update } from '../atom'
 import messageAdapter from '../adapter/message-adapter'
 
 type MessageQueryOptions = {
@@ -20,6 +20,7 @@ type MessageRow = {
   sendTime: string
   isRead: number
 }
+
 class MessageDao {
   public async addLocalMessage(data: any): Promise<number> {
     const changes = await insertOrIgnore('messages', data)
@@ -30,6 +31,7 @@ class MessageDao {
     )) as Array<{ id: number }>
     return rows[0].id
   }
+
   public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions
   ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
@@ -89,6 +91,28 @@ class MessageDao {
     } catch (error) {
       console.error('获取会话消息失败:', error)
       return { messages: [], hasMore: false, totalCount: 0 }
+    }
+  }
+
+  public async getExtendData(params: {id: number}): Promise<any> {
+    try {
+      const rows = (await queryAll('select ext_data from messages where id = ?', [params.id]))
+      const extDataString = rows[0]?.extData as string || '{}'
+      return JSON.parse(extDataString)
+    } catch (error) {
+      console.error('获取外部数据失败:', error)
+      return null
+    }
+  }
+
+  public async updateLocalPath(id: number, data: {originalLocalPath?: string, thumbnailLocalPath?: string}): Promise<void> {
+    try {
+      const extData = await this.getExtendData({id})
+      Object.assign(extData, data)
+      const extDataString = JSON.stringify(extData)
+      await update('messages', { extData: extDataString }, { id })
+    } catch (error) {
+      console.error('更新扩展数据失败:', error)
     }
   }
 }

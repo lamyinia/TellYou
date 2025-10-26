@@ -26,7 +26,7 @@ if (process.contextIsolated) {
       getProfileName: (userId: string) => ipcRenderer.invoke('profile:name:get', { userId }),
       startMediaTask: (params: { type: string, filePath: string, fileName: string, mimeType: string }) => ipcRenderer.invoke('media:send:start', params),
       selectAvatarFile: () => ipcRenderer.invoke('device:select-file'),
-      uploadAvatar: (params: { filePath: string, fileName: string, fileSize: number, fileSuffix: string }) => ipcRenderer.invoke('avatar:upload', params),
+      uploadAvatar: (params: { filePath: string, fileName: string, fileSize: number, fileSuffix: string }) => ipcRenderer.invoke('media:avatar:upload', params),
       getAudioStream: (constraints: any) => ipcRenderer.invoke('device:get-audio-stream', constraints)
     })
   } catch (error) {

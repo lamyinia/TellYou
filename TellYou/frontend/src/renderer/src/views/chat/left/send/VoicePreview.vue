@@ -78,20 +78,16 @@ const togglePlay = async (): Promise<void> => {
             audioElement.value?.removeEventListener('canplay', onCanPlay)
             audioElement.value?.removeEventListener('error', onError)
           }
-
           const onCanPlay = () => {
             cleanup()
             resolve(undefined)
           }
-
           const onError = (e: Event) => {
             cleanup()
             reject(new Error(`音频加载失败: ${(e.target as HTMLAudioElement)?.error?.message || '未知错误'}`))
           }
-
           audioElement.value!.addEventListener('canplay', onCanPlay, { once: true })
           audioElement.value!.addEventListener('error', onError, { once: true })
-
           audioElement.value!.load()
         })
       }

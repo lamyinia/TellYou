@@ -15,6 +15,10 @@ import { deviceService } from '@main/service/device-service'
 import { avatarCache } from '@main/cache/avatar-cache'
 import urlUtil from '@main/util/url-util'
 import proxyService from '@main/service/proxy-service'
+import voiceCache from '@main/cache/voice-cache'
+import imageCache from '@main/cache/image-cache'
+import videoCache from '@main/cache/video-cache'
+import fileCache from '@main/cache/file-cache'
 
 const Store = (__Store as any).default || __Store
 log.transports.file.level = 'debug'
@@ -103,6 +107,10 @@ const createWindow = (): void => {
 
   proxyService.beginServe()
   avatarCache.beginServe()
+  voiceCache.beginServe()
+  imageCache.beginServe()
+  videoCache.beginServe()
+  fileCache.beginServe()
   mediaTaskService.beginServe()
   jsonStoreService.beginServe()
   sessionService.beginServe()

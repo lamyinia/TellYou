@@ -4,7 +4,10 @@ import type { Session } from '@shared/types/session'
 import { useMessageStore } from '@renderer/status/message/store'
 import TextMessage from '@renderer/views/chat/left/message/TextMessage.vue'
 import ImageMessage from '@renderer/views/chat/left/message/ImageMessage.vue'
-import MessageSendBox from '@renderer/views/chat/left/message/MessageSendBox.vue'
+import VideoMessage from '@renderer/views/chat/left/message/VideoMessage.vue'
+import VoiceMessage from '@renderer/views/chat/left/message/VoiceMessage.vue'
+import FileMessage from '@renderer/views/chat/left/message/FileMessage.vue'
+import MessageSendBox from '@renderer/views/chat/left/send/MessageSendBox.vue'
 
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || '')
@@ -114,6 +117,9 @@ const onScroll = debounce(() => {
       <template v-for="msg in displayedMessages" :key="msg.id">
         <TextMessage v-if="msg.messageType === 'text'" :message="msg" />
         <ImageMessage v-else-if="msg.messageType === 'image'" :message="msg" />
+        <VideoMessage v-else-if="msg.messageType === 'video'" :message="msg" />
+        <VoiceMessage v-else-if="msg.messageType === 'voice'" :message="msg" />
+        <FileMessage v-else-if="msg.messageType === 'file'" :message="msg" />
         <TextMessage v-else :message="msg" />
       </template>
     </div>

@@ -116,7 +116,7 @@ watch(
   () => avatarStore.memoryCache.get(props.targetId + '_' +  props.showStrategy),
   async (newCacheItem) => {
     if (newCacheItem && !newCacheItem.loading && newCacheItem.localPath) {
-      console.log('avatar.vue:头像缓存更新:', newCacheItem.localPath, '版本:', newCacheItem.version)
+      console.log('avatar.vue:watch:头像缓存更新:', newCacheItem.localPath, '版本:', newCacheItem.version)
       localPath.value = newCacheItem.localPath
       forceUpdate.value ++
       await nextTick()

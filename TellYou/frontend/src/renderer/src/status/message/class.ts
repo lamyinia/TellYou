@@ -2,7 +2,7 @@ export interface ChatMessage {
   id: number
   sessionId: string
   content: string
-  messageType: 'text' | 'image' | 'file' | 'system'
+  messageType: 'text' | 'image' | 'file' | 'system' | 'voice' | 'video'
   senderId: string
   senderName: string
   avatarVersion: string

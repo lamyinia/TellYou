@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import MediaSendBox from '@renderer/components/MediaSendBox.vue'
-import VoicePreview from './VoicePreview.vue'
+import MediaSendBox from '@renderer/views/chat/left/send/MediaSendBox.vue'
+import VoicePreview from '@renderer/views/chat/left/send/VoicePreview.vue'
 import { Session } from '@shared/types/session'
 import { useUserStore } from '@main/electron-store/persist/user-store'
 
@@ -45,8 +45,8 @@ const sendMessage = async (): Promise<void> => {
     sessionId: current.sessionId,
     content: message.value
   }
-  const ok = await window.electronAPI.wsSend(payload)
-  if (ok) {
+  const success = await window.electronAPI.wsSend(payload)
+  if (success) {
     message.value = ''
     await nextTick()
     emit('goBottom')
@@ -69,13 +69,10 @@ const handleMediaSent = (): void => {
 const startRecording = async (): Promise<void> => {
   try {
     console.log('开始录制语音...')
-    
-    // 检查浏览器支持
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       error.value = '您的浏览器不支持音频录制功能'
       return
     }
-
     const audioConfig = await window.electronAPI.getAudioStream({
       audio: {
         echoCancellation: true,
@@ -91,7 +88,6 @@ const startRecording = async (): Promise<void> => {
       throw new Error(audioConfig.error || '获取音频配置失败')
     }
     console.log('Electron音频配置获取成功:', audioConfig)
-
     // 尝试获取音频流，增加权限处理
     let stream: MediaStream
     try {
@@ -107,8 +103,6 @@ const startRecording = async (): Promise<void> => {
       }
       return
     }
-
-    // 增强的音频格式兼容性检测
     const supportedMimeTypes = [
       'audio/webm;codecs=opus',
       'audio/webm;codecs=vp8,opus',
@@ -118,7 +112,6 @@ const startRecording = async (): Promise<void> => {
       'audio/ogg;codecs=opus',
       'audio/wav'
     ]
-    
     let mimeType = ''
     for (const type of supportedMimeTypes) {
       if (MediaRecorder.isTypeSupported(type)) {
@@ -127,27 +120,33 @@ const startRecording = async (): Promise<void> => {
         break
       }
     }
-    
     if (!mimeType) {
       console.warn('未找到支持的音频格式，使用默认格式')
     }
-
     mediaRecorder.value = new MediaRecorder(stream, mimeType ? { mimeType } : {})
-
     audioChunks.value = []
     audioDuration.value = 0
-
     mediaRecorder.value.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.value.push(event.data)
       }
     }
-
     mediaRecorder.value.onstop = () => {
       const audioBlob = new Blob(audioChunks.value, {
         type: mimeType || 'audio/webm'
       })
-      console.log('录制完成，音频格式:', mimeType || 'default', '大小:', audioBlob.size)
+      console.log('=== 录制完成 ===')
+      console.log('音频格式:', mimeType || 'default')
+      console.log('Blob大小:', audioBlob.size, 'bytes')
+      console.log('Blob类型:', audioBlob.type)
+      console.log('音频块数量:', audioChunks.value.length)
+      
+      // 分析第一个音频块
+      if (audioChunks.value.length > 0) {
+        console.log('第一个音频块大小:', audioChunks.value[0].size, 'bytes')
+        console.log('第一个音频块类型:', audioChunks.value[0].type)
+      }
+      
       handleAudioRecorded(audioBlob)
     }
 
@@ -202,45 +201,41 @@ const handleAudioRecorded = async (audioBlob: Blob): Promise<void> => {
 const sendVoice = async (): Promise<void> => {
   if (!previewAudioBlob.value) return
   try {
+    await window.electronAPI.invoke('test', await previewAudioBlob.value.arrayBuffer())
     // 将Blob转换为ArrayBuffer以便传输
-    const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
-    
-    const userStore = useUserStore()
-    const fromUId = userStore.myId
-    const current = props.currentContact
-    
-    if (!fromUId || !current) {
-      error.value = '发送失败：用户信息或联系人信息缺失'
-      return
-    }
-
-    // 构建语音消息payload
-    const voicePayload = {
-      fromUId,
-      toUserId: current.contactId,
-      sessionId: current.sessionId,
-      messageType: 'voice',
-      voiceData: Array.from(uint8Array), // 转换为普通数组以便序列化
-      duration: previewDuration.value,
-      mimeType: previewAudioBlob.value.type || 'audio/webm'
-    }
-    
-    console.log('发送语音消息:', {
-      size: previewAudioBlob.value.size,
-      duration: previewDuration.value,
-      type: previewAudioBlob.value.type
-    })
-    
-    // 通过WebSocket发送语音消息
-    const success = await window.electronAPI.wsSend(voicePayload)
-    
-    if (success) {
-      clearVoicePreview()
-      emit('goBottom')
-    } else {
-      error.value = '语音发送失败，请重试'
-    }
+    // const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
+    // const uint8Array = new Uint8Array(arrayBuffer)
+    // const userStore = useUserStore()
+    // const fromUId = userStore.myId
+    // const current = props.currentContact
+    // if (!fromUId || !current) {
+    //   error.value = '发送失败：用户信息或联系人信息缺失'
+    //   return
+    // }
+    // const voicePayload = {
+    //   fromUId,
+    //   toUserId: current.contactId,
+    //   sessionId: current.sessionId,
+    //   messageType: 'voice',
+    //   voiceData: Array.from(uint8Array), // 转换为普通数组以便序列化
+    //   duration: previewDuration.value,
+    //   mimeType: previewAudioBlob.value.type || 'audio/webm'
+    // }
+    // console.log('发送语音消息:', {
+    //   size: previewAudioBlob.value.size,
+    //   duration: previewDuration.value,
+    //   type: previewAudioBlob.value.type
+    // })
+    //
+    // // 通过WebSocket发送语音消息
+    // const success = await window.electronAPI.wsSend(voicePayload)
+    //
+    // if (success) {
+    //   clearVoicePreview()
+    //   emit('goBottom')
+    // } else {
+    //   error.value = '语音发送失败，请重试'
+    // }
   } catch (err) {
     error.value = '语音发送失败'
     console.error('语音发送失败:', err)

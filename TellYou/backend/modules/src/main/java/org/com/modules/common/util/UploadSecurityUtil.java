@@ -70,9 +70,10 @@ public class UploadSecurityUtil {
             validateFileSize(objectName, requestInfo, resourceType, minioTemplate);
             // 4.验证时间窗口
             validateTimeWindow(objectName, requestInfo, resourceType);
-            // 5.验证文件安全性（恶意内容检测）
-            // String expectedContentType = getMimeTypeFromSuffix((String) requestInfo.get("fileSuffix"));
-            // FileSecurityUtil.validateFileSecurity(bucketName, objectName, expectedContentType, minioTemplate);
+        /*   5.验证文件安全性（恶意内容检测），这里功能还未实现，主要是防止恶意文件后缀伪造的
+             String expectedContentType = getMimeTypeFromSuffix((String) requestInfo.get("fileSuffix"));
+             FileSecurityUtil.validateFileSecurity(bucketName, objectName, expectedContentType, minioTemplate);
+        */
             // 6.验证成功，清理缓存
             bucket.delete();
             log.info("{}上传安全验证通过，对象: {}, 用户: {}",

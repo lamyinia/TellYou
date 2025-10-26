@@ -23,7 +23,7 @@ if (process.contextIsolated) {
       getProfileName: (userId) => electron.ipcRenderer.invoke("profile:name:get", { userId }),
       startMediaTask: (params) => electron.ipcRenderer.invoke("media:send:start", params),
       selectAvatarFile: () => electron.ipcRenderer.invoke("device:select-file"),
-      uploadAvatar: (params) => electron.ipcRenderer.invoke("avatar:upload", params),
+      uploadAvatar: (params) => electron.ipcRenderer.invoke("media:avatar:upload", params),
       getAudioStream: (constraints) => electron.ipcRenderer.invoke("device:get-audio-stream", constraints)
     });
   } catch (error) {

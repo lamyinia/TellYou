@@ -21,6 +21,7 @@ class MessageService {
       return messageDao.getMessageBySessionId(String(sessionId), options)
     })
   }
+
   public async handleSingleMessage(message: any): Promise<number> {
     console.log('message-service:handle-single-message', message)
     const messageData = messageAdapter.adaptToDatabaseMessage(message)
@@ -31,6 +32,10 @@ class MessageService {
       sessionId: message.sessionId
     })
     return msgId
+  }
+
+  public async getExtendData(params: {id: number}): Promise<any> {
+    return messageDao.getExtendData(params)
   }
 }
 

@@ -9,7 +9,7 @@ import {
 
 export const useMessageStore = defineStore('message', () => {
   const config: MessageCacheConfig = {
-    maxMessagesPerSession: 50,
+    maxMessagesPerSession: 500,
     maxCachedSessions: 1,
     pageSize: 20,
     preloadThreshold: 10,

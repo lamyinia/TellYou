@@ -39,11 +39,34 @@ const icon = path.join(__dirname, "./chunks/icon-Mz5fn9fh.png");
 class UrlUtil {
   protocolHost = ["avatar", "picture", "voice", "video", "file"];
   mimeByExt = {
+    // 图片格式
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
     ".webp": "image/webp",
-    ".gif": "image/gif"
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+    // 音频格式
+    ".webm": "audio/webm",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".flac": "audio/flac",
+    // 视频格式
+    ".mp4": "video/mp4",
+    ".avi": "video/x-msvideo",
+    ".mov": "video/quicktime",
+    ".wmv": "video/x-ms-wmv",
+    ".flv": "video/x-flv",
+    ".mkv": "video/x-matroska",
+    // 其他格式
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+    ".json": "application/json",
+    ".xml": "application/xml"
   };
   nodeEnv = process.env.NODE_ENV || "production";
   homeDir = os.homedir();
@@ -104,13 +127,30 @@ class UrlUtil {
     }
   }
   //  文件自定义协议签名
-  signByApp(path2) {
-    return `tellyou://avatar?path=${encodeURIComponent(path2)}`;
+  signByApp(host, path2) {
+    return `tellyou://${host}?path=${encodeURIComponent(path2)}`;
   }
+  // 从 URL 中提取对象名称
   extractObjectName(url) {
     return new URL(url).pathname.split("/").slice(2).join("/");
   }
   // /lanye/avatar/original/1948031012053333361/6/index.png -> avatar/original/1948031012053333361/6/index.png
+  // 从 URL 中提取扩展名
+  extractExt(url) {
+    return path.extname(url);
+  }
+  // 检查文件是否存在
+  existLocalFile(url) {
+    const normalized = path.resolve(url);
+    return fs.existsSync(normalized);
+  }
+  // 确保今天目录存在
+  ensureTodayDir(host) {
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const todayPath = path.join(this.cachePaths[host], today);
+    this.ensureDir(todayPath);
+    return todayPath;
+  }
 }
 const urlUtil = new UrlUtil();
 const NON_COMPRESSIBLE_TYPES = [
@@ -713,11 +753,9 @@ const masterInstance = axios.create({
   }
 });
 const minioInstance = axios.create({
-  timeout: 30 * 1e3,
+  timeout: 30 * 1e3
   // 文件上传下载超时时间更长
-  headers: {
-    "Content-Type": "application/octet-stream"
-  }
+  // 不设置默认 Content-Type，让每个请求自己指定
 });
 class NetMaster {
   axiosInstance;
@@ -971,89 +1009,142 @@ class NetMinIO {
     });
     return response;
   }
-  async downloadImage(imageUrl) {
+  // 图片专用进度下载
+  async downloadImageWithProgress(imageUrl, options = {}) {
+    console.log("开始下载图片:", imageUrl);
+    const startTime = Date.now();
     const response = await this.axiosInstance.get(imageUrl, {
-      responseType: "blob",
+      responseType: "arraybuffer",
+      timeout: options.timeout || 3e4,
       headers: {
-        Accept: "image/*"
+        "Accept": "image/*"
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded;
+          const total = progressEvent.total;
+          const percentage = Math.round(loaded / total * 100);
+          const elapsed = (Date.now() - startTime) / 1e3;
+          const speed = elapsed > 0 ? loaded / elapsed : 0;
+          const remaining = total - loaded;
+          const timeRemaining = speed > 0 ? remaining / speed : 0;
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          });
+        }
       }
     });
+    console.log("下载响应类型:", typeof response.data, response.data?.constructor?.name);
     return response.data;
   }
-  async uploadAudio(presignedUrl, audioFile) {
-    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
-      headers: {
-        "Content-Type": audioFile.type,
-        "Content-Length": audioFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadAudio(audioUrl) {
+  // 音频专用进度下载
+  async downloadAudioWithProgress(audioUrl, options = {}) {
+    console.log("开始下载音频:", audioUrl);
+    const startTime = Date.now();
     const response = await this.axiosInstance.get(audioUrl, {
-      responseType: "blob",
+      responseType: "arraybuffer",
+      timeout: options.timeout || 3e4,
       headers: {
-        Accept: "audio/*"
+        "Accept": "audio/*"
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded;
+          const total = progressEvent.total;
+          const percentage = Math.round(loaded / total * 100);
+          const elapsed = (Date.now() - startTime) / 1e3;
+          const speed = elapsed > 0 ? loaded / elapsed : 0;
+          const remaining = total - loaded;
+          const timeRemaining = speed > 0 ? remaining / speed : 0;
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          });
+        }
       }
     });
+    console.log("音频下载响应类型:", typeof response.data, response.data?.constructor?.name);
     return response.data;
   }
-  async uploadVideo(presignedUrl, videoFile) {
-    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
-      headers: {
-        "Content-Type": videoFile.type,
-        "Content-Length": videoFile.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadVideo(videoUrl) {
+  // 视频专用进度下载
+  async downloadVideoWithProgress(videoUrl, options = {}) {
+    console.log("开始下载视频:", videoUrl);
+    const startTime = Date.now();
     const response = await this.axiosInstance.get(videoUrl, {
-      responseType: "blob",
+      responseType: "arraybuffer",
+      timeout: options.timeout || 6e4,
       headers: {
-        Accept: "video/*"
+        "Accept": "video/*"
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded;
+          const total = progressEvent.total;
+          const percentage = Math.round(loaded / total * 100);
+          const elapsed = (Date.now() - startTime) / 1e3;
+          const speed = elapsed > 0 ? loaded / elapsed : 0;
+          const remaining = total - loaded;
+          const timeRemaining = speed > 0 ? remaining / speed : 0;
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          });
+        }
       }
     });
+    console.log("视频下载响应类型:", typeof response.data, response.data?.constructor?.name);
     return response.data;
   }
-  async uploadFile(presignedUrl, file) {
-    const response = await this.axiosInstance.put(presignedUrl, file, {
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-        "Content-Length": file.size.toString()
-      }
-    });
-    return response;
-  }
-  async downloadFile(fileUrl, filename) {
+  // 文件专用进度下载
+  async downloadFileWithProgress(fileUrl, options = {}) {
+    console.log("开始下载文件:", fileUrl);
+    const startTime = Date.now();
     const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "blob",
+      responseType: "arraybuffer",
+      timeout: options.timeout || 6e4,
       headers: {
-        Accept: "*/*"
+        "Accept": "*/*"
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded;
+          const total = progressEvent.total;
+          const percentage = Math.round(loaded / total * 100);
+          const elapsed = (Date.now() - startTime) / 1e3;
+          const speed = elapsed > 0 ? loaded / elapsed : 0;
+          const remaining = total - loaded;
+          const timeRemaining = speed > 0 ? remaining / speed : 0;
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          });
+        }
       }
     });
-    const blob = response.data;
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "download";
-    link.click();
-    window.URL.revokeObjectURL(url);
-    return blob;
+    console.log("📋 下载响应头信息:", {
+      contentType: response.headers["content-type"],
+      contentLength: response.headers["content-length"],
+      allHeaders: response.headers
+    });
+    console.log("文件下载响应类型:", typeof response.data, response.data?.constructor?.name);
+    return response.data;
   }
   async downloadFileAsArrayBuffer(fileUrl, userAgent) {
     const response = await this.axiosInstance.get(fileUrl, {
       responseType: "arraybuffer",
-      headers: {
-        Accept: "*/*",
-        "User-Agent": userAgent || "TellYou-Client/1.0"
-      }
-    });
-    return response.data;
-  }
-  async downloadFileAsBlob(fileUrl, userAgent) {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: "blob",
       headers: {
         Accept: "*/*",
         "User-Agent": userAgent || "TellYou-Client/1.0"
@@ -1102,7 +1193,7 @@ class MediaTaskService {
         return this.startTask(params);
       }
     );
-    electron.ipcMain.handle("avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
+    electron.ipcMain.handle("media:avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
       try {
         console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
         const uploadUrls = await netMaster.getUserAvatarUploadUrl(fileSize, fileSuffix);
@@ -1232,39 +1323,6 @@ class MediaTaskService {
     });
   }
   async commitUpload(_task) {
-  }
-  async cancelTask(taskId) {
-    const task = this.tasks.get(taskId);
-    if (!task) return false;
-    task.status = "cancelled";
-    task.updatedAt = Date.now();
-    this.notifyRenderer("media:send:state", {
-      taskId,
-      status: task.status,
-      progress: task.progress
-    });
-    return true;
-  }
-  // 重试任务
-  async retryTask(taskId) {
-    const task = this.tasks.get(taskId);
-    if (!task) return false;
-    task.status = "pending";
-    task.progress = 0;
-    task.error = void 0;
-    task.updatedAt = Date.now();
-    this.processTask(taskId).catch((err) => {
-      log.error("Retry task failed:", err);
-    });
-    return true;
-  }
-  // 获取任务状态
-  getTaskStatus(taskId) {
-    return this.tasks.get(taskId) || null;
-  }
-  // 获取所有任务
-  getAllTasks() {
-    return Array.from(this.tasks.values());
   }
   // 通知渲染进程
   notifyRenderer(channel, data) {
@@ -1607,6 +1665,10 @@ class MessageAdapter {
           return "text";
         case 2:
           return "image";
+        case 3:
+          return "voice";
+        case 4:
+          return "video";
         case 5:
           return "file";
         default:
@@ -1694,6 +1756,26 @@ class MessageDao {
     } catch (error) {
       console.error("获取会话消息失败:", error);
       return { messages: [], hasMore: false, totalCount: 0 };
+    }
+  }
+  async getExtendData(params) {
+    try {
+      const rows = await queryAll("select ext_data from messages where id = ?", [params.id]);
+      const extDataString = rows[0]?.extData || "{}";
+      return JSON.parse(extDataString);
+    } catch (error) {
+      console.error("获取外部数据失败:", error);
+      return null;
+    }
+  }
+  async updateLocalPath(id, data) {
+    try {
+      const extData = await this.getExtendData({ id });
+      Object.assign(extData, data);
+      const extDataString = JSON.stringify(extData);
+      await update("messages", { extData: extDataString }, { id });
+    } catch (error) {
+      console.error("更新扩展数据失败:", error);
     }
   }
 }
@@ -1851,6 +1933,9 @@ class MessageService {
       sessionId: message.sessionId
     });
     return msgId;
+  }
+  async getExtendData(params) {
+    return messageDao.getExtendData(params);
   }
 }
 const messageService = new MessageService();
@@ -2225,15 +2310,87 @@ class AtomDao {
   }
 }
 const atomDao = new AtomDao();
-const test = async () => {
-  const inputPath = "D:/multi-media-material/a6d41f7da42d4c70a98b0b830a2eb968~tplv-p14lwwcsbr-7.jpg";
-  const outPutPath = "D:/multi-media-material/compress/out12.jpg";
-  return mediaUtil.getNormal(inputPath).then(async (mediaFile) => {
-    return mediaUtil.processStaticOriginal(mediaFile);
-  }).then(async (result) => {
-    console.info(result);
-    await fs.promises.writeFile(outPutPath, result.compressedBuffer);
-    console.info("压缩 jpg 文件任务完成");
+const test = async (blob) => {
+  console.log("=== 开始分析录音文件 ===");
+  console.log("接收到的ArrayBuffer大小:", blob.byteLength, "bytes");
+  const inputPath = "D:/multi-media-material/temp/input.webm";
+  const outPutPath = "D:/multi-media-material/compress/audio_compressed.webm";
+  urlUtil.ensureDir(path.dirname(inputPath));
+  const buffer = Buffer.from(blob);
+  console.log("转换后的Buffer大小:", buffer.length, "bytes");
+  await compressAudio(inputPath, outPutPath);
+};
+const compressAudio = async (inputPath, outputPath) => {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(inputPath)) {
+      reject(new Error(`输入文件不存在: ${inputPath}`));
+      return;
+    }
+    const inputStats = fs.statSync(inputPath);
+    console.log(`输入文件大小: ${(inputStats.size / 1024).toFixed(1)}KB`);
+    if (inputStats.size === 0) {
+      reject(new Error("输入文件为空"));
+      return;
+    }
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    if (fs.existsSync(outputPath)) {
+      fs.unlinkSync(outputPath);
+    }
+    console.log("开始FFmpeg压缩...");
+    console.log("输入文件:", inputPath);
+    console.log("输出文件:", outputPath);
+    ffmpeg(inputPath).audioCodec("libopus").audioBitrate("24k").audioFrequency(16e3).audioChannels(1).format("webm").outputOptions([
+      "-avoid_negative_ts",
+      "make_zero",
+      // 避免负时间戳
+      "-fflags",
+      "+genpts"
+      // 生成PTS
+    ]).on("start", (commandLine) => {
+      console.log("FFmpeg命令:", commandLine);
+    }).on("progress", (progress) => {
+      console.log("压缩进度:", progress.percent + "%");
+    }).on("end", () => {
+      console.log("FFmpeg处理完成");
+      if (!fs.existsSync(outputPath)) {
+        reject(new Error("输出文件未生成"));
+        return;
+      }
+      const outputStats = fs.statSync(outputPath);
+      console.log(`压缩后大小: ${(outputStats.size / 1024).toFixed(1)}KB`);
+      if (outputStats.size === 0) {
+        reject(new Error("输出文件为空"));
+        return;
+      }
+      const buffer = fs.readFileSync(outputPath);
+      const header = buffer.subarray(0, 4);
+      if (buffer.length >= 4) {
+        console.log("文件头字节:", Array.from(header).map((b) => "0x" + b.toString(16).padStart(2, "0")).join(" "));
+        if (header[0] === 26 && header[1] === 69 && header[2] === 223 && header[3] === 163) {
+          console.log("✅ WebM文件格式验证通过");
+          resolve();
+        } else {
+          console.error("❌ 文件头不匹配WebM格式");
+          reject(new Error("生成的文件不是有效的WebM格式"));
+        }
+      } else {
+        reject(new Error("文件太小，可能损坏"));
+      }
+    }).on("error", (err) => {
+      console.error("FFmpeg压缩失败:", err);
+      if (fs.existsSync(outputPath)) {
+        try {
+          fs.unlinkSync(outputPath);
+          console.log("已清理损坏的输出文件");
+        } catch (cleanupErr) {
+          console.error("清理文件失败:", cleanupErr);
+        }
+      }
+      reject(err);
+    }).save(outputPath);
   });
 };
 class DeviceService {
@@ -2344,13 +2501,32 @@ class DeviceService {
               echoCancellation: constraints?.audio?.echoCancellation ?? true,
               noiseSuppression: constraints?.audio?.noiseSuppression ?? true,
               autoGainControl: constraints?.audio?.autoGainControl ?? true,
-              sampleRate: constraints?.audio?.sampleRate ?? 44100,
+              // 优化音频参数以减少文件大小
+              sampleRate: constraints?.audio?.sampleRate ?? 16e3,
+              // 降低到16kHz（语音质量足够）
               channelCount: constraints?.audio?.channelCount ?? 1,
-              sampleSize: constraints?.audio?.sampleSize ?? 16
+              // 单声道
+              sampleSize: constraints?.audio?.sampleSize ?? 16,
+              // 16位采样
+              // 添加比特率限制（如果浏览器支持）
+              bitrate: constraints?.audio?.bitrate ?? 32e3,
+              // 32kbps比特率
+              // 音频编码优化
+              latency: 0.01,
+              // 低延迟
+              volume: 1
+              // 音量
             }
           },
           // 提供特殊标识，表明这是通过Electron主进程验证的
-          electronVerified: true
+          electronVerified: true,
+          // 添加录音建议配置
+          recordingOptions: {
+            mimeType: "audio/webm;codecs=opus",
+            // 使用Opus编解码器
+            audioBitsPerSecond: 128e3
+            // 32kbps比特率
+          }
         };
       } catch (error) {
         console.error("获取音频流失败:", error);
@@ -2360,9 +2536,135 @@ class DeviceService {
         };
       }
     });
-    electron.ipcMain.handle("test", (_) => {
-      test();
+    electron.ipcMain.handle("file:generate-preview", async (_, filePath) => {
+      try {
+        const path2 = require("path");
+        const ext = path2.extname(filePath).toLowerCase();
+        console.log("生成文件预览图:", filePath, "扩展名:", ext);
+        switch (ext) {
+          case ".pdf":
+            return await this.generatePdfPreview(filePath);
+          case ".docx":
+          case ".doc":
+            return await this.generateDocPreview(filePath);
+          case ".xlsx":
+          case ".xls":
+            return await this.generateExcelPreview(filePath);
+          case ".pptx":
+          case ".ppt":
+            return await this.generatePptPreview(filePath);
+          case ".txt":
+            return await this.generateTextPreview(filePath);
+          default:
+            console.log("不支持的文件类型:", ext);
+            return null;
+        }
+      } catch (error) {
+        console.error("生成文件预览图失败:", error);
+        return null;
+      }
     });
+    electron.ipcMain.handle("video:convert-to-blob", async (_, filePath) => {
+      try {
+        console.log("转换视频文件为blob:", filePath);
+        if (!fs.existsSync(filePath)) {
+          throw new Error(`文件不存在: ${filePath}`);
+        }
+        const fileBuffer = fs.readFileSync(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        let mimeType = "video/mp4";
+        switch (ext) {
+          case ".mp4":
+            mimeType = "video/mp4";
+            break;
+          case ".webm":
+            mimeType = "video/webm";
+            break;
+          case ".ogg":
+            mimeType = "video/ogg";
+            break;
+          case ".avi":
+            mimeType = "video/x-msvideo";
+            break;
+          case ".mov":
+            mimeType = "video/quicktime";
+            break;
+          default:
+            mimeType = "video/mp4";
+        }
+        const base64Data = fileBuffer.toString("base64");
+        const dataUrl = `data:${mimeType};base64,${base64Data}`;
+        console.log("视频文件转换成功，大小:", fileBuffer.length, "bytes");
+        return {
+          success: true,
+          dataUrl,
+          mimeType,
+          size: fileBuffer.length
+        };
+      } catch (error) {
+        console.error("视频文件转blob失败:", error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    });
+    electron.ipcMain.handle("test", (_, data) => {
+      test(data);
+    });
+  }
+  // PDF 预览图生成
+  async generatePdfPreview(filePath) {
+    try {
+      console.log("生成 PDF 预览图:", filePath);
+      return null;
+    } catch (error) {
+      console.error("PDF 预览图生成失败:", error);
+      return null;
+    }
+  }
+  // Word 文档预览图生成
+  async generateDocPreview(filePath) {
+    try {
+      console.log("生成 Word 预览图:", filePath);
+      return null;
+    } catch (error) {
+      console.error("Word 预览图生成失败:", error);
+      return null;
+    }
+  }
+  // Excel 预览图生成
+  async generateExcelPreview(filePath) {
+    try {
+      console.log("生成 Excel 预览图:", filePath);
+      return null;
+    } catch (error) {
+      console.error("Excel 预览图生成失败:", error);
+      return null;
+    }
+  }
+  // PowerPoint 预览图生成
+  async generatePptPreview(filePath) {
+    try {
+      console.log("生成 PowerPoint 预览图:", filePath);
+      return null;
+    } catch (error) {
+      console.error("PowerPoint 预览图生成失败:", error);
+      return null;
+    }
+  }
+  // 文本文件预览图生成
+  async generateTextPreview(filePath) {
+    try {
+      const fs2 = require("fs");
+      const content = fs2.readFileSync(filePath, "utf-8");
+      const preview = content.substring(0, 500);
+      console.log("生成文本预览:", preview.substring(0, 50) + "...");
+      return preview;
+    } catch (error) {
+      console.error("文本预览生成失败:", error);
+      return null;
+    }
   }
 }
 const deviceService = new DeviceService();
@@ -2377,7 +2679,7 @@ class AvatarCache {
         let item = this.cacheMap.get(params.userId);
         if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
           console.info("avatar:cache:seek-by-version 命中 主进程缓存");
-          return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) };
+          return { success: true, pathResult: urlUtil.signByApp("avatar", item[params.strategy].localPath) };
         } else if (fs.existsSync(this.getJsonPath(params.userId))) {
           try {
             item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), "utf-8"));
@@ -2387,7 +2689,7 @@ class AvatarCache {
               this.cacheMap.set(params.userId, item);
               return {
                 success: true,
-                pathResult: urlUtil.signByApp(item[params.strategy].localPath)
+                pathResult: urlUtil.signByApp("avatar", item[params.strategy].localPath)
               };
             }
           } catch (error) {
@@ -2403,7 +2705,7 @@ class AvatarCache {
       try {
         const filePath = await this.setNewAvatar(userId, strategy, avatarUrl);
         if (!filePath) return null;
-        return urlUtil.signByApp(filePath);
+        return urlUtil.signByApp("avatar", filePath);
       } catch (error) {
         console.error("Failed to get avatar:", error);
         return null;
@@ -2434,6 +2736,7 @@ class AvatarCache {
     this.jsonLoadingMap.set(userId, promise);
     return promise;
   }
+  // 主要业务逻辑：构造文件路径、确保文件目录存在、下载并保存头像、更新本地索引
   async setNewAvatar(userId, strategy, avatarUrl) {
     try {
       const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
@@ -2474,11 +2777,10 @@ class AvatarCache {
         try {
           item = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
         } catch {
-          item = {};
+          log.error("文件损坏");
         }
-      } else {
-        item = {};
       }
+      if (!item) item = {};
     }
     item[strategy] = { version, localPath: filePath };
     this.cacheMap.set(userId, item);
@@ -2507,6 +2809,240 @@ class AvatarCache {
   // {userData}/cache/avatar/{userId}/index.json
 }
 const avatarCache = new AvatarCache();
+class VoiceCache {
+  beginServe() {
+    electron.ipcMain.handle("voice:cache:get:original", async (event, params) => {
+      try {
+        const data = await messageDao.getExtendData(params);
+        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+          return urlUtil.signByApp("voice", data.originalLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("voice");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+        const voicePath = todayDir + "/" + fileName;
+        const voiceArrayBuffer = await netMinIO.downloadAudioWithProgress(data.originalPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "original",
+              mediaType: "voice",
+              ...progress
+            });
+          },
+          timeout: 3e4
+        });
+        const voiceBuffer = Buffer.from(voiceArrayBuffer);
+        fs.writeFileSync(voicePath, voiceBuffer);
+        await messageDao.updateLocalPath(params.id, { originalLocalPath: voicePath });
+        return urlUtil.signByApp("voice", voicePath);
+      } catch (error) {
+        console.error("下载语音失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "original",
+          mediaType: "voice",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+  }
+}
+const voiceCache = new VoiceCache();
+class ImageCache {
+  beginServe() {
+    electron.ipcMain.handle("image:cache:get:original", async (event, params) => {
+      try {
+        const data = await messageDao.getExtendData(params);
+        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+          return urlUtil.signByApp("picture", data.originalLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("picture");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+        const imagePath = todayDir + "/" + fileName;
+        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.originalPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "original",
+              mediaType: "image",
+              ...progress
+            });
+          },
+          timeout: 3e4
+        });
+        const imageBuffer = Buffer.from(imageArrayBuffer);
+        fs.writeFileSync(imagePath, imageBuffer);
+        await messageDao.updateLocalPath(params.id, { originalLocalPath: imagePath });
+        return urlUtil.signByApp("picture", imagePath);
+      } catch (error) {
+        console.error("下载原始图片失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "original",
+          mediaType: "image",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+    electron.ipcMain.handle("image:cache:get:thumbnail", async (event, params) => {
+      try {
+        log.info("image:cache:get:thumbnail开始下载", params);
+        const data = await messageDao.getExtendData(params);
+        if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
+          return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("picture");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
+        const imagePath = todayDir + "/" + fileName;
+        log.info("image:cache:get:thumbnail:下载路径", imagePath);
+        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.thumbnailPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "thumbnail",
+              mediaType: "image",
+              ...progress
+            });
+          },
+          timeout: 3e4
+        });
+        const imageBuffer = Buffer.from(imageArrayBuffer);
+        fs.writeFileSync(imagePath, imageBuffer);
+        await messageDao.updateLocalPath(params.id, { thumbnailLocalPath: imagePath });
+        return urlUtil.signByApp("picture", imagePath);
+      } catch (error) {
+        console.error("下载缩略图失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "thumbnail",
+          mediaType: "image",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+  }
+}
+const imageCache = new ImageCache();
+class VideoCache {
+  beginServe() {
+    electron.ipcMain.handle("video:cache:get:original", async (event, params) => {
+      try {
+        const data = await messageDao.getExtendData(params);
+        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+          return urlUtil.signByApp("video", data.originalLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("video");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+        const videoPath = todayDir + "/" + fileName;
+        const videoArrayBuffer = await netMinIO.downloadVideoWithProgress(data.originalPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "original",
+              mediaType: "video",
+              ...progress
+            });
+          },
+          timeout: 6e4
+        });
+        log.info("video:cache:get:original:下载成功");
+        const videoBuffer = Buffer.from(videoArrayBuffer);
+        fs.writeFileSync(videoPath, videoBuffer);
+        await messageDao.updateLocalPath(params.id, { originalLocalPath: videoPath });
+        return urlUtil.signByApp("video", videoPath);
+      } catch (error) {
+        console.error("下载原始视频失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "original",
+          mediaType: "video",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+    electron.ipcMain.handle("video:cache:get:thumbnail", async (event, params) => {
+      try {
+        const data = await messageDao.getExtendData(params);
+        if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
+          return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("picture");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
+        const imagePath = todayDir + "/" + fileName;
+        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.thumbnailPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "thumbnail",
+              mediaType: "video",
+              ...progress
+            });
+          },
+          timeout: 3e4
+        });
+        log.info("video:cache:get:thumbnail:下载成功");
+        const imageBuffer = Buffer.from(imageArrayBuffer);
+        fs.writeFileSync(imagePath, imageBuffer);
+        await messageDao.updateLocalPath(params.id, { thumbnailLocalPath: imagePath });
+        return urlUtil.signByApp("picture", imagePath);
+      } catch (error) {
+        console.error("下载视频缩略图失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "thumbnail",
+          mediaType: "video",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+  }
+}
+const videoCache = new VideoCache();
+class FileCache {
+  beginServe() {
+    electron.ipcMain.handle("file:cache:get:original", async (event, params) => {
+      try {
+        const data = await messageDao.getExtendData(params);
+        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+          return urlUtil.signByApp("file", data.originalLocalPath);
+        }
+        const todayDir = urlUtil.ensureTodayDir("file");
+        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+        const filePath = todayDir + "/" + fileName;
+        const fileArrayBuffer = await netMinIO.downloadFileWithProgress(data.originalPath, {
+          onProgress: (progress) => {
+            event.sender.send("media:download:progress", {
+              messageId: params.id,
+              type: "original",
+              mediaType: "file",
+              ...progress
+            });
+          },
+          timeout: 6e4
+        });
+        const fileBuffer = Buffer.from(fileArrayBuffer);
+        fs.writeFileSync(filePath, fileBuffer);
+        await messageDao.updateLocalPath(params.id, { originalLocalPath: filePath });
+        return urlUtil.signByApp("file", filePath);
+      } catch (error) {
+        console.error("下载文件失败:", error);
+        event.sender.send("media:download:error", {
+          messageId: params.id,
+          type: "original",
+          mediaType: "file",
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    });
+  }
+}
+const fileCache = new FileCache();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -2550,8 +3086,8 @@ electron.app.whenReady().then(() => {
   urlUtil.init();
   urlUtil.registerProtocol();
   utils.electronApp.setAppUserModelId("com.electron");
-  electron.app.on("browser-window-created", (_, window2) => {
-    utils.optimizer.watchWindowShortcuts(window2);
+  electron.app.on("browser-window-created", (_, window) => {
+    utils.optimizer.watchWindowShortcuts(window);
   });
   createWindow();
   electron.app.on("activate", function() {
@@ -2591,6 +3127,10 @@ const createWindow = () => {
   });
   proxyService.beginServe();
   avatarCache.beginServe();
+  voiceCache.beginServe();
+  imageCache.beginServe();
+  videoCache.beginServe();
+  fileCache.beginServe();
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
   sessionService.beginServe();

@@ -14,6 +14,15 @@ interface CacheItem {
   [strategy: string]: ImageInfo
 }
 
+/**
+ * 有点写复杂了，但是基本思路是没问题的
+ * 1) 获取版本号，如果版本号不过关，发请求查头像 url 地址
+ * -- 这里设计的有点问题，把获取版本号和查 url 逻辑聚合了，但需求是能满足的，耦合性有点高
+ * 2) 下载头像
+ * @author lanye
+ * @since 2025/10/24 16:49
+ */
+
 class AvatarCache {
   private cacheMap: Map<string, CacheItem> = new Map()
   private jsonLoadingMap: Map<string, Promise<Record<string, unknown>>> = new Map()
@@ -22,12 +31,12 @@ class AvatarCache {
   public beginServe(): void {
     ipcMain.handle('avatar:cache:seek-by-version',
       async (_, params: { userId: string; strategy: string; version: string }) => {
-        // 查本地json，检验版本，版本不过关，查 static/json
+        // 查本地json，检验版本，版本不过关，发网络请求获取 url
         let item = this.cacheMap.get(params.userId)
         if (item && this.checkVersion(item, params.strategy, params.version) && existsSync(item[params.strategy].localPath)) {
           // 命中主进程缓存
           console.info('avatar:cache:seek-by-version 命中 主进程缓存')
-          return { success: true, pathResult: urlUtil.signByApp(item[params.strategy].localPath) }
+          return { success: true, pathResult: urlUtil.signByApp('avatar', item[params.strategy].localPath) }
         } else if (existsSync(this.getJsonPath(params.userId))) {
           try {
             item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), 'utf-8')) as CacheItem
@@ -38,7 +47,7 @@ class AvatarCache {
               this.cacheMap.set(params.userId, item)
               return {
                 success: true,
-                pathResult: urlUtil.signByApp(item[params.strategy].localPath)
+                pathResult: urlUtil.signByApp('avatar', item[params.strategy].localPath)
               }
             }
           } catch (error) {
@@ -48,13 +57,12 @@ class AvatarCache {
         console.info('debug:downloadJson:下载元信息:  ', [urlUtil.atomPath, params.userId + '.json'].join('/'))
         const result = await this.getMetaJson(params.userId)
         return { success: false, pathResult: result[params.strategy] }
-      }
-    )
+      })
     ipcMain.handle('avatar:get-newer', async (_, { userId, strategy, avatarUrl }) => {
       try {
         const filePath = await this.setNewAvatar(userId, strategy, avatarUrl)
         if (!filePath) return null
-        return urlUtil.signByApp(filePath)
+        return urlUtil.signByApp('avatar', filePath)
       } catch (error) {
         console.error('Failed to get avatar:', error)
         return null
@@ -88,7 +96,7 @@ class AvatarCache {
     this.jsonLoadingMap.set(userId, promise)
     return promise
   }
-
+  // 主要业务逻辑：构造文件路径、确保文件目录存在、下载并保存头像、更新本地索引
   private async setNewAvatar(userId: string, strategy: string, avatarUrl: string): Promise<string | null> {
     try {
       const filePath = join(urlUtil.cachePaths['avatar'], userId, strategy, this.extractObjectFromUrl(avatarUrl))
@@ -128,12 +136,11 @@ class AvatarCache {
       if (existsSync(jsonPath)) {
         try {
           item = JSON.parse(readFileSync(jsonPath, 'utf-8')) as CacheItem
-        } catch {  //  文件可能被删除或者不存在
-          item = {} as CacheItem
+        } catch {
+          log.error('文件损坏')
         }
-      } else {
-        item = {} as CacheItem
       }
+      if (!item) item = {} as CacheItem
     }
     item[strategy] = { version: version, localPath: filePath }
     this.cacheMap.set(userId, item)

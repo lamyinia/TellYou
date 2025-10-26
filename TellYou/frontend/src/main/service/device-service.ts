@@ -120,9 +120,8 @@ class DeviceService {
     ipcMain.handle('device:get-audio-stream', async (_, constraints) => {
       try {
         console.log('开始获取音频流，约束条件:', constraints)
-        
         // 返回音频约束配置，让渲染进程使用getUserMedia
-        // 但使用Electron的特殊配置来绕过权限限制
+        // 针对语音通话优化，减少文件大小
         return {
           success: true,
           constraints: {
@@ -130,13 +129,24 @@ class DeviceService {
               echoCancellation: constraints?.audio?.echoCancellation ?? true,
               noiseSuppression: constraints?.audio?.noiseSuppression ?? true,
               autoGainControl: constraints?.audio?.autoGainControl ?? true,
-              sampleRate: constraints?.audio?.sampleRate ?? 44100,
-              channelCount: constraints?.audio?.channelCount ?? 1,
-              sampleSize: constraints?.audio?.sampleSize ?? 16
+              // 优化音频参数以减少文件大小
+              sampleRate: constraints?.audio?.sampleRate ?? 16000,  // 降低到16kHz（语音质量足够）
+              channelCount: constraints?.audio?.channelCount ?? 1,   // 单声道
+              sampleSize: constraints?.audio?.sampleSize ?? 16,      // 16位采样
+              // 添加比特率限制（如果浏览器支持）
+              bitrate: constraints?.audio?.bitrate ?? 32000,        // 32kbps比特率
+              // 音频编码优化
+              latency: 0.01,  // 低延迟
+              volume: 1.0     // 音量
             }
           },
           // 提供特殊标识，表明这是通过Electron主进程验证的
-          electronVerified: true
+          electronVerified: true,
+          // 添加录音建议配置
+          recordingOptions: {
+            mimeType: 'audio/webm;codecs=opus',  // 使用Opus编解码器
+            audioBitsPerSecond: 128000            // 32kbps比特率
+          }
         }
       } catch (error) {
         console.error('获取音频流失败:', error)
@@ -146,10 +156,165 @@ class DeviceService {
         }
       }
     })
-    
-    ipcMain.handle('test', (_) => {
-      test()
+
+    // 生成文件预览图
+    ipcMain.handle('file:generate-preview', async (_, filePath: string) => {
+      try {
+        const path = require('path')
+        const ext = path.extname(filePath).toLowerCase()
+
+        console.log('生成文件预览图:', filePath, '扩展名:', ext)
+
+        switch (ext) {
+          case '.pdf':
+            return await this.generatePdfPreview(filePath)
+          case '.docx':
+          case '.doc':
+            return await this.generateDocPreview(filePath)
+          case '.xlsx':
+          case '.xls':
+            return await this.generateExcelPreview(filePath)
+          case '.pptx':
+          case '.ppt':
+            return await this.generatePptPreview(filePath)
+          case '.txt':
+            return await this.generateTextPreview(filePath)
+          default:
+            console.log('不支持的文件类型:', ext)
+            return null
+        }
+      } catch (error) {
+        console.error('生成文件预览图失败:', error)
+        return null
+      }
     })
+
+    // 处理视频文件转blob的请求
+    ipcMain.handle('video:convert-to-blob', async (_, filePath: string) => {
+      try {
+        console.log('转换视频文件为blob:', filePath)
+        
+        // 检查文件是否存在
+        if (!fs.existsSync(filePath)) {
+          throw new Error(`文件不存在: ${filePath}`)
+        }
+        
+        // 读取文件内容
+        const fileBuffer = fs.readFileSync(filePath)
+        
+        // 获取文件扩展名来确定MIME类型
+        const ext = path.extname(filePath).toLowerCase()
+        let mimeType = 'video/mp4' // 默认
+        
+        switch (ext) {
+          case '.mp4':
+            mimeType = 'video/mp4'
+            break
+          case '.webm':
+            mimeType = 'video/webm'
+            break
+          case '.ogg':
+            mimeType = 'video/ogg'
+            break
+          case '.avi':
+            mimeType = 'video/x-msvideo'
+            break
+          case '.mov':
+            mimeType = 'video/quicktime'
+            break
+          default:
+            mimeType = 'video/mp4'
+        }
+        
+        // 转换为base64，前端可以用来创建blob URL
+        const base64Data = fileBuffer.toString('base64')
+        const dataUrl = `data:${mimeType};base64,${base64Data}`
+        
+        console.log('视频文件转换成功，大小:', fileBuffer.length, 'bytes')
+        return {
+          success: true,
+          dataUrl,
+          mimeType,
+          size: fileBuffer.length
+        }
+        
+      } catch (error) {
+        console.error('视频文件转blob失败:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    ipcMain.handle('test', (_, data: any) => {
+      test(data)
+    })
+  }
+
+  // PDF 预览图生成
+  private async generatePdfPreview(filePath: string): Promise<string | null> {
+    try {
+      // 这里可以使用 pdf-poppler 或其他 PDF 处理库
+      // 返回 Base64 编码的预览图
+      console.log('生成 PDF 预览图:', filePath)
+      // 暂时返回 null，表示不支持
+      return null
+    } catch (error) {
+      console.error('PDF 预览图生成失败:', error)
+      return null
+    }
+  }
+
+  // Word 文档预览图生成
+  private async generateDocPreview(filePath: string): Promise<string | null> {
+    try {
+      console.log('生成 Word 预览图:', filePath)
+      // 暂时返回 null，表示不支持
+      return null
+    } catch (error) {
+      console.error('Word 预览图生成失败:', error)
+      return null
+    }
+  }
+
+  // Excel 预览图生成
+  private async generateExcelPreview(filePath: string): Promise<string | null> {
+    try {
+      console.log('生成 Excel 预览图:', filePath)
+      // 暂时返回 null，表示不支持
+      return null
+    } catch (error) {
+      console.error('Excel 预览图生成失败:', error)
+      return null
+    }
+  }
+
+  // PowerPoint 预览图生成
+  private async generatePptPreview(filePath: string): Promise<string | null> {
+    try {
+      console.log('生成 PowerPoint 预览图:', filePath)
+      // 暂时返回 null，表示不支持
+      return null
+    } catch (error) {
+      console.error('PowerPoint 预览图生成失败:', error)
+      return null
+    }
+  }
+
+  // 文本文件预览图生成
+  private async generateTextPreview(filePath: string): Promise<string | null> {
+    try {
+      const fs = require('fs')
+      const content = fs.readFileSync(filePath, 'utf-8')
+      // 截取前 500 个字符作为预览
+      const preview = content.substring(0, 500)
+      console.log('生成文本预览:', preview.substring(0, 50) + '...')
+      return preview
+    } catch (error) {
+      console.error('文本预览生成失败:', error)
+      return null
+    }
   }
 }
 

@@ -57,13 +57,12 @@ public class MediaController {
         return ApiResult.success(signService.getFileUploadResp(req));
     }
 
-    /*
-    头像上传示例 ：{
+
+    /*  头像上传示例 ：{
         "fromId": 1948031012053333361,
         "originalUploadUrl": "avatar/original/1948031012053333361/5/index.png",
         "thumbnailUploadUrl": "avatar/thumb/1948031012053333361/5/index.png"
-    }
-    */
+        }   */
     @PostMapping("/user-avatar/upload-confirm")
     @Operation(summary = "确认头像上传完成，更新头像版本号")
     public ApiResult<Void> confirmAvatarUpload(@Check @Valid @RequestBody AvatarUploadConfirmReq req){

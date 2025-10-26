@@ -33,7 +33,7 @@ export interface Message {
   id: number
   sessionId: string
   content: string
-  messageType: 'text' | 'image' | 'video' | 'audio' | 'file'
+  messageType: 'text' | 'image' | 'video' | 'voice' | 'file'
   senderId: string
   senderName: string
   timestamp: Date

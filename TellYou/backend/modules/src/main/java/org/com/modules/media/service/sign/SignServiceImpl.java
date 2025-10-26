@@ -232,8 +232,8 @@ public class SignServiceImpl implements SignService {
 
     private Message<String> buildPictureChatDTO(PictureUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
-        map.put("originalObject", req.getOriginalObject());
-        map.put("thumbnailObject", req.getThumbnailObject());
+        map.put("originalPath", minioTemplate.getHost() + req.getOriginalObject());
+        map.put("thumbnailPath", minioTemplate.getHost() + req.getThumbnailObject());
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_IMAGE.getType() : MessageTypeEnum.GROUP_IMAGE.getType();
         ChatDTO chatDTO = ChatDTO.builder()
             .fromUserId(req.getFromUserId())
@@ -246,7 +246,7 @@ public class SignServiceImpl implements SignService {
     }
     private Message<String> buildVoiceChatDTO(VoiceUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
-        map.put("fileObject", req.getFileObject());
+        map.put("originalPath", minioTemplate.getHost() + req.getFileObject());
         map.put("duration", req.getDuration());
         Integer type = req.getContactType() == ContactTypeEnum.FRIEND.getStatus() ? MessageTypeEnum.PRIVATE_VOICE.getType() : MessageTypeEnum.GROUP_VOICE.getType();
         ChatDTO chatDTO = ChatDTO.builder()
@@ -260,8 +260,8 @@ public class SignServiceImpl implements SignService {
     }
     private Message<String> buildVideoChatDTO(VideoUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
-        map.put("fileObject", req.getFileObject());
-        map.put("thumbnailObject", req.getThumbnailObject());
+        map.put("originalPath", minioTemplate.getHost() + req.getFileObject());
+        map.put("thumbnailPath", minioTemplate.getHost() + req.getThumbnailObject());
         map.put("videoDuration", req.getVideoDuration());
         map.put("fileSize", req.getFileSize());
 
@@ -277,7 +277,7 @@ public class SignServiceImpl implements SignService {
     }
     private Message<String> buildFileChatDTO(FileUploadConfirmReq req){
         Map<String, Object> map = new HashMap<>();
-        map.put("fileObject", req.getFileObject());
+        map.put("originalPath", minioTemplate.getHost() + req.getFileObject());
         map.put("fileName", req.getFileName());
         map.put("fileSize", req.getFileSize());
 

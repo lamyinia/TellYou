@@ -70,7 +70,7 @@ class MediaTaskService {
         return this.startTask(params)
       }
     )
-    ipcMain.handle('avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
+    ipcMain.handle('media:avatar:upload', async (_, { filePath, fileSize, fileSuffix }) => {
       try {
         console.log('开始上传头像:', { filePath, fileSize, fileSuffix })
         const uploadUrls = await netMaster.getUserAvatarUploadUrl(fileSize, fileSuffix)
@@ -218,50 +218,6 @@ class MediaTaskService {
 
   private async commitUpload(_task: MediaTask): Promise<void> {
     // TODO
-  }
-
-  async cancelTask(taskId: string): Promise<boolean> {
-    const task = this.tasks.get(taskId)
-    if (!task) return false
-
-    task.status = MediaTaskStatus.CANCELLED
-    task.updatedAt = Date.now()
-
-    this.notifyRenderer('media:send:state', {
-      taskId,
-      status: task.status,
-      progress: task.progress
-    })
-
-    return true
-  }
-
-  // 重试任务
-  async retryTask(taskId: string): Promise<boolean> {
-    const task = this.tasks.get(taskId)
-    if (!task) return false
-
-    task.status = MediaTaskStatus.PENDING
-    task.progress = 0
-    task.error = undefined
-    task.updatedAt = Date.now()
-
-    // 重新开始处理
-    this.processTask(taskId).catch((err) => {
-      log.error('Retry task failed:', err)
-    })
-
-    return true
-  }
-
-  // 获取任务状态
-  getTaskStatus(taskId: string): MediaTask | null {
-    return this.tasks.get(taskId) || null
-  }
-
-  // 获取所有任务
-  getAllTasks(): MediaTask[] {
-    return Array.from(this.tasks.values())
   }
 
   // 通知渲染进程

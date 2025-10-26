@@ -3,14 +3,46 @@ import { app, protocol } from 'electron'
 import fs, { existsSync, mkdirSync } from 'fs'
 import os from 'os'
 
+/**
+ * 资源管理映射工具类
+ * @author lanye
+ * @since 2025/10/26 04:09
+ */
+
 class UrlUtil {
   public readonly protocolHost: string[] = ['avatar', 'picture', 'voice', 'video', 'file']
   public readonly mimeByExt: Record<string, string> = {
+    // 图片格式
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
-    '.gif': 'image/gif'
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.svg': 'image/svg+xml',
+    
+    // 音频格式
+    '.webm': 'audio/webm',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac',
+    '.flac': 'audio/flac',
+    
+    // 视频格式
+    '.mp4': 'video/mp4',
+    '.avi': 'video/x-msvideo',
+    '.mov': 'video/quicktime',
+    '.wmv': 'video/x-ms-wmv',
+    '.flv': 'video/x-flv',
+    '.mkv': 'video/x-matroska',
+    
+    // 其他格式
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.json': 'application/json',
+    '.xml': 'application/xml'
   }
 
   public nodeEnv = process.env.NODE_ENV || 'production'
@@ -49,23 +81,26 @@ class UrlUtil {
     protocol.handle('tellyou', async (request) => {
       try {
         const url = new URL(request.url)
-
+        // if (url.hostname === 'picture'){
+        // }
         if (!this.protocolHost.includes(url.hostname)) return new Response('', { status: 403 })
 
         const filePath = decodeURIComponent(url.searchParams.get('path') || '')
         const normalized = path.resolve(filePath)
-/*
-        // 因为 dev 模式，会开多个 electron 实例，不同实例的缓存路径不同，这里判断先不写了
-        const rootResolved = path.resolve(this.cacheRootPath)
-        const hasAccess =
-          normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) ||
-          normalized.toLowerCase() === rootResolved.toLowerCase()
+        // console.info('url-register', normalized)
 
-        if (!hasAccess) {
-          console.error('tellyou protocol denied:', { normalized, rootResolved })
-          return new Response('', { status: 403 })
-        }
-*/
+        /*
+                // 因为 dev 模式，会开多个 electron 实例，不同实例的缓存路径不同，这里判断先不写了
+                const rootResolved = path.resolve(this.cacheRootPath)
+                const hasAccess =
+                  normalized.toLowerCase().startsWith((rootResolved + path.sep).toLowerCase()) ||
+                  normalized.toLowerCase() === rootResolved.toLowerCase()
+
+                if (!hasAccess) {
+                  console.error('tellyou protocol denied:', { normalized, rootResolved })
+                  return new Response('', { status: 403 })
+                }
+        */
 
         const ext = path.extname(normalized).toLowerCase()
         const mime = this.mimeByExt[ext] || 'application/octet-stream'
@@ -88,12 +123,29 @@ class UrlUtil {
     }
   }
   //  文件自定义协议签名
-  public signByApp(path: string): string {
-    return `tellyou://avatar?path=${encodeURIComponent(path)}`
+  public signByApp(host: string, path: string): string {
+    return `tellyou://${host}?path=${encodeURIComponent(path)}`
   }
+  // 从 URL 中提取对象名称
   public extractObjectName(url: string): string {
     return new URL(url).pathname.split('/').slice(2).join('/')
   }  // /lanye/avatar/original/1948031012053333361/6/index.png -> avatar/original/1948031012053333361/6/index.png
+  // 从 URL 中提取扩展名
+  public extractExt(url: string): string {
+    return path.extname(url)
+  }
+  // 检查文件是否存在
+  public existLocalFile(url: string): boolean {
+    const normalized = path.resolve(url)
+    return existsSync(normalized)
+  }
+  // 确保今天目录存在
+  public ensureTodayDir(host: string): string {
+    const today = new Date().toISOString().split('T')[0]
+    const todayPath = join(this.cachePaths[host], today)
+    this.ensureDir(todayPath)
+    return todayPath
+  }
 }
 
 const urlUtil: UrlUtil = new UrlUtil()

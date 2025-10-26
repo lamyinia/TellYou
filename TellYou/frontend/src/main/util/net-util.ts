@@ -44,9 +44,7 @@ const masterInstance: AxiosInstance = axios.create({
 })
 const minioInstance: AxiosInstance = axios.create({
   timeout: 30 * 1000, // 文件上传下载超时时间更长
-  headers: {
-    'Content-Type': 'application/octet-stream'
-  }
+  // 不设置默认 Content-Type，让每个请求自己指定
 })
 
 class NetMaster {
@@ -139,6 +137,7 @@ class NetMaster {
     const response = await this.get(Api.GET_AVATAR_UPLOAD_URL, { params: { fileSize, fileSuffix } })
     return response.data.data
   }
+
   public async confirmUserAvatarUploaded(uploadUrls: any): Promise<any> {
     return this.post(Api.CONFIRM_UPLOAD, {
       fromUserId: store.get(uidKey),
@@ -146,13 +145,11 @@ class NetMaster {
       thumbnailUploadUrl: urlUtil.extractObjectName(uploadUrls.thumbnailUploadUrl)
     })
   }
-
   // 图片上传预签名URL获取
   public async getPictureUploadUrl(params: {fileSize: number, fileSuffix: string, messageId?: string}): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
     const response = await this.get(Api.GET_PICTURE_UPLOAD_URL, { params })
     return response.data.data
   }
-
   // 语音上传预签名URL获取
   public async getVoiceUploadUrl(params: {fileSize: number, fileSuffix: string, duration: number, messageId?: string}): Promise<{ uploadUrl: string }> {
     const response = await this.get(Api.GET_VOICE_UPLOAD_URL, { params })
@@ -293,6 +290,24 @@ minioInstance.interceptors.response.use(
   }
 )
 
+// 进度回调接口
+interface DownloadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+  speed?: number;
+  timeRemaining?: number;
+}
+
+type ProgressCallback = (progress: DownloadProgress) => void;
+
+interface DownloadOptions {
+  onProgress?: ProgressCallback;
+  chunkSize?: number;
+  maxConcurrent?: number;
+  timeout?: number;
+}
+
 class NetMinIO {
   private readonly axiosInstance: AxiosInstance
 
@@ -336,93 +351,156 @@ class NetMinIO {
     })
     return response
   }
-  async downloadImage(imageUrl: string): Promise<Blob> {
+
+  // 图片专用进度下载
+  async downloadImageWithProgress(imageUrl: string, options: DownloadOptions = {}): Promise<ArrayBuffer> {
+    console.log('开始下载图片:', imageUrl)
+    const startTime = Date.now()
+
     const response = await this.axiosInstance.get(imageUrl, {
-      responseType: 'blob',
+      responseType: 'arraybuffer',
+      timeout: options.timeout || 30000,
       headers: {
-        Accept: 'image/*'
+        'Accept': 'image/*'
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded
+          const total = progressEvent.total
+          const percentage = Math.round((loaded / total) * 100)
+          // 计算下载速度
+          const elapsed = (Date.now() - startTime) / 1000
+          const speed = elapsed > 0 ? loaded / elapsed : 0
+          // 预估剩余时间
+          const remaining = total - loaded
+          const timeRemaining = speed > 0 ? remaining / speed : 0
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          })
+        }
       }
     })
-    return response.data
+
+    console.log('下载响应类型:', typeof response.data, response.data?.constructor?.name)
+    return response.data  // 直接返回 ArrayBuffer
   }
-  async uploadAudio(presignedUrl: string, audioFile: File): Promise<AxiosResponse> {
-    const response = await this.axiosInstance.put(presignedUrl, audioFile, {
-      headers: {
-        'Content-Type': audioFile.type,
-        'Content-Length': audioFile.size.toString()
-      }
-    })
-    return response
-  }
-  async downloadAudio(audioUrl: string): Promise<Blob> {
+  // 音频专用进度下载
+  async downloadAudioWithProgress(audioUrl: string, options: DownloadOptions = {}): Promise<ArrayBuffer> {
+    console.log('开始下载音频:', audioUrl)
+    const startTime = Date.now()
+
     const response = await this.axiosInstance.get(audioUrl, {
-      responseType: 'blob',
+      responseType: 'arraybuffer',
+      timeout: options.timeout || 30000,
       headers: {
-        Accept: 'audio/*'
+        'Accept': 'audio/*'
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded
+          const total = progressEvent.total
+          const percentage = Math.round((loaded / total) * 100)
+          const elapsed = (Date.now() - startTime) / 1000
+          const speed = elapsed > 0 ? loaded / elapsed : 0
+          const remaining = total - loaded
+          const timeRemaining = speed > 0 ? remaining / speed : 0
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          })
+        }
       }
     })
+
+    console.log('音频下载响应类型:', typeof response.data, response.data?.constructor?.name)
     return response.data
   }
-  async uploadVideo(presignedUrl: string, videoFile: File): Promise<AxiosResponse> {
-    const response = await this.axiosInstance.put(presignedUrl, videoFile, {
-      headers: {
-        'Content-Type': videoFile.type,
-        'Content-Length': videoFile.size.toString()
-      }
-    })
-    return response
-  }
-  async downloadVideo(videoUrl: string): Promise<Blob> {
+  // 视频专用进度下载
+  async downloadVideoWithProgress(videoUrl: string, options: DownloadOptions = {}): Promise<ArrayBuffer> {
+    console.log('开始下载视频:', videoUrl)
+    const startTime = Date.now()
+
     const response = await this.axiosInstance.get(videoUrl, {
-      responseType: 'blob',
+      responseType: 'arraybuffer',
+      timeout: options.timeout || 60000,
       headers: {
-        Accept: 'video/*'
+        'Accept': 'video/*'
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded
+          const total = progressEvent.total
+          const percentage = Math.round((loaded / total) * 100)
+          const elapsed = (Date.now() - startTime) / 1000
+          const speed = elapsed > 0 ? loaded / elapsed : 0
+          const remaining = total - loaded
+          const timeRemaining = speed > 0 ? remaining / speed : 0
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          })
+        }
       }
     })
+
+    console.log('视频下载响应类型:', typeof response.data, response.data?.constructor?.name)
     return response.data
   }
-  async uploadFile(presignedUrl: string, file: File): Promise<AxiosResponse> {
-    const response = await this.axiosInstance.put(presignedUrl, file, {
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream',
-        'Content-Length': file.size.toString()
-      }
-    })
-    return response
-  }
-  async downloadFile(fileUrl: string, filename?: string): Promise<Blob> {
+  // 文件专用进度下载
+  async downloadFileWithProgress(fileUrl: string, options: DownloadOptions = {}): Promise<ArrayBuffer> {
+    console.log('开始下载文件:', fileUrl)
+    const startTime = Date.now()
+
     const response = await this.axiosInstance.get(fileUrl, {
-      responseType: 'blob',
+      responseType: 'arraybuffer',
+      timeout: options.timeout || 60000,
       headers: {
-        Accept: '*/*'
+        'Accept': '*/*'
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (options.onProgress && progressEvent.total) {
+          const loaded = progressEvent.loaded
+          const total = progressEvent.total
+          const percentage = Math.round((loaded / total) * 100)
+          const elapsed = (Date.now() - startTime) / 1000
+          const speed = elapsed > 0 ? loaded / elapsed : 0
+          const remaining = total - loaded
+          const timeRemaining = speed > 0 ? remaining / speed : 0
+          options.onProgress({
+            loaded,
+            total,
+            percentage,
+            speed: Math.round(speed),
+            timeRemaining: Math.round(timeRemaining)
+          })
+        }
       }
     })
-
-    const blob = response.data
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename || 'download'
-    link.click()
-    window.URL.revokeObjectURL(url)
-
-    return blob
+    
+    // 调试响应头信息
+    console.log('📋 下载响应头信息:', {
+      contentType: response.headers['content-type'],
+      contentLength: response.headers['content-length'],
+      allHeaders: response.headers
+    })
+    console.log('文件下载响应类型:', typeof response.data, response.data?.constructor?.name)
+    
+    return response.data
   }
 
   async downloadFileAsArrayBuffer(fileUrl: string, userAgent?: string): Promise<ArrayBuffer> {
     const response = await this.axiosInstance.get(fileUrl, {
       responseType: 'arraybuffer',
-      headers: {
-        Accept: '*/*',
-        'User-Agent': userAgent || 'TellYou-Client/1.0'
-      }
-    })
-    return response.data
-  }
-
-  async downloadFileAsBlob(fileUrl: string, userAgent?: string): Promise<Blob> {
-    const response = await this.axiosInstance.get(fileUrl, {
-      responseType: 'blob',
       headers: {
         Accept: '*/*',
         'User-Agent': userAgent || 'TellYou-Client/1.0'
@@ -445,7 +523,6 @@ class NetMinIO {
     return response.data
   }
 
-
   getAxiosInstance(): AxiosInstance {
     return this.axiosInstance
   }
@@ -455,4 +532,4 @@ const netMaster = new NetMaster(masterInstance)
 const netMinIO = new NetMinIO(minioInstance)
 
 export { netMaster, netMinIO }
-export type { ApiResponse, ApiError }
+export type { ApiResponse, ApiError, DownloadProgress, ProgressCallback, DownloadOptions }
