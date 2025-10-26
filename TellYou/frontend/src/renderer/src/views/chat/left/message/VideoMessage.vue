@@ -5,7 +5,6 @@ import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Avatar from '@renderer/components/Avatar.vue'
 import NickName from '@renderer/components/NickName.vue'
 import { mediaDownloadManager, type DownloadState } from '@renderer/utils/media-download-manager'
-// 暂时使用原生HTML5 video元素，避免vue3-video-play导入问题
 
 const props = defineProps<{ message: ChatMessage }>()
 const userStore = useUserStore()
@@ -25,37 +24,26 @@ let unsubscribe: (() => void) | null = null
 // 将自定义协议URL转换为Blob URL供HTML5 video使用
 const convertCustomProtocolUrl = async (customUrl: string): Promise<string> => {
   console.log('处理自定义协议URL:', customUrl)
-  
-  // 如果不是自定义协议，直接返回
   if (!customUrl.startsWith('tellyou://')) {
     return customUrl
   }
-
   try {
-    // HTML5 video无法直接处理tellyou://协议，需要转换为blob URL
     console.log('通过fetch获取tellyou协议内容:', customUrl)
-    
-    // 使用fetch获取tellyou协议的内容（Electron会通过协议处理器处理）
     const response = await fetch(customUrl)
     if (!response.ok) {
       throw new Error(`获取视频失败: ${response.status}`)
     }
-    
-    // 转换为blob
     const blob = await response.blob()
     const blobUrl = URL.createObjectURL(blob)
-    
     console.log('成功转换为blob URL:', blobUrl)
     return blobUrl
   } catch (error) {
     console.error('转换URL失败:', error)
-    // 如果转换失败，尝试直接使用原URL
     return customUrl
   }
 }
 
 onMounted(async () => {
-  // 先加载缩略图
   subscribeToDownload('thumbnail')
   const thumbnailResult = await mediaDownloadManager.requestMedia(
     props.message.id,
@@ -95,7 +83,6 @@ const subscribeToDownload = (type: 'original' | 'thumbnail') => {
           thumbnailUrl.value = state.localPath
         } else if (type === 'original') {
           videoUrl.value = state.localPath
-          // 等待DOM更新后再初始化播放器
           nextTick(() => {
             initializePlayer()
           })
@@ -108,7 +95,6 @@ const subscribeToDownload = (type: 'original' | 'thumbnail') => {
 // 初始化播放器
 const initializePlayer = async () => {
   console.log('初始化HTML5视频播放器')
-
   if (videoUrl.value) {
     try {
       const compatibleUrl = await convertCustomProtocolUrl(videoUrl.value)
@@ -121,7 +107,6 @@ const initializePlayer = async () => {
     }
   }
 }
-
 // 点击播放视频
 const handleVideoClick = async () => {
   console.log('点击播放视频', {
@@ -130,10 +115,8 @@ const handleVideoClick = async () => {
     hasPlayer: !!videoPlayerRef.value,
     isVideoReady: isVideoReady.value
   })
-
   if (!videoUrl.value) {
     console.log('开始请求视频文件')
-    // 开始下载原视频
     subscribeToDownload('original')
     const result = await mediaDownloadManager.requestMedia(
       props.message.id,
@@ -144,7 +127,6 @@ const handleVideoClick = async () => {
     if (result) {
       console.log('使用已缓存的视频:', result)
       videoUrl.value = result
-      // 等待DOM更新后再初始化播放器
       await nextTick()
       await initializePlayer()
     }
@@ -152,21 +134,17 @@ const handleVideoClick = async () => {
     playVideo()
   }
 }
-
 // 播放视频
 const playVideo = async (): Promise<void> => {
   console.log('尝试播放视频')
-
   if (!isVideoReady.value) {
     console.log('视频未准备好，初始化播放器')
     await initializePlayer()
   }
-
   // HTML5 video会自动处理播放
   showVideoPlayer.value = true
 }
 
-// HTML5 video事件处理
 const onVideoPlay = (): void => {
   console.log('HTML5 video: 视频开始播放')
 }

@@ -3,6 +3,7 @@ import messageDao from '@main/sqlite/dao/message-dao'
 import sessionDao from '@main/sqlite/dao/session-dao'
 import messageAdapter from '@main/sqlite/adapter/message-adapter'
 import channelUtil from '@main/util/channel-util'
+import objectUtil from '@main/util/object-util'
 
 class MessageService {
   public beginServe(): void {
@@ -26,8 +27,9 @@ class MessageService {
     console.log('message-service:handle-single-message', message)
     const messageData = messageAdapter.adaptToDatabaseMessage(message)
     const msgId: number = await messageDao.addLocalMessage(messageData)
+
     await sessionDao.keepSessionFresh({
-      content: message.content,
+      content: objectUtil.getContentByRow(messageData),
       sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
       sessionId: message.sessionId
     })

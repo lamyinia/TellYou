@@ -25,11 +25,37 @@ log.transports.file.level = 'debug'
 log.transports.file.maxSize = 1002430
 log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}'
 log.transports.file.resolvePathFn = () => join(os.homedir(), '.tellyou', 'logs', 'main.log')
-console.log = log.log
-console.warn = log.warn
-console.error = log.error
-console.info = log.info
-console.debug = log.debug
+
+// 保存原始的log方法
+const originalLogMethods = {
+  log: log.log,
+  warn: log.warn,
+  error: log.error,
+  info: log.info,
+  debug: log.debug
+}
+
+// 重写console方法，同时支持调试窗口转发
+console.log = (...args: any[]) => {
+  originalLogMethods.log(...args)
+  deviceService.sendLogToDebugWindow('info', args.join(' '), 'MainProcess')
+}
+console.warn = (...args: any[]) => {
+  originalLogMethods.warn(...args)
+  deviceService.sendLogToDebugWindow('warn', args.join(' '), 'MainProcess')
+}
+console.error = (...args: any[]) => {
+  originalLogMethods.error(...args)
+  deviceService.sendLogToDebugWindow('error', args.join(' '), 'MainProcess')
+}
+console.info = (...args: any[]) => {
+  originalLogMethods.info(...args)
+  deviceService.sendLogToDebugWindow('info', args.join(' '), 'MainProcess')
+}
+console.debug = (...args: any[]) => {
+  originalLogMethods.debug(...args)
+  deviceService.sendLogToDebugWindow('debug', args.join(' '), 'MainProcess')
+}
 
 app.setPath('userData', app.getPath('userData') + '_' + urlUtil.instanceId)
 protocol.registerSchemesAsPrivileged([{

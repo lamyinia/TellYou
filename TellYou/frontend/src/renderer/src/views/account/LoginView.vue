@@ -1,83 +1,92 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import { onMounted, onUnmounted, ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useUserStore } from "@main/electron-store/persist/user-store";
 
-const userStore = useUserStore()
-const username = ref('')
-const password = ref('')
-const formRef = ref()
-const router = useRouter()
-const route = useRoute()
-const loading = ref(false)
-const errorMessage = ref('')
+const userStore = useUserStore();
+const username = ref("");
+const password = ref("");
+const formRef = ref();
+const router = useRouter();
+const route = useRoute();
+const loading = ref(false);
+const errorMessage = ref("");
 const snackbar = ref({
   show: false,
-  text: '',
-  color: 'info' as 'success' | 'error' | 'info'
-})
-const _notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): void => {
-  snackbar.value = { show: true, text, color }
-}
+  text: "",
+  color: "info" as "success" | "error" | "info",
+});
+const _notify = (
+  text: string,
+  color: "success" | "error" | "info" = "success",
+): void => {
+  snackbar.value = { show: true, text, color };
+};
 
 const handleWsConnected = (): void => {
-  console.log('WebSocket连接成功，跳转到主页面')
-  router.push('/main')
-  userStore.setLoginStatus(true)
-  loading.value = false
-}
-onMounted(() => {
-  console.log('监听器挂载 handleWsConnected')
-  window.electronAPI.onWsConnected(handleWsConnected)
+  console.log("LoginView: WebSocket连接成功，立即跳转到Main.vue");
+  loading.value = false;
+  // 立即跳转到Main.vue，让Main.vue自己处理初始化
+  router.push("/main");
+  userStore.setLoginStatus(true);
+  console.log("LoginView: 路由跳转完成");
+};
 
-  const message = route.query.message as string
-  const type = route.query.type as string
+onMounted(() => {
+  console.log("监听器挂载 handleWsConnected");
+  window.electronAPI.onWsConnected(handleWsConnected);
+  // 不再监听Main初始化事件
+  // window.electronAPI.onMainInitialized(handleMainInitialized);
+
+  const message = route.query.message as string;
+  const type = route.query.type as string;
   if (message && type) {
-    _notify(message, type as 'success' | 'error' | 'info')
-    router.replace({ path: '/login' }) // 清除URL中的查询参数，避免刷新页面时重复显示
+    _notify(message, type as "success" | "error" | "info");
+    router.replace({ path: "/login" }); // 清除URL中的查询参数，避免刷新页面时重复显示
   }
-})
+});
 onUnmounted(() => {
-  console.log('监听器移除 handleWsConnected')
-  window.electronAPI.offWsConnected(handleWsConnected)
-})
+  console.log("监听器移除 handleWsConnected");
+  window.electronAPI.offWsConnected(handleWsConnected);
+  // window.electronAPI.offMainInitialized(handleMainInitialized);
+});
 const onLogin = async (): Promise<void> => {
   try {
-    loading.value = true
-    errorMessage.value = '' // 清空之前的错误信息
+    loading.value = true;
+    errorMessage.value = ""; // 清空之前的错误信息
 
-    const data: any = await window.electronAPI.invoke('proxy:login', {
+    const data: any = await window.electronAPI.invoke("proxy:login", {
       email: username.value,
-      password: password.value
-    })
-    console.log(data)
+      password: password.value,
+    });
+    console.log(data);
 
-    const uid = data?.uid
+    const uid = data?.uid;
 
     if (data?.token && uid) {
-      await userStore.setUserData(data)
-      window.electronAPI.send('LoginSuccess', uid)
+      await userStore.setUserData(data);
+      window.electronAPI.send("LoginSuccess", uid);
     } else {
-      throw new Error('响应被拦截')
+      throw new Error("响应被拦截");
     }
   } catch (error: any) {
-    loading.value = false
-    console.error('登录失败:', error)
+    loading.value = false;
+    console.error("登录失败:", error);
     if (error?.message) {
-      errorMessage.value = error.message
+      errorMessage.value = error.message;
     } else {
-      errorMessage.value = '登录失败，请检查网络连接或稍后重试'
+      errorMessage.value = "登录失败，请检查网络连接或稍后重试";
     }
   }
-}
+};
 const goRegister = async (): Promise<void> => {
-  const p1 = window.electronAPI.invoke('device:login-or-register', true)
-  const p2 = router.push('/register')
-  await Promise.all([p1, p2])
-}
+  const p1 = window.electronAPI.invoke("device:login-or-register", true);
+  const p2 = router.push("/register");
+  await Promise.all([p1, p2]);
+};
 const goTotest = async (): Promise<void> => {
-  window.electronAPI.invoke('test').then()
-}
+  window.electronAPI.invoke("test").then();
+};
 </script>
 
 <template>
@@ -88,7 +97,7 @@ const goTotest = async (): Promise<void> => {
           <v-card-title class="text-h5">登录 - Tell-You</v-card-title>
           <!--          <v-alert type="success" closable> display </v-alert>-->
           <v-card-text>
-            <v-form @submit.prevent="onLogin" ref="formRef">
+            <v-form ref="formRef" @submit.prevent="onLogin">
               <v-text-field
                 v-model="username"
                 label="用户名"
@@ -102,13 +111,15 @@ const goTotest = async (): Promise<void> => {
                 prepend-inner-icon="mdi-lock"
                 required
               />
-              <v-btn type="submit" color="primary" block :loading="loading" :disabled="loading"
+              <v-btn
+                type="submit"
+                color="primary"
+                block
+                :loading="loading"
+                :disabled="loading"
                 >登录</v-btn
               >
             </v-form>
-            <div v-if="loading" class="loading-mask">
-              <img src="@renderer/assets/img/wifi.gif" alt="loading" />
-            </div>
             <v-alert
               v-if="errorMessage"
               type="error"
@@ -118,9 +129,15 @@ const goTotest = async (): Promise<void> => {
             >
               {{ errorMessage }}
             </v-alert>
-            <v-btn variant="text" @click="goRegister" class="mt-2" block>没有账号？去注册</v-btn>
+            <v-btn variant="text" class="mt-2" block @click="goRegister"
+              >没有账号？去注册</v-btn
+            >
             <!--            <v-btn variant="text" @click="goTotest" class="mt-2" block>测试按钮</v-btn>-->
-            <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="5000">
+            <v-snackbar
+              v-model="snackbar.show"
+              :color="snackbar.color"
+              timeout="5000"
+            >
               {{ snackbar.text }}
             </v-snackbar>
           </v-card-text>
@@ -145,4 +162,5 @@ const goTotest = async (): Promise<void> => {
   justify-content: center;
   z-index: 9999;
 }
+
 </style>

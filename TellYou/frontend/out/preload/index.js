@@ -1,10 +1,17 @@
 "use strict";
 const electron = require("electron");
-const preload = require("@electron-toolkit/preload");
 window.ipcRenderer = electron.ipcRenderer;
 if (process.contextIsolated) {
   try {
-    electron.contextBridge.exposeInMainWorld("electron", preload.electronAPI);
+    const electronAPI = {
+      ipcRenderer: {
+        invoke: electron.ipcRenderer.invoke,
+        send: electron.ipcRenderer.send,
+        on: electron.ipcRenderer.on,
+        removeListener: electron.ipcRenderer.removeListener
+      }
+    };
+    electron.contextBridge.exposeInMainWorld("electron", electronAPI);
     electron.contextBridge.exposeInMainWorld("electronAPI", {
       storeGet: (key) => electron.ipcRenderer.invoke("store-get", key),
       storeSet: (key, value) => electron.ipcRenderer.invoke("store-set", key, value),
@@ -16,6 +23,8 @@ if (process.contextIsolated) {
       removeListener: (channel, callback) => electron.ipcRenderer.removeListener(channel, callback),
       onWsConnected: (callback) => electron.ipcRenderer.on("ws-connected", callback),
       offWsConnected: (callback) => electron.ipcRenderer.removeListener("ws-connected", callback),
+      onMainInitialized: (callback) => electron.ipcRenderer.on("main-initialized", callback),
+      offMainInitialized: (callback) => electron.ipcRenderer.removeListener("main-initialized", callback),
       addSession: (session) => electron.ipcRenderer.invoke("add-session", session),
       requestMessages: (sessionId, obj) => electron.ipcRenderer.invoke("message:get-by-sessionId", sessionId, obj),
       wsSend: (msg) => electron.ipcRenderer.invoke("websocket:send", msg),
@@ -30,6 +39,12 @@ if (process.contextIsolated) {
     console.error(error);
   }
 } else {
-  window.electron = preload.electronAPI;
-  window.api = api;
+  window.electron = {
+    ipcRenderer: {
+      invoke: electron.ipcRenderer.invoke,
+      send: electron.ipcRenderer.send,
+      on: electron.ipcRenderer.on,
+      removeListener: electron.ipcRenderer.removeListener
+    }
+  };
 }

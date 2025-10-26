@@ -4,6 +4,7 @@ import { Session } from '@shared/types/session'
 import messageDao from '@main/sqlite/dao/message-dao'
 import { netMaster } from '@main/util/net-util'
 import { Api } from '@main/service/proxy-service'
+import objectUtil from '@main/util/object-util'
 
 class SessionService {
   public beginServe(): void {
@@ -107,8 +108,9 @@ class SessionService {
     for (const session of result){
       const msgResult: any = await messageDao.getMessageBySessionId(session.sessionId, {limit: 1, direction: 'newest'})
       if (msgResult.messages.length > 0){
+        const content = objectUtil.getContentByMessage(msgResult.messages[0])
         const obj =
-          {lastMsgTime: msgResult.messages[0].timestamp.toISOString(), lastMsgContent: msgResult.messages[0].content}
+          {lastMsgTime: msgResult.messages[0].timestamp.toISOString(), lastMsgContent: content}
         console.info('session-service:tidy-session:update-session:', obj, session.sessionId)
         await sessionDao.updatePartialBySessionId(obj as Partial<Session>, session.sessionId)
       } else {

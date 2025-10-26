@@ -36,6 +36,8 @@ const avatarUrl = computed(() => {  // 我写的代码真是一坨糊出来的�
 
 const onLogout = async (): Promise<void> => {
   await userStore.clearUserData()
+  // 清除Main.vue初始化状态，下次登录时重新初始化
+  sessionStorage.removeItem('main-initialized')
   router.push('/login')
 }
 

@@ -16,6 +16,11 @@ const routes: Array<RouteRecordRaw> = [
     name: '注册',
     component: () => import('@renderer/views/account/RegisterView.vue')
   },
+  {
+    path: '/debug',
+    name: '调试窗口',
+    component: () => import('@renderer/debug/Debug.vue')
+  },
 
   {
     path: '/main',

@@ -63,7 +63,7 @@ class MessageAdapter {
     return {
       id: row.id,
       sessionId: row.sessionId,
-      content: row.text ?? '',
+      content: row.text || row.extData || '',
       messageType: getMessageType(row.msgType),
       senderId: row.senderId,
       senderName: row.senderName || '',

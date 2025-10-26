@@ -486,15 +486,13 @@ class NetMinIO {
         }
       }
     })
-    
-    // 调试响应头信息
-    console.log('📋 下载响应头信息:', {
+
+    console.log('下载响应头信息:', {
       contentType: response.headers['content-type'],
       contentLength: response.headers['content-length'],
       allHeaders: response.headers
     })
     console.log('文件下载响应类型:', typeof response.data, response.data?.constructor?.name)
-    
     return response.data
   }
 
