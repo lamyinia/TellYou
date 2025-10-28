@@ -14,7 +14,7 @@ interface AvatarCacheItem {
  * 约定优于配置
  */
 
-export const useAvatarStore = defineStore("avatar", () => {
+export const useProfileStore = defineStore("profile:avatar", () => {
   const memoryCache = reactive<Map<string, AvatarCacheItem>>(new Map());
   const maxMemoryCache = 200;
 

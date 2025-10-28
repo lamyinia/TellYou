@@ -26,7 +26,6 @@ const _notify = (
 const handleWsConnected = (): void => {
   console.log("LoginView: WebSocket连接成功，立即跳转到Main.vue");
   loading.value = false;
-  // 立即跳转到Main.vue，让Main.vue自己处理初始化
   router.push("/main");
   userStore.setLoginStatus(true);
   console.log("LoginView: 路由跳转完成");

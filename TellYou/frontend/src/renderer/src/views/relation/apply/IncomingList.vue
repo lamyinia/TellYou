@@ -92,11 +92,11 @@ const _notify = (
           />
           <Avatar
             :target-id="item.applyUserId"
+            :contact-type="1"
             :version="'0'"
-            :name="'未知'"
-            :show-strategy="'thumbedAvatarUrl'"
-            show-shape="normal"
-            side="left"
+            strategy="thumbedAvatarUrl"
+            shape="circle"
+            fallback-text="未知"
           />
         </div>
       </template>

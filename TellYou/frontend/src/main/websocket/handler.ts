@@ -6,6 +6,7 @@ import sessionDao from "@main/sqlite/dao/session-dao";
 import channelUtil from "@main/util/channel-util";
 import { applicationService } from "@main/service/application-service";
 import { sessionService } from "@main/service/session-service";
+import log from 'electron-log'
 
 /**
  * 职责：处理从 websocket-channel 推送过来的消息
@@ -53,7 +54,7 @@ class WebsocketHandler {
     }
     channelUtil.sendSingleSessionAckConfirm(msg);
     const session = await sessionService.selectSingleSessionById(msg.sessionId);
-    console.info("handle-session:select", session);
+    log.info("handle-session:select", session);
     if (session) {
       const mainWindow = BrowserWindow.getAllWindows()[0];
       mainWindow.webContents.send("session:call-back:load-data", [session]);

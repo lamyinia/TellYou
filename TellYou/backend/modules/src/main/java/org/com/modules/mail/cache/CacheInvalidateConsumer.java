@@ -54,7 +54,6 @@ public class CacheInvalidateConsumer implements RocketMQListener<CacheInvalidate
 
         } catch (Exception e) {
             log.error("Failed to process cache invalidate message: {}", message, e);
-            // 这里可以考虑重试机制或者死信队列
             throw new RuntimeException("Cache invalidate processing failed", e);
         }
     }

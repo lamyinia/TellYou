@@ -12,13 +12,14 @@ import { blackService } from "@main/service/black-service";
 import { messageService } from "@main/service/message-service";
 import { sessionService } from "@main/service/session-service";
 import { deviceService } from "@main/service/device-service";
-import { avatarCache } from "@main/cache/avatar-cache";
+import profileCache from '@main/cache/profile-cache'
 import urlUtil from "@main/util/url-util";
 import proxyService from "@main/service/proxy-service";
 import voiceCache from "@main/cache/voice-cache";
 import imageCache from "@main/cache/image-cache";
 import videoCache from "@main/cache/video-cache";
 import fileCache from "@main/cache/file-cache";
+import profileService from '@main/service/profile-service'
 
 const Store = (__Store as any).default || __Store;
 log.transports.file.level = "debug";
@@ -34,6 +35,8 @@ const originalLogMethods = {
   info: log.info,
   debug: log.debug,
 };
+
+// 重写 console 方法，同时输出到文件和渲染进程
 console.log = (...args: any[]) => {
   originalLogMethods.log(...args);
   deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
@@ -54,6 +57,29 @@ console.debug = (...args: any[]) => {
   originalLogMethods.debug(...args);
   deviceService.sendLogToDebugWindow("debug", args.join(" "), "MainProcess");
 };
+
+// 重写 log 方法，同时输出到文件和渲染进程
+log.log = (...args: any[]) => {
+  originalLogMethods.log(...args);
+  deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
+};
+log.warn = (...args: any[]) => {
+  originalLogMethods.warn(...args);
+  deviceService.sendLogToDebugWindow("warn", args.join(" "), "MainProcess");
+};
+log.error = (...args: any[]) => {
+  originalLogMethods.error(...args);
+  deviceService.sendLogToDebugWindow("error", args.join(" "), "MainProcess");
+};
+log.info = (...args: any[]) => {
+  originalLogMethods.info(...args);
+  deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
+};
+log.debug = (...args: any[]) => {
+  originalLogMethods.debug(...args);
+  deviceService.sendLogToDebugWindow("debug", args.join(" "), "MainProcess");
+};
+
 
 app.setPath("userData", app.getPath("userData") + "_" + urlUtil.instanceId);
 protocol.registerSchemesAsPrivileged([
@@ -131,11 +157,12 @@ const createWindow = (): void => {
   });
 
   proxyService.beginServe();
-  avatarCache.beginServe();
+  profileCache.beginServe();
   voiceCache.beginServe();
   imageCache.beginServe();
   videoCache.beginServe();
   fileCache.beginServe();
+  profileService.beginServe()
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
   sessionService.beginServe();

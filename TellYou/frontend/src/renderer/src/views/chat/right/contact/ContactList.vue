@@ -20,14 +20,14 @@ const selectContact = (contact: Session): void => {
 
 <template>
   <div class="contact-bg">
-    <div>
-      <v-text-field
-        prepend-inner-icon="iconfont icon-search"
-        placeholder="搜索联系人..."
-        class="search-field"
-        hide-details
-      />
-    </div>
+<!--    <div>-->
+<!--      <v-text-field-->
+<!--        prepend-inner-icon="iconfont icon-search"-->
+<!--        placeholder="搜索联系人..."-->
+<!--        class="search-field"-->
+<!--        hide-details-->
+<!--      />-->
+<!--    </div>-->
     <div class="contact-list">
       <template v-if="sessions.length > 0">
         <v-list>

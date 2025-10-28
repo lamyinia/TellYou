@@ -83,9 +83,10 @@ onMounted(async () => {
       </div>
       <div class="avatar-entry" @click="openUserDrawer">
         <Avatar
-          :user-id="uid"
-          :url="avatarUrl"
-          :show-strategy="showStrategy"
+          :target-id="uid"
+          :contact-type="1"
+          strategy="thumbedAvatarUrl"
+          shape="circle"
           :name="name"
           :size="44"
         />

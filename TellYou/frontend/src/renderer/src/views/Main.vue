@@ -1,51 +1,53 @@
 <script setup lang="ts">
-import RightNavBar from "../components/RightNavBar.vue";
-import { onMounted, onUnmounted, ref } from "vue";
-import { useSessionStore } from "@renderer/status/session/store";
-import { useMessageStore } from "@renderer/status/message/store";
-import { useApplicationStore } from "@renderer/status/application/store";
-import { useBlackStore } from "@renderer/status/black/store";
+/* eslint-disable */
 
-const sessionStore = useSessionStore();
-const messageStore = useMessageStore();
-const applicationStore = useApplicationStore();
-const blackStore = useBlackStore();
+import RightNavBar from "../components/RightNavBar.vue"
+import GlobalFeedback from "../components/GlobalFeedback.vue"
+import { onMounted, onUnmounted, ref } from "vue"
+import { useSessionStore } from "@renderer/status/session/store"
+import { useMessageStore } from "@renderer/status/message/store"
+import { useApplicationStore } from "@renderer/status/application/store"
+import { useBlackStore } from "@renderer/status/black/store"
+
+const sessionStore = useSessionStore()
+const messageStore = useMessageStore()
+const applicationStore = useApplicationStore()
+const blackStore = useBlackStore()
 
 // 添加loading状态 - 只在首次进入时显示
-const isInitializing = ref(!sessionStorage.getItem("main-initialized"));
+const isInitializing = ref(!sessionStorage.getItem("main-initialized"))
 
 onMounted(async () => {
-  console.log("Main.vue mounted, 开始初始化数据");
+  console.log("Main.vue mounted, 开始初始化数据")
   try {
-    // 调用同步的init方法
-    sessionStore.init();
-    messageStore.init();
-    applicationStore.init();
-    blackStore.init();
+    sessionStore.init()
+    messageStore.init()
+    applicationStore.init()
+    blackStore.init()
 
-    console.log("Main.vue 所有store初始化调用完成");
+    console.log("Main.vue 所有store初始化调用完成")
 
     // 等待一个短暂的时间确保初始化完成
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    console.log("Main.vue 初始化完成，隐藏loading界面");
-    isInitializing.value = false;
+    console.log("Main.vue 初始化完成，隐藏loading界面")
+    isInitializing.value = false
     // 记录初始化完成状态，避免路由切换时重复初始化
-    sessionStorage.setItem("main-initialized", "true");
+    sessionStorage.setItem("main-initialized", "true")
   } catch (error) {
-    console.error("Main.vue 初始化失败:", error);
+    console.error("Main.vue 初始化失败:", error)
     // 即使初始化失败也要隐藏loading
-    isInitializing.value = false;
-    sessionStorage.setItem("main-initialized", "true");
+    isInitializing.value = false
+    sessionStorage.setItem("main-initialized", "true")
   }
-});
+})
 onUnmounted(() => {
-  console.log("Main.vue unmounted, 清理资源");
-  sessionStore.destroy();
-  messageStore.destroy();
-  applicationStore.destroy();
-  blackStore.destroy();
-});
+  console.log("Main.vue unmounted, 清理资源")
+  sessionStore.destroy()
+  messageStore.destroy()
+  applicationStore.destroy()
+  blackStore.destroy()
+})
 </script>
 
 <template>
@@ -77,6 +79,11 @@ onUnmounted(() => {
         </v-row>
       </v-container>
     </v-main>
+
+    <!-- 全局反馈组件 - 正中间下方 -->
+    <div class="global-feedback-container">
+      <GlobalFeedback />
+    </div>
   </v-app>
 </template>
 
@@ -84,6 +91,17 @@ onUnmounted(() => {
 .main-container {
   height: 100vh;
   overflow: hidden;
+  position: relative;
+}
+
+.global-feedback-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+  width: auto;
 }
 
 .main-loading-mask {

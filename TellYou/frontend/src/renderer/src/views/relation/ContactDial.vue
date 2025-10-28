@@ -95,12 +95,12 @@ const onSelect = (contact: SimpleContact): void =>
         >
           <Avatar
             :target-id="String(item.id)"
+            :contact-type="1"
             :version="'0'"
-            :name="item.name || '未知'"
             :size="56"
-            :show-strategy="'thumbedAvatarUrl'"
-            show-shape="circle"
-            side="left"
+            strategy="thumbedAvatarUrl"
+            shape="circle"
+            :fallback-text="item.name || '未知'"
           />
           <div class="name">{{ item.name }}</div>
         </div>

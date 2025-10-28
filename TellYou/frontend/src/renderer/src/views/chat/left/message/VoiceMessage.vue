@@ -228,10 +228,11 @@ const waveformBars = generateWaveform();
     <template v-if="isSelf">
       <Avatar
         :version="props.message.avatarVersion"
-        :name="props.message.senderName"
         :target-id="props.message.senderId"
-        :show-strategy="showStrategy"
-        show-shape="normal"
+        :contact-type="1"
+        strategy="thumbedAvatarUrl"
+        shape="circle"
+        :fallback-text="props.message.senderName"
         side="left"
       />
       <div class="content left">
@@ -354,10 +355,11 @@ const waveformBars = generateWaveform();
       </div>
       <Avatar
         :version="props.message.avatarVersion"
-        :name="props.message.senderName"
         :target-id="props.message.senderId"
-        :show-strategy="showStrategy"
-        show-shape="normal"
+        :contact-type="1"
+        strategy="thumbedAvatarUrl"
+        shape="circle"
+        :fallback-text="props.message.senderName"
         side="right"
       />
     </template>

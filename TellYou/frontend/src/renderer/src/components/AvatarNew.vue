@@ -28,7 +28,6 @@ interface Props {
   fallbackText?: string
   showLoading?: boolean
   clickable?: boolean
-  side?: 'left' | 'right'  // 兼容旧的side属性
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -77,7 +76,7 @@ const isLoading = computed(() => {
 })
 
 const avatarClasses = computed(() => {
-  const classes = [
+  return [
     'avatar',
     `avatar-${props.shape}`,
     {
@@ -86,13 +85,6 @@ const avatarClasses = computed(() => {
       'avatar-error': error.value
     }
   ]
-  
-  // 兼容旧的side属性
-  if (props.side) {
-    classes.push(props.side)
-  }
-  
-  return classes
 })
 
 const avatarStyles = computed(() => {
@@ -307,14 +299,5 @@ onMounted(() => {
 
 .avatar[style*="width: 64px"] .avatar-fallback {
   font-size: 24px;
-}
-
-/* 兼容旧的side属性样式 */
-.left {
-  margin-right: 8px;
-}
-
-.right {
-  margin-left: 8px;
 }
 </style>

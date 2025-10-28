@@ -14,13 +14,12 @@ const timeText = computed(() => formatTime(props.session.lastMsgTime));
   <div class="row-wrap">
     <div class="avatar-box">
       <Avatar
-        :target-id="String(props.session.contactId)"
-        :version="'9999'"
+        :target-id="props.session.contactId"
+        :contact-type="props.session.contactType || 1"
         :size="50"
-        :name="props.session.contactName || '未知'"
-        :show-strategy="'thumbedAvatarUrl'"
-        show-shape="normal"
-        side="left"
+        strategy="thumbedAvatarUrl"
+        shape="circle"
+        version="9999"
       />
       <span v-if="props.session.contactType === 2" class="contact-tag">群</span>
       <span v-if="props.session.unreadCount > 0" class="badge">{{

@@ -8,7 +8,6 @@ import NickName from "@renderer/components/NickName.vue";
 const props = defineProps<{ message: ChatMessage }>();
 const userStore = useUserStore();
 const isSelf = computed(() => props.message.senderId === userStore.myId);
-const showStrategy = "thumbedAvatarUrl";
 </script>
 
 <template>
@@ -16,10 +15,11 @@ const showStrategy = "thumbedAvatarUrl";
     <template v-if="isSelf">
       <Avatar
         :version="props.message.avatarVersion"
-        :name="props.message.senderName"
         :target-id="props.message.senderId"
-        :show-strategy="showStrategy"
-        show-shape="normal"
+        :contact-type="1"
+        strategy="thumbedAvatarUrl"
+        shape="circle"
+        :fallback-text="props.message.senderName"
         side="left"
       />
       <div class="content left">
@@ -44,10 +44,11 @@ const showStrategy = "thumbedAvatarUrl";
       </div>
       <Avatar
         :version="props.message.avatarVersion"
-        :name="props.message.senderName"
         :target-id="props.message.senderId"
-        :show-strategy="showStrategy"
-        show-shape="normal"
+        :contact-type="1"
+        strategy="thumbedAvatarUrl"
+        shape="circle"
+        :fallback-text="props.message.senderName"
         side="right"
       />
     </template>

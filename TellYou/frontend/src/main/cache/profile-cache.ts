@@ -1,9 +1,12 @@
-import { ipcMain } from "electron";
-import { join } from "path";
-import fs, { existsSync, writeFileSync, readFileSync, renameSync } from "fs";
-import { netMinIO } from "../util/net-util";
-import log from "electron-log";
-import urlUtil from "@main/util/url-util";
+/* eslint-disable */
+import { ipcMain } from "electron"
+import { join } from "path"
+import fs, { existsSync, writeFileSync, readFileSync, renameSync } from "fs"
+import { netMinIO } from "../util/net-util"
+import log from "electron-log"
+import urlUtil from "@main/util/url-util"
+// TODO: 集成新的ProfileService
+// import ProfileService from "../service/profile-service"
 
 interface ImageInfo {
   version: string;
@@ -23,7 +26,7 @@ interface CacheItem {
  * @since 2025/10/24 16:49
  */
 
-class AvatarCache {
+class ProfileCache {
   private cacheMap: Map<string, CacheItem> = new Map();
   private jsonLoadingMap: Map<string, Promise<Record<string, unknown>>> =
     new Map();
@@ -241,6 +244,6 @@ class AvatarCache {
     join(urlUtil.cachePaths["avatar"], userId, "index.json"); // {userData}/cache/avatar/{userId}/index.json
 }
 
-const avatarCache = new AvatarCache();
+const profileCache = new ProfileCache();
 
-export { avatarCache };
+export default profileCache

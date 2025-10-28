@@ -34,6 +34,7 @@ import org.com.tools.constant.GroupConstant;
 import org.com.tools.constant.ValueConstant;
 import org.com.tools.exception.BusinessException;
 import org.com.tools.exception.CommonErrorEnum;
+import org.com.tools.template.MinioTemplate;
 import org.com.tools.utils.AssertUtil;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -66,6 +67,7 @@ public class GroupContactServiceImpl implements GroupContactService {
     private final SessionDocDao mongoSessionDocDao;
     private final UploadFileService uploadFileService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final MinioTemplate minioTemplate;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -77,7 +79,7 @@ public class GroupContactServiceImpl implements GroupContactService {
         GroupInfo groupInfo = GroupInfoAdapter.buildDefaultGroup(req.getFromUserId(), session.getSessionId(), req.getName());
         groupInfoDao.save(groupInfo);
         String avatarObjectName = UrlUtil.generateGroupAvatar(groupInfo.getId());
-        uploadFileService.writeDefaultGroupAvatar(avatarObjectName);  // 上传默认头像
+        uploadFileService.writeDefaultGroupAvatar(minioTemplate.getHost() + avatarObjectName);  // 上传默认头像
 
         groupInfo.setAvatar(avatarObjectName);
         groupInfoDao.updateById(groupInfo);  // 回写群头像 url

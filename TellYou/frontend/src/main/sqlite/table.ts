@@ -64,6 +64,21 @@ const add_tables = [
     "   server_port integer," +
     "   primary key (user_id)" +
     ");",
+
+  // Profile缓存表：统一管理用户和群组的头像、昵称信息
+  "create table if not exists profiles (" +
+    "   target_id text not null," +
+    "   contact_type integer not null," +
+    "   nickname text," +
+    "   nick_version text default '0'," +
+    "   avatar_version text default '0'," +
+    "   avatar_original_path text," +
+    "   avatar_thumb_path text," +
+    "   last_nick_update integer default 0," +
+    "   last_avatar_update integer default 0," +
+    "   created_at integer default 0," +
+    "   primary key (target_id, contact_type)" +
+    ");",
 ];
 
 const add_indexes = [
@@ -78,6 +93,11 @@ const add_indexes = [
 
   "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
   "create index if not exists idx_applications_status on contact_applications(status);",
+
+  // Profile表索引：优化查询性能
+  "create index if not exists idx_profiles_target on profiles(target_id, contact_type);",
+  "create index if not exists idx_profiles_nick_update on profiles(last_nick_update desc);",
+  "create index if not exists idx_profiles_avatar_update on profiles(last_avatar_update desc);",
 ];
 
 export { add_tables, add_indexes };
