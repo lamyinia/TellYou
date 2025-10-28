@@ -1,64 +1,73 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
+import { ref } from "vue";
+import { onAvatarError, resolveAvatar } from "@renderer/utils/process";
 
 interface BaseInfo {
-  keyId: string
-  type: string
-  name: string
-  avatar: string
-  signature: string
-  sex?: string
+  keyId: string;
+  type: string;
+  name: string;
+  avatar: string;
+  signature: string;
+  sex?: string;
 }
 
-const keyword = ref('')
-const remark = ref('')
-const emit = defineEmits<{ notify: [text: string, color: 'success' | 'error' | 'info'] }>()
-const showList = ref<BaseInfo[]>([])
-const selectUserId = ref<string>('')
+const keyword = ref("");
+const remark = ref("");
+const emit = defineEmits<{
+  notify: [text: string, color: "success" | "error" | "info"];
+}>();
+const showList = ref<BaseInfo[]>([]);
+const selectUserId = ref<string>("");
 
 const searchEvent = async (): Promise<void> => {
-  showList.value.splice(0, showList.value.length)
-  if (keyword.value.trim() === '' || keyword.value.length !== 19) {
-    return
+  showList.value.splice(0, showList.value.length);
+  if (keyword.value.trim() === "" || keyword.value.length !== 19) {
+    return;
   }
-  const data = await window.electronAPI.invoke('proxy:search:user-or-group', { contactId: keyword.value, contactType: 1 })
+  const data = await window.electronAPI.invoke("proxy:search:user-or-group", {
+    contactId: keyword.value,
+    contactType: 1,
+  });
   if (data && data.userId > 0) {
     showList.value.push({
       keyId: data.userId,
-      type: 'user',
+      type: "user",
       name: data.nickname,
       avatar: data.avatar,
       signature: data.signature,
-      sex: data.sex === 0 ? '女' : '男'
-    })
-    console.log('search-page:search-result:', data)
+      sex: data.sex === 0 ? "女" : "男",
+    });
+    console.log("search-page:search-result:", data);
   } else {
-    emit('notify', '查询失败', 'info')
+    emit("notify", "查询失败", "info");
   }
-}
+};
 const handleSelect = (userId: string): void => {
-  selectUserId.value = userId
-}
+  selectUserId.value = userId;
+};
 const sendRequest = async (): Promise<void> => {
   if (!selectUserId.value) {
-    emit('notify', '请先选择一个用户', 'error')
-    return
+    emit("notify", "请先选择一个用户", "error");
+    return;
   }
   try {
-    const description = remark.value.trim() === '' ? '发起好友申请' : remark.value
-    const payload = { contactId: selectUserId.value, description }
-    const response = await window.electronAPI.invoke('proxy:application:send-user', payload)
-    console.log('search-page:send-result', response)
-    if (response.success){
-      emit('notify', '发送成功', 'success')
+    const description =
+      remark.value.trim() === "" ? "发起好友申请" : remark.value;
+    const payload = { contactId: selectUserId.value, description };
+    const response = await window.electronAPI.invoke(
+      "proxy:application:send-user",
+      payload,
+    );
+    console.log("search-page:send-result", response);
+    if (response.success) {
+      emit("notify", "发送成功", "success");
     } else {
-      emit('notify', response.errMsg, 'error')
+      emit("notify", response.errMsg, "error");
     }
   } catch (error) {
-    console.log('search-page:send-error:', error)
+    console.log("search-page:send-error:", error);
   }
-}
+};
 </script>
 
 <template>
@@ -139,7 +148,10 @@ const sendRequest = async (): Promise<void> => {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 .card:hover {
   transform: translateY(-1px);
@@ -164,11 +176,11 @@ const sendRequest = async (): Promise<void> => {
   font-weight: 600;
 }
 .signature {
-  opacity: .8;
+  opacity: 0.8;
   font-size: 12px;
 }
 .sex {
   font-size: 12px;
-  opacity: .9;
+  opacity: 0.9;
 }
 </style>

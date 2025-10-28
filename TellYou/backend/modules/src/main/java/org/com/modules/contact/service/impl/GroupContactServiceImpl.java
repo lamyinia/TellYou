@@ -43,6 +43,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 因为自己既想用 mongodb，又想用 mysql，导致 mongodb 的事务由 spring 管理，mysql 的事务由 seata 管理
+ * 就不是分布式事务了，没有原子性。
+ * 除非再用 seata 的 TCC 模式。
+ * 但现在的代码已经能够保证高可用了。
+ * @author lanye
+ * @since 2025/10/27 22:16
+ * @see org.springframework.transaction.annotation.Transactional
+ * @see io.seata.spring.annotation.GlobalTransactional
+ */
+
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -66,16 +78,18 @@ public class GroupContactServiceImpl implements GroupContactService {
         groupInfoDao.save(groupInfo);
         String avatarObjectName = UrlUtil.generateGroupAvatar(groupInfo.getId());
         uploadFileService.writeDefaultGroupAvatar(avatarObjectName);  // 上传默认头像
+
         groupInfo.setAvatar(avatarObjectName);
-        groupInfoDao.updateById(groupInfo);
+        groupInfoDao.updateById(groupInfo);  // 回写群头像 url
 
         GroupContact groupContact = GroupContactAdapter.buildDefaultContact(req.getFromUserId(), groupInfo.getId(),
-                session.getSessionId(),GroupRoleEnum.OWNER.getRole());
+                session.getSessionId(), GroupRoleEnum.OWNER.getRole());
         groupContactDao.save(groupContact);
 
-        PushedSession push = new PushedSession(groupInfo.getSessionId(), groupInfo.getId(), req.getFromUserId                      (),
+        PushedSession push = new PushedSession(groupInfo.getSessionId(), groupInfo.getId(), req.getFromUserId(),
                 SessionEventEnum.BUILD_PUBLIC.getStatus(), System.currentTimeMillis());
 
+        // 推送建群通知
         applicationEventPublisher.publishEvent(new SessionEvent(this, push, List.of(req.getFromUserId())));
     }
 
@@ -165,7 +179,7 @@ public class GroupContactServiceImpl implements GroupContactService {
     @Override
     @RedissonLocking(key = "#req.groupId")
     public void leaveGroup(LeaveGroupReq req) {
-        boolean isOwner = groupContactDao.validatePower(req.getFromId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
+        boolean isOwner = groupContactDao.validatePower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
 
         GroupInfo group = groupInfoDao.getById(req.getGroupId());
         if (group.getMemberCount().equals(GroupConstant.DEFAULT_MEMBER_COUNT)){
@@ -179,17 +193,17 @@ public class GroupContactServiceImpl implements GroupContactService {
             group.setGroupOwnerId(group.getBackpackOwnerId());
             group.setBackpackOwnerId(null);
         }
-        if (group.getBackpackOwnerId() == req.getFromId()){  // 备选群主退群
+        if (group.getBackpackOwnerId() == req.getFromUserId()){  // 备选群主退群
             group.setBackpackOwnerId(null);
         }
         group.setMemberCount(group.getMemberCount() - 1);
         group.setUpdateTime(ValueConstant.getDefaultDate());
 
-        groupContactDao.assignPower(req.getFromId(), req.getGroupId(), GroupRoleEnum.NORMAL.getRole());
+        groupContactDao.assignPower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.NORMAL.getRole());
         groupInfoDao.updateById(group);
 
         // 发布退群聚合事件
-        AggregateDTO leaveAggregateDTO = new AggregateDTO(List.of(req.getFromId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
+        AggregateDTO leaveAggregateDTO = new AggregateDTO(List.of(req.getFromUserId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
 
         applicationEventPublisher.publishEvent(new AggregateEvent(this, leaveAggregateDTO));
     }

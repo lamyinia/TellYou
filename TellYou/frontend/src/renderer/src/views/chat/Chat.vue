@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import ChatPanel from '@renderer/views/chat/left/ChatPanel.vue'
-import ContactList from '@renderer/views/chat/right/contact/ContactList.vue'
-import { computed, onMounted, ref } from 'vue'
-import type { Session } from '@shared/types/session'
-import { useSessionStore } from '@renderer/status/session/store'
+import ChatPanel from "@renderer/views/chat/left/ChatPanel.vue";
+import ContactList from "@renderer/views/chat/right/contact/ContactList.vue";
+import { computed, onMounted, ref } from "vue";
+import type { Session } from "@shared/types/session";
+import { useSessionStore } from "@renderer/status/session/store";
 
-const sessionStore = useSessionStore()
+const sessionStore = useSessionStore();
 
-const selectedContact = ref<Session | null>(null)
+const selectedContact = ref<Session | null>(null);
 const handleContactSelected = (contact: Session): void => {
-  selectedContact.value = contact
-}
-const currentSessionId = computed(() => sessionStore.currentSessionId)
+  selectedContact.value = contact;
+};
+const currentSessionId = computed(() => sessionStore.currentSessionId);
 
 onMounted(() => {
   if (currentSessionId.value) {
-    const s = sessionStore.getSession(currentSessionId.value)
-    if (s) selectedContact.value = s
+    const s = sessionStore.getSession(currentSessionId.value);
+    if (s) selectedContact.value = s;
   }
-})
+});
 </script>
 
 <template>

@@ -1,203 +1,226 @@
 <script setup lang="ts">
-import type { ChatMessage } from '@renderer/status/message/class'
-import { useUserStore } from '@main/electron-store/persist/user-store'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import Avatar from '@renderer/components/Avatar.vue'
-import NickName from '@renderer/components/NickName.vue'
-import { mediaDownloadManager, type DownloadState } from '@renderer/utils/media-download-manager'
+import type { ChatMessage } from "@renderer/status/message/class";
+import { useUserStore } from "@main/electron-store/persist/user-store";
+import { computed, ref, onMounted, onUnmounted } from "vue";
+import Avatar from "@renderer/components/Avatar.vue";
+import NickName from "@renderer/components/NickName.vue";
+import {
+  mediaDownloadManager,
+  type DownloadState,
+} from "@renderer/utils/media-download-manager";
 
-const props = defineProps<{ message: ChatMessage }>()
-const userStore = useUserStore()
-const isSelf = computed(() => props.message.senderId === userStore.myId)
-const showStrategy = 'thumbedAvatarUrl'
+const props = defineProps<{ message: ChatMessage }>();
+const userStore = useUserStore();
+const isSelf = computed(() => props.message.senderId === userStore.myId);
+const showStrategy = "thumbedAvatarUrl";
 
-const downloadState = ref<DownloadState>({ status: 'idle' })
-const audioUrl = ref('')
-const audioElement = ref<HTMLAudioElement>()
-const isPlaying = ref(false)
-const currentTime = ref(0)
-const duration = ref(0)
+const downloadState = ref<DownloadState>({ status: "idle" });
+const audioUrl = ref("");
+const audioElement = ref<HTMLAudioElement>();
+const isPlaying = ref(false);
+const currentTime = ref(0);
+const duration = ref(0);
 
-let unsubscribe: (() => void) | null = null
+let unsubscribe: (() => void) | null = null;
 
 onMounted(async () => {
-  subscribeToDownload()
+  subscribeToDownload();
   const result = await mediaDownloadManager.requestMedia(
     props.message.id,
-    'original',
-    'voice'
-  )
+    "original",
+    "voice",
+  );
   if (result) {
-    console.log('使用已缓存的语音:', result)
+    console.log("使用已缓存的语音:", result);
     try {
-      const blobResult = await window.electronAPI.invoke('voice:convert-to-blob', result)
+      const blobResult = await window.electronAPI.invoke(
+        "voice:convert-to-blob",
+        result,
+      );
       if (blobResult && blobResult.success) {
-        audioUrl.value = blobResult.dataUrl
+        audioUrl.value = blobResult.dataUrl;
       } else {
-        console.error('音频转换失败:', blobResult?.error)
+        console.error("音频转换失败:", blobResult?.error);
       }
     } catch (error) {
-      console.error('音频转换调用失败:', error)
+      console.error("音频转换调用失败:", error);
     }
   }
-})
+});
 
 onUnmounted(() => {
   if (unsubscribe) {
-    unsubscribe()
+    unsubscribe();
   }
   if (audioElement.value) {
-    audioElement.value.pause()
+    audioElement.value.pause();
   }
-})
+});
 
 const subscribeToDownload = (): void => {
   unsubscribe = mediaDownloadManager.subscribe(
     props.message.id,
-    'original',
-    'voice',
+    "original",
+    "voice",
     async (state) => {
-      downloadState.value = state
-      if (state.status === 'completed' && state.localPath) {
-        console.log('语音下载完成:', state.localPath)
+      downloadState.value = state;
+      if (state.status === "completed" && state.localPath) {
+        console.log("语音下载完成:", state.localPath);
         try {
-          const blobResult = await window.electronAPI.invoke('voice:convert-to-blob', state.localPath)
+          const blobResult = await window.electronAPI.invoke(
+            "voice:convert-to-blob",
+            state.localPath,
+          );
           if (blobResult && blobResult.success) {
-            audioUrl.value = blobResult.dataUrl
+            audioUrl.value = blobResult.dataUrl;
           } else {
-            console.error('音频转换失败:', blobResult?.error)
+            console.error("音频转换失败:", blobResult?.error);
           }
         } catch (error) {
-          console.error('音频转换调用失败:', error)
+          console.error("音频转换调用失败:", error);
         }
       }
-    }
-  )
-}
+    },
+  );
+};
 
 const formatTime = (time: number) => {
   if (!time || !isFinite(time) || isNaN(time)) {
-    return '0:00'
+    return "0:00";
   }
-  const minutes = Math.floor(time / 60)
-  const seconds = Math.floor(time % 60)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 const togglePlay = async () => {
   if (!audioUrl.value) {
     const result = await mediaDownloadManager.requestMedia(
       props.message.id,
-      'original',
-      'voice'
-    )
+      "original",
+      "voice",
+    );
     if (result) {
       // 使用新的 voice:convert-to-blob API 转换音频
       try {
-        const blobResult = await window.electronAPI.invoke('voice:convert-to-blob', result)
+        const blobResult = await window.electronAPI.invoke(
+          "voice:convert-to-blob",
+          result,
+        );
         if (blobResult && blobResult.success) {
-          audioUrl.value = blobResult.dataUrl
+          audioUrl.value = blobResult.dataUrl;
         } else {
-          console.error('音频转换失败:', blobResult?.error)
-          return
+          console.error("音频转换失败:", blobResult?.error);
+          return;
         }
       } catch (error) {
-        console.error('音频转换调用失败:', error)
-        return
+        console.error("音频转换调用失败:", error);
+        return;
       }
     } else {
-      console.error('语音文件获取失败')
-      return
+      console.error("语音文件获取失败");
+      return;
     }
   }
-  if (!audioElement.value) return
+  if (!audioElement.value) return;
   try {
     if (isPlaying.value) {
-      audioElement.value.pause()
+      audioElement.value.pause();
     } else {
       if (audioElement.value.src !== audioUrl.value) {
-        audioElement.value.src = audioUrl.value
+        audioElement.value.src = audioUrl.value;
         await new Promise((resolve, reject) => {
           const handleLoad = () => {
-            audioElement.value?.removeEventListener('loadedmetadata', handleLoad)
-            audioElement.value?.removeEventListener('error', handleError)
-            resolve(true)
-          }
+            audioElement.value?.removeEventListener(
+              "loadedmetadata",
+              handleLoad,
+            );
+            audioElement.value?.removeEventListener("error", handleError);
+            resolve(true);
+          };
           const handleError = (e: Event) => {
-            audioElement.value?.removeEventListener('loadedmetadata', handleLoad)
-            audioElement.value?.removeEventListener('error', handleError)
-            reject(new Error(`音频加载失败: ${(e.target as HTMLAudioElement)?.error?.message || '未知错误'}`))
-          }
-          audioElement.value?.addEventListener('loadedmetadata', handleLoad)
-          audioElement.value?.addEventListener('error', handleError)
-          audioElement.value?.load()
-        })
+            audioElement.value?.removeEventListener(
+              "loadedmetadata",
+              handleLoad,
+            );
+            audioElement.value?.removeEventListener("error", handleError);
+            reject(
+              new Error(
+                `音频加载失败: ${(e.target as HTMLAudioElement)?.error?.message || "未知错误"}`,
+              ),
+            );
+          };
+          audioElement.value?.addEventListener("loadedmetadata", handleLoad);
+          audioElement.value?.addEventListener("error", handleError);
+          audioElement.value?.load();
+        });
       }
 
-      await audioElement.value.play()
+      await audioElement.value.play();
     }
   } catch (error) {
-    console.error('播放失败:', error)
+    console.error("播放失败:", error);
   }
-}
+};
 
 const onLoadedMetadata = () => {
   if (audioElement.value) {
-    const audioDuration = audioElement.value.duration
+    const audioDuration = audioElement.value.duration;
     // 确保duration是有效数值
     if (isFinite(audioDuration) && !isNaN(audioDuration) && audioDuration > 0) {
-      duration.value = audioDuration
+      duration.value = audioDuration;
     } else {
-      duration.value = 0
+      duration.value = 0;
     }
   }
-}
+};
 
 const onTimeUpdate = () => {
   if (audioElement.value) {
-    currentTime.value = audioElement.value.currentTime
+    currentTime.value = audioElement.value.currentTime;
   }
-}
+};
 
 const onPlay = () => {
-  isPlaying.value = true
-}
+  isPlaying.value = true;
+};
 
 const onPause = () => {
-  isPlaying.value = false
-}
+  isPlaying.value = false;
+};
 
 const onEnded = () => {
-  isPlaying.value = false
-  currentTime.value = 0
-}
+  isPlaying.value = false;
+  currentTime.value = 0;
+};
 
 const downloadPercentage = computed(() => {
-  const percentage = downloadState.value.progress?.percentage || 0
+  const percentage = downloadState.value.progress?.percentage || 0;
   // 调试信息：打印下载状态
-  console.log('语音下载状态:', {
+  console.log("语音下载状态:", {
     status: downloadState.value.status,
     percentage: percentage,
-    progress: downloadState.value.progress
-  })
-  return percentage
-})
+    progress: downloadState.value.progress,
+  });
+  return percentage;
+});
 
 const isDownloading = computed(() => {
-  return downloadState.value.status === 'downloading' &&
-         (downloadState.value.progress?.percentage || 0) < 100
-})
+  return (
+    downloadState.value.status === "downloading" &&
+    (downloadState.value.progress?.percentage || 0) < 100
+  );
+});
 
 const generateWaveform = () => {
-  const bars = []
+  const bars = [];
   for (let i = 0; i < 20; i++) {
-    bars.push(Math.random() * 0.8 + 0.2) // 0.2-1.0 之间的随机值
+    bars.push(Math.random() * 0.8 + 0.2); // 0.2-1.0 之间的随机值
   }
-  return bars
-}
+  return bars;
+};
 
-const waveformBars = generateWaveform()
-
+const waveformBars = generateWaveform();
 </script>
 
 <template>
@@ -222,10 +245,10 @@ const waveformBars = generateWaveform()
           <div class="voice-message" @click="togglePlay">
             <div class="play-button">
               <svg v-if="!isPlaying" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
+                <path d="M8 5v14l11-7z" />
               </svg>
               <svg v-else viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
             </div>
 
@@ -234,7 +257,9 @@ const waveformBars = generateWaveform()
                 v-for="(height, index) in waveformBars"
                 :key="index"
                 class="wave-bar"
-                :class="{ active: isPlaying && (currentTime / duration) * 20 > index }"
+                :class="{
+                  active: isPlaying && (currentTime / duration) * 20 > index,
+                }"
                 :style="{ height: height * 100 + '%' }"
               />
             </div>
@@ -281,10 +306,10 @@ const waveformBars = generateWaveform()
           <div class="voice-message" @click="togglePlay">
             <div class="play-button">
               <svg v-if="!isPlaying" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
+                <path d="M8 5v14l11-7z" />
               </svg>
               <svg v-else viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
             </div>
 
@@ -293,7 +318,9 @@ const waveformBars = generateWaveform()
                 v-for="(height, index) in waveformBars"
                 :key="index"
                 class="wave-bar"
-                :class="{ active: isPlaying && (currentTime / duration) * 20 > index }"
+                :class="{
+                  active: isPlaying && (currentTime / duration) * 20 > index,
+                }"
                 :style="{ height: height * 100 + '%' }"
               />
             </div>
@@ -337,18 +364,18 @@ const waveformBars = generateWaveform()
 
     <audio
       ref="audioElement"
+      style="display: none"
       @loadedmetadata="onLoadedMetadata"
       @timeupdate="onTimeUpdate"
       @play="onPlay"
       @pause="onPause"
       @ended="onEnded"
-      style="display: none;"
     />
   </div>
 </template>
 
 <style scoped>
-@import '@renderer/styles/message-common.css';
+@import "@renderer/styles/message-common.css";
 
 .voice-container {
   position: relative;
@@ -376,7 +403,7 @@ const waveformBars = generateWaveform()
 .play-button {
   width: 32px;
   height: 32px;
-  background: #4CAF50;
+  background: #4caf50;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -413,7 +440,7 @@ const waveformBars = generateWaveform()
 }
 
 .wave-bar.active {
-  background: #4CAF50;
+  background: #4caf50;
 }
 
 .voice-duration {
@@ -457,7 +484,7 @@ const waveformBars = generateWaveform()
 
 .progress-bar {
   fill: none;
-  stroke: #4CAF50;
+  stroke: #4caf50;
   stroke-width: 2;
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s ease;
@@ -475,12 +502,12 @@ const waveformBars = generateWaveform()
 
 /* 右侧消息样式调整 */
 .content.right .voice-message {
-  background: #007AFF;
+  background: #007aff;
   color: white;
 }
 
 .content.right .voice-message:hover {
-  background: #0056CC;
+  background: #0056cc;
 }
 
 .content.right .voice-duration {

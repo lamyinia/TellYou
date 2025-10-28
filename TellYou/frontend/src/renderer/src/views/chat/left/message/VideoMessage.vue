@@ -1,169 +1,172 @@
 <script setup lang="ts">
-import type { ChatMessage } from '@renderer/status/message/class'
-import { useUserStore } from '@main/electron-store/persist/user-store'
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
-import Avatar from '@renderer/components/Avatar.vue'
-import NickName from '@renderer/components/NickName.vue'
-import { mediaDownloadManager, type DownloadState } from '@renderer/utils/media-download-manager'
+import type { ChatMessage } from "@renderer/status/message/class";
+import { useUserStore } from "@main/electron-store/persist/user-store";
+import { computed, ref, onMounted, onUnmounted, nextTick } from "vue";
+import Avatar from "@renderer/components/Avatar.vue";
+import NickName from "@renderer/components/NickName.vue";
+import {
+  mediaDownloadManager,
+  type DownloadState,
+} from "@renderer/utils/media-download-manager";
 
-const props = defineProps<{ message: ChatMessage }>()
-const userStore = useUserStore()
-const isSelf = computed(() => props.message.senderId === userStore.myId)
-const showStrategy = 'thumbedAvatarUrl'
+const props = defineProps<{ message: ChatMessage }>();
+const userStore = useUserStore();
+const isSelf = computed(() => props.message.senderId === userStore.myId);
+const showStrategy = "thumbedAvatarUrl";
 
-const downloadState = ref<DownloadState>({ status: 'idle' })
-const thumbnailUrl = ref(props.message.content) // 缩略图 URL
-const videoUrl = ref('')
-const videoPlayerRef = ref()
-const isVideoReady = ref(false)
-const blobUrl = ref('')
-const showVideoPlayer = ref(false)
+const downloadState = ref<DownloadState>({ status: "idle" });
+const thumbnailUrl = ref(props.message.content); // 缩略图 URL
+const videoUrl = ref("");
+const videoPlayerRef = ref();
+const isVideoReady = ref(false);
+const blobUrl = ref("");
+const showVideoPlayer = ref(false);
 
-let unsubscribe: (() => void) | null = null
+let unsubscribe: (() => void) | null = null;
 
 // 将自定义协议URL转换为Blob URL供HTML5 video使用
 const convertCustomProtocolUrl = async (customUrl: string): Promise<string> => {
-  console.log('处理自定义协议URL:', customUrl)
-  if (!customUrl.startsWith('tellyou://')) {
-    return customUrl
+  console.log("处理自定义协议URL:", customUrl);
+  if (!customUrl.startsWith("tellyou://")) {
+    return customUrl;
   }
   try {
-    console.log('通过fetch获取tellyou协议内容:', customUrl)
-    const response = await fetch(customUrl)
+    console.log("通过fetch获取tellyou协议内容:", customUrl);
+    const response = await fetch(customUrl);
     if (!response.ok) {
-      throw new Error(`获取视频失败: ${response.status}`)
+      throw new Error(`获取视频失败: ${response.status}`);
     }
-    const blob = await response.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    console.log('成功转换为blob URL:', blobUrl)
-    return blobUrl
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    console.log("成功转换为blob URL:", blobUrl);
+    return blobUrl;
   } catch (error) {
-    console.error('转换URL失败:', error)
-    return customUrl
+    console.error("转换URL失败:", error);
+    return customUrl;
   }
-}
+};
 
 onMounted(async () => {
-  subscribeToDownload('thumbnail')
+  subscribeToDownload("thumbnail");
   const thumbnailResult = await mediaDownloadManager.requestMedia(
     props.message.id,
-    'thumbnail',
-    'video'
-  )
+    "thumbnail",
+    "video",
+  );
   if (thumbnailResult) {
-    console.log('使用已缓存的视频缩略图:', thumbnailResult)
-    thumbnailUrl.value = thumbnailResult
+    console.log("使用已缓存的视频缩略图:", thumbnailResult);
+    thumbnailUrl.value = thumbnailResult;
   }
-})
+});
 
 onUnmounted(() => {
   if (unsubscribe) {
-    unsubscribe()
+    unsubscribe();
   }
   // 清理本地视频URL（如果是blob URL才需要清理）
-  if (blobUrl.value && blobUrl.value.startsWith('blob:')) {
-    URL.revokeObjectURL(blobUrl.value)
+  if (blobUrl.value && blobUrl.value.startsWith("blob:")) {
+    URL.revokeObjectURL(blobUrl.value);
   }
-})
+});
 // 订阅下载状态
-const subscribeToDownload = (type: 'original' | 'thumbnail') => {
+const subscribeToDownload = (type: "original" | "thumbnail") => {
   if (unsubscribe) {
-    unsubscribe()
+    unsubscribe();
   }
 
   unsubscribe = mediaDownloadManager.subscribe(
     props.message.id,
     type,
-    'video',
+    "video",
     (state) => {
-      downloadState.value = state
-      if (state.status === 'completed' && state.localPath) {
-        console.log(`视频${type}下载完成:`, state.localPath)
-        if (type === 'thumbnail') {
-          thumbnailUrl.value = state.localPath
-        } else if (type === 'original') {
-          videoUrl.value = state.localPath
+      downloadState.value = state;
+      if (state.status === "completed" && state.localPath) {
+        console.log(`视频${type}下载完成:`, state.localPath);
+        if (type === "thumbnail") {
+          thumbnailUrl.value = state.localPath;
+        } else if (type === "original") {
+          videoUrl.value = state.localPath;
           nextTick(() => {
-            initializePlayer()
-          })
+            initializePlayer();
+          });
         }
       }
-    }
-  )
-}
+    },
+  );
+};
 
 // 初始化播放器
 const initializePlayer = async () => {
-  console.log('初始化HTML5视频播放器')
+  console.log("初始化HTML5视频播放器");
   if (videoUrl.value) {
     try {
-      const compatibleUrl = await convertCustomProtocolUrl(videoUrl.value)
-      blobUrl.value = compatibleUrl
-      isVideoReady.value = true
-      showVideoPlayer.value = true
-      console.log('播放器初始化完成，视频URL:', compatibleUrl)
+      const compatibleUrl = await convertCustomProtocolUrl(videoUrl.value);
+      blobUrl.value = compatibleUrl;
+      isVideoReady.value = true;
+      showVideoPlayer.value = true;
+      console.log("播放器初始化完成，视频URL:", compatibleUrl);
     } catch (error) {
-      console.error('初始化播放器失败:', error)
+      console.error("初始化播放器失败:", error);
     }
   }
-}
+};
 // 点击播放视频
 const handleVideoClick = async () => {
-  console.log('点击播放视频', {
+  console.log("点击播放视频", {
     hasVideoUrl: !!videoUrl.value,
     videoUrl: videoUrl.value,
     hasPlayer: !!videoPlayerRef.value,
-    isVideoReady: isVideoReady.value
-  })
+    isVideoReady: isVideoReady.value,
+  });
   if (!videoUrl.value) {
-    console.log('开始请求视频文件')
-    subscribeToDownload('original')
+    console.log("开始请求视频文件");
+    subscribeToDownload("original");
     const result = await mediaDownloadManager.requestMedia(
       props.message.id,
-      'original',
-      'video'
-    )
-    console.log('视频请求结果:', result)
+      "original",
+      "video",
+    );
+    console.log("视频请求结果:", result);
     if (result) {
-      console.log('使用已缓存的视频:', result)
-      videoUrl.value = result
-      await nextTick()
-      await initializePlayer()
+      console.log("使用已缓存的视频:", result);
+      videoUrl.value = result;
+      await nextTick();
+      await initializePlayer();
     }
   } else {
-    playVideo()
+    playVideo();
   }
-}
+};
 // 播放视频
 const playVideo = async (): Promise<void> => {
-  console.log('尝试播放视频')
+  console.log("尝试播放视频");
   if (!isVideoReady.value) {
-    console.log('视频未准备好，初始化播放器')
-    await initializePlayer()
+    console.log("视频未准备好，初始化播放器");
+    await initializePlayer();
   }
   // HTML5 video会自动处理播放
-  showVideoPlayer.value = true
-}
+  showVideoPlayer.value = true;
+};
 
 const onVideoPlay = (): void => {
-  console.log('HTML5 video: 视频开始播放')
-}
+  console.log("HTML5 video: 视频开始播放");
+};
 
 const onVideoPlaying = (): void => {
-  console.log('HTML5 video: 视频正在播放')
-}
+  console.log("HTML5 video: 视频正在播放");
+};
 
 const downloadPercentage = computed(() => {
-  return downloadState.value.progress?.percentage || 0
-})
+  return downloadState.value.progress?.percentage || 0;
+});
 
 const isDownloading = computed(() => {
-  return downloadState.value.status === 'downloading'
-})
+  return downloadState.value.status === "downloading";
+});
 
 const showThumbnail = computed(() => {
-  return !showVideoPlayer.value
-})
+  return !showVideoPlayer.value;
+});
 </script>
 
 <template>
@@ -193,7 +196,7 @@ const showThumbnail = computed(() => {
               :poster="thumbnailUrl"
               controls
               preload="metadata"
-              style="width: 100%; height: auto;"
+              style="width: 100%; height: auto"
               @play="onVideoPlay"
               @playing="onVideoPlaying"
             >
@@ -201,12 +204,16 @@ const showThumbnail = computed(() => {
             </video>
           </div>
           <!-- 缩略图预览 -->
-          <div v-if="showThumbnail" class="video-thumbnail" @click="handleVideoClick">
+          <div
+            v-if="showThumbnail"
+            class="video-thumbnail"
+            @click="handleVideoClick"
+          >
             <img :src="thumbnailUrl" alt="video thumbnail" />
             <div class="play-overlay">
               <div class="play-button">
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z"/>
+                  <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
             </div>
@@ -253,7 +260,7 @@ const showThumbnail = computed(() => {
               :poster="thumbnailUrl"
               controls
               preload="metadata"
-              style="width: 100%; height: auto;"
+              style="width: 100%; height: auto"
               @play="onVideoPlay"
               @playing="onVideoPlaying"
             >
@@ -262,12 +269,16 @@ const showThumbnail = computed(() => {
           </div>
 
           <!-- 缩略图预览 -->
-          <div v-if="showThumbnail" class="video-thumbnail" @click="handleVideoClick">
+          <div
+            v-if="showThumbnail"
+            class="video-thumbnail"
+            @click="handleVideoClick"
+          >
             <img :src="thumbnailUrl" alt="video thumbnail" />
             <div class="play-overlay">
               <div class="play-button">
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z"/>
+                  <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
             </div>
@@ -309,7 +320,7 @@ const showThumbnail = computed(() => {
 </template>
 
 <style scoped>
-@import '@renderer/styles/message-common.css';
+@import "@renderer/styles/message-common.css";
 
 .video-container {
   position: relative;
@@ -412,7 +423,7 @@ const showThumbnail = computed(() => {
 
 .progress-bar {
   fill: none;
-  stroke: #4CAF50;
+  stroke: #4caf50;
   stroke-width: 2;
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s ease;

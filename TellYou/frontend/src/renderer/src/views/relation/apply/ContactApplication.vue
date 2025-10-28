@@ -1,26 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useApplicationStore } from '@renderer/status/application/store'
-import IncomingList from '@renderer/views/relation/apply/IncomingList.vue'
-import OutcomingList from '@renderer/views/relation/apply/OutcomingList.vue'
-import SearchPage from '@renderer/views/relation/apply/SearchPage.vue'
+import { onMounted, ref } from "vue";
+import { useApplicationStore } from "@renderer/status/application/store";
+import IncomingList from "@renderer/views/relation/apply/IncomingList.vue";
+import OutcomingList from "@renderer/views/relation/apply/OutcomingList.vue";
+import SearchPage from "@renderer/views/relation/apply/SearchPage.vue";
 
-const props = defineProps<{outTab: string}>()
-const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
-const appStore = useApplicationStore()
-const activeTab = ref<'incoming' | 'outgoing' | 'search'>('incoming')
+const props = defineProps<{ outTab: string }>();
+const emit = defineEmits<{ (e: "toggle", newValue: string): void }>();
+const appStore = useApplicationStore();
+const activeTab = ref<"incoming" | "outgoing" | "search">("incoming");
 
 const snackbar = ref({
   show: false,
-  text: '创建成功',
-  color: 'info' as 'success' | 'error' | 'info'
-})
-const notify = (text: string, color: 'success' | 'error' | 'info' = 'success'): void => {
-  snackbar.value = { show: true, text, color }
-}
+  text: "创建成功",
+  color: "info" as "success" | "error" | "info",
+});
+const notify = (
+  text: string,
+  color: "success" | "error" | "info" = "success",
+): void => {
+  snackbar.value = { show: true, text, color };
+};
 
-onMounted(() => appStore.init())
-
+onMounted(() => appStore.init());
 </script>
 
 <template>
@@ -37,7 +39,11 @@ onMounted(() => appStore.init())
   </v-btn>
 
   <transition name="slide-in">
-    <div v-if="props.outTab === 'application-management'" class="drawer-wrap" @click.self="emit('toggle', '')">
+    <div
+      v-if="props.outTab === 'application-management'"
+      class="drawer-wrap"
+      @click.self="emit('toggle', '')"
+    >
       <div class="drawer-panel" @click.stop>
         <div class="drawer-inner drawer-theme">
           <div class="drawer-header">
@@ -46,25 +52,33 @@ onMounted(() => appStore.init())
                 :variant="activeTab === 'incoming' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'incoming'"
-                >收到的申请</v-btn>
+                >收到的申请</v-btn
+              >
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'outgoing' ? 'elevated' : 'tonal'"
                 size="small"
                 @click="activeTab = 'outgoing'"
-                >我发起的</v-btn>
+                >我发起的</v-btn
+              >
               <v-btn
                 class="ml-2"
                 :variant="activeTab === 'search' ? 'elevated' : 'tonal'"
                 size="small"
-                @click="activeTab = 'search'">搜索加好友</v-btn>
+                @click="activeTab = 'search'"
+                >搜索加好友</v-btn
+              >
             </div>
-            <v-btn icon="mdi-close" variant="text" @click="emit('toggle', '')" />
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              @click="emit('toggle', '')"
+            />
           </div>
 
           <div class="drawer-content list-surface">
             <div v-if="activeTab === 'incoming'">
-              <IncomingList @notify="notify"/>
+              <IncomingList @notify="notify" />
             </div>
             <div v-else-if="activeTab === 'outgoing'">
               <OutcomingList />
@@ -124,7 +138,11 @@ onMounted(() => appStore.init())
   color: #e0e6f0;
 }
 .drawer-theme {
-  background: linear-gradient(180deg, rgba(12, 14, 32, 0.98) 0%, rgba(16, 18, 40, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(12, 14, 32, 0.98) 0%,
+    rgba(16, 18, 40, 0.98) 100%
+  );
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }

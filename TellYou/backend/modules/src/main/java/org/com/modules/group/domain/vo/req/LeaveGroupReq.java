@@ -12,7 +12,7 @@ public class LeaveGroupReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "群成员 id")
-    private Long fromId;
+    private Long fromUserId;
 
     @NotNull
     @CheckMark(target = CheckMark.Target.GROUP_ID)

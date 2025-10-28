@@ -1,43 +1,56 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useMessageStore } from '@renderer/status/message/store'
-import { onAvatarError, resolveAvatar } from '@renderer/utils/process'
-import { useSessionStore } from '@renderer/status/session/store'
-import { DetailContact } from '@renderer/views/relation/ContactManagementView.vue'
+import { computed } from "vue";
+import { useRouter } from "vue-router";
+import { useMessageStore } from "@renderer/status/message/store";
+import { onAvatarError, resolveAvatar } from "@renderer/utils/process";
+import { useSessionStore } from "@renderer/status/session/store";
+import { DetailContact } from "@renderer/views/relation/ContactManagementView.vue";
 
-const props = defineProps<{ contact: DetailContact | null }>()
-const contact = computed(() => props.contact)
+const props = defineProps<{ contact: DetailContact | null }>();
+const contact = computed(() => props.contact);
 
-const router = useRouter()
-const messageStore = useMessageStore()
-const sessionStore = useSessionStore()
+const router = useRouter();
+const messageStore = useMessageStore();
+const sessionStore = useSessionStore();
 
 const handleSendMessage = (): void => {
-  if (!contact.value) return
-  const sessionId = contact.value.sessionId
-  messageStore.setCurrentSession(sessionId)
-  sessionStore.setCurrentSessionId(sessionId)
-  router.push('/chat')
-}
+  if (!contact.value) return;
+  const sessionId = contact.value.sessionId;
+  messageStore.setCurrentSession(sessionId);
+  sessionStore.setCurrentSessionId(sessionId);
+  router.push("/chat");
+};
 
 const handleDelete = (): void => {
   // 预留：删除联系人逻辑
-}
-
+};
 </script>
 
 <template>
   <div v-if="contact" class="cm-detail">
     <div class="cm-header">
-      <img class="cm-avatar-lg" :src="resolveAvatar(contact.avatar)" @error="onAvatarError" />
+      <img
+        class="cm-avatar-lg"
+        :src="resolveAvatar(contact.avatar)"
+        @error="onAvatarError"
+      />
       <div class="cm-summary">
         <div class="cm-nickname">{{ contact.name }}</div>
       </div>
       <div class="cm-actions">
-        <v-btn size="small" color="primary" variant="elevated" @click="handleSendMessage"
-          >发消息</v-btn>
-        <v-btn size="small" color="error" variant="tonal" class="ml-2" @click="handleDelete"
+        <v-btn
+          size="small"
+          color="primary"
+          variant="elevated"
+          @click="handleSendMessage"
+          >发消息</v-btn
+        >
+        <v-btn
+          size="small"
+          color="error"
+          variant="tonal"
+          class="ml-2"
+          @click="handleDelete"
           >删除联系人</v-btn
         >
       </div>
@@ -45,11 +58,13 @@ const handleDelete = (): void => {
     <div class="cm-info">
       <div class="cm-info-item">
         <span>性别</span>
-        <span>{{ contact.sex ? contact.sex : '未知' }}</span>
+        <span>{{ contact.sex ? contact.sex : "未知" }}</span>
       </div>
       <div class="cm-info-item">
         <span>个性签名</span>
-        <span>{{contact.signature ? contact.signature : '这个人很懒，什么都没有写~'}}</span>
+        <span>{{
+          contact.signature ? contact.signature : "这个人很懒，什么都没有写~"
+        }}</span>
       </div>
     </div>
   </div>

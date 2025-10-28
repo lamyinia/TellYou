@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useSessionStore } from '@renderer/status/session/store'
-import type { Session } from '@shared/types/session'
-import ContactItem from './ContactItem.vue'
+import { computed } from "vue";
+import { useSessionStore } from "@renderer/status/session/store";
+import type { Session } from "@shared/types/session";
+import ContactItem from "./ContactItem.vue";
 
-const store = useSessionStore()
-const sessions = computed<Session[]>(() => store.sortedSessions)
+const store = useSessionStore();
+const sessions = computed<Session[]>(() => store.sortedSessions);
 const emit = defineEmits<{
   /**
    * 选择联系人，传递给[Chat.vue]($frontend/src/renderer/src/views/chat/Chat.vue)
    * @param contact - 选中的联系人
    */
-  (e: 'contact-selected', contact: Session): void,
-}>()
+  (e: "contact-selected", contact: Session): void;
+}>();
 const selectContact = (contact: Session): void => {
-  emit('contact-selected', contact)
-}
+  emit("contact-selected", contact);
+};
 </script>
 
 <template>
@@ -46,7 +46,7 @@ const selectContact = (contact: Session): void => {
             class="session-item"
             @click="selectContact(item)"
           >
-            <ContactItem :session="item"/>
+            <ContactItem :session="item" />
           </v-list-item>
         </v-list>
       </template>
@@ -66,10 +66,12 @@ const selectContact = (contact: Session): void => {
   height: 100%;
   width: 100%;
   border-radius: 18px;
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(25, 35, 85, 0.95) 0%,
     rgba(35, 45, 105, 0.95) 50%,
-    rgba(25, 35, 85, 0.95) 100%);
+    rgba(25, 35, 85, 0.95) 100%
+  );
   backdrop-filter: blur(8px);
   box-shadow:
     0 8px 32px 0 rgba(13, 19, 61, 0.3),
@@ -84,15 +86,23 @@ const selectContact = (contact: Session): void => {
 }
 
 .contact-bg::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 30% 20%, rgba(30, 144, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 70% 80%, rgba(30, 144, 255, 0.08) 0%, transparent 50%);
+    radial-gradient(
+      circle at 30% 20%,
+      rgba(30, 144, 255, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 70% 80%,
+      rgba(30, 144, 255, 0.08) 0%,
+      transparent 50%
+    );
   pointer-events: none;
 }
 
@@ -110,22 +120,40 @@ const selectContact = (contact: Session): void => {
 
 /* 让搜索框与背景更融合的玻璃风格 */
 .search-field:deep(.v-field) {
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.04) 100%) !important;
+    rgba(255, 255, 255, 0.04) 100%
+  ) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 12px !important;
   backdrop-filter: blur(6px) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12) !important;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 16px rgba(0, 0, 0, 0.12) !important;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease !important;
 }
 
 /* 彻底移除可能来源于 Vuetify 的顶部留白 */
-.search-field:deep(.v-input__control) { padding-top: 0 !important; }
-.search-field:deep(.v-field) { margin-top: 0 !important; }
-.search-field:deep(.v-field__field) { padding-top: 0 !important; }
-.search-field:deep(.v-field__input) { margin-top: 0 !important; }
-.search-field:deep(.v-input) { margin-top: 0 !important; margin-bottom: 0 !important; }
+.search-field:deep(.v-input__control) {
+  padding-top: 0 !important;
+}
+.search-field:deep(.v-field) {
+  margin-top: 0 !important;
+}
+.search-field:deep(.v-field__field) {
+  padding-top: 0 !important;
+}
+.search-field:deep(.v-field__input) {
+  margin-top: 0 !important;
+}
+.search-field:deep(.v-input) {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
 
 /* 包裹搜索框的第一个容器去除任何默认外边距/内边距 */
 .contact-bg > div:first-child {
@@ -156,17 +184,25 @@ const selectContact = (contact: Session): void => {
 
 .search-field:hover:deep(.v-field) {
   border-color: rgba(255, 255, 255, 0.22) !important;
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.06) 100%) !important;
+    rgba(255, 255, 255, 0.06) 100%
+  ) !important;
 }
 
 .search-field:deep(.v-field--focused) {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 2px rgba(86, 164, 255, 0.35), 0 8px 20px rgba(0, 0, 0, 0.18) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 2px rgba(86, 164, 255, 0.35),
+    0 8px 20px rgba(0, 0, 0, 0.18) !important;
   border-color: rgba(86, 164, 255, 0.45) !important;
 }
 
-.search-field .v-input__control, .search-field .v-field, .search-field .v-field__field, .search-field input {
+.search-field .v-input__control,
+.search-field .v-field,
+.search-field .v-field__field,
+.search-field input {
   min-height: 36px !important;
   height: 36px !important;
   line-height: 36px !important;
@@ -217,28 +253,44 @@ const selectContact = (contact: Session): void => {
 }
 
 .contact-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.18)
+  );
   border-radius: 8px;
   border: 2px solid transparent; /* 通过透明边框营造内边距，更细的视觉效果 */
   background-clip: padding-box;
   min-height: 40px;
-  transition: background 0.2s ease, opacity 0.2s ease;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
   opacity: 0.7;
 }
 
 .contact-list:hover::-webkit-scrollbar-thumb {
   opacity: 1;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.28));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.28)
+  );
 }
 
 .contact-list::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.38));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.38)
+  );
 }
 
 .v-list-item.session-item {
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.04) 100%);
+    rgba(255, 255, 255, 0.04) 100%
+  );
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   margin: 6px 0;
@@ -250,18 +302,29 @@ const selectContact = (contact: Session): void => {
   overflow: hidden;
 }
 
-
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
-
-
 @keyframes glow {
-  from { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 5px rgba(255, 215, 0, 0.3); }
-  to { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 215, 0, 0.6); }
+  from {
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 5px rgba(255, 215, 0, 0.3);
+  }
+  to {
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 10px rgba(255, 215, 0, 0.6);
+  }
 }
 
 /* 空状态样式 */

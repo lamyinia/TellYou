@@ -13,7 +13,7 @@ import java.util.List;
 public class AddManagerReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
-    private Long fromId;
+    private Long fromUserId;
 
     @NotNull
     @CheckMark(target = CheckMark.Target.GROUP_ID)

@@ -35,8 +35,6 @@ const handleWsConnected = (): void => {
 onMounted(() => {
   console.log("监听器挂载 handleWsConnected");
   window.electronAPI.onWsConnected(handleWsConnected);
-  // 不再监听Main初始化事件
-  // window.electronAPI.onMainInitialized(handleMainInitialized);
 
   const message = route.query.message as string;
   const type = route.query.type as string;
@@ -48,7 +46,6 @@ onMounted(() => {
 onUnmounted(() => {
   console.log("监听器移除 handleWsConnected");
   window.electronAPI.offWsConnected(handleWsConnected);
-  // window.electronAPI.offMainInitialized(handleMainInitialized);
 });
 const onLogin = async (): Promise<void> => {
   try {
@@ -162,5 +159,4 @@ const goTotest = async (): Promise<void> => {
   justify-content: center;
   z-index: 9999;
 }
-
 </style>

@@ -39,7 +39,7 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                 .set(GroupContact::getRole, role).update();
     }
 
-    public List<ContactResp> selectGroupContactById(Long userId){
+    public List<ContactResp> selectGroupContactByUserId(Long userId){
         List<GroupContact> list = lambdaQuery()
                 .eq(GroupContact::getUserId, userId)
                 .eq(GroupContact::getIsDeleted, YesOrNoEnum.NO.getStatus())
@@ -54,5 +54,14 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                     .contactType(SessionTypeEnum.PUBLIC.getStatus())
                     .build();
         }).toList();
+    }
+
+    public List<Long> selectMemberListById(Long groupId){
+        List<GroupContact> list = lambdaQuery()
+                .eq(GroupContact::getGroupId, groupId)
+                .select(GroupContact::getUserId)
+                .list();
+
+        return list.stream().map(GroupContact::getUserId).toList();
     }
 }

@@ -48,7 +48,7 @@ class DeviceService {
       atomDao.initializeUserData(userId).then(() => {
         // 先发送ws-connected让路由跳转
         mainWindow.webContents.send("ws-connected");
-        
+
         // 延迟后平滑改变窗口大小
         setTimeout(() => {
           this.smoothResizeWindow(mainWindow, 920, 740);
@@ -60,7 +60,7 @@ class DeviceService {
       console.log("收到Main.vue初始化完成信号，转发给LoginView");
       mainWindow.webContents.send("main-initialized");
     });
-    
+
     // 监听调试窗口切换事件
     ipcMain.on("debug-window-toggle", () => {
       this.toggleDebugWindow();
@@ -418,42 +418,46 @@ class DeviceService {
     window: Electron.BrowserWindow,
     targetWidth: number,
     targetHeight: number,
-    duration: number = 300
+    duration: number = 300,
   ): void {
     const currentBounds = window.getBounds();
     const startWidth = currentBounds.width;
     const startHeight = currentBounds.height;
     const startX = currentBounds.x;
     const startY = currentBounds.y;
-    
+
     // 计算目标位置(居中)
     const targetX = startX + (startWidth - targetWidth) / 2;
     const targetY = startY + (startHeight - targetHeight) / 2;
-    
+
     const startTime = Date.now();
-    
+
     // 缓动函数 (ease-out)
     const easeOut = (t: number): number => {
       return 1 - Math.pow(1 - t, 3);
     };
-    
+
     const animate = (): void => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = easeOut(progress);
-      
-      const currentWidth = Math.round(startWidth + (targetWidth - startWidth) * easedProgress);
-      const currentHeight = Math.round(startHeight + (targetHeight - startHeight) * easedProgress);
+
+      const currentWidth = Math.round(
+        startWidth + (targetWidth - startWidth) * easedProgress,
+      );
+      const currentHeight = Math.round(
+        startHeight + (targetHeight - startHeight) * easedProgress,
+      );
       const currentX = Math.round(startX + (targetX - startX) * easedProgress);
       const currentY = Math.round(startY + (targetY - startY) * easedProgress);
-      
+
       window.setBounds({
         x: currentX,
         y: currentY,
         width: currentWidth,
-        height: currentHeight
+        height: currentHeight,
       });
-      
+
       if (progress < 1) {
         // 使用 setImmediate 而不是 requestAnimationFrame，因为这是在主进程
         setImmediate(animate);
@@ -462,10 +466,10 @@ class DeviceService {
         window.setResizable(true);
         window.setMaximizable(true);
         window.setMinimumSize(this.MAIN_WIDTH, this.MAIN_HEIGHT);
-        console.log('窗口平滑缩放完成');
+        console.log("窗口平滑缩放完成");
       }
     };
-    
+
     // 开始动画前先设置为可缩放
     window.setResizable(true);
     animate();
@@ -492,21 +496,24 @@ class DeviceService {
         this.debugWindow.focus();
       }
     } catch (error) {
-      console.error('调试窗口操作失败:', error);
+      console.error("调试窗口操作失败:", error);
     }
   }
 
-  
   /**
    * 发送日志到调试窗口
    */
-  public sendLogToDebugWindow(level: string, message: string, source: string): void {
+  public sendLogToDebugWindow(
+    level: string,
+    message: string,
+    source: string,
+  ): void {
     if (this.debugWindow && !this.debugWindow.isDestroyed()) {
-      this.debugWindow.webContents.send('debug-log', {
+      this.debugWindow.webContents.send("debug-log", {
         level,
         message,
         source,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -521,59 +528,66 @@ class DeviceService {
         height: this.DEBUG_HEIGHT,
         minWidth: 600,
         minHeight: 400,
-        title: 'TellYou - 主进程调试',
-        icon: path.join(__dirname, '../../shared/resources/icon.png'),
+        title: "TellYou - 主进程调试",
+        icon: path.join(__dirname, "../../shared/resources/icon.png"),
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
-          preload: path.join(__dirname, '../preload/index.js')
+          preload: path.join(__dirname, "../preload/index.js"),
         },
         show: false, // 先不显示，等加载完成后再显示
         autoHideMenuBar: true,
-        titleBarStyle: 'default'
+        titleBarStyle: "default",
       });
 
       // 加载调试页面
-      const isDev = process.env.NODE_ENV === 'development';
-      if (isDev && process.env['ELECTRON_RENDERER_URL']) {
+      const isDev = process.env.NODE_ENV === "development";
+      if (isDev && process.env["ELECTRON_RENDERER_URL"]) {
         // 使用开发环境的URL
-        this.debugWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/debug`);
+        this.debugWindow.loadURL(
+          `${process.env["ELECTRON_RENDERER_URL"]}#/debug`,
+        );
       } else if (isDev) {
         // 开发环境但没有ELECTRON_RENDERER_URL，尝试默认端口
-        this.debugWindow.loadURL('http://localhost:5173/#/debug').catch(() => {
+        this.debugWindow.loadURL("http://localhost:5173/#/debug").catch(() => {
           // 如果加载失败，降级到文件加载
-          console.warn('开发服务器连接失败，使用文件加载方式');
-          this.debugWindow?.loadFile(path.join(__dirname, '../renderer/index.html'), {
-            hash: 'debug'
-          });
+          console.warn("开发服务器连接失败，使用文件加载方式");
+          this.debugWindow?.loadFile(
+            path.join(__dirname, "../renderer/index.html"),
+            {
+              hash: "debug",
+            },
+          );
         });
       } else {
         // 生产环境使用文件加载
-        this.debugWindow.loadFile(path.join(__dirname, '../renderer/index.html'), {
-          hash: 'debug'
-        });
+        this.debugWindow.loadFile(
+          path.join(__dirname, "../renderer/index.html"),
+          {
+            hash: "debug",
+          },
+        );
       }
 
       // 窗口准备好后显示
-      this.debugWindow.once('ready-to-show', () => {
+      this.debugWindow.once("ready-to-show", () => {
         this.debugWindow?.show();
         this.debugWindow?.focus();
-        console.log('调试窗口创建成功');
+        console.log("调试窗口创建成功");
       });
 
       // 窗口关闭时清理引用
-      this.debugWindow.on('closed', () => {
+      this.debugWindow.on("closed", () => {
         this.debugWindow = null;
-        console.log('调试窗口已关闭');
+        console.log("调试窗口已关闭");
       });
 
       // 开发环境下打开开发者工具
       if (isDev) {
         this.debugWindow.webContents.openDevTools();
       }
-
     } catch (error) {
-      console.error('创建调试窗口失败:', error);
+      console.error("创建调试窗口失败:", error);
     }
   }
 }

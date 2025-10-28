@@ -12,7 +12,7 @@ const applicationStore = useApplicationStore();
 const blackStore = useBlackStore();
 
 // 添加loading状态 - 只在首次进入时显示
-const isInitializing = ref(!sessionStorage.getItem('main-initialized'));
+const isInitializing = ref(!sessionStorage.getItem("main-initialized"));
 
 onMounted(async () => {
   console.log("Main.vue mounted, 开始初始化数据");
@@ -22,21 +22,21 @@ onMounted(async () => {
     messageStore.init();
     applicationStore.init();
     blackStore.init();
-    
+
     console.log("Main.vue 所有store初始化调用完成");
-    
+
     // 等待一个短暂的时间确保初始化完成
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     console.log("Main.vue 初始化完成，隐藏loading界面");
     isInitializing.value = false;
     // 记录初始化完成状态，避免路由切换时重复初始化
-    sessionStorage.setItem('main-initialized', 'true');
+    sessionStorage.setItem("main-initialized", "true");
   } catch (error) {
     console.error("Main.vue 初始化失败:", error);
     // 即使初始化失败也要隐藏loading
     isInitializing.value = false;
-    sessionStorage.setItem('main-initialized', 'true');
+    sessionStorage.setItem("main-initialized", "true");
   }
 });
 onUnmounted(() => {
@@ -58,7 +58,7 @@ onUnmounted(() => {
     />
     <div class="loading-text">正在初始化...</div>
   </div>
-  
+
   <!-- 正常的主界面 -->
   <v-app v-else>
     <v-main>

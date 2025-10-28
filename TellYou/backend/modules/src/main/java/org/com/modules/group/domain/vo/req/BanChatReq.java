@@ -12,7 +12,7 @@ public class BanChatReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
     @Schema(description = "群主 id")
-    private Long fromId;
+    private Long fromUserId;
 
     @NotNull
     @CheckMark(target = CheckMark.Target.GROUP_ID)

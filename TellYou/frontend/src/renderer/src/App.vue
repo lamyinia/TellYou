@@ -1,34 +1,47 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import { computed, onMounted, ref } from "vue";
+import { useUserStore } from "@main/electron-store/persist/user-store";
 
-const userStore = useUserStore()
-const showWindowControls = computed(() => userStore.isLogin)
-const isTop = ref(false)
-const debugWindowVisible = ref(false)
+const userStore = useUserStore();
+const showWindowControls = computed(() => userStore.isLogin);
+const isTop = ref(false);
+const debugWindowVisible = ref(false);
 
 const onTop = (): void => {
-  isTop.value = !isTop.value
-  window.electronAPI.send('window-ChangeScreen', 0)
-}
+  isTop.value = !isTop.value;
+  window.electronAPI.send("window-ChangeScreen", 0);
+};
 const onDebug = (): void => {
-  debugWindowVisible.value = !debugWindowVisible.value
-  window.electronAPI.send('debug-window-toggle')
-}
-const onMinimize = (): void => window.electronAPI.send('window-ChangeScreen', 1)
-const onScreenChange = (): void => window.electronAPI.send('window-ChangeScreen', 2)
-const onClose = (): void => window.electronAPI.send('window-ChangeScreen', 3)
+  debugWindowVisible.value = !debugWindowVisible.value;
+  window.electronAPI.send("debug-window-toggle");
+};
+const onMinimize = (): void =>
+  window.electronAPI.send("window-ChangeScreen", 1);
+const onScreenChange = (): void =>
+  window.electronAPI.send("window-ChangeScreen", 2);
+const onClose = (): void => window.electronAPI.send("window-ChangeScreen", 3);
 onMounted(async () => {
-  await userStore.initStore()
-})
+  await userStore.initStore();
+});
 </script>
 
 <template>
   <div class="window-drag-bar">
     <span> Tell You - 通彼</span>
     <div v-if="showWindowControls" class="window-controls">
-      <i :class="['iconfont icon-robot', debugWindowVisible ? 'debug-active' : '']" title="调试窗口" @click="onDebug"></i>
-      <i :class="['iconfont icon-top', isTop ? 'win-top' : '']" title="置顶" @click="onTop"></i>
+      <i
+        :class="[
+          'iconfont icon-robot',
+          debugWindowVisible ? 'debug-active' : '',
+        ]"
+        title="调试窗口"
+        @click="onDebug"
+      ></i>
+      <i
+        :class="['iconfont icon-top', isTop ? 'win-top' : '']"
+        title="置顶"
+        @click="onTop"
+      ></i>
       <i class="iconfont icon-min" title="最小化" @click="onMinimize"></i>
       <i class="iconfont icon-max" title="全屏切换" @click="onScreenChange"></i>
       <i class="iconfont icon-close" title="关闭" @click="onClose"></i>

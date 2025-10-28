@@ -178,7 +178,7 @@ public class UserContactServiceImpl implements UserContactService {
     public PullFriendContactResp pullFriendContact(Long uid) {
         List<ContactResp> resp = new ArrayList<>();
         resp.addAll(friendContactDao.selectFriendContactById(uid));
-        resp.addAll(groupContactDao.selectGroupContactById(uid));
+        resp.addAll(groupContactDao.selectGroupContactByUserId(uid));
         return new PullFriendContactResp(resp);
     }
 

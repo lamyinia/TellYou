@@ -1,8 +1,6 @@
 <script setup lang="ts">
-
-const props = defineProps<{outTab: string}>()
-const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
-
+const props = defineProps<{ outTab: string }>();
+const emit = defineEmits<{ (e: "toggle", newValue: string): void }>();
 </script>
 
 <template>
@@ -18,7 +16,11 @@ const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
   </v-btn>
 
   <transition name="fade">
-    <div v-if="props.outTab === 'group-management'" class="panel-wrap" @click.self="emit('toggle', '')">
+    <div
+      v-if="props.outTab === 'group-management'"
+      class="panel-wrap"
+      @click.self="emit('toggle', '')"
+    >
       <div class="panel" @click.stop>
         <div class="panel-inner">我创建的群聊（占位，待接入）</div>
       </div>

@@ -56,8 +56,6 @@ public class AggregateConsumer implements RocketMQListener<String> {
 
             RSet<Long> memberSets = redisson.getSet(key);
             Set<Long> userIds = memberSets.readAll();
-
-            // 聚合完成后清理数据，避免重复处理
             memberSets.delete();
             if (!userIds.isEmpty()) {
                 Message<String> chatDTO = mailBoxService.produceChatDTO(aggregateDTO, userIds.stream().toList());
@@ -77,14 +75,12 @@ public class AggregateConsumer implements RocketMQListener<String> {
         }
         String groupKey = getGroupKey(dto);
 
-        // 使用Lua脚本保证原子性：检查集合是否为空并添加元素，准备参数：key + 过期时间 + 用户ID列表
         Object[] args = new Object[dto.getUserIds().size() + 1];
-        args[0] = "10"; // 10秒过期时间
+        args[0] = "10";
         for (int i = 0; i < dto.getUserIds().size(); i++) {
             args[i + 1] = dto.getUserIds().get(i).toString();
         }
 
-        // 执行Lua脚本，返回1表示集合之前为空（首次操作）
         Long result = (Long) redisson.getScript().eval(
             org.redisson.api.RScript.Mode.READ_WRITE,
             AGGREGATE_LUA_SCRIPT,

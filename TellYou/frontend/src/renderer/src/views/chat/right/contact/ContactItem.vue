@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import Avatar from '@renderer/components/Avatar.vue';
-import type { Session } from '@shared/types/session';
-import { briefMsg, formatTime } from '@shared/utils/process';
+import { computed } from "vue";
+import Avatar from "@renderer/components/Avatar.vue";
+import type { Session } from "@shared/types/session";
+import { briefMsg, formatTime } from "@shared/utils/process";
 
-const props = defineProps<{ session: Session;}>();
+const props = defineProps<{ session: Session }>();
 
 const lastMsgText = computed(() => briefMsg(props.session.lastMsgContent));
 const timeText = computed(() => formatTime(props.session.lastMsgTime));
@@ -23,7 +23,9 @@ const timeText = computed(() => formatTime(props.session.lastMsgTime));
         side="left"
       />
       <span v-if="props.session.contactType === 2" class="contact-tag">群</span>
-      <span v-if="props.session.unreadCount > 0" class="badge">{{ props.session.unreadCount > 99 ? "99+" : props.session.unreadCount }}</span>
+      <span v-if="props.session.unreadCount > 0" class="badge">{{
+        props.session.unreadCount > 99 ? "99+" : props.session.unreadCount
+      }}</span>
     </div>
 
     <div class="content-col">
@@ -39,7 +41,6 @@ const timeText = computed(() => formatTime(props.session.lastMsgTime));
       </div>
     </div>
   </div>
-
 </template>
 
 <style scoped>
@@ -103,9 +104,15 @@ const timeText = computed(() => formatTime(props.session.lastMsgTime));
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .content-col {
@@ -156,8 +163,16 @@ const timeText = computed(() => formatTime(props.session.lastMsgTime));
 }
 
 @keyframes glow {
-  from { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 5px rgba(255, 215, 0, 0.3); }
-  to { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 215, 0, 0.6); }
+  from {
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 5px rgba(255, 215, 0, 0.3);
+  }
+  to {
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 10px rgba(255, 215, 0, 0.6);
+  }
 }
 
 .time {

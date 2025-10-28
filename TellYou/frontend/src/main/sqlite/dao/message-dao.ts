@@ -1,65 +1,70 @@
-import { insertOrIgnore, queryAll, update } from '../atom'
-import messageAdapter from '../adapter/message-adapter'
+import { insertOrIgnore, queryAll, update } from "../atom";
+import messageAdapter from "../adapter/message-adapter";
 
 type MessageQueryOptions = {
-  limit?: number
-  direction?: 'newest' | 'older' | 'newer'
-  beforeId?: number
-  afterId?: number
-}
+  limit?: number;
+  direction?: "newest" | "older" | "newer";
+  beforeId?: number;
+  afterId?: number;
+};
 type MessageRow = {
-  id: number
-  sessionId: string
-  sequenceId: string
-  senderId: string
-  senderName: string
-  msgType: number
-  isRecalled: number
-  text: string
-  extData: string
-  sendTime: string
-  isRead: number
-}
+  id: number;
+  sessionId: string;
+  sequenceId: string;
+  senderId: string;
+  senderName: string;
+  msgType: number;
+  isRecalled: number;
+  text: string;
+  extData: string;
+  sendTime: string;
+  isRead: number;
+};
 
 class MessageDao {
   public async addLocalMessage(data: any): Promise<number> {
-    const changes = await insertOrIgnore('messages', data)
-    if (!changes) return 0
+    const changes = await insertOrIgnore("messages", data);
+    if (!changes) return 0;
     const rows = (await queryAll(
-      'select id from messages where session_id = ? and sequence_id = ? LIMIT 1',
-      [data.sessionId, String(data.sequenceId)]
-    )) as Array<{ id: number }>
-    return rows[0].id
+      "select id from messages where session_id = ? and sequence_id = ? LIMIT 1",
+      [data.sessionId, String(data.sequenceId)],
+    )) as Array<{ id: number }>;
+    return rows[0].id;
   }
 
-  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions
+  public async getMessageBySessionId(
+    sessionId: string,
+    options: MessageQueryOptions,
   ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
-      const limit = Number(options?.limit) || 50
-      const direction: 'newest' | 'older' | 'newer' = options?.direction || 'newest'
-      const beforeId: number | undefined = options?.beforeId
-      const afterId: number | undefined = options?.afterId
+      const limit = Number(options?.limit) || 50;
+      const direction: "newest" | "older" | "newer" =
+        options?.direction || "newest";
+      const beforeId: number | undefined = options?.beforeId;
+      const afterId: number | undefined = options?.afterId;
 
-      let where = 'where session_id = ?'
-      const params: unknown[] = [sessionId]
+      let where = "where session_id = ?";
+      const params: unknown[] = [sessionId];
 
-      let sendTimeOrder: string = 'desc'
-      if (direction === 'older' && beforeId) {
-        const beforeMessage = (await queryAll('select send_time from messages where id = ?', [
-          beforeId
-        ])) as Array<{ sendTime: string }>
+      let sendTimeOrder: string = "desc";
+      if (direction === "older" && beforeId) {
+        const beforeMessage = (await queryAll(
+          "select send_time from messages where id = ?",
+          [beforeId],
+        )) as Array<{ sendTime: string }>;
         if (beforeMessage.length > 0) {
-          where += ' and send_time < ?'
-          params.push(beforeMessage[0].sendTime)
+          where += " and send_time < ?";
+          params.push(beforeMessage[0].sendTime);
         }
-      } else if (direction === 'newer' && afterId) {
-        sendTimeOrder = 'asc'
-        const afterMessage = (await queryAll('select send_time from messages where id = ?', [
-          afterId
-        ])) as Array<{ sendTime: string }>
+      } else if (direction === "newer" && afterId) {
+        sendTimeOrder = "asc";
+        const afterMessage = (await queryAll(
+          "select send_time from messages where id = ?",
+          [afterId],
+        )) as Array<{ sendTime: string }>;
         if (afterMessage.length > 0) {
-          where += ' and send_time > ?'
-          params.push(afterMessage[0].sendTime)
+          where += " and send_time > ?";
+          params.push(afterMessage[0].sendTime);
         }
       }
       const sql = `
@@ -69,52 +74,67 @@ class MessageDao {
         ${where}
         order by send_time ${sendTimeOrder}, id desc
         LIMIT ${limit}
-      `
-      const rows = (await queryAll(sql, params)) as MessageRow[]
-      const messages = rows.map((r) => messageAdapter.adaptMessageRowToMessage(r))
+      `;
+      const rows = (await queryAll(sql, params)) as MessageRow[];
+      const messages = rows.map((r) =>
+        messageAdapter.adaptMessageRowToMessage(r),
+      );
       const totalCountRow = (await queryAll(
-        'select count(1) as total from messages where session_id = ?',
-        [sessionId]
-      )) as Array<{ total: number }>
-      const totalCount = totalCountRow[0]?.total || 0
-      let hasMore = false
+        "select count(1) as total from messages where session_id = ?",
+        [sessionId],
+      )) as Array<{ total: number }>;
+      const totalCount = totalCountRow[0]?.total || 0;
+      let hasMore = false;
       if (messages.length > 0) {
-        const lastMessage: any = messages.at(-1)
+        const lastMessage: any = messages.at(-1);
         const moreRow = (await queryAll(
-          'select count(1) as cnt from messages where session_id = ? and send_time < ?',
-          [sessionId, lastMessage.timestamp.toString()]
-        )) as Array<{ cnt: number }>
-        hasMore = (moreRow[0]?.cnt || 0) > 0
+          "select count(1) as cnt from messages where session_id = ? and send_time < ?",
+          [sessionId, lastMessage.timestamp.toString()],
+        )) as Array<{ cnt: number }>;
+        hasMore = (moreRow[0]?.cnt || 0) > 0;
       }
-      console.log('查询参数:', options, '返回消息数:', messages.length, 'hasMore:', hasMore)
-      return { messages, hasMore, totalCount }
+      console.log(
+        "查询参数:",
+        options,
+        "返回消息数:",
+        messages.length,
+        "hasMore:",
+        hasMore,
+      );
+      return { messages, hasMore, totalCount };
     } catch (error) {
-      console.error('获取会话消息失败:', error)
-      return { messages: [], hasMore: false, totalCount: 0 }
+      console.error("获取会话消息失败:", error);
+      return { messages: [], hasMore: false, totalCount: 0 };
     }
   }
 
-  public async getExtendData(params: {id: number}): Promise<any> {
+  public async getExtendData(params: { id: number }): Promise<any> {
     try {
-      const rows = (await queryAll('select ext_data from messages where id = ?', [params.id]))
-      const extDataString = rows[0]?.extData as string || '{}'
-      return JSON.parse(extDataString)
+      const rows = await queryAll(
+        "select ext_data from messages where id = ?",
+        [params.id],
+      );
+      const extDataString = (rows[0]?.extData as string) || "{}";
+      return JSON.parse(extDataString);
     } catch (error) {
-      console.error('获取外部数据失败:', error)
-      return null
+      console.error("获取外部数据失败:", error);
+      return null;
     }
   }
 
-  public async updateLocalPath(id: number, data: {originalLocalPath?: string, thumbnailLocalPath?: string}): Promise<void> {
+  public async updateLocalPath(
+    id: number,
+    data: { originalLocalPath?: string; thumbnailLocalPath?: string },
+  ): Promise<void> {
     try {
-      const extData = await this.getExtendData({id})
-      Object.assign(extData, data)
-      const extDataString = JSON.stringify(extData)
-      await update('messages', { extData: extDataString }, { id })
+      const extData = await this.getExtendData({ id });
+      Object.assign(extData, data);
+      const extDataString = JSON.stringify(extData);
+      await update("messages", { extData: extDataString }, { id });
     } catch (error) {
-      console.error('更新扩展数据失败:', error)
+      console.error("更新扩展数据失败:", error);
     }
   }
 }
-const messageDao = new MessageDao()
-export default messageDao
+const messageDao = new MessageDao();
+export default messageDao;

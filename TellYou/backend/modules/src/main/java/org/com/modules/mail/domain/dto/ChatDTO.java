@@ -14,7 +14,11 @@ public class ChatDTO implements Serializable {
     /** 客户端消息ID（用于幂等性或者ack确认） */
     private String messageId;
 
-    /** 消息类型（如 text、image、file、system、heartbeat 等） */
+    /**
+     * 消息类型，文本消息还是多媒体消息，群聊还是单聊
+     * @see
+     * org.com.modules.mail.domain.enums.MessageTypeEnum
+     */
     private Integer type;
 
     /** 发送者ID */

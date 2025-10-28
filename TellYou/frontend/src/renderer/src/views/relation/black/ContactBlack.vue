@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useBlackStore } from '@renderer/status/black/store'
+import { onMounted } from "vue";
+import { useBlackStore } from "@renderer/status/black/store";
 
-const props = defineProps<{outTab: string}>()
-const emit = defineEmits<{ (e: 'toggle', newValue: string): void }>()
-const blackStore = useBlackStore()
-onMounted(() => blackStore.init())
-
+const props = defineProps<{ outTab: string }>();
+const emit = defineEmits<{ (e: "toggle", newValue: string): void }>();
+const blackStore = useBlackStore();
+onMounted(() => blackStore.init());
 </script>
 
 <template>
@@ -22,7 +21,11 @@ onMounted(() => blackStore.init())
   </v-btn>
 
   <transition name="fade">
-    <div v-if="props.outTab === 'black-management'" class="panel-wrap" @click.self="emit('toggle', '')">
+    <div
+      v-if="props.outTab === 'black-management'"
+      class="panel-wrap"
+      @click.self="emit('toggle', '')"
+    >
       <div class="panel" @click.stop>
         <div class="panel-inner">黑名单管理（占位，待接入）</div>
       </div>

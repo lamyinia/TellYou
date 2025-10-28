@@ -1,54 +1,62 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
-import { computed, nextTick, onMounted, ref } from 'vue'
-import Avatar from './Avatar.vue'
-import UserInfoDrawer from './UserInfoDrawer.vue'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import { useRoute, useRouter } from "vue-router";
+import { computed, nextTick, onMounted, ref } from "vue";
+import Avatar from "./Avatar.vue";
+import UserInfoDrawer from "./UserInfoDrawer.vue";
+import { useUserStore } from "@main/electron-store/persist/user-store";
 
-const router = useRouter()
-const route = useRoute()
-const userStore = useUserStore()
+const router = useRouter();
+const route = useRoute();
+const userStore = useUserStore();
 
 const menuList = ref([
-  { name: '聊天', icon: 'icon-liaotian', font: 'iconfont2', path: '/chat' },
-  { name: '联系管理', icon: 'icon-lianxirenguanli', font: 'iconfont2', path: '/contactManagement' }
-])
+  { name: "聊天", icon: "icon-liaotian", font: "iconfont2", path: "/chat" },
+  {
+    name: "联系管理",
+    icon: "icon-lianxirenguanli",
+    font: "iconfont2",
+    path: "/contactManagement",
+  },
+]);
 
 const goTo = (path: string): void => {
   if (route.path !== path) {
-    router.push(path)
+    router.push(path);
   }
-}
+};
 
-const openUser = ref(false)
-const uid = computed(() => userStore.myId)
-const name = computed(() => userStore.nickname || '未命名')
-const signature = computed(() => userStore.signature || '这个人很神秘，还没有签名~')
-const showStrategy = 'thumbedAvatarUrl'
-const avatarUrl = computed(() => {  // 我写的代码真是一坨糊出来的狗屎
-  console.log('标记', userStore.avatarUrl)
-  const split = userStore.avatarUrl.split('/')
-  split[5] = 'thumb'
-  return split.join('/')
+const openUser = ref(false);
+const uid = computed(() => userStore.myId);
+const name = computed(() => userStore.nickname || "未命名");
+const signature = computed(
+  () => userStore.signature || "这个人很神秘，还没有签名~",
+);
+const showStrategy = "thumbedAvatarUrl";
+const avatarUrl = computed(() => {
+  // 我写的代码真是一坨糊出来的狗屎
+  console.log("标记", userStore.avatarUrl);
+  const split = userStore.avatarUrl.split("/");
+  split[5] = "thumb";
+  return split.join("/");
   // const url =  // http://113.44.158.255:32788/lanye/avatar/original/1948031012053333361/8/index.avif
   // return userStore.avatarUrl || ''
-})
+});
 
 const onLogout = async (): Promise<void> => {
-  await userStore.clearUserData()
+  await userStore.clearUserData();
   // 清除Main.vue初始化状态，下次登录时重新初始化
-  sessionStorage.removeItem('main-initialized')
-  router.push('/login')
-}
+  sessionStorage.removeItem("main-initialized");
+  router.push("/login");
+};
 
 const openUserDrawer = async (): Promise<void> => {
-  openUser.value = false
-  await nextTick()
-  openUser.value = true
-}
+  openUser.value = false;
+  await nextTick();
+  openUser.value = true;
+};
 onMounted(async () => {
-  await userStore.initStore()
-})
+  await userStore.initStore();
+});
 </script>
 
 <template>
@@ -74,7 +82,13 @@ onMounted(async () => {
         <span class="nav-label">设置</span>
       </div>
       <div class="avatar-entry" @click="openUserDrawer">
-        <Avatar :user-id="uid" :url="avatarUrl" :show-strategy="showStrategy" :name="name" :size="44" />
+        <Avatar
+          :user-id="uid"
+          :url="avatarUrl"
+          :show-strategy="showStrategy"
+          :name="name"
+          :size="44"
+        />
       </div>
     </div>
     <UserInfoDrawer

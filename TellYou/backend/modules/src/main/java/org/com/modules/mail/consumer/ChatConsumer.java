@@ -1,5 +1,6 @@
 package org.com.modules.mail.consumer;
 
+import cn.hutool.core.util.ArrayUtil;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -8,17 +9,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.modules.common.annotation.FlowControl;
-import org.com.modules.mail.service.MailBoxService;
-import org.com.modules.mail.domain.document.MessageDoc;
-import org.com.modules.deliver.event.ChatSendEvent;
 import org.com.modules.common.util.ApplicationContextProvider;
-import org.com.modules.mail.domain.dto.ChatDTO;
+import org.com.modules.deliver.event.ChatSendEvent;
 import org.com.modules.group.service.adapter.MessageAdapter;
+import org.com.modules.mail.cache.VerifyService;
+import org.com.modules.mail.domain.document.MessageDoc;
+import org.com.modules.mail.domain.dto.ChatDTO;
+import org.com.modules.mail.service.MailBoxService;
 import org.com.tools.constant.MQConstant;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 聊天室消费者。在多人群聊中，精准投递的主要开销主要是在路由表的开销，但如果是单聊，必须精准投递
@@ -42,6 +45,13 @@ public class ChatConsumer implements RocketMQListener<String> {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final MessageAdapter messageAdapter;
     private final MailBoxService mailBoxService;
+    private final VerifyService verifyService;
+
+    private final Integer[] needGroup = {6, 7, 8, 9, 10, 51, 52};
+    /**
+     * @see
+     * org.com.modules.mail.domain.enums.MessageTypeEnum
+     */
 
     @PostConstruct
     public void init() {
@@ -61,9 +71,11 @@ public class ChatConsumer implements RocketMQListener<String> {
     @FlowControl(time = 10, count = 100, spEl = "#req.fromUserId", target = FlowControl.Target.EL)
     public void consumeMessage(ChatDTO req) {
         log.info("ChatConsumer 正在消费消息: {}", req.toString());
-
-        MessageDoc messageDoc = messageAdapter.buildMessage(req);
         List<Long> uidList = getUidList(req);
+        if (uidList.isEmpty()) {
+            return;
+        }
+        MessageDoc messageDoc = messageAdapter.buildMessage(req);
         mailBoxService.insertChatMessage(messageDoc, uidList);
         applicationEventPublisher.publishEvent(new ChatSendEvent(this, messageDoc, uidList));
     }
@@ -72,8 +84,13 @@ public class ChatConsumer implements RocketMQListener<String> {
      * 用户发消息，校验用户对会话的权限，如果非法，发布异步事件通知客户端
      */
     private List<Long> getUidList(ChatDTO req) {
-        if (req.getTargetId() < 0) {
-            return null;
+        if (ArrayUtil.contains(needGroup, req.getType())) {
+            Set<Long> groupMembers = verifyService.getGroupMembers(req.getTargetId());
+            if (groupMembers == null || groupMembers.isEmpty() || !groupMembers.contains(req.getFromUserId())) {
+                return List.of();
+            }
+
+            return groupMembers.stream().toList();
         } else {
             return List.of(req.getFromUserId(), req.getTargetId());
         }

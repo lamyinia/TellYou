@@ -1,116 +1,121 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
 interface LogEntry {
-  id: number
-  timestamp: string
-  level: 'info' | 'warn' | 'error' | 'debug'
-  message: string
-  source?: string
+  id: number;
+  timestamp: string;
+  level: "info" | "warn" | "error" | "debug";
+  message: string;
+  source?: string;
 }
 
-const logs = ref<LogEntry[]>([])
-const filteredLogs = ref<LogEntry[]>([])
-const searchText = ref('')
-const selectedLevels = ref<string[]>(['info', 'warn', 'error', 'debug'])
-const autoScroll = ref(true)
-const logContainer = ref<HTMLElement>()
+const logs = ref<LogEntry[]>([]);
+const filteredLogs = ref<LogEntry[]>([]);
+const searchText = ref("");
+const selectedLevels = ref<string[]>(["info", "warn", "error", "debug"]);
+const autoScroll = ref(true);
+const logContainer = ref<HTMLElement>();
 
-let logIdCounter = 0
+let logIdCounter = 0;
 
 // 日志级别颜色映射
 const levelColors = {
-  info: '#2196f3',
-  warn: '#ff9800',
-  error: '#f44336',
-  debug: '#4caf50'
-}
+  info: "#2196f3",
+  warn: "#ff9800",
+  error: "#f44336",
+  debug: "#4caf50",
+};
 
 // 添加日志条目
-const addLog = (level: LogEntry['level'], message: string, source?: string) => {
+const addLog = (level: LogEntry["level"], message: string, source?: string) => {
   const logEntry: LogEntry = {
     id: ++logIdCounter,
     timestamp: new Date().toLocaleTimeString(),
     level,
     message,
-    source
-  }
-  
-  logs.value.push(logEntry)
-  
+    source,
+  };
+
+  logs.value.push(logEntry);
+
   // 限制日志数量，避免内存溢出
   if (logs.value.length > 1000) {
-    logs.value.shift()
+    logs.value.shift();
   }
-  
-  filterLogs()
-  
+
+  filterLogs();
+
   // 自动滚动到底部
   if (autoScroll.value) {
     nextTick(() => {
       if (logContainer.value) {
-        logContainer.value.scrollTop = logContainer.value.scrollHeight
+        logContainer.value.scrollTop = logContainer.value.scrollHeight;
       }
-    })
+    });
   }
-}
+};
 
 // 过滤日志
 const filterLogs = () => {
-  filteredLogs.value = logs.value.filter(log => {
-    const levelMatch = selectedLevels.value.includes(log.level)
-    const textMatch = !searchText.value || 
+  filteredLogs.value = logs.value.filter((log) => {
+    const levelMatch = selectedLevels.value.includes(log.level);
+    const textMatch =
+      !searchText.value ||
       log.message.toLowerCase().includes(searchText.value.toLowerCase()) ||
-      (log.source && log.source.toLowerCase().includes(searchText.value.toLowerCase()))
-    
-    return levelMatch && textMatch
-  })
-}
+      (log.source &&
+        log.source.toLowerCase().includes(searchText.value.toLowerCase()));
+
+    return levelMatch && textMatch;
+  });
+};
 
 // 清空日志
 const clearLogs = () => {
-  logs.value = []
-  filteredLogs.value = []
-}
+  logs.value = [];
+  filteredLogs.value = [];
+};
 
 // 导出日志
 const exportLogs = () => {
-  const logText = logs.value.map(log => 
-    `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.source ? `[${log.source}] ` : ''}${log.message}`
-  ).join('\n')
-  
-  const blob = new Blob([logText], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `tellyou-debug-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.log`
-  a.click()
-  URL.revokeObjectURL(url)
-}
+  const logText = logs.value
+    .map(
+      (log) =>
+        `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.source ? `[${log.source}] ` : ""}${log.message}`,
+    )
+    .join("\n");
+
+  const blob = new Blob([logText], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `tellyou-debug-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.log`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 // 切换日志级别过滤
 const toggleLevel = (level: string) => {
-  const index = selectedLevels.value.indexOf(level)
+  const index = selectedLevels.value.indexOf(level);
   if (index > -1) {
-    selectedLevels.value.splice(index, 1)
+    selectedLevels.value.splice(index, 1);
   } else {
-    selectedLevels.value.push(level)
+    selectedLevels.value.push(level);
   }
-  filterLogs()
-}
+  filterLogs();
+};
 
 // 监听搜索文本变化
 const onSearchChange = () => {
-  filterLogs()
-}
+  filterLogs();
+};
 
 // 模拟接收主进程日志（后续会通过IPC实现）
 const simulateMainProcessLogs = () => {
-  addLog('info', '主进程启动完成', 'DeviceService')
-  addLog('debug', '初始化WebSocket连接', 'WebSocketClient')
-  addLog('warn', '调试模式已启用', 'System')
-  addLog('error', '模拟错误日志', 'TestModule')
-}
+  addLog("info", "主进程启动完成", "DeviceService");
+  addLog("debug", "初始化WebSocket连接", "WebSocketClient");
+  addLog("warn", "调试模式已启用", "System");
+  addLog("error", "模拟错误日志", "TestModule");
+};
 
 // 接收主进程日志的处理函数
 const handleMainProcessLog = (...args: unknown[]) => {
@@ -121,30 +126,30 @@ const handleMainProcessLog = (...args: unknown[]) => {
     timestamp: string;
   };
   if (logData && logData.level && logData.message) {
-    addLog(logData.level as LogEntry['level'], logData.message, logData.source)
+    addLog(logData.level as LogEntry["level"], logData.message, logData.source);
   }
-}
+};
 
 onMounted(() => {
   // 初始化一些示例日志
-  addLog('info', '调试窗口已启动', 'DebugWindow')
-  
+  addLog("info", "调试窗口已启动", "DebugWindow");
+
   // 监听主进程日志
   if (window.electronAPI && window.electronAPI.on) {
-    window.electronAPI.on('debug-log', handleMainProcessLog)
-    addLog('info', '开始监听主进程日志', 'DebugWindow')
+    window.electronAPI.on("debug-log", handleMainProcessLog);
+    addLog("info", "开始监听主进程日志", "DebugWindow");
   } else {
-    addLog('warn', 'electronAPI不可用，使用模拟日志', 'DebugWindow')
-    simulateMainProcessLogs()
+    addLog("warn", "electronAPI不可用，使用模拟日志", "DebugWindow");
+    simulateMainProcessLogs();
   }
-})
+});
 
 onUnmounted(() => {
   // 清理IPC监听器
   if (window.electronAPI && window.electronAPI.removeListener) {
-    window.electronAPI.removeListener('debug-log', handleMainProcessLog)
+    window.electronAPI.removeListener("debug-log", handleMainProcessLog);
   }
-})
+});
 </script>
 
 <template>
@@ -160,7 +165,11 @@ onUnmounted(() => {
           <button
             v-for="level in ['info', 'warn', 'error', 'debug']"
             :key="level"
-            :class="['level-btn', level, { active: selectedLevels.includes(level) }]"
+            :class="[
+              'level-btn',
+              level,
+              { active: selectedLevels.includes(level) },
+            ]"
             @click="toggleLevel(level)"
           >
             {{ level.toUpperCase() }}
@@ -198,9 +207,7 @@ onUnmounted(() => {
         <span v-if="log.source" class="source">[{{ log.source }}]</span>
         <span class="message">{{ log.message }}</span>
       </div>
-      <div v-if="filteredLogs.length === 0" class="no-logs">
-        暂无日志数据
-      </div>
+      <div v-if="filteredLogs.length === 0" class="no-logs">暂无日志数据</div>
     </div>
   </div>
 </template>
@@ -212,7 +219,7 @@ onUnmounted(() => {
   flex-direction: column;
   background: #1e1e1e;
   color: #ffffff;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
 }
 
 .toolbar {

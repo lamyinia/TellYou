@@ -1,7 +1,6 @@
-import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { SessionManager, Session } from '@renderer/status/session/class'
-
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
+import { SessionManager, Session } from "@renderer/status/session/class";
 
 /**
  * 聚合会话和联系的状态管理工具类，方法有添加会话、删除会话、确定置顶、取消置顶、从sqlite加载数据、标记会话已
@@ -9,10 +8,10 @@ import { SessionManager, Session } from '@renderer/status/session/class'
  * @author lanye
  * @date 2025/10/12 15:35
  */
-export const useSessionStore = defineStore('session', () => {
+export const useSessionStore = defineStore("session", () => {
   const sessionManager = ref(new SessionManager());
   const isInitialized = ref(false);
-  const currentSessionId = ref<string>('');
+  const currentSessionId = ref<string>("");
   const sessionsVersion = ref(0);
   const sortedSessions = computed(() => {
     return (sessionsVersion.value, sessionManager.value.getOrderedSessions());
@@ -20,38 +19,44 @@ export const useSessionStore = defineStore('session', () => {
   let loadSessionListener: ((...args: unknown[]) => void) | null = null;
 
   const init = (): void => {
-    console.log('sessionStore 开始初始化')
-    if (isInitialized.value === true || loadSessionListener) return
+    console.log("sessionStore 开始初始化");
+    if (isInitialized.value === true || loadSessionListener) return;
 
     loadSessionListener = (...args: unknown[]) => {
-      const [, sessions] = args as [Electron.IpcRendererEvent, Session[]]
-      console.log('收到会话数据:', sessions.length, '条')
+      const [, sessions] = args as [Electron.IpcRendererEvent, Session[]];
+      console.log("收到会话数据:", sessions.length, "条");
       sessions.forEach((session) => {
-        sessionManager.value.addSession(session)
-      })
-      console.log('会话数据已加载:', sessions.length, '条')
-      console.log(sortedSessions.value)
+        sessionManager.value.addSession(session);
+      });
+      console.log("会话数据已加载:", sessions.length, "条");
+      console.log(sortedSessions.value);
       sessionsVersion.value++;
     };
-    window.electronAPI.on('session:call-back:load-data', loadSessionListener);
-    window.electronAPI.send('session:load-data');
+    window.electronAPI.on("session:call-back:load-data", loadSessionListener);
+    window.electronAPI.send("session:load-data");
 
     isInitialized.value = true;
-    console.log('sessionStore 初始化完成');
+    console.log("sessionStore 初始化完成");
   };
   const destroy = (): void => {
     sessionManager.value.clear();
     isInitialized.value = false;
-    window.electronAPI.removeListener('session:call-back:load-data', loadSessionListener!);
+    window.electronAPI.removeListener(
+      "session:call-back:load-data",
+      loadSessionListener!,
+    );
     sessionsVersion.value++;
   };
   const getSession = (sessionId: string | number): Session | undefined => {
     return sessionManager.value.getSession(String(sessionId));
   };
-  const updateSession = async (sessionId: string | number, updates: Partial<Session>): Promise<void> => {
-    console.info('更新{}的信息:{}', sessionId, updates)
+  const updateSession = async (
+    sessionId: string | number,
+    updates: Partial<Session>,
+  ): Promise<void> => {
+    console.info("更新{}的信息:{}", sessionId, updates);
     await window.electronAPI.invoke(
-      'session:update:partial',
+      "session:update:partial",
       updates,
       sessionId,
     );
@@ -78,4 +83,3 @@ export const useSessionStore = defineStore('session', () => {
     setCurrentSessionId,
   };
 });
-

@@ -1,27 +1,30 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useApplicationStore } from '@renderer/status/application/store'
-import { ApplicationItem } from '@shared/types/application'
-import { formatTime } from '@shared/utils/process'
-import Avatar from '@renderer/components/Avatar.vue'
-import NickName from '@renderer/components/NickName.vue'
+import { computed } from "vue";
+import { useApplicationStore } from "@renderer/status/application/store";
+import { ApplicationItem } from "@shared/types/application";
+import { formatTime } from "@shared/utils/process";
+import Avatar from "@renderer/components/Avatar.vue";
+import NickName from "@renderer/components/NickName.vue";
 
-const appStore = useApplicationStore()
-const rows = computed<ApplicationItem[]>(() => appStore.outgoing as unknown as ApplicationItem[])
-const page = computed(() => appStore.outgoingPage)
+const appStore = useApplicationStore();
+const rows = computed<ApplicationItem[]>(
+  () => appStore.outgoing as unknown as ApplicationItem[],
+);
+const page = computed(() => appStore.outgoingPage);
 
 const pageNo = computed<number>({
   get: () => page.value.pageNo,
   set: (val: number) => {
-    if (val && val !== page.value.pageNo) appStore.reloadOutgoing(val)
-  }
-})
+    if (val && val !== page.value.pageNo) appStore.reloadOutgoing(val);
+  },
+});
 
-const pageLength = computed(() => Math.max(1, Math.ceil(page.value.total / page.value.pageSize)))
+const pageLength = computed(() =>
+  Math.max(1, Math.ceil(page.value.total / page.value.pageSize)),
+);
 const onPageChange = (newPage: number): void => {
-  appStore.reloadOutgoing(newPage)
-}
-
+  appStore.reloadOutgoing(newPage);
+};
 </script>
 
 <template>
@@ -49,15 +52,24 @@ const onPageChange = (newPage: number): void => {
       </template>
       <template #subtitle>
         <div class="subline">
-          <span class="info">申请备注：{{ item.applyInfo || '无' }}</span>
+          <span class="info">申请备注：{{ item.applyInfo || "无" }}</span>
           <span class="dot">·</span>
-          <span class="time">{{ formatTime(item.lastApplyTime) || '' }}</span>
+          <span class="time">{{ formatTime(item.lastApplyTime) || "" }}</span>
         </div>
       </template>
 
       <template #append>
-        <v-chip size="x-small" :color="item.status === 0 ? 'warning' : item.status === 1 ? 'success' : 'error'">
-          {{ item.status === 0 ? '对方待处理' : '对方已同意'}}
+        <v-chip
+          size="x-small"
+          :color="
+            item.status === 0
+              ? 'warning'
+              : item.status === 1
+                ? 'success'
+                : 'error'
+          "
+        >
+          {{ item.status === 0 ? "对方待处理" : "对方已同意" }}
         </v-chip>
       </template>
     </v-list-item>
@@ -90,7 +102,17 @@ const onPageChange = (newPage: number): void => {
   justify-content: center;
   margin-top: 8px;
 }
-.subline { display: flex; gap: 6px; align-items: center; opacity: 0.85; }
-.subline .dot { opacity: 0.6; }
-.subline .time { opacity: 0.8; font-size: 12px; }
+.subline {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0.85;
+}
+.subline .dot {
+  opacity: 0.6;
+}
+.subline .time {
+  opacity: 0.8;
+  font-size: 12px;
+}
 </style>

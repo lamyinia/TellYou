@@ -44,14 +44,14 @@ public class UserContactController {
         return ApiResult.success(resp);
     }
 
-    @PostMapping("/friend-apply-send")
+    @PostMapping("/friend-send-apply")
     @Operation(description = "发送好友申请")
     public ApiResult<Void> applySend(@Check @Valid @RequestBody FriendApplyReq friendApplyReq){
         userContactService.friendApplySend(friendApplyReq.getFromUserId(), friendApplyReq);
         return ApiResult.success();
     }
 
-    @PutMapping("/friend-apply-accept")
+    @PutMapping("/friend-accept-apply")
     @Operation(summary = "接受申请")
     public ApiResult<Void> applyAccept(@Check @Valid @RequestBody AcceptFriendApplyReq req){
         userContactService.applyAccept(req);

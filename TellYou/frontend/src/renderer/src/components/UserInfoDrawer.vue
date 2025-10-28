@@ -1,195 +1,219 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import AvatarUpload from './AvatarUpload.vue'
-import { axio } from '../utils/request'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import { ref, watch, computed } from "vue";
+import AvatarUpload from "./AvatarUpload.vue";
+import { axio } from "../utils/request";
+import { useUserStore } from "@main/electron-store/persist/user-store";
 
 const props = withDefaults(
-  defineProps<{ modelValue?: boolean, uid?: string, name?: string, avatarUrl?: string, signature?: string }>(),
-  { modelValue: false }
-)
+  defineProps<{
+    modelValue?: boolean;
+    uid?: string;
+    name?: string;
+    avatarUrl?: string;
+    signature?: string;
+  }>(),
+  { modelValue: false },
+);
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', val: boolean): void
-  (e: 'logout'): void
-}>()
+  (e: "update:modelValue", val: boolean): void;
+  (e: "logout"): void;
+}>();
 
-const userStore = useUserStore()
+const userStore = useUserStore();
 
-const open = ref(false)
-watch(() => props.modelValue,
+const open = ref(false);
+watch(
+  () => props.modelValue,
   (v) => (open.value = v),
-  { immediate: true }
-)
+  { immediate: true },
+);
 
-const localName = ref(userStore.nickname || '')
-const localSignature = ref(userStore.signature || '')
-let avatarFile: File | null = null
+const localName = ref(userStore.nickname || "");
+const localSignature = ref(userStore.signature || "");
+let avatarFile: File | null = null;
 
-const nicknameResidue = computed(() => userStore.nicknameResidue || 0)
-const signatureResidue = computed(() => userStore.signatureResidue || 0)
-const avatarResidue = computed(() => userStore.avatarResidue || 0)
+const nicknameResidue = computed(() => userStore.nicknameResidue || 0);
+const signatureResidue = computed(() => userStore.signatureResidue || 0);
+const avatarResidue = computed(() => userStore.avatarResidue || 0);
 
 watch(
   () => userStore.nickname,
   (newVal) => {
     if (newVal && newVal !== localName.value) {
-      localName.value = newVal
+      localName.value = newVal;
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 watch(
   () => userStore.signature,
   (newVal) => {
     if (newVal && newVal !== localSignature.value) {
-      localSignature.value = newVal
+      localSignature.value = newVal;
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
-const savingAvatar = ref(false)
-const savingName = ref(false)
-const savingSignature = ref(false)
-const avatarSaved = ref(false)
-const nameSaved = ref(false)
-const signatureSaved = ref(false)
-const errorMessage = ref('')
-const showError = ref(false)
-const showUnsavedDialog = ref(false)
-const close = (): void => {  // 检查是否有未保存的更改
+const savingAvatar = ref(false);
+const savingName = ref(false);
+const savingSignature = ref(false);
+const avatarSaved = ref(false);
+const nameSaved = ref(false);
+const signatureSaved = ref(false);
+const errorMessage = ref("");
+const showError = ref(false);
+const showUnsavedDialog = ref(false);
+const close = (): void => {
+  // 检查是否有未保存的更改
   const hasUnsavedChanges =
     (localName.value.trim() !== userStore.nickname && localName.value.trim()) ||
-    localSignature.value.trim() !== userStore.signature
+    localSignature.value.trim() !== userStore.signature;
 
   if (hasUnsavedChanges) {
-    showUnsavedDialog.value = true
-    return
+    showUnsavedDialog.value = true;
+    return;
   }
-  emit('update:modelValue', false)
-}
+  emit("update:modelValue", false);
+};
 const confirmClose = (): void => {
-  showUnsavedDialog.value = false
-  emit('update:modelValue', false)
-}
+  showUnsavedDialog.value = false;
+  emit("update:modelValue", false);
+};
 const cancelClose = (): void => {
-  showUnsavedDialog.value = false
-}
+  showUnsavedDialog.value = false;
+};
 const showErrorMessage = (message: string): void => {
-  errorMessage.value = message
-  showError.value = true
+  errorMessage.value = message;
+  showError.value = true;
   setTimeout(() => {
-    showError.value = false
-  }, 3000)
-}
+    showError.value = false;
+  }, 3000);
+};
 const onAvatarUpdated = async (file: File): Promise<void> => {
-  avatarFile = file
-  await saveAvatar()
-}
+  avatarFile = file;
+  await saveAvatar();
+};
 const saveAvatar = async (): Promise<void> => {
-  if (!avatarFile) return
+  if (!avatarFile) return;
   if (avatarResidue.value <= 0) {
-    showErrorMessage('头像更换次数已用完')
-    return
+    showErrorMessage("头像更换次数已用完");
+    return;
   }
-  savingAvatar.value = true
+  savingAvatar.value = true;
   try {
     const result = await window.electronAPI.uploadAvatar({
-      filePath: (avatarFile as { path?: string }).path || '',
+      filePath: (avatarFile as { path?: string }).path || "",
       fileName: avatarFile.name,
       fileSize: avatarFile.size,
-      fileSuffix: '.' + avatarFile.name.split('.').pop()?.toLowerCase()
-    })
+      fileSuffix: "." + avatarFile.name.split(".").pop()?.toLowerCase(),
+    });
     if (result.success) {
-      const uploadResult = result as { success: boolean; avatarUrl: string }
+      const uploadResult = result as { success: boolean; avatarUrl: string };
 
-      console.log('头像更新', uploadResult.avatarUrl)
-      await userStore.updateUserField('avatarUrl', uploadResult.avatarUrl)
-      await userStore.updateUserField('avatarResidue', avatarResidue.value - 1)
+      console.log("头像更新", uploadResult.avatarUrl);
+      await userStore.updateUserField("avatarUrl", uploadResult.avatarUrl);
+      await userStore.updateUserField("avatarResidue", avatarResidue.value - 1);
 
-      avatarSaved.value = true
+      avatarSaved.value = true;
       setTimeout(() => {
-        avatarSaved.value = false
-      }, 2000)
-      console.log('头像上传成功')
+        avatarSaved.value = false;
+      }, 2000);
+      console.log("头像上传成功");
     } else {
-      showErrorMessage('头像上传失败')
+      showErrorMessage("头像上传失败");
     }
   } catch (error) {
-    console.error('头像上传失败:', error)
-    showErrorMessage('头像上传失败，请重试')
+    console.error("头像上传失败:", error);
+    showErrorMessage("头像上传失败，请重试");
   } finally {
-    savingAvatar.value = false
+    savingAvatar.value = false;
   }
-}
+};
 const saveName = async (): Promise<void> => {
-  if (!localName.value.trim()) return
+  if (!localName.value.trim()) return;
   if (nicknameResidue.value <= 0) {
-    showErrorMessage('昵称修改次数已用完')
-    return
+    showErrorMessage("昵称修改次数已用完");
+    return;
   }
-  savingName.value = true
+  savingName.value = true;
   try {
-    await updateUserInfo({ name: localName.value.trim() })
+    await updateUserInfo({ name: localName.value.trim() });
     // 更新 userStore
-    await userStore.updateUserField('nickname', localName.value.trim())
-    await userStore.updateUserField('nicknameResidue', nicknameResidue.value - 1)
+    await userStore.updateUserField("nickname", localName.value.trim());
+    await userStore.updateUserField(
+      "nicknameResidue",
+      nicknameResidue.value - 1,
+    );
 
-    nameSaved.value = true
+    nameSaved.value = true;
     setTimeout(() => {
-      nameSaved.value = false
-    }, 2000)
-    console.log('昵称保存成功:', localName.value.trim())
+      nameSaved.value = false;
+    }, 2000);
+    console.log("昵称保存成功:", localName.value.trim());
   } catch (error) {
-    console.error('昵称保存失败:', error)
-    showErrorMessage('昵称保存失败，请重试')
+    console.error("昵称保存失败:", error);
+    showErrorMessage("昵称保存失败，请重试");
   } finally {
-    savingName.value = false
+    savingName.value = false;
   }
-}
+};
 const saveSignature = async (): Promise<void> => {
   if (signatureResidue.value <= 0) {
-    showErrorMessage('签名修改次数已用完')
-    return
+    showErrorMessage("签名修改次数已用完");
+    return;
   }
-  savingSignature.value = true
+  savingSignature.value = true;
   try {
+    await updateUserInfo({ signature: localSignature.value.trim() });
+    await userStore.updateUserField("signature", localSignature.value.trim());
+    await userStore.updateUserField(
+      "signatureResidue",
+      signatureResidue.value - 1,
+    );
 
-    await updateUserInfo({ signature: localSignature.value.trim() })
-    await userStore.updateUserField('signature', localSignature.value.trim())
-    await userStore.updateUserField('signatureResidue', signatureResidue.value - 1)
-
-    signatureSaved.value = true
+    signatureSaved.value = true;
     setTimeout(() => {
-      signatureSaved.value = false
-    }, 2000)
-    console.log('签名保存成功:', localSignature.value.trim())
+      signatureSaved.value = false;
+    }, 2000);
+    console.log("签名保存成功:", localSignature.value.trim());
   } catch (error) {
-    console.error('签名保存失败:', error)
-    showErrorMessage('签名保存失败，请重试')
+    console.error("签名保存失败:", error);
+    showErrorMessage("签名保存失败，请重试");
   } finally {
-    savingSignature.value = false
+    savingSignature.value = false;
   }
-}
-const updateUserInfo = async (data: { name?: string; signature?: string }): Promise<unknown> => {
+};
+const updateUserInfo = async (data: {
+  name?: string;
+  signature?: string;
+}): Promise<unknown> => {
   try {
-    const response = await axio.put('/user/update', data)
-    return response.data
+    const response = await axio.put("/user/update", data);
+    return response.data;
   } catch (error) {
-    console.error('更新用户信息失败:', error)
-    throw error
+    console.error("更新用户信息失败:", error);
+    throw error;
   }
-}
-const onLogout = (): void => emit('logout')
+};
+const onLogout = (): void => emit("logout");
 </script>
 
 <template>
-  <v-navigation-drawer v-model="open" location="right" width="320" temporary class="user-drawer">
+  <v-navigation-drawer
+    v-model="open"
+    location="right"
+    width="320"
+    temporary
+    class="user-drawer"
+  >
     <div class="drawer-header">
       <div class="title">个人信息</div>
-      <v-btn icon variant="text" @click="close"><v-icon>mdi-close</v-icon></v-btn>
+      <v-btn icon variant="text" @click="close"
+        ><v-icon>mdi-close</v-icon></v-btn
+      >
     </div>
     <div class="profile">
       <div class="avatar-section">
@@ -209,7 +233,7 @@ const onLogout = (): void => emit('logout')
           <v-icon color="error" size="16">mdi-lock</v-icon>
         </div>
       </div>
-      <div class="uid">UID: {{ userStore.myId || props.uid || '-' }}</div>
+      <div class="uid">UID: {{ userStore.myId || props.uid || "-" }}</div>
       <div class="residue-info">
         <div class="residue-item">
           <span class="label">头像更换:</span>
@@ -242,7 +266,11 @@ const onLogout = (): void => emit('logout')
           :disabled="nicknameResidue <= 0"
         />
         <v-btn
-          v-if="localName.trim() && localName !== userStore.nickname && nicknameResidue > 0"
+          v-if="
+            localName.trim() &&
+            localName !== userStore.nickname &&
+            nicknameResidue > 0
+          "
           :loading="savingName"
           :disabled="savingName || nicknameResidue <= 0"
           size="small"
@@ -250,7 +278,7 @@ const onLogout = (): void => emit('logout')
           variant="text"
           @click="saveName"
         >
-          {{ savingName ? '保存中' : '保存' }}
+          {{ savingName ? "保存中" : "保存" }}
         </v-btn>
         <v-icon v-if="nameSaved" color="success" size="16">mdi-check</v-icon>
         <div v-if="nicknameResidue <= 0" class="disabled-hint">
@@ -271,7 +299,10 @@ const onLogout = (): void => emit('logout')
           :disabled="signatureResidue <= 0"
         />
         <v-btn
-          v-if="localSignature.trim() !== userStore.signature && signatureResidue > 0"
+          v-if="
+            localSignature.trim() !== userStore.signature &&
+            signatureResidue > 0
+          "
           :loading="savingSignature"
           :disabled="savingSignature || signatureResidue <= 0"
           size="small"
@@ -279,9 +310,11 @@ const onLogout = (): void => emit('logout')
           variant="text"
           @click="saveSignature"
         >
-          {{ savingSignature ? '保存中' : '保存' }}
+          {{ savingSignature ? "保存中" : "保存" }}
         </v-btn>
-        <v-icon v-if="signatureSaved" color="success" size="16">mdi-check</v-icon>
+        <v-icon v-if="signatureSaved" color="success" size="16"
+          >mdi-check</v-icon
+        >
         <div v-if="signatureResidue <= 0" class="disabled-hint">
           <v-icon color="error" size="14">mdi-lock</v-icon>
           <span>修改次数已用完</span>
@@ -291,7 +324,12 @@ const onLogout = (): void => emit('logout')
     <div class="actions">
       <v-btn color="error" variant="tonal" @click="onLogout">退出登录</v-btn>
     </div>
-    <v-snackbar v-model="showError" :timeout="3000" color="error" location="top">
+    <v-snackbar
+      v-model="showError"
+      :timeout="3000"
+      color="error"
+      location="top"
+    >
       {{ errorMessage }}
     </v-snackbar>
     <v-dialog v-model="showUnsavedDialog" max-width="400">
@@ -301,7 +339,9 @@ const onLogout = (): void => emit('logout')
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="grey" variant="text" @click="cancelClose">取消</v-btn>
-          <v-btn color="primary" variant="text" @click="confirmClose">确定</v-btn>
+          <v-btn color="primary" variant="text" @click="confirmClose"
+            >确定</v-btn
+          >
         </v-card-actions>
       </v-card>
     </v-dialog>

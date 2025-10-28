@@ -1,54 +1,56 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import Avatar from './Avatar.vue'
-import { useUserStore } from '@main/electron-store/persist/user-store'
+import { ref, computed } from "vue";
+import Avatar from "./Avatar.vue";
+import { useUserStore } from "@main/electron-store/persist/user-store";
 
 const props = withDefaults(
   defineProps<{ uploadOnClick?: boolean; size?: number; disabled?: boolean }>(),
-  { uploadOnClick: true, size: 40, disabled: false }
-)
+  { uploadOnClick: true, size: 40, disabled: false },
+);
 const emit = defineEmits<{
   (
-    e: 'updated',
+    e: "updated",
     file: File,
     preview: string,
     fileInfo?: {
-      filePath: string
-      fileName: string
-      fileSize: number
-      fileSuffix: string
-      mimeType: string
-      dataUrl: string
-    }
-  ): void
-}>()
+      filePath: string;
+      fileName: string;
+      fileSize: number;
+      fileSuffix: string;
+      mimeType: string;
+      dataUrl: string;
+    },
+  ): void;
+}>();
 
-const userStore = useUserStore()
-const uploading = ref(false)
-const previewUrl = computed(() => userStore.avatarUrl || '')
+const userStore = useUserStore();
+const uploading = ref(false);
+const previewUrl = computed(() => userStore.avatarUrl || "");
 
 const onPick = async (): Promise<void> => {
-  if (uploading.value || props.disabled) return
+  if (uploading.value || props.disabled) return;
   try {
-    uploading.value = true
-    const fileInfo = await window.electronAPI.selectAvatarFile()
-    console.log('拿到的文件日志', fileInfo)
-    if (!fileInfo) return
+    uploading.value = true;
+    const fileInfo = await window.electronAPI.selectAvatarFile();
+    console.log("拿到的文件日志", fileInfo);
+    if (!fileInfo) return;
 
-    const response = await fetch(fileInfo.dataUrl)
-    const blob = await response.blob()
-    const file = new File([blob], fileInfo.fileName, { type: fileInfo.mimeType })
+    const response = await fetch(fileInfo.dataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], fileInfo.fileName, {
+      type: fileInfo.mimeType,
+    });
 
-    ;(file as File & { path?: string }).path = fileInfo.filePath
+    (file as File & { path?: string }).path = fileInfo.filePath;
 
-    emit('updated', file, fileInfo.dataUrl, fileInfo)
+    emit("updated", file, fileInfo.dataUrl, fileInfo);
   } catch (error) {
-    console.error('选择文件失败:', error)
+    console.error("选择文件失败:", error);
     // 这里可以显示错误提示
   } finally {
-    uploading.value = false
+    uploading.value = false;
   }
-}
+};
 </script>
 
 <template>
@@ -59,12 +61,23 @@ const onPick = async (): Promise<void> => {
     :class="{
       clickable: props.uploadOnClick && !props.disabled,
       uploading: uploading,
-      disabled: props.disabled
+      disabled: props.disabled,
     }"
     @click="props.uploadOnClick && !props.disabled ? onPick() : null"
   >
-    <Avatar v-if="previewUrl" :target-id="userStore.myId" :url="previewUrl" :size="props.size" />
-    <Avatar v-else :user-id="userStore.myId" :url="''" :name="'?'" :size="props.size" />
+    <Avatar
+      v-if="previewUrl"
+      :target-id="userStore.myId"
+      :url="previewUrl"
+      :size="props.size"
+    />
+    <Avatar
+      v-else
+      :user-id="userStore.myId"
+      :url="''"
+      :name="'?'"
+      :size="props.size"
+    />
     <button
       v-if="!props.uploadOnClick && !props.disabled"
       class="edit-btn"

@@ -1,155 +1,161 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
 interface Props {
-  audioBlob: Blob
-  duration: number
-  visible: boolean
+  audioBlob: Blob;
+  duration: number;
+  visible: boolean;
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{ (e: 'send'): void, (e: 'cancel'): void }>()
+const props = defineProps<Props>();
+const emit = defineEmits<{ (e: "send"): void; (e: "cancel"): void }>();
 
-const isPlaying = ref(false)
-const audioElement = ref<HTMLAudioElement | null>(null)
-const audioUrl = ref<string>('')
+const isPlaying = ref(false);
+const audioElement = ref<HTMLAudioElement | null>(null);
+const audioUrl = ref<string>("");
 
 const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
 
 const togglePlay = async (): Promise<void> => {
-  console.log('播放控制被触发，当前状态:', {
+  console.log("播放控制被触发，当前状态:", {
     hasAudioElement: !!audioElement.value,
     hasAudioUrl: !!audioUrl.value,
     isPlaying: isPlaying.value,
     audioElementSrc: audioElement.value?.src,
     audioElementReadyState: audioElement.value?.readyState,
     audioElementReady: audioElement.value?.readyState,
-    audioElementError: audioElement.value?.error
-  })
+    audioElementError: audioElement.value?.error,
+  });
 
   if (!audioElement.value) {
-    console.error('音频元素不可用')
-    return
+    console.error("音频元素不可用");
+    return;
   }
 
   try {
     if (isPlaying.value) {
-      audioElement.value.pause()
+      audioElement.value.pause();
     } else {
-      // 如果音频URL失效，重新创建
       if (!audioUrl.value || audioElement.value.error) {
-        console.log('重新创建音频URL，错误信息:', audioElement.value.error)
+        console.log("重新创建音频URL，错误信息:", audioElement.value.error);
         if (audioUrl.value) {
-          URL.revokeObjectURL(audioUrl.value)
+          URL.revokeObjectURL(audioUrl.value);
         }
-        // 尝试使用FileReader创建data URL，避免CSP问题
         try {
-          const reader = new FileReader()
+          const reader = new FileReader();
           await new Promise((resolve, reject) => {
             reader.onload = () => {
-              audioUrl.value = reader.result as string
+              audioUrl.value = reader.result as string;
               if (audioElement.value) {
-                audioElement.value.src = audioUrl.value
+                audioElement.value.src = audioUrl.value;
               }
-              resolve(undefined)
-            }
-            reader.onerror = reject
-            reader.readAsDataURL(props.audioBlob)
-          })
+              resolve(undefined);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(props.audioBlob);
+          });
         } catch (e) {
-          console.error('FileReader创建失败，回退到ObjectURL:', e)
-          audioUrl.value = URL.createObjectURL(props.audioBlob)
-          audioElement.value.src = audioUrl.value
+          console.error("FileReader创建失败，回退到ObjectURL:", e);
+          audioUrl.value = URL.createObjectURL(props.audioBlob);
+          audioElement.value.src = audioUrl.value;
         }
       }
       if (audioElement.value.readyState < 2) {
-        console.log('等待音频加载...')
+        console.log("等待音频加载...");
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
-            reject(new Error('音频加载超时'))
-          }, 5000)
+            reject(new Error("音频加载超时"));
+          }, 5000);
 
           const cleanup = () => {
-            clearTimeout(timeout)
-            audioElement.value?.removeEventListener('canplay', onCanPlay)
-            audioElement.value?.removeEventListener('error', onError)
-          }
+            clearTimeout(timeout);
+            audioElement.value?.removeEventListener("canplay", onCanPlay);
+            audioElement.value?.removeEventListener("error", onError);
+          };
           const onCanPlay = () => {
-            cleanup()
-            resolve(undefined)
-          }
+            cleanup();
+            resolve(undefined);
+          };
           const onError = (e: Event) => {
-            cleanup()
-            reject(new Error(`音频加载失败: ${(e.target as HTMLAudioElement)?.error?.message || '未知错误'}`))
-          }
-          audioElement.value!.addEventListener('canplay', onCanPlay, { once: true })
-          audioElement.value!.addEventListener('error', onError, { once: true })
-          audioElement.value!.load()
-        })
+            cleanup();
+            reject(
+              new Error(
+                `音频加载失败: ${(e.target as HTMLAudioElement)?.error?.message || "未知错误"}`,
+              ),
+            );
+          };
+          audioElement.value!.addEventListener("canplay", onCanPlay, {
+            once: true,
+          });
+          audioElement.value!.addEventListener("error", onError, {
+            once: true,
+          });
+          audioElement.value!.load();
+        });
       }
 
-      await audioElement.value.play()
+      await audioElement.value.play();
     }
   } catch (error) {
-    console.error('播放控制失败:', error)
-    isPlaying.value = false
+    console.error("播放控制失败:", error);
+    isPlaying.value = false;
   }
-}
+};
 const handleSend = (): void => {
-  emit('send')
-}
+  emit("send");
+};
 const handleCancel = (): void => {
-  emit('cancel')
-}
+  emit("cancel");
+};
 const handleAudioEnded = (): void => {
-  isPlaying.value = false
-}
+  isPlaying.value = false;
+};
 const handleAudioPause = (): void => {
-  isPlaying.value = false
-}
+  isPlaying.value = false;
+};
 const handleAudioPlay = (): void => {
-  isPlaying.value = true
-}
+  isPlaying.value = true;
+};
 
 onMounted(() => {
   if (props.audioBlob) {
-    console.log('开始设置音频源，Blob信息:', {
+    console.log("开始设置音频源，Blob信息:", {
       size: props.audioBlob.size,
-      type: props.audioBlob.type
-    })
+      type: props.audioBlob.type,
+    });
     nextTick(() => {
       if (audioElement.value) {
-        const reader = new FileReader()
+        const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result && audioElement.value) {
-            audioUrl.value = e.target.result as string
-            audioElement.value.src = audioUrl.value
-            console.log('音频data URL设置成功，长度:', audioUrl.value.length)
+            audioUrl.value = e.target.result as string;
+            audioElement.value.src = audioUrl.value;
+            console.log("音频data URL设置成功，长度:", audioUrl.value.length);
           }
-        }
+        };
         reader.onerror = (e) => {
-          console.error('FileReader读取失败:', e)
-        }
-        reader.readAsDataURL(props.audioBlob)
+          console.error("FileReader读取失败:", e);
+        };
+        reader.readAsDataURL(props.audioBlob);
       } else {
-        console.error('音频元素未找到')
+        console.error("音频元素未找到");
       }
-    })
+    });
   }
-})
+});
 onUnmounted(() => {
   if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
+    URL.revokeObjectURL(audioUrl.value);
   }
   if (audioElement.value) {
-    audioElement.value.pause()
-    audioElement.value.currentTime = 0
+    audioElement.value.pause();
+    audioElement.value.currentTime = 0;
   }
-})
+});
 </script>
 
 <template>
@@ -167,7 +173,10 @@ onUnmounted(() => {
 
       <div class="voice-controls">
         <button class="control-btn play-btn" @click="togglePlay">
-          <i class="iconfont" :class="isPlaying ? 'icon-pause' : 'icon-play'"></i>
+          <i
+            class="iconfont"
+            :class="isPlaying ? 'icon-pause' : 'icon-play'"
+          ></i>
         </button>
         <button class="control-btn cancel-btn" @click="handleCancel">
           <i class="iconfont icon-close"></i>
@@ -181,7 +190,7 @@ onUnmounted(() => {
     <audio
       ref="audioElement"
       preload="none"
-      style="display: none;"
+      style="display: none"
       @ended="handleAudioEnded"
       @pause="handleAudioPause"
       @play="handleAudioPlay"
@@ -219,7 +228,7 @@ onUnmounted(() => {
 
 /* 增强毛玻璃效果的伪元素 */
 .voice-preview::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;

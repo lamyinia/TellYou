@@ -1,4 +1,4 @@
-import { Message } from '@shared/types/session'
+import { Message } from "@shared/types/session";
 
 class MessageAdapter {
   /**
@@ -8,72 +8,74 @@ class MessageAdapter {
     return {
       id: Number(insertId) || 0,
       sessionId: msg.sessionId,
-      content: String(msg.content ?? ''),
-      messageType: 'text' as const,
+      content: String(msg.content ?? ""),
+      messageType: "text" as const,
       senderId: msg.senderId,
-      senderName: msg.fromName ?? '',
+      senderName: msg.fromName ?? "",
       timestamp: new Date(Number(msg.adjustedTimestamp)),
       isRead: true,
-      avatarVersion: String(msg.extra['avatarVersion']),
-      nicknameVersion: String(msg.extra['nicknameVersion'])
-    }
+      avatarVersion: String(msg.extra["avatarVersion"]),
+      nicknameVersion: String(msg.extra["nicknameVersion"]),
+    };
   }
 
   /**
    * 将 WebSocket 消息转换为数据库消息格式
    */
   public adaptToDatabaseMessage(message: any): any {
-    const date = new Date(Number(message.adjustedTimestamp)).toISOString()
+    const date = new Date(Number(message.adjustedTimestamp)).toISOString();
     return {
       sessionId: String(message.sessionId),
       sequenceId: message.sequenceNumber,
       senderId: String(message.senderId),
       msgId: message.messageId,
-      senderName: message.fromName || '',
+      senderName: message.fromName || "",
       msgType: message.messageType,
       isRecalled: 0,
       text: message.content,
       extData: JSON.stringify(message.extra),
       sendTime: date,
-      isRead: 1
-    }
+      isRead: 1,
+    };
   }
 
   /**
    * 将数据库消息行转换为 Message 对象
    */
   public adaptMessageRowToMessage(row: any): Message {
-    const extData = JSON.parse(row.extData || '{}')
-    const getMessageType = (msgType: number): 'text' | 'image' | 'video' | 'voice' | 'file' => {
+    const extData = JSON.parse(row.extData || "{}");
+    const getMessageType = (
+      msgType: number,
+    ): "text" | "image" | "video" | "voice" | "file" => {
       switch (msgType) {
         case 1:
-          return 'text'
+          return "text";
         case 2:
-          return 'image'
+          return "image";
         case 3:
-          return 'voice'
+          return "voice";
         case 4:
-          return 'video'
+          return "video";
         case 5:
-          return 'file'
+          return "file";
         default:
-          return 'text'
+          return "text";
       }
-    }
+    };
     return {
       id: row.id,
       sessionId: row.sessionId,
-      content: row.text || row.extData || '',
+      content: row.text || row.extData || "",
       messageType: getMessageType(row.msgType),
       senderId: row.senderId,
-      senderName: row.senderName || '',
+      senderName: row.senderName || "",
       timestamp: new Date(row.sendTime),
       isRead: !!row.isRead,
-      avatarVersion: String(extData.avatarVersion || ''),
-      nicknameVersion: String(extData.nicknameVersion || '')
-    }
+      avatarVersion: String(extData.avatarVersion || ""),
+      nicknameVersion: String(extData.nicknameVersion || ""),
+    };
   }
 }
 
-const messageAdapter = new MessageAdapter()
-export default messageAdapter
+const messageAdapter = new MessageAdapter();
+export default messageAdapter;

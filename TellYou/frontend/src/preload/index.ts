@@ -11,10 +11,10 @@ if (process.contextIsolated) {
         invoke: ipcRenderer.invoke,
         send: ipcRenderer.send,
         on: ipcRenderer.on,
-        removeListener: ipcRenderer.removeListener
-      }
+        removeListener: ipcRenderer.removeListener,
+      },
     };
-    
+
     contextBridge.exposeInMainWorld("electron", electronAPI);
     contextBridge.exposeInMainWorld("electronAPI", {
       storeGet: (key: string) => ipcRenderer.invoke("store-get", key),
@@ -79,7 +79,7 @@ if (process.contextIsolated) {
       invoke: ipcRenderer.invoke,
       send: ipcRenderer.send,
       on: ipcRenderer.on,
-      removeListener: ipcRenderer.removeListener
-    }
+      removeListener: ipcRenderer.removeListener,
+    },
   };
 }

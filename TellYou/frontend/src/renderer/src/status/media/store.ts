@@ -1,17 +1,24 @@
-import { defineStore } from 'pinia'
-import { reactive } from 'vue'
-import type { MediaSendParams, MediaTask, MediaTaskResult, MediaTaskStatus } from './class'
+import { defineStore } from "pinia";
+import { reactive } from "vue";
+import type {
+  MediaSendParams,
+  MediaTask,
+  MediaTaskResult,
+  MediaTaskStatus,
+} from "./class";
 
-export const useMediaStore = defineStore('media', () => {
-  const activeTasks = reactive<Record<string, MediaTask>>({})
-  const startTask = async (params: MediaSendParams): Promise<MediaTaskResult> => {
+export const useMediaStore = defineStore("media", () => {
+  const activeTasks = reactive<Record<string, MediaTask>>({});
+  const startTask = async (
+    params: MediaSendParams,
+  ): Promise<MediaTaskResult> => {
     try {
       const result = await window.electronAPI.startMediaTask({
         type: params.type,
         filePath: params.filePath,
         fileName: params.fileName,
-        mimeType: params.mimeType
-      })
+        mimeType: params.mimeType,
+      });
 
       if (result.success && result.taskId) {
         const task: MediaTask = {
@@ -21,27 +28,27 @@ export const useMediaStore = defineStore('media', () => {
           fileName: params.fileName,
           fileSize: 0, // 将在后续更新
           mimeType: params.mimeType,
-          status: 'pending' as MediaTaskStatus,
+          status: "pending" as MediaTaskStatus,
           progress: 0,
           createdAt: Date.now(),
-          updatedAt: Date.now()
-        }
+          updatedAt: Date.now(),
+        };
 
-        activeTasks[result.taskId] = task
+        activeTasks[result.taskId] = task;
       }
 
-      return result
+      return result;
     } catch (error) {
       return {
-        taskId: '',
+        taskId: "",
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
-  }
+  };
 
   return {
     activeTasks,
     startTask,
-  }
-})
+  };
+});

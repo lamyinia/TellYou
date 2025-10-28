@@ -58,7 +58,7 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     public void transferOwner(TransferOwnerReq req) {
         AssertUtil.isFalse(groupContactDao.validatePower(req.getMemberId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole()), "目标退群了");
 
-        groupContactDao.assignPower(req.getFromId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole());
+        groupContactDao.assignPower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole());
         groupContactDao.assignPower(req.getMemberId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
         groupInfoDao.assignOwner(req.getGroupId(),req.getMemberId());
     }
