@@ -44,11 +44,9 @@ class ProfileDao {
         SELECT * FROM profiles 
         WHERE target_id = ? AND contact_type = ?
       `
-      
       const row = await queryOne(sql, [targetId, contactType])
       if (!row) return null
       
-      // atom.ts已经处理了驼峰转换，直接返回
       return row as unknown as ProfileEntity
     } catch (error) {
       log.error('ProfileDao:selectProfile error:', error)
@@ -63,7 +61,6 @@ class ProfileDao {
     try {
       const now = Date.now()
       
-      // 使用atom.ts封装的insertOrReplace方法
       const profileData = {
         targetId: profile.targetId,
         contactType: profile.contactType,
@@ -90,26 +87,16 @@ class ProfileDao {
   /**
    * 更新昵称信息
    */
-  public async updateNickname(
-    targetId: string, 
-    contactType: number, 
-    data: NicknameUpdateData
-  ): Promise<number> {
+  public async updateNickname(targetId: string, contactType: number, data: NicknameUpdateData): Promise<number> {
     try {
       const now = Date.now()
-      
-      // 使用atom.ts封装的update方法
       const updateData = {
         nickname: data.nickname,
         nickVersion: data.nickVersion,
         lastNickUpdate: now
       }
       
-      const whereData = {
-        targetId,
-        contactType
-      }
-      
+      const whereData = { targetId, contactType }
       const result = await update('profiles', updateData, whereData)
       
       log.info(`ProfileDao: 昵称更新成功 ${targetId}: ${data.nickname}`)
@@ -123,32 +110,21 @@ class ProfileDao {
   /**
    * 更新头像信息
    */
-  public async updateAvatar(
-    targetId: string,
-    contactType: number,
-    data: AvatarUpdateData
-  ): Promise<number> {
+  public async updateAvatar(targetId: string, contactType: number,data: AvatarUpdateData): Promise<number> {
     try {
       const now = Date.now()
-      
-      // 使用atom.ts封装的update方法
       const updateData: any = {
         avatarVersion: data.version,
         lastAvatarUpdate: now
       }
       
-      // 根据策略设置对应的路径字段
       if (data.strategy === 'thumbedAvatarUrl') {
         updateData.avatarThumbPath = data.localPath
       } else {
         updateData.avatarOriginalPath = data.localPath
       }
       
-      const whereData = {
-        targetId,
-        contactType
-      }
-      
+      const whereData = {targetId, contactType}
       const result = await update('profiles', updateData, whereData)
       
       log.info(`ProfileDao: 头像更新成功 ${targetId}: ${data.localPath}`)
@@ -213,17 +189,12 @@ class ProfileDao {
   /**
    * 插入或更新头像信息 (专用于头像更新)
    */
-  public async upsertAvatar(
-    targetId: string,
-    contactType: number,
-    data: AvatarUpdateData
-  ): Promise<number> {
+  public async upsertAvatar(targetId: string, contactType: number,data: AvatarUpdateData): Promise<number> {
     try {
       const existing = await this.selectProfile(targetId, contactType)
       const now = Date.now()
       
       if (existing) {
-        // 更新现有记录
         return await this.updateAvatar(targetId, contactType, data)
       } else {
         // 创建新记录，使用insertOrReplace

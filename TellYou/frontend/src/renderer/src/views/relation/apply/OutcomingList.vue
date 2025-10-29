@@ -1,30 +1,32 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useApplicationStore } from "@renderer/status/application/store";
-import { ApplicationItem } from "@shared/types/application";
-import { formatTime } from "@shared/utils/process";
-import Avatar from "@renderer/components/Avatar.vue";
-import NickName from "@renderer/components/NickName.vue";
+/* eslint-disable */
 
-const appStore = useApplicationStore();
+import { computed } from "vue"
+import { useApplicationStore } from "@renderer/status/application/store"
+import { ApplicationItem } from "@shared/types/application"
+import { formatTime } from "@shared/utils/process"
+import Avatar from "@renderer/components/Avatar.vue"
+import NickName from "@renderer/components/NickName.vue"
+
+const appStore = useApplicationStore()
 const rows = computed<ApplicationItem[]>(
   () => appStore.outgoing as unknown as ApplicationItem[],
-);
-const page = computed(() => appStore.outgoingPage);
+)
+const page = computed(() => appStore.outgoingPage)
 
 const pageNo = computed<number>({
   get: () => page.value.pageNo,
   set: (val: number) => {
-    if (val && val !== page.value.pageNo) appStore.reloadOutgoing(val);
+    if (val && val !== page.value.pageNo) appStore.reloadOutgoing(val)
   },
-});
+})
 
 const pageLength = computed(() =>
   Math.max(1, Math.ceil(page.value.total / page.value.pageSize)),
-);
+)
 const onPageChange = (newPage: number): void => {
-  appStore.reloadOutgoing(newPage);
-};
+  appStore.reloadOutgoing(newPage)
+}
 </script>
 
 <template>
@@ -43,11 +45,11 @@ const onPageChange = (newPage: number): void => {
 
       <template #title>
         <NickName
-          :user-id="item.targetId"
-          :version="'0'"
-          :name="'未知'"
+          :target-id="item.targetId"
+          contact-type="1"
+          :nickname-version="'99999'"
+          :placeholder="'未知'"
           side="left"
-          :truncate="18"
         />
       </template>
       <template #subtitle>

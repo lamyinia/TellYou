@@ -1,84 +1,87 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useSessionStore } from "@renderer/status/session/store";
-import Avatar from "@renderer/components/Avatar.vue";
-import { SimpleContact } from "@renderer/views/relation/ContactManagementView.vue";
-import pinyinUtil from "@renderer/utils/pinyin";
+/* eslint-disable */
 
-const emit = defineEmits<{ (e: "select", sessionId: string): void }>();
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { useSessionStore } from "@renderer/status/session/store"
+import Avatar from "@renderer/components/Avatar.vue"
+import { SimpleContact } from "@renderer/views/relation/ContactManagementView.vue"
+import pinyinUtil from "@renderer/utils/pinyin"
 
-const sessionStore = useSessionStore();
+const emit = defineEmits<{ (e: "select", sessionId: string): void }>()
+
+const sessionStore = useSessionStore()
 const contacts = computed<SimpleContact[]>(() => {
   return sessionStore.sortedSessions.map((s) => ({
     id: s.contactId,
     name: s.contactName,
     avatar: s.contactAvatar,
     sessionId: s.sessionId,
-  }));
-});
+    contactType: s.contactType,
+  }))
+})
 
-type sessionDial = { letter: string; items: SimpleContact[] };
+type sessionDial = { letter: string, items: SimpleContact[] }
 const simpleSessions = computed<sessionDial[]>(() => {
-  const map = new Map<string, SimpleContact[]>();
+  const map = new Map<string, SimpleContact[]>()
   for (const l of pinyinUtil.LETTERS) {
-    map.set(l, []);
+    map.set(l, [])
   }
-  map.set("#", []);
+  map.set("#", [])
   for (const c of contacts.value) {
-    const letter = pinyinUtil.getInitial(c.name);
-    const key = pinyinUtil.LETTERS.includes(letter) ? letter : "#";
-    map.get(key)!.push(c);
+    const letter = pinyinUtil.getInitial(c.name)
+    const key = pinyinUtil.LETTERS.includes(letter) ? letter : "#"
+    map.get(key)!.push(c)
   }
   return [...map.entries()]
     .filter(([, items]) => items.length > 0)
     .sort((a, b) => {
-      const ai = a[0] === "#" ? 26 : pinyinUtil.LETTERS.indexOf(a[0]);
-      const bi = b[0] === "#" ? 26 : pinyinUtil.LETTERS.indexOf(b[0]);
-      return ai - bi;
+      const ai = a[0] === "#" ? 26 : pinyinUtil.LETTERS.indexOf(a[0])
+      const bi = b[0] === "#" ? 26 : pinyinUtil.LETTERS.indexOf(b[0])
+      return ai - bi
     })
     .map(([letter, items]) => ({
       letter,
       items: items.sort((a, b) =>
         pinyinUtil.collator.compare(a.name || "", b.name || ""),
       ),
-    }));
-});
+    }))
+})
 
-const wrapRef = ref<HTMLElement | null>(null);
-const currentLetter = ref<string>("");
-let hideTimer: ReturnType<typeof setTimeout> | null = null;
+const wrapRef = ref<HTMLElement | null>(null)
+const currentLetter = ref<string>("")
+let hideTimer: ReturnType<typeof setTimeout> | null = null
 
 const onScroll = (): void => {
-  const el = wrapRef.value;
-  if (!el) return;
+  const el = wrapRef.value
+  if (!el) return
   const headers = Array.from(
     el.querySelectorAll("[data-letter]"),
-  ) as HTMLElement[];
-  let active = "";
+  ) as HTMLElement[]
+  let active = ""
   for (const h of headers) {
-    const rect = h.getBoundingClientRect();
-    const wrapTop = el.getBoundingClientRect().top;
+    const rect = h.getBoundingClientRect()
+    const wrapTop = el.getBoundingClientRect().top
     if (rect.top - wrapTop <= 8) {
-      active = h.dataset.letter || "";
+      active = h.dataset.letter || ""
     } else {
-      break;
+      break
     }
   }
   if (active) {
-    currentLetter.value = active;
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => (currentLetter.value = ""), 800);
+    currentLetter.value = active
+    if (hideTimer) clearTimeout(hideTimer)
+    hideTimer = setTimeout(() => (currentLetter.value = ""), 800)
   }
-};
+}
 
-onMounted(() => wrapRef.value?.addEventListener("scroll", onScroll));
+onMounted(() => wrapRef.value?.addEventListener("scroll", onScroll))
 onBeforeUnmount(() => {
-  wrapRef.value?.removeEventListener("scroll", onScroll);
-  if (hideTimer) clearTimeout(hideTimer);
-});
+  wrapRef.value?.removeEventListener("scroll", onScroll)
+  if (hideTimer) clearTimeout(hideTimer)
+})
 
 const onSelect = (contact: SimpleContact): void =>
-  emit("select", contact.sessionId);
+  emit("select", contact.sessionId)
 </script>
 
 <template>
@@ -95,7 +98,7 @@ const onSelect = (contact: SimpleContact): void =>
         >
           <Avatar
             :target-id="String(item.id)"
-            :contact-type="1"
+            :contact-type="item.contactType"
             :version="'0'"
             :size="56"
             strategy="thumbedAvatarUrl"

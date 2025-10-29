@@ -1,116 +1,118 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
-import type { Session } from "@shared/types/session";
-import { useMessageStore } from "@renderer/status/message/store";
-import TextMessage from "@renderer/views/chat/left/message/TextMessage.vue";
-import ImageMessage from "@renderer/views/chat/left/message/ImageMessage.vue";
-import VideoMessage from "@renderer/views/chat/left/message/VideoMessage.vue";
-import VoiceMessage from "@renderer/views/chat/left/message/VoiceMessage.vue";
-import FileMessage from "@renderer/views/chat/left/message/FileMessage.vue";
-import MessageSendBox from "@renderer/views/chat/left/send/MessageSendBox.vue";
+/* eslint-disable */
 
-const props = defineProps<{ currentContact: Session | null }>();
-const contactName = computed(() => props.currentContact?.contactName || "");
-const messageStore = useMessageStore();
-const currentSessionId = computed(() => props.currentContact?.sessionId || "");
-const listRef = ref<HTMLElement | null>(null);
-const isFirstLoad = ref(true);
-const preloadThreshold = 80;
+import { computed, nextTick, onMounted, ref, watch } from "vue"
+import type { Session } from "@shared/types/session"
+import { useMessageStore } from "@renderer/status/message/store"
+import TextMessage from "@renderer/views/chat/left/message/TextMessage.vue"
+import ImageMessage from "@renderer/views/chat/left/message/ImageMessage.vue"
+import VideoMessage from "@renderer/views/chat/left/message/VideoMessage.vue"
+import VoiceMessage from "@renderer/views/chat/left/message/VoiceMessage.vue"
+import FileMessage from "@renderer/views/chat/left/message/FileMessage.vue"
+import MessageSendBox from "@renderer/views/chat/left/send/MessageSendBox.vue"
+
+const props = defineProps<{ currentContact: Session | null }>()
+const contactName = computed(() => props.currentContact?.contactName || "")
+const messageStore = useMessageStore()
+const currentSessionId = computed(() => props.currentContact?.sessionId || "")
+const listRef = ref<HTMLElement | null>(null)
+const isFirstLoad = ref(true)
+const preloadThreshold = 80
 
 // 简单防抖工具，避免高频滚动触发加载
 const debounce = <T extends (...args: any[]) => void>(
   fn: T,
   delay = 100,
 ): ((...args: Parameters<T>) => void) => {
-  let timer: number | undefined;
+  let timer: number | undefined
   return (...args: Parameters<T>) => {
-    if (timer) window.clearTimeout(timer);
-    timer = window.setTimeout(() => fn(...args), delay);
-  };
-};
+    if (timer) window.clearTimeout(timer)
+    timer = window.setTimeout(() => fn(...args), delay)
+  }
+}
 
 const messages = computed(() => {
-  const id = currentSessionId.value;
-  if (!id) return [];
-  const result = messageStore.getCurrentSessionMessages(String(id));
+  const id = currentSessionId.value
+  if (!id) return []
+  const result = messageStore.getCurrentSessionMessages(String(id))
   console.log(
     `ChatPanel computed messages for session ${id}:`,
     result.length,
     "messages",
-  );
-  return result;
-});
-const displayedMessages = computed(() => [...messages.value].reverse());
+  )
+  return result
+})
+const displayedMessages = computed(() => [...messages.value].reverse())
 
 watch(
   currentSessionId,
   (id) => {
     if (id) {
-      isFirstLoad.value = true;
-      messageStore.setCurrentSession(String(id));
+      isFirstLoad.value = true
+      messageStore.setCurrentSession(String(id))
     }
   },
   { immediate: true },
-);
+)
 watch(
   messages,
   async (val) => {
-    if (!listRef.value) return;
+    if (!listRef.value) return
     if (isFirstLoad.value && val.length > 0) {
-      await scrollToBottom();
-      isFirstLoad.value = false;
+      await scrollToBottom()
+      isFirstLoad.value = false
     }
   },
   { deep: true },
-);
+)
 
 onMounted(async () => {
-  await scrollToBottom();
-});
+  await scrollToBottom()
+})
 
 const goToBottom = async (): Promise<void> => {
-  await scrollToBottom();
-};
+  await scrollToBottom()
+}
 const scrollToBottom = async (): Promise<void> => {
-  if (!listRef.value) return;
-  await nextTick();
-  listRef.value.scrollTop = listRef.value.scrollHeight;
+  if (!listRef.value) return
+  await nextTick()
+  listRef.value.scrollTop = listRef.value.scrollHeight
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => {
-      if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight;
-      resolve();
+      if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+      resolve()
     }),
-  );
-};
+  )
+}
 
 const handleScroll = async (): Promise<void> => {
-  const el = listRef.value;
-  const sessionId = currentSessionId.value;
-  if (!el || !sessionId) return;
-  const { scrollTop, scrollHeight, clientHeight } = el;
+  const el = listRef.value
+  const sessionId = currentSessionId.value
+  if (!el || !sessionId) return
+  const { scrollTop, scrollHeight, clientHeight } = el
 
   if (scrollTop <= preloadThreshold) {
-    const prevScrollHeight = scrollHeight;
-    const prevTop = scrollTop;
-    console.log("滚动到顶部时加载旧消息");
-    const loaded = await messageStore.loadOlderMessages(String(sessionId));
+    const prevScrollHeight = scrollHeight
+    const prevTop = scrollTop
+    console.log("滚动到顶部时加载旧消息")
+    const loaded = await messageStore.loadOlderMessages(String(sessionId))
     if (loaded) {
-      await nextTick();
-      const diff = listRef.value!.scrollHeight - prevScrollHeight;
-      listRef.value!.scrollTop = prevTop + diff;
+      await nextTick()
+      const diff = listRef.value!.scrollHeight - prevScrollHeight
+      listRef.value!.scrollTop = prevTop + diff
     }
   }
-  const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+  const distanceToBottom = scrollHeight - scrollTop - clientHeight
   if (distanceToBottom <= preloadThreshold) {
-    console.log("滚动到底部时加载更新的消息");
-    await messageStore.loadNewerMessages(sessionId);
+    console.log("滚动到底部时加载更新的消息")
+    await messageStore.loadNewerMessages(sessionId)
   }
-};
+}
 
 // 防抖后的滚动处理函数
 const onScroll = debounce(() => {
-  void handleScroll();
-}, 100);
+  void handleScroll()
+}, 100)
 </script>
 
 <template>

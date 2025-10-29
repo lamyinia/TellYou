@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import Avatar from "@renderer/components/Avatar.vue";
-import type { Session } from "@shared/types/session";
-import { briefMsg, formatTime } from "@shared/utils/process";
+/* eslint-disable */
 
-const props = defineProps<{ session: Session }>();
+import { computed } from "vue"
+import Avatar from "@renderer/components/Avatar.vue"
+import type { Session } from "@shared/types/session"
+import { briefMsg, formatTime } from "@shared/utils/process"
 
-const lastMsgText = computed(() => briefMsg(props.session.lastMsgContent));
-const timeText = computed(() => formatTime(props.session.lastMsgTime));
+const props = defineProps<{ session: Session }>()
+
+const lastMsgText = computed(() => briefMsg(props.session.lastMsgContent))
+const timeText = computed(() => formatTime(props.session.lastMsgTime))
 </script>
 
 <template>

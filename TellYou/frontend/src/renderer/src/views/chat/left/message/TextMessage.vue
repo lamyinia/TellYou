@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* eslint-disable */
+
 import type { ChatMessage } from "@renderer/status/message/class";
 import { useUserStore } from "@main/electron-store/persist/user-store";
 import { computed } from "vue";
@@ -8,6 +10,7 @@ import NickName from "@renderer/components/NickName.vue";
 const props = defineProps<{ message: ChatMessage }>();
 const userStore = useUserStore();
 const isSelf = computed(() => props.message.senderId === userStore.myId);
+
 </script>
 
 <template>
@@ -24,9 +27,10 @@ const isSelf = computed(() => props.message.senderId === userStore.myId);
       />
       <div class="content left">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="left"
         />
         <div class="bubble left">{{ props.message.content }}</div>
@@ -35,9 +39,10 @@ const isSelf = computed(() => props.message.senderId === userStore.myId);
     <template v-else>
       <div class="content right">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="right"
         />
         <div class="bubble right">{{ props.message.content }}</div>

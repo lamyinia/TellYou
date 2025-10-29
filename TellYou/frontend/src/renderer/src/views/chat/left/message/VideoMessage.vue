@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* eslint-disable */
+
 import type { ChatMessage } from "@renderer/status/message/class";
 import { useUserStore } from "@main/electron-store/persist/user-store";
 import { computed, ref, onMounted, onUnmounted, nextTick } from "vue";
@@ -181,9 +183,10 @@ const showThumbnail = computed(() => {
       />
       <div class="content left">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="left"
         />
         <div class="video-container">
@@ -245,9 +248,10 @@ const showThumbnail = computed(() => {
     <template v-else>
       <div class="content right">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="right"
         />
         <div class="video-container">

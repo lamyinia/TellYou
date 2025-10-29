@@ -2,18 +2,18 @@
 /* eslint-disable */
 
 import { computed, ref, watch, onMounted } from "vue";
-import { useProfileStore } from "@renderer/stores/profile-store";
+import { useProfileStore } from "@renderer/status/profile/profile-store";
 
 /**
  * 新的Avatar组件
  * 使用统一的ProfileStore，支持用户和群组头像
- * 
+ *
  * 特性：
  * 1. 统一的API调用
  * 2. 支持用户和群组
  * 3. 自动事件监听和缓存更新
  * 4. 简化的加载逻辑
- * 
+ *
  * @author lanye
  * @since 2025/10/29
  */
@@ -120,7 +120,7 @@ const loadAvatar = async (): Promise<void> => {
     )
 
     avatarPath.value = path
-    
+
     if (path) {
       console.info(`Avatar: 加载成功 ${props.targetId} -> ${path}`)
     } else {
@@ -182,7 +182,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div 
+  <div
     :class="avatarClasses"
     :style="avatarStyles"
     @click="$emit('click')"
@@ -191,7 +191,7 @@ onMounted(() => {
     <div v-if="isLoading && showLoading" class="avatar-loading">
       <div class="loading-spinner"></div>
     </div>
-    
+
     <!-- 头像图片 -->
     <img
       v-else-if="avatarSrc"
@@ -201,7 +201,7 @@ onMounted(() => {
       @error="handleImageError"
       @load="handleImageLoad"
     />
-    
+
     <!-- 备用文字 -->
     <div v-else class="avatar-fallback">
       {{ initials }}

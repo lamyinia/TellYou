@@ -2,18 +2,18 @@
 /* eslint-disable */
 
 import { computed, ref, watch, onMounted } from "vue";
-import { useProfileStore } from "@renderer/stores/profile-store";
+import { useProfileStore } from "@renderer/status/profile/profile-store";
 
 /**
  * 新的Avatar组件
  * 使用统一的ProfileStore，支持用户和群组头像
- * 
+ *
  * 特性：
  * 1. 统一的API调用
  * 2. 支持用户和群组
  * 3. 自动事件监听和缓存更新
  * 4. 简化的加载逻辑
- * 
+ *
  * @author lanye
  * @since 2025/10/29
  */
@@ -48,14 +48,13 @@ const emit = defineEmits<{
 }>()
 
 const profileStore = useProfileStore()
-
-// 响应式状态
 const avatarPath = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const imageLoaded = ref(false)
-
-// 计算属性
+const getCacheKey = (): string => {
+  return `${props.targetId}_${props.contactType}_${props.strategy}`
+}
 const initials = computed(() => {
   if (props.fallbackText && props.fallbackText !== '?') {
     return props.fallbackText.slice(0, 1).toUpperCase()
@@ -65,17 +64,14 @@ const initials = computed(() => {
 
 const avatarSrc = computed(() => {
   if (avatarPath.value && imageLoaded.value) {
-    // 添加时间戳防止缓存
     const separator = avatarPath.value.includes('?') ? '&' : '?'
     return `${avatarPath.value}${separator}t=${Date.now()}`
   }
   return avatarPath.value
 })
-
 const isLoading = computed(() => {
-  return loading.value || profileStore.loadingAvatars.has(getCacheKey())
+  return loading.value
 })
-
 const avatarClasses = computed(() => {
   const classes = [
     'avatar',
@@ -86,15 +82,12 @@ const avatarClasses = computed(() => {
       'avatar-error': error.value
     }
   ]
-  
-  // 兼容旧的side属性
   if (props.side) {
     classes.push(props.side)
   }
-  
+
   return classes
 })
-
 const avatarStyles = computed(() => {
   return {
     width: `${props.size}px`,
@@ -103,12 +96,6 @@ const avatarStyles = computed(() => {
   }
 })
 
-// 工具方法
-const getCacheKey = (): string => {
-  return `${props.targetId}_${props.contactType}_${props.strategy}`
-}
-
-// 加载头像
 const loadAvatar = async (): Promise<void> => {
   if (!props.targetId) {
     avatarPath.value = null
@@ -119,16 +106,8 @@ const loadAvatar = async (): Promise<void> => {
     loading.value = true
     error.value = null
     imageLoaded.value = false
-
-    const path = await profileStore.getAvatarPath(
-      props.targetId,
-      props.strategy,
-      props.contactType,
-      props.version
-    )
-
+    const path = await profileStore.getAvatarPath(props.targetId, props.strategy, props.contactType, props.version)
     avatarPath.value = path
-    
     if (path) {
       console.info(`Avatar: 加载成功 ${props.targetId} -> ${path}`)
     } else {
@@ -144,7 +123,6 @@ const loadAvatar = async (): Promise<void> => {
   }
 }
 
-// 事件处理
 const handleImageLoad = (): void => {
   imageLoaded.value = true
   error.value = null
@@ -158,7 +136,6 @@ const handleImageError = (): void => {
   emit('error', 'Image load failed')
 }
 
-// 监听属性变化
 watch(
   () => [props.targetId, props.contactType, props.strategy, props.version],
   () => {
@@ -169,38 +146,36 @@ watch(
   { immediate: true }
 )
 
-// 监听缓存更新
 watch(
-  () => profileStore.profileCache.get(`${props.targetId}_${props.contactType}`)?.avatarPath,
+  () => profileStore.avatarTrigger.get(getCacheKey()),
   (newPath) => {
     if (newPath && newPath !== avatarPath.value) {
       avatarPath.value = newPath
       imageLoaded.value = false // 重新加载图片
       console.info(`Avatar: 缓存更新 ${props.targetId} -> ${newPath}`)
     }
-  }
+  },
+  { immediate: true }
 )
 
-// 组件挂载时加载
 onMounted(() => {
   if (props.targetId) {
     loadAvatar()
   }
 })
+
 </script>
 
 <template>
-  <div 
+  <div
     :class="avatarClasses"
     :style="avatarStyles"
     @click="$emit('click')"
   >
-    <!-- 加载状态 -->
     <div v-if="isLoading && showLoading" class="avatar-loading">
       <div class="loading-spinner"></div>
     </div>
-    
-    <!-- 头像图片 -->
+
     <img
       v-else-if="avatarSrc"
       :src="avatarSrc"
@@ -209,8 +184,7 @@ onMounted(() => {
       @error="handleImageError"
       @load="handleImageLoad"
     />
-    
-    <!-- 备用文字 -->
+
     <div v-else class="avatar-fallback">
       {{ initials }}
     </div>

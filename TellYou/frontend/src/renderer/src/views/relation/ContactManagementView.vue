@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* eslint-disable */
+
 import { ref, watch } from "vue";
 import ContactDial from "./ContactDial.vue";
 import ContactDetail from "./ContactDetail.vue";
@@ -8,17 +10,19 @@ import ContactBlack from "./black/ContactBlack.vue";
 import { useSessionStore } from "@renderer/status/session/store";
 
 export interface SimpleContact {
-  id: string;
-  name: string;
-  avatar?: string;
-  sessionId: string;
+  id: string,
+  name: string,
+  avatar?: string,
+  sessionId: string,
+  contactType: number
 }
 export interface DetailContact {
-  sessionId: string;
-  name: string;
-  avatar?: string;
-  signature?: string;
-  sex?: string;
+  sessionId: string,
+  contactType: number,
+  name: string,
+  avatar?: string,
+  signature?: string,
+  sex?: string,
 }
 
 const activeTab = ref<string>("");

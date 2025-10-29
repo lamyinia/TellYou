@@ -6,38 +6,28 @@ import feedbackUtil from "@renderer/utils/feedback-util"
 const props = defineProps<{ outTab: string }>()
 const emit = defineEmits<{ (e: "toggle", newValue: string): void }>()
 
-// 创建群聊对话框状态
 const createGroupDialog = ref(false)
 const groupName = ref("")
 const isCreating = ref(false)
 
-// 表单验证
 const groupNameRules = [
   (v: string) => !!v || "群名称不能为空",
   (v: string) => (v && v.length <= 30) || "群名称不能超过30个字符",
   (v: string) => (v && v.trim().length > 0) || "群名称不能只包含空格",
 ]
 
-// 字符计数
 const characterCount = computed(() => groupName.value.length)
-
-// 创建群聊
 const createGroup = async (): Promise<void> => {
   if (isCreating.value) return
-
-  // 验证表单
   if (!groupName.value.trim()) {
     feedbackUtil.error("创建失败", "请输入群名称")
     return
   }
-
   if (groupName.value.length > 30) {
     feedbackUtil.error("创建失败", "群名称不能超过30个字符")
     return
   }
-
   isCreating.value = true
-
   try {
     const result = await window.electronAPI.invoke("proxy:group:create-group", {
       name: groupName.value.trim(),
@@ -45,18 +35,14 @@ const createGroup = async (): Promise<void> => {
 
     if (result.success) {
       feedbackUtil.success("创建成功", `群聊"${groupName.value}"创建成功`)
-
       groupName.value = ""
       createGroupDialog.value = false
-
       // emit('refresh-groups');
     } else {
       feedbackUtil.error("创建失败", result.message || "创建群聊时发生错误")
     }
   } catch (error: any) {
     console.error("创建群聊失败:", error)
-
-    // 处理特定错误
     if (error.message?.includes("流控")) {
       feedbackUtil.warning("操作频繁", "请稍后再试，3分钟内最多创建3个群聊")
     } else {
@@ -67,13 +53,11 @@ const createGroup = async (): Promise<void> => {
   }
 }
 
-// 取消创建
 const cancelCreate = (): void => {
   groupName.value = ""
   createGroupDialog.value = false
 }
 
-// 打开创建群聊对话框
 const openCreateDialog = (): void => {
   createGroupDialog.value = true
 }
@@ -125,7 +109,6 @@ const openCreateDialog = (): void => {
             <div class="group-section">
               <h4 class="section-title">我管理的群聊</h4>
               <div class="group-list">
-                <!-- 这里后续添加群聊列表 -->
                 <div class="empty-state">
                   <v-icon icon="mdi-account-group-outline" size="48" class="empty-icon" />
                   <p class="empty-text">暂无管理的群聊</p>

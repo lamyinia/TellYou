@@ -1,28 +1,30 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { useApplicationStore } from "@renderer/status/application/store";
-import IncomingList from "@renderer/views/relation/apply/IncomingList.vue";
-import OutcomingList from "@renderer/views/relation/apply/OutcomingList.vue";
-import SearchPage from "@renderer/views/relation/apply/SearchPage.vue";
+/* eslint-disable */
 
-const props = defineProps<{ outTab: string }>();
-const emit = defineEmits<{ (e: "toggle", newValue: string): void }>();
-const appStore = useApplicationStore();
-const activeTab = ref<"incoming" | "outgoing" | "search">("incoming");
+import { onMounted, ref } from "vue"
+import { useApplicationStore } from "@renderer/status/application/store"
+import IncomingList from "@renderer/views/relation/apply/IncomingList.vue"
+import OutcomingList from "@renderer/views/relation/apply/OutcomingList.vue"
+import SearchPage from "@renderer/views/relation/apply/SearchPage.vue"
+
+const props = defineProps<{ outTab: string }>()
+const emit = defineEmits<{ (e: "toggle", newValue: string): void }>()
+const appStore = useApplicationStore()
+const activeTab = ref<"incoming" | "outgoing" | "search">("incoming")
 
 const snackbar = ref({
   show: false,
   text: "创建成功",
   color: "info" as "success" | "error" | "info",
-});
+})
 const notify = (
   text: string,
   color: "success" | "error" | "info" = "success",
 ): void => {
-  snackbar.value = { show: true, text, color };
-};
+  snackbar.value = { show: true, text, color }
+}
 
-onMounted(() => appStore.init());
+onMounted(() => appStore.init())
 </script>
 
 <template>

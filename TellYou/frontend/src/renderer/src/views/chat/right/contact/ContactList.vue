@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useSessionStore } from "@renderer/status/session/store";
-import type { Session } from "@shared/types/session";
-import ContactItem from "./ContactItem.vue";
+/* eslint-disable */
 
-const store = useSessionStore();
-const sessions = computed<Session[]>(() => store.sortedSessions);
+import { computed } from "vue"
+import { useSessionStore } from "@renderer/status/session/store"
+import type { Session } from "@shared/types/session"
+import ContactItem from "./ContactItem.vue"
+
+const store = useSessionStore()
+const sessions = computed<Session[]>(() => store.sortedSessions)
 const emit = defineEmits<{
   /**
    * 选择联系人，传递给[Chat.vue]($frontend/src/renderer/src/views/chat/Chat.vue)
    * @param contact - 选中的联系人
    */
-  (e: "contact-selected", contact: Session): void;
-}>();
+  (e: "contact-selected", contact: Session): void
+}>()
 const selectContact = (contact: Session): void => {
-  emit("contact-selected", contact);
-};
+  emit("contact-selected", contact)
+}
 </script>
 
 <template>

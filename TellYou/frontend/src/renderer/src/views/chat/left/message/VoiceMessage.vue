@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* eslint-disable */
+
 import type { ChatMessage } from "@renderer/status/message/class";
 import { useUserStore } from "@main/electron-store/persist/user-store";
 import { computed, ref, onMounted, onUnmounted } from "vue";
@@ -237,9 +239,10 @@ const waveformBars = generateWaveform();
       />
       <div class="content left">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="left"
         />
         <div class="voice-container">
@@ -298,9 +301,10 @@ const waveformBars = generateWaveform();
     <template v-else>
       <div class="content right">
         <NickName
-          :user-id="props.message.senderId"
-          :version="props.message.nicknameVersion"
-          :name="props.message.senderName"
+          :target-id="props.message.senderId"
+          :contact-type="1"
+          :nickname-version="props.message.nicknameVersion"
+          :placeholder="props.message.senderName"
           side="right"
         />
         <div class="voice-container">

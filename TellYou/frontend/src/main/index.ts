@@ -12,7 +12,6 @@ import { blackService } from "@main/service/black-service";
 import { messageService } from "@main/service/message-service";
 import { sessionService } from "@main/service/session-service";
 import { deviceService } from "@main/service/device-service";
-import profileCache from '@main/cache/profile-cache'
 import urlUtil from "@main/util/url-util";
 import proxyService from "@main/service/proxy-service";
 import voiceCache from "@main/cache/voice-cache";
@@ -157,7 +156,6 @@ const createWindow = (): void => {
   });
 
   proxyService.beginServe();
-  profileCache.beginServe();
   voiceCache.beginServe();
   imageCache.beginServe();
   videoCache.beginServe();

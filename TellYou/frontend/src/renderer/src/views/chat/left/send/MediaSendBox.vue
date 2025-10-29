@@ -1,65 +1,66 @@
 <script setup lang="ts">
-import { ref } from "vue";
+/* eslint-disable */
 
-const props = defineProps<{ currentContact?: any }>();
+import { ref } from "vue"
 
-const emit = defineEmits<{ (e: "sent"): void }>();
+const props = defineProps<{ currentContact?: any }>()
 
-const selectedFiles = ref<File[]>([]);
-const fileInput = ref<HTMLInputElement | null>(null);
-const error = ref<string>("");
+const emit = defineEmits<{ (e: "sent"): void }>()
+
+const selectedFiles = ref<File[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+const error = ref<string>("")
 const selectFiles = () => {
-  fileInput.value?.click();
-};
+  fileInput.value?.click()
+}
 const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const files = target.files;
-  if (!files || files.length === 0) return;
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  if (!files || files.length === 0) return
   for (let i = 0; i < files.length; i++) {
-    const file = files[i];
+    const file = files[i]
     const isDuplicate = selectedFiles.value.some(
       (existingFile) =>
         existingFile.name === file.name && existingFile.size === file.size,
     );
     if (!isDuplicate) {
-      selectedFiles.value.push(file);
+      selectedFiles.value.push(file)
     }
   }
 
-  target.value = "";
-  error.value = "";
-};
+  target.value = ""
+  error.value = ""
+}
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
 const removeFile = (index: number): void => {
-  selectedFiles.value.splice(index, 1);
-};
+  selectedFiles.value.splice(index, 1)
+}
 const clearAllFiles = (): void => {
-  selectedFiles.value = [];
-  error.value = "";
-};
+  selectedFiles.value = []
+  error.value = ""
+}
 const sendAllFiles = async (): Promise<void> => {
-  if (selectedFiles.value.length === 0) return;
+  if (selectedFiles.value.length === 0) return
   try {
-    console.log("开始发送文件:", selectedFiles.value.length, "个文件");
-    // 检查文件大小限制（例如单个文件不超过100MB）
-    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    console.log("开始发送文件:", selectedFiles.value.length, "个文件")
+    const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100mb
     for (const file of selectedFiles.value) {
       if (file.size > MAX_FILE_SIZE) {
-        error.value = `文件 "${file.name}" 超过大小限制（100MB）`;
-        return;
+        error.value = `文件 "${file.name}" 超过大小限制（100MB）`
+        return
       }
     }
     for (const file of selectedFiles.value) {
-      console.log(`处理文件: ${file.name}, 大小: ${formatFileSize(file.size)}`);
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+      console.log(`处理文件: ${file.name}, 大小: ${formatFileSize(file.size)}`)
+      const arrayBuffer = await file.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
       const filePayload = {
         messageType: "file",
         fileName: file.name,
@@ -67,13 +68,13 @@ const sendAllFiles = async (): Promise<void> => {
         mimeType: file.type || "application/octet-stream",
         fileData: Array.from(uint8Array),
         timestamp: Date.now(),
-      };
+      }
       console.log(`发送文件消息:`, {
         path: file.path,
         name: file.name,
         size: file.size,
         type: file.type,
-      });
+      })
 
       // 这里可以调用具体的文件发送API
       // const success = await window.electronAPI.sendFile(filePayload)
@@ -81,14 +82,14 @@ const sendAllFiles = async (): Promise<void> => {
       //   throw new Error(`文件 "${file.name}" 发送失败`)
       // }
     }
-    console.log("所有文件发送完成");
-    clearAllFiles();
-    emit("sent");
+    console.log("所有文件发送完成")
+    clearAllFiles()
+    emit("sent")
   } catch (err) {
-    error.value = "发送失败";
-    console.error("文件发送失败:", err);
+    error.value = "发送失败"
+    console.error("文件发送失败:", err)
   }
-};
+}
 </script>
 
 <template>

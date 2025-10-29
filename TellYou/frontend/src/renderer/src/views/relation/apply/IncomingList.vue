@@ -1,32 +1,34 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { useApplicationStore } from "@renderer/status/application/store";
-import { ApplicationItem } from "@shared/types/application";
-import Avatar from "@renderer/components/Avatar.vue";
-import NickName from "@renderer/components/NickName.vue";
-import { formatTime } from "@shared/utils/process";
+/* eslint-disable */
+
+import { computed, ref } from "vue"
+import { useApplicationStore } from "@renderer/status/application/store"
+import { ApplicationItem } from "@shared/types/application"
+import Avatar from "@renderer/components/Avatar.vue"
+import NickName from "@renderer/components/NickName.vue"
+import { formatTime } from "@shared/utils/process"
 
 const emit = defineEmits<{
-  notify: [text: string, color: "success" | "error" | "info"];
-}>();
-const appStore = useApplicationStore();
-const selected = ref<Set<string>>(new Set());
+  notify: [text: string, color: "success" | "error" | "info"]
+}>()
+const appStore = useApplicationStore()
+const selected = ref<Set<string>>(new Set())
 const rows = computed<ApplicationItem[]>(
   () => appStore.incoming as unknown as ApplicationItem[],
-);
-const page = computed(() => appStore.incomingPage);
+)
+const page = computed(() => appStore.incomingPage)
 
 // 受控分页：双向绑定页码并在 setter 中触发加载
 const pageNo = computed<number>({
   get: () => page.value.pageNo,
   set: (val: number) => {
-    if (val && val !== page.value.pageNo) appStore.reloadIncoming(val);
+    if (val && val !== page.value.pageNo) appStore.reloadIncoming(val)
   },
-});
+})
 
 const pageLength = computed(() =>
   Math.max(1, Math.ceil(page.value.total / page.value.pageSize)),
-);
+)
 
 const allChecked = computed({
   get: () =>
@@ -103,11 +105,11 @@ const _notify = (
 
       <template #title>
         <NickName
-          :user-id="item.applyUserId"
-          :version="'0'"
-          :name="'未知'"
+          :target-id="item.applyUserId"
+          contact-type="1"
+          :nickname-version="'99999'"
+          :placeholder="'未知'"
           side="left"
-          :truncate="18"
         />
       </template>
 

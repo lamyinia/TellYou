@@ -29,15 +29,21 @@ const __Store = require("electron-store");
 const log = require("electron-log");
 const os = require("os");
 const fs = require("fs");
-const axios = require("axios");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
 const sharp = require("sharp");
+const axios = require("axios");
 const sqlite3 = require("sqlite3");
 const WebSocket = require("ws");
 const icon = path.join(__dirname, "./chunks/icon-Mz5fn9fh.png");
 class UrlUtil {
-  protocolHost = ["avatar", "picture", "voice", "video", "file"];
+  protocolHost = [
+    "avatar",
+    "picture",
+    "voice",
+    "video",
+    "file"
+  ];
   mimeByExt = {
     // 图片格式
     ".jpg": "image/jpeg",
@@ -70,7 +76,10 @@ class UrlUtil {
   };
   nodeEnv = process.env.NODE_ENV || "production";
   homeDir = os.homedir();
-  appPath = path.join(this.homeDir, this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou");
+  appPath = path.join(
+    this.homeDir,
+    this.nodeEnv === "development" ? ".tellyoudev" : ".tellyou"
+  );
   tempPath = path.join(this.appPath, "temp");
   sqlPath = this.appPath;
   atomPath = "http://113.44.158.255:32788/lanye/static";
@@ -103,7 +112,8 @@ class UrlUtil {
     electron.protocol.handle("tellyou", async (request) => {
       try {
         const url = new URL(request.url);
-        if (!this.protocolHost.includes(url.hostname)) return new Response("", { status: 403 });
+        if (!this.protocolHost.includes(url.hostname))
+          return new Response("", { status: 403 });
         const filePath = decodeURIComponent(url.searchParams.get("path") || "");
         const normalized = path.resolve(filePath);
         const ext = path.extname(normalized).toLowerCase();
@@ -271,7 +281,10 @@ class MediaUtil {
         urlUtil.tempPath,
         `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`
       );
-      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`);
+      const tempOutputPath = path.join(
+        urlUtil.tempPath,
+        `motion_thumb_${Date.now()}.avif`
+      );
       console.info("临时目录", urlUtil.tempPath);
       await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
       await fs.promises.writeFile(tempInputPath, buffer);
@@ -325,7 +338,11 @@ class MediaUtil {
       const sharpInstance = sharp(buffer);
       const metadata = await sharpInstance.metadata();
       const { width = 0, height = 0 } = metadata;
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      const { newWidth, newHeight } = this.calculateDimensions(
+        width,
+        height,
+        config.maxSize
+      );
       const compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "cover" }).avif({ quality: config.quality }).toBuffer();
       const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
       return {
@@ -349,19 +366,35 @@ class MediaUtil {
       const sharpInstance = sharp(buffer);
       const metadata = await sharpInstance.metadata();
       const { width = 0, height = 0 } = metadata;
-      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize);
+      const { newWidth, newHeight } = this.calculateDimensions(
+        width,
+        height,
+        config.maxSize
+      );
       let compressedBuffer;
       let newMimeType = mimeType;
       if (mimeType === "image/png") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).webp({ quality: config.quality }).toBuffer();
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, {
+          fit: "inside",
+          withoutEnlargement: true
+        }).webp({ quality: config.quality }).toBuffer();
         newMimeType = "image/webp";
       } else if (mimeType === "image/jpeg") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, {
+          fit: "inside",
+          withoutEnlargement: true
+        }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
       } else if (mimeType == "image/avif") {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).avif({ quality: config.quality }).toBuffer();
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, {
+          fit: "inside",
+          withoutEnlargement: true
+        }).avif({ quality: config.quality }).toBuffer();
         newMimeType = "image/avif";
       } else {
-        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
+        compressedBuffer = await sharpInstance.resize(newWidth, newHeight, {
+          fit: "inside",
+          withoutEnlargement: true
+        }).jpeg({ quality: config.quality, progressive: config.progressive }).toBuffer();
         newMimeType = "image/jpeg";
       }
       const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100;
@@ -382,8 +415,16 @@ class MediaUtil {
   async compressVideo(mediaFile) {
     const { buffer } = mediaFile;
     try {
-      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp4`);
-      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp4`);
+      const tempInputPath = path.join(
+        process.cwd(),
+        "temp",
+        `input_${Date.now()}.mp4`
+      );
+      const tempOutputPath = path.join(
+        process.cwd(),
+        "temp",
+        `output_${Date.now()}.mp4`
+      );
       await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
       await fs.promises.writeFile(tempInputPath, buffer);
       const compressedBuffer = await new Promise((resolve, reject) => {
@@ -427,8 +468,16 @@ class MediaUtil {
   async compressAudio(mediaFile) {
     const { buffer } = mediaFile;
     try {
-      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}.mp3`);
-      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.mp3`);
+      const tempInputPath = path.join(
+        process.cwd(),
+        "temp",
+        `input_${Date.now()}.mp3`
+      );
+      const tempOutputPath = path.join(
+        process.cwd(),
+        "temp",
+        `output_${Date.now()}.mp3`
+      );
       await fs.promises.mkdir(path.dirname(tempInputPath), { recursive: true });
       await fs.promises.writeFile(tempInputPath, buffer);
       const compressedBuffer = await new Promise((resolve, reject) => {
@@ -463,8 +512,16 @@ class MediaUtil {
   async generateVideoThumbnail(mediaFile) {
     const { buffer } = mediaFile;
     try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
-      const tempThumbnailPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.jpg`);
+      const tempVideoPath = path.join(
+        process.cwd(),
+        "temp",
+        `video_${Date.now()}.mp4`
+      );
+      const tempThumbnailPath = path.join(
+        process.cwd(),
+        "temp",
+        `thumb_${Date.now()}.jpg`
+      );
       await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
       await fs.promises.writeFile(tempVideoPath, buffer);
       const snap = Math.floor(Math.random() * 100);
@@ -513,8 +570,16 @@ class MediaUtil {
   async generateVideoPreview(mediaFile) {
     const { buffer } = mediaFile;
     try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
-      const tempPreviewPath = path.join(process.cwd(), "temp", `preview_${Date.now()}.jpg`);
+      const tempVideoPath = path.join(
+        process.cwd(),
+        "temp",
+        `video_${Date.now()}.mp4`
+      );
+      const tempPreviewPath = path.join(
+        process.cwd(),
+        "temp",
+        `preview_${Date.now()}.jpg`
+      );
       await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
       await fs.promises.writeFile(tempVideoPath, buffer);
       const snap = Math.floor(Math.random() * 100);
@@ -552,7 +617,11 @@ class MediaUtil {
   async getVideoInfo(mediaFile) {
     const { buffer } = mediaFile;
     try {
-      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`);
+      const tempVideoPath = path.join(
+        process.cwd(),
+        "temp",
+        `video_${Date.now()}.mp4`
+      );
       await fs.promises.mkdir(path.dirname(tempVideoPath), { recursive: true });
       await fs.promises.writeFile(tempVideoPath, buffer);
       const videoInfo = await new Promise((resolve, reject) => {
@@ -561,7 +630,9 @@ class MediaUtil {
             reject(err);
             return;
           }
-          const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
+          const videoStream = metadata.streams.find(
+            (stream) => stream.codec_type === "video"
+          );
           if (!videoStream) {
             reject(new Error("未找到视频流"));
             return;
@@ -599,6 +670,39 @@ class MediaUtil {
 const mediaUtil = new MediaUtil();
 const uidKey = "newest:user:uid";
 const tokenKey = "newest:user:token";
+class ObjectUtil {
+  getContentByMessage(msg) {
+    if (msg.messageType === "text") return msg.content || "";
+    if (msg.messageType === "image") return "[图片]";
+    if (msg.messageType === "voice") return "[语音]";
+    if (msg.messageType === "video") return "[视频]";
+    if (msg.messageType === "file") return "[文件]";
+    return "未知";
+  }
+  getContentByRow(msg) {
+    if (msg.msgType === 1) return msg.text || "";
+    if (msg.msgType === 2) return "[图片]";
+    if (msg.msgType === 3) return "[语音]";
+    if (msg.msgType === 4) return "[视频]";
+    if (msg.msgType === 5) return "[文件]";
+    return "未知";
+  }
+  errorResponse(e) {
+    if (e?.name === "ApiError") {
+      return {
+        success: false,
+        errCode: e.errCode ?? -1,
+        errMsg: e.errMsg ?? "请求失败"
+      };
+    }
+    return {
+      success: false,
+      errCode: -1,
+      errMsg: e?.message || "网络或系统异常"
+    };
+  }
+}
+const objectUtil = new ObjectUtil();
 var Api = /* @__PURE__ */ ((Api2) => {
   Api2["LOGIN"] = "/user-account/login";
   Api2["REGISTER"] = "/user-account/register";
@@ -611,8 +715,21 @@ var Api = /* @__PURE__ */ ((Api2) => {
   Api2["PULL_APPLICATION"] = "/contact/cursor-pull-application";
   Api2["GET_BASE_USER"] = "/user-info/base-info-list";
   Api2["GET_BASE_GROUP"] = "/group/base-info-list";
-  Api2["SEND_FRIEND_APPLY"] = "/contact/friend-apply-send";
-  Api2["ACCEPT_FRIEND_APPLY"] = "/contact/friend-apply-accept";
+  Api2["CREATE_GROUP"] = "/group/create-group";
+  Api2["INVITE_FRIEND"] = "/group/invite-friend";
+  Api2["DISSOLVE_GROUP"] = "/group/dissolve-group";
+  Api2["LEAVE_GROUP"] = "/group/leave-group";
+  Api2["SEND_GROUP_APPLY"] = "/group/send-apply";
+  Api2["ACCEPT_GROUP_APPLY"] = "/group/accept-apply";
+  Api2["KICK_OUT_MEMBER"] = "/group/kick-out-member";
+  Api2["MODIFY_GROUP_NAME"] = "/group/modify-group-name";
+  Api2["MODIFY_GROUP_CARD"] = "/group/modify-group-card";
+  Api2["TRANSFER_OWNER"] = "/group/transfer-owner";
+  Api2["ADD_MANAGER"] = "/group/add-manager";
+  Api2["WITHDRAW_MANAGER"] = "/group/withdraw-manager";
+  Api2["GET_MEMBER_LIST"] = "/group/get-member-list";
+  Api2["SEND_FRIEND_APPLY"] = "/contact/friend-send-apply";
+  Api2["ACCEPT_FRIEND_APPLY"] = "/contact/friend-accept-apply";
   Api2["GET_PICTURE_UPLOAD_URL"] = "/media/picture/upload-url";
   Api2["GET_VOICE_UPLOAD_URL"] = "/media/voice/upload-url";
   Api2["GET_VIDEO_UPLOAD_URL"] = "/media/video/upload-url";
@@ -625,10 +742,13 @@ var Api = /* @__PURE__ */ ((Api2) => {
 })(Api || {});
 class ProxyService {
   beginServe() {
-    electron.ipcMain.handle("proxy:login", async (_event, params) => {
-      const response = await netMaster.post("/user-account/login", params);
-      return response.data.data;
-    });
+    electron.ipcMain.handle(
+      "proxy:login",
+      async (_event, params) => {
+        const response = await netMaster.post("/user-account/login", params);
+        return response.data.data;
+      }
+    );
     electron.ipcMain.handle(
       "proxy:register",
       async (_event, params) => {
@@ -638,96 +758,155 @@ class ProxyService {
           const response = await netMaster.post("/user-account/register", data);
           return response.data;
         } catch (e) {
-          return this.errorResponse(e);
+          return objectUtil.errorResponse(e);
         }
       }
     );
-    electron.ipcMain.handle("proxy:search:user-or-group", async (_, params) => {
-      if (params.contactType === 1) {
-        const result = await netMaster.post("/user-info/search-by-uid", {
-          fromId: store.get(uidKey),
-          searchedId: params.contactId
-        });
-        return result.data.data;
+    electron.ipcMain.handle(
+      "proxy:search:user-or-group",
+      async (_, params) => {
+        if (params.contactType === 1) {
+          const result = await netMaster.post("/user-info/search-by-uid", {
+            fromId: store.get(uidKey),
+            searchedId: params.contactId
+          });
+          return result.data.data;
+        }
+        return null;
       }
-      return null;
-    });
-    electron.ipcMain.handle("proxy:application:send-user", async (_, params) => {
-      Object.assign(params, { fromUserId: store.get(uidKey) });
-      try {
-        const response = await netMaster.post("/contact/friend-apply-send", params);
-        return response.data;
-      } catch (e) {
-        return this.errorResponse(e);
+    );
+    electron.ipcMain.handle(
+      "proxy:application:send-user",
+      async (_, params) => {
+        Object.assign(params, { fromUserId: store.get(uidKey) });
+        try {
+          const response = await netMaster.post("/contact/friend-send-apply", params);
+          return response.data;
+        } catch (e) {
+          return objectUtil.errorResponse(e);
+        }
       }
-    });
-    electron.ipcMain.handle("proxy:application:send-group", async (_, params) => {
-      return null;
-    });
-    electron.ipcMain.handle("proxy:application:accept-friend", async (_, applyId) => {
+    );
+    electron.ipcMain.handle("proxy:application:accept-friend-apply", async (_, applyId) => {
       const payload = { fromUserId: store.get(uidKey), applyId };
       try {
-        const response = await netMaster.put("/contact/friend-apply-accept", payload);
+        const response = await netMaster.put("/contact/friend-accept-apply", payload);
         return response.data;
       } catch (e) {
-        return this.errorResponse(e);
+        return objectUtil.errorResponse(e);
       }
     });
-    electron.ipcMain.handle("proxy:application:accept-group-member", async (_, params) => {
+    electron.ipcMain.handle("proxy:application:send-group-apply", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.post("/group/send-apply", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
+    });
+    electron.ipcMain.handle("proxy:application:accept-group-member-apply", async (_, params) => {
       return null;
     });
     electron.ipcMain.handle("proxy:group:create-group", async (_, params) => {
-      return null;
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.post("/group/create-group", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:invite-friend", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.post("/group/invite-friend", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:dissolve-group", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.delete("/group/dissolve-group", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:leave-group", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.delete("/group/leave-group", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:kick-out-member", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.delete("/group/kick-out-member", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:modify-group-name", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.put("/group/modify-group-name", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:modify-group-card", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.put("/group/modify-group-card", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:transfer-owner", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.put("/group/transfer-owner", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:add-manager", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.put("/group/add-manager", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:withdraw-manager", async (_, params) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
+      try {
+        const response = await netMaster.put("/group/withdraw-manager", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
+      }
     });
     electron.ipcMain.handle("proxy:group:get-member-list", async (_, params) => {
-    });
-    electron.ipcMain.handle("profile:name:get", async (_event, { userId }) => {
+      Object.assign(params, { fromUserId: store.get(uidKey) });
       try {
-        const path2 = [urlUtil.atomPath, userId + ".json"].join("/");
-        const json = await netMinIO.downloadJson(path2);
-        console.log("profile:name:get:json", json);
-        const nickname = json?.nickname ?? json?.name ?? "";
-        const nicknameVersion = String(json.nicknameVersion || "0");
-        return { nickname, nicknameVersion };
-      } catch {
-        return { nickname: "", nickVersion: "0" };
+        const response = await netMaster.get("/group/get-member-list", params);
+        return response.data;
+      } catch (e) {
+        return objectUtil.errorResponse(e);
       }
     });
-    electron.ipcMain.handle("profile:avatar:get", async (_event, { userId }) => {
-      try {
-        const path2 = [urlUtil.atomPath, userId + ".json"].join("/");
-        const json = await netMinIO.downloadJson(path2);
-        const avatarVersion = String(json?.avatarVersion || "0");
-        console.info("profile:avatar:get", avatarVersion);
-        return { avatarVersion };
-      } catch {
-        return { avatarVersion: "0" };
-      }
-    });
-  }
-  errorResponse(e) {
-    if (e?.name === "ApiError") {
-      return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? "请求失败" };
-    }
-    return { success: false, errCode: -1, errMsg: e?.message || "网络或系统异常" };
   }
 }
 const proxyService = new ProxyService();
@@ -838,14 +1017,20 @@ class NetMaster {
     return this.axiosInstance;
   }
   async getUserAvatarUploadUrl(fileSize, fileSuffix) {
-    const response = await this.get(Api.GET_AVATAR_UPLOAD_URL, { params: { fileSize, fileSuffix } });
+    const response = await this.get(Api.GET_AVATAR_UPLOAD_URL, {
+      params: { fileSize, fileSuffix }
+    });
     return response.data.data;
   }
   async confirmUserAvatarUploaded(uploadUrls) {
     return this.post(Api.CONFIRM_UPLOAD, {
       fromUserId: store.get(uidKey),
-      originalUploadUrl: urlUtil.extractObjectName(uploadUrls.originalUploadUrl),
-      thumbnailUploadUrl: urlUtil.extractObjectName(uploadUrls.thumbnailUploadUrl)
+      originalUploadUrl: urlUtil.extractObjectName(
+        uploadUrls.originalUploadUrl
+      ),
+      thumbnailUploadUrl: urlUtil.extractObjectName(
+        uploadUrls.thumbnailUploadUrl
+      )
     });
   }
   // 图片上传预签名URL获取
@@ -876,8 +1061,12 @@ class NetMaster {
         targetId: params.targetId,
         contactType: params.contactType,
         sessionId: params.sessionId,
-        originalUploadUrl: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
-        thumbnailUploadUrl: urlUtil.extractObjectName(params.uploadUrls.thumbnailUploadUrl),
+        originalUploadUrl: urlUtil.extractObjectName(
+          params.uploadUrls.originalUploadUrl
+        ),
+        thumbnailUploadUrl: urlUtil.extractObjectName(
+          params.uploadUrls.thumbnailUploadUrl
+        ),
         messageId: params.messageId
       });
       return response.data;
@@ -910,8 +1099,12 @@ class NetMaster {
         targetId: params.targetId,
         contactType: params.contactType,
         sessionId: params.sessionId,
-        fileObject: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
-        thumbnailObject: urlUtil.extractObjectName(params.uploadUrls.previewUploadUrl),
+        fileObject: urlUtil.extractObjectName(
+          params.uploadUrls.originalUploadUrl
+        ),
+        thumbnailObject: urlUtil.extractObjectName(
+          params.uploadUrls.previewUploadUrl
+        ),
         videoDuration: params.videoDuration,
         fileSize: params.fileSize,
         messageId: params.messageId
@@ -941,9 +1134,17 @@ class NetMaster {
   }
   errorResponse(e) {
     if (e?.name === "ApiError") {
-      return { success: false, errCode: e.errCode ?? -1, errMsg: e.errMsg ?? "请求失败" };
+      return {
+        success: false,
+        errCode: e.errCode ?? -1,
+        errMsg: e.errMsg ?? "请求失败"
+      };
     }
-    return { success: false, errCode: -1, errMsg: e?.message || "网络或系统异常" };
+    return {
+      success: false,
+      errCode: -1,
+      errMsg: e?.message || "网络或系统异常"
+    };
   }
 }
 minioInstance.interceptors.request.use(
@@ -975,7 +1176,12 @@ class NetMinIO {
     this.axiosInstance = axiosInstance;
   }
   async simpleUploadFile(uploadUrl, fileBuffer, mimeType) {
-    console.info("上传URL，文件大小，MIME类型:", uploadUrl, fileBuffer.length, mimeType);
+    console.info(
+      "上传URL，文件大小，MIME类型:",
+      uploadUrl,
+      fileBuffer.length,
+      mimeType
+    );
     try {
       new URL(uploadUrl);
     } catch {
@@ -1017,7 +1223,7 @@ class NetMinIO {
       responseType: "arraybuffer",
       timeout: options.timeout || 3e4,
       headers: {
-        "Accept": "image/*"
+        Accept: "image/*"
       },
       onDownloadProgress: (progressEvent) => {
         if (options.onProgress && progressEvent.total) {
@@ -1038,7 +1244,11 @@ class NetMinIO {
         }
       }
     });
-    console.log("下载响应类型:", typeof response.data, response.data?.constructor?.name);
+    console.log(
+      "下载响应类型:",
+      typeof response.data,
+      response.data?.constructor?.name
+    );
     return response.data;
   }
   // 音频专用进度下载
@@ -1049,7 +1259,7 @@ class NetMinIO {
       responseType: "arraybuffer",
       timeout: options.timeout || 3e4,
       headers: {
-        "Accept": "audio/*"
+        Accept: "audio/*"
       },
       onDownloadProgress: (progressEvent) => {
         if (options.onProgress && progressEvent.total) {
@@ -1070,7 +1280,11 @@ class NetMinIO {
         }
       }
     });
-    console.log("音频下载响应类型:", typeof response.data, response.data?.constructor?.name);
+    console.log(
+      "音频下载响应类型:",
+      typeof response.data,
+      response.data?.constructor?.name
+    );
     return response.data;
   }
   // 视频专用进度下载
@@ -1081,7 +1295,7 @@ class NetMinIO {
       responseType: "arraybuffer",
       timeout: options.timeout || 6e4,
       headers: {
-        "Accept": "video/*"
+        Accept: "video/*"
       },
       onDownloadProgress: (progressEvent) => {
         if (options.onProgress && progressEvent.total) {
@@ -1102,7 +1316,11 @@ class NetMinIO {
         }
       }
     });
-    console.log("视频下载响应类型:", typeof response.data, response.data?.constructor?.name);
+    console.log(
+      "视频下载响应类型:",
+      typeof response.data,
+      response.data?.constructor?.name
+    );
     return response.data;
   }
   // 文件专用进度下载
@@ -1113,7 +1331,7 @@ class NetMinIO {
       responseType: "arraybuffer",
       timeout: options.timeout || 6e4,
       headers: {
-        "Accept": "*/*"
+        Accept: "*/*"
       },
       onDownloadProgress: (progressEvent) => {
         if (options.onProgress && progressEvent.total) {
@@ -1139,7 +1357,11 @@ class NetMinIO {
       contentLength: response.headers["content-length"],
       allHeaders: response.headers
     });
-    console.log("文件下载响应类型:", typeof response.data, response.data?.constructor?.name);
+    console.log(
+      "文件下载响应类型:",
+      typeof response.data,
+      response.data?.constructor?.name
+    );
     return response.data;
   }
   async downloadFileAsArrayBuffer(fileUrl, userAgent) {
@@ -1190,147 +1412,48 @@ class MediaTaskService {
     electron.ipcMain.handle(
       "media:send:start",
       async (event, params) => {
-        return this.startTask(params);
       }
     );
-    electron.ipcMain.handle("media:avatar:upload", async (_, { filePath, fileSize, fileSuffix }) => {
-      try {
-        console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
-        const uploadUrls = await netMaster.getUserAvatarUploadUrl(fileSize, fileSuffix);
-        const mediaFile = await mediaUtil.getNormal(filePath);
-        const originalFile = await mediaUtil.processImage(mediaFile, "original");
-        const thumbnailFile = await mediaUtil.processImage(mediaFile, "thumb");
-        await netMinIO.simpleUploadFile(uploadUrls.originalUploadUrl, originalFile.compressedBuffer, originalFile.newMimeType);
-        await netMinIO.simpleUploadFile(uploadUrls.thumbnailUploadUrl, thumbnailFile.compressedBuffer, thumbnailFile.newMimeType);
-        await netMaster.confirmUserAvatarUploaded(uploadUrls);
-        console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl);
-        return {
-          success: true,
-          avatarUrl: uploadUrls.originalUploadUrl.split("?")[0]
-        };
-      } catch (error) {
-        console.error("Failed to upload avatar:", error);
-        throw error;
+    electron.ipcMain.handle(
+      "media:avatar:upload",
+      async (_, { filePath, fileSize, fileSuffix }) => {
+        try {
+          console.log("开始上传头像:", { filePath, fileSize, fileSuffix });
+          const uploadUrls = await netMaster.getUserAvatarUploadUrl(
+            fileSize,
+            fileSuffix
+          );
+          const mediaFile = await mediaUtil.getNormal(filePath);
+          const originalFile = await mediaUtil.processImage(
+            mediaFile,
+            "original"
+          );
+          const thumbnailFile = await mediaUtil.processImage(
+            mediaFile,
+            "thumb"
+          );
+          await netMinIO.simpleUploadFile(
+            uploadUrls.originalUploadUrl,
+            originalFile.compressedBuffer,
+            originalFile.newMimeType
+          );
+          await netMinIO.simpleUploadFile(
+            uploadUrls.thumbnailUploadUrl,
+            thumbnailFile.compressedBuffer,
+            thumbnailFile.newMimeType
+          );
+          await netMaster.confirmUserAvatarUploaded(uploadUrls);
+          console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl);
+          return {
+            success: true,
+            avatarUrl: uploadUrls.originalUploadUrl.split("?")[0]
+          };
+        } catch (error) {
+          console.error("Failed to upload avatar:", error);
+          throw error;
+        }
       }
-    });
-  }
-  async startTask(params) {
-    try {
-      const taskId = this.generateTaskId();
-      const fileStats = fs.statSync(params.filePath);
-      const task = {
-        id: taskId,
-        type: params.type,
-        filePath: params.filePath,
-        fileName: params.fileName,
-        fileSize: fileStats.size,
-        mimeType: params.mimeType,
-        status: "pending",
-        progress: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      this.tasks.set(taskId, task);
-      this.processTask(taskId).catch((err) => {
-        log.error("Media task processing failed:", err);
-      });
-      return { taskId, success: true };
-    } catch (error) {
-      log.error("Failed to start media task:", error);
-      return {
-        taskId: "",
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
-    }
-  }
-  async processTask(taskId) {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-    try {
-      await this.getUploadUrls(task);
-      await this.uploadFile(task);
-      await this.commitUpload(task);
-      task.status = "completed";
-      task.progress = 100;
-      task.updatedAt = Date.now();
-      this.notifyRenderer("media:send:result", {
-        taskId,
-        success: true,
-        result: task.result
-      });
-    } catch (error) {
-      task.status = "failed";
-      task.error = error instanceof Error ? error.message : "Upload failed";
-      task.updatedAt = Date.now();
-      this.notifyRenderer("media:send:result", {
-        taskId,
-        success: false,
-        error: task.error
-      });
-    }
-  }
-  async getUploadUrls(task) {
-    const response = await axios.post("/api/media/upload-token", {
-      fileName: task.fileName,
-      fileSize: task.fileSize,
-      mimeType: task.mimeType,
-      type: task.type
-    });
-    task.uploadUrls = {
-      origin: response.data.originUrl,
-      thumbnail: response.data.thumbnailUrl
-    };
-  }
-  async uploadFile(task) {
-    if (!task.uploadUrls) {
-      throw new Error("Upload URLs not available");
-    }
-    task.status = "uploading";
-    this.notifyRenderer("media:send:state", {
-      taskId: task.id,
-      status: task.status,
-      progress: task.progress
-    });
-    const fileSize = task.fileSize;
-    const chunkSize = this.CHUNK_SIZE;
-    const totalChunks = Math.ceil(fileSize / chunkSize);
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * chunkSize;
-      const end = Math.min(start + chunkSize, fileSize);
-      const chunk = fs.createReadStream(task.filePath, { start, end });
-      await this.uploadChunk(task, chunk, i, totalChunks);
-      task.progress = Math.round((i + 1) / totalChunks * 80);
-      task.chunkCursor = i + 1;
-      task.updatedAt = Date.now();
-      this.notifyRenderer("media:send:progress", {
-        taskId: task.id,
-        progress: task.progress,
-        chunkCursor: task.chunkCursor
-      });
-    }
-  }
-  async uploadChunk(task, chunk, chunkIndex, totalChunks) {
-    const formData = new FormData();
-    formData.append("file", chunk, `${task.fileName}.part${chunkIndex}`);
-    formData.append("chunkIndex", chunkIndex.toString());
-    formData.append("totalChunks", totalChunks.toString());
-    await axios.post(task.uploadUrls.origin, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data"
-      },
-      timeout: 3e4
-    });
-  }
-  async commitUpload(_task) {
-  }
-  // 通知渲染进程
-  notifyRenderer(channel, data) {
-    log.info(`Notifying renderer: ${channel}`, data);
-  }
-  // 生成任务ID
-  generateTaskId() {
-    return `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    );
   }
 }
 const mediaTaskService = new MediaTaskService();
@@ -1359,7 +1482,9 @@ const add_tables = [
   "create table if not exists messages(   id integer primary key autoincrement,   session_id text not null,   msg_id text not null,   sequence_id text not null,   sender_id text not null,   sender_name text,   msg_type integer not null,   is_recalled integer default 0,   text text,   ext_data text,   send_time datetime not null,   is_read integer default 0,   unique(session_id, sequence_id));",
   "create table if not exists blacklist(   id integer primary key autoincrement,   target_id text not null,   target_type integer not null,   create_time datetime);",
   "create table if not exists contact_applications(   apply_id text primary key,   apply_user_id text not null,   target_id text not null,   contact_type integer not null,   status integer,   apply_info text,   last_apply_time datetime);",
-  "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));"
+  "create table if not exists user_setting (   user_id varchar not null,   email varchar not null,   sys_setting varchar,   contact_no_read integer,   server_port integer,   primary key (user_id));",
+  // Profile缓存表：统一管理用户和群组的头像、昵称信息
+  "create table if not exists profiles (   target_id text not null,   contact_type integer not null,   nickname text,   nick_version text default '0',   avatar_version text default '0',   avatar_original_path text,   avatar_thumb_path text,   last_nick_update integer default 0,   last_avatar_update integer default 0,   created_at integer default 0,   primary key (target_id, contact_type));"
 ];
 const add_indexes = [
   "create index if not exists idx_sessions_contact_type_time on sessions(contact_type, last_msg_time desc);",
@@ -1369,7 +1494,11 @@ const add_indexes = [
   "create index if not exists idx_messages_sender on messages(sender_id);",
   "create index if not exists idx_blacklist_target on blacklist(target_id, target_type);",
   "create index if not exists idx_applications_user_target on contact_applications(apply_user_id, target_id, contact_type);",
-  "create index if not exists idx_applications_status on contact_applications(status);"
+  "create index if not exists idx_applications_status on contact_applications(status);",
+  // Profile表索引：优化查询性能
+  "create index if not exists idx_profiles_target on profiles(target_id, contact_type);",
+  "create index if not exists idx_profiles_nick_update on profiles(last_nick_update desc);",
+  "create index if not exists idx_profiles_avatar_update on profiles(last_avatar_update desc);"
 ];
 const globalColumnMap = {};
 let dataBase;
@@ -1390,13 +1519,39 @@ const queryAll = (sql, params) => {
     const stmt = dataBase.prepare(sql);
     stmt.all(params, function(err, rows) {
       if (err) {
-        console.error("SQL查询失败", { sql, params, error: err.message, stack: err.stack });
+        console.error("SQL查询失败", {
+          sql,
+          params,
+          error: err.message,
+          stack: err.stack
+        });
         resolve([]);
         return;
       }
-      const result = rows.map((item) => convertDb2Biz(item));
+      const result = rows.map(
+        (item) => convertDb2Biz(item)
+      );
       console.info(sql, params, result);
       resolve(result);
+    });
+    stmt.finalize();
+  });
+};
+const queryOne = (sql, params) => {
+  return new Promise((resolve) => {
+    const stmt = dataBase.prepare(sql);
+    stmt.get(params, function(err, row) {
+      if (err) {
+        console.error("SQL查询失败", {
+          sql,
+          params,
+          error: err.message,
+          stack: err.stack
+        });
+        resolve(null);
+        return;
+      }
+      resolve(convertDb2Biz(row));
     });
     stmt.finalize();
   });
@@ -1406,7 +1561,12 @@ const sqliteRun = (sql, params) => {
     const stmt = dataBase.prepare(sql);
     stmt.run(params, function(err) {
       if (err) {
-        console.error("SQL执行失败", { sql, params, error: err.message, stack: err.stack });
+        console.error("SQL执行失败", {
+          sql,
+          params,
+          error: err.message,
+          stack: err.stack
+        });
         reject(-1);
         return;
       }
@@ -1430,6 +1590,10 @@ const insert = (sqlPrefix, tableName, data) => {
   const sql = `${sqlPrefix} ${tableName}(${columns.join(",")}) values(${prepare})`;
   return sqliteRun(sql, params);
 };
+const insertOrReplace = (tableName, data) => {
+  console.log(data);
+  return insert("insert or replace into", tableName, data);
+};
 const insertOrIgnore = (tableName, data) => {
   return insert("insert or ignore into", tableName, data);
 };
@@ -1448,7 +1612,9 @@ const batchInsert = (tableName, dataList) => {
   const params = [];
   for (const data of dataList) {
     for (const column of columns) {
-      const bizField = Object.keys(columnMap).find((key) => columnMap[key] === column);
+      const bizField = Object.keys(columnMap).find(
+        (key) => columnMap[key] === column
+      );
       params.push(data[bizField]);
     }
   }
@@ -1520,8 +1686,11 @@ class ApplicationDao {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE target_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(`SELECT * FROM contact_applications ${where}
-    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`, params);
+    const rows = await queryAll(
+      `SELECT * FROM contact_applications ${where}
+    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`,
+      params
+    );
     const totalRow = await queryAll(
       `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
       currentUserId ? [currentUserId] : []
@@ -1532,8 +1701,11 @@ class ApplicationDao {
     const offset = (pageNo - 1) * pageSize;
     const where = currentUserId ? "WHERE apply_user_id = ?" : "";
     const params = currentUserId ? [currentUserId, pageSize, offset] : [pageSize, offset];
-    const rows = await queryAll(`SELECT * FROM contact_applications ${where}
-    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`, params);
+    const rows = await queryAll(
+      `SELECT * FROM contact_applications ${where}
+    ORDER BY last_apply_time DESC LIMIT ? OFFSET ?`,
+      params
+    );
     const totalRow = await queryAll(
       `SELECT COUNT(1) AS total FROM contact_applications ${where}`,
       currentUserId ? [currentUserId] : []
@@ -1565,14 +1737,28 @@ class ApplicationDao {
 const applicationDao = new ApplicationDao();
 class ApplicationService {
   beginServe() {
-    electron.ipcMain.on("application:incoming:load", async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadIncomingApplications(pageNo, pageSize, store.get(uidKey));
-      event.sender.send("application:incoming:loaded", data);
-    });
-    electron.ipcMain.on("application:outgoing:load", async (event, { pageNo, pageSize }) => {
-      const data = await applicationDao.loadOutgoingApplications(pageNo, pageSize, store.get(uidKey));
-      event.sender.send("application:outgoing:loaded", data);
-    });
+    electron.ipcMain.on(
+      "application:incoming:load",
+      async (event, { pageNo, pageSize }) => {
+        const data = await applicationDao.loadIncomingApplications(
+          pageNo,
+          pageSize,
+          store.get(uidKey)
+        );
+        event.sender.send("application:incoming:loaded", data);
+      }
+    );
+    electron.ipcMain.on(
+      "application:outgoing:load",
+      async (event, { pageNo, pageSize }) => {
+        const data = await applicationDao.loadOutgoingApplications(
+          pageNo,
+          pageSize,
+          store.get(uidKey)
+        );
+        event.sender.send("application:outgoing:loaded", data);
+      }
+    );
   }
   // 插入数据库，不负责创建会话，就算是好友同意，也应该与创建会话业务分离
   async handleSingleApplication(msg) {
@@ -1594,7 +1780,10 @@ class BlackDao {
       `SELECT * FROM blacklist ORDER BY create_time DESC LIMIT ? OFFSET ?`,
       [pageSize, offset]
     );
-    const totalRow = await queryAll(`SELECT COUNT(1) AS total FROM blacklist`, []);
+    const totalRow = await queryAll(
+      `SELECT COUNT(1) AS total FROM blacklist`,
+      []
+    );
     return { list: rows, total: totalRow[0]?.total || 0 };
   }
   async removeFromBlacklist(userIds) {
@@ -1710,18 +1899,20 @@ class MessageDao {
       const params = [sessionId];
       let sendTimeOrder = "desc";
       if (direction === "older" && beforeId) {
-        const beforeMessage = await queryAll("select send_time from messages where id = ?", [
-          beforeId
-        ]);
+        const beforeMessage = await queryAll(
+          "select send_time from messages where id = ?",
+          [beforeId]
+        );
         if (beforeMessage.length > 0) {
           where += " and send_time < ?";
           params.push(beforeMessage[0].sendTime);
         }
       } else if (direction === "newer" && afterId) {
         sendTimeOrder = "asc";
-        const afterMessage = await queryAll("select send_time from messages where id = ?", [
-          afterId
-        ]);
+        const afterMessage = await queryAll(
+          "select send_time from messages where id = ?",
+          [afterId]
+        );
         if (afterMessage.length > 0) {
           where += " and send_time > ?";
           params.push(afterMessage[0].sendTime);
@@ -1736,7 +1927,9 @@ class MessageDao {
         LIMIT ${limit}
       `;
       const rows = await queryAll(sql, params);
-      const messages = rows.map((r) => messageAdapter.adaptMessageRowToMessage(r));
+      const messages = rows.map(
+        (r) => messageAdapter.adaptMessageRowToMessage(r)
+      );
       const totalCountRow = await queryAll(
         "select count(1) as total from messages where session_id = ?",
         [sessionId]
@@ -1751,7 +1944,14 @@ class MessageDao {
         );
         hasMore = (moreRow[0]?.cnt || 0) > 0;
       }
-      console.log("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore);
+      console.log(
+        "查询参数:",
+        options,
+        "返回消息数:",
+        messages.length,
+        "hasMore:",
+        hasMore
+      );
       return { messages, hasMore, totalCount };
     } catch (error) {
       console.error("获取会话消息失败:", error);
@@ -1760,7 +1960,10 @@ class MessageDao {
   }
   async getExtendData(params) {
     try {
-      const rows = await queryAll("select ext_data from messages where id = ?", [params.id]);
+      const rows = await queryAll(
+        "select ext_data from messages where id = ?",
+        [params.id]
+      );
       const extDataString = rows[0]?.extData || "{}";
       return JSON.parse(extDataString);
     } catch (error) {
@@ -1811,7 +2014,12 @@ class SessionDao {
     const sql = `UPDATE sessions
                  SET last_msg_time = ?, last_msg_content = ?
                  WHERE session_id = ? AND (last_msg_time IS NULL OR datetime(?) > datetime(last_msg_time))`;
-    return sqliteRun(sql, [data.sendTime, data.content, data.sessionId, data.sendTime]);
+    return sqliteRun(sql, [
+      data.sendTime,
+      data.content,
+      data.sessionId,
+      data.sendTime
+    ]);
   }
   //  根据 sessionId，更新会话的某些字段
   async updatePartialBySessionId(params, sessionId) {
@@ -1854,15 +2062,15 @@ class ChannelUtil {
   }
   sendText(payload) {
     if (!this.isWsOpen()) return;
-    const fromUserId = String(payload.fromUId || "");
-    const targetId = String(payload.toUserId || "");
+    const fromUserId = String(payload.fromUserId || "");
+    const targetId = String(payload.targetId || "");
     const sessionId = String(payload.sessionId || "");
     const content = payload.content;
-    if (!fromUserId || !sessionId) {
-      console.warn("缺少必要字段 fromUId 或 sessionId，发送取消");
+    if (!fromUserId || !sessionId || !targetId || !content) {
+      console.warn("缺少必要字段，发送取消");
       return;
     }
-    const base = {
+    const textMessage = {
       messageId: getMessageId(),
       type: 1,
       fromUserId,
@@ -1872,7 +2080,7 @@ class ChannelUtil {
       timestamp: Date.now(),
       extra: { platform: "desktop" }
     };
-    this.channel.send(JSON.stringify(base));
+    this.channel.send(JSON.stringify(textMessage));
   }
   sendSingleChatAckConfirm(msg) {
     if (!this.isWsOpen()) return;
@@ -1906,25 +2114,6 @@ class ChannelUtil {
   }
 }
 const channelUtil = new ChannelUtil();
-class ObjectUtil {
-  getContentByMessage(msg) {
-    if (msg.messageType === "text") return msg.content || "";
-    if (msg.messageType === "image") return "[图片]";
-    if (msg.messageType === "voice") return "[语音]";
-    if (msg.messageType === "video") return "[视频]";
-    if (msg.messageType === "file") return "[文件]";
-    return "未知";
-  }
-  getContentByRow(msg) {
-    if (msg.msgType === 1) return msg.text || "";
-    if (msg.msgType === 2) return "[图片]";
-    if (msg.msgType === 3) return "[语音]";
-    if (msg.msgType === 4) return "[视频]";
-    if (msg.msgType === 5) return "[文件]";
-    return "未知";
-  }
-}
-const objectUtil = new ObjectUtil();
 class MessageService {
   beginServe() {
     electron.ipcMain.handle("websocket:send", async (_, msg) => {
@@ -1938,9 +2127,12 @@ class MessageService {
         return false;
       }
     });
-    electron.ipcMain.handle("message:get-by-sessionId", (_, sessionId, options) => {
-      return messageDao.getMessageBySessionId(String(sessionId), options);
-    });
+    electron.ipcMain.handle(
+      "message:get-by-sessionId",
+      (_, sessionId, options) => {
+        return messageDao.getMessageBySessionId(String(sessionId), options);
+      }
+    );
   }
   async handleSingleMessage(message) {
     console.log("message-service:handle-single-message", message);
@@ -1960,9 +2152,12 @@ class MessageService {
 const messageService = new MessageService();
 class SessionService {
   beginServe() {
-    electron.ipcMain.handle("session:update:partial", async (_, params, sessionId) => {
-      return await sessionDao.updatePartialBySessionId(params, sessionId);
-    });
+    electron.ipcMain.handle(
+      "session:update:partial",
+      async (_, params, sessionId) => {
+        return await sessionDao.updatePartialBySessionId(params, sessionId);
+      }
+    );
     electron.ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session");
       const result = await sessionDao.selectSessions();
@@ -1976,7 +2171,7 @@ class SessionService {
     const userList = [];
     const promiseList = [];
     contactList.forEach((contact) => {
-      promiseList.push(sessionService.checkSession(contact));
+      promiseList.push(sessionService.insertAndCheckSession(contact));
     });
     const resultList = await Promise.all(promiseList);
     for (const result of resultList) {
@@ -1989,30 +2184,52 @@ class SessionService {
       }
     }
     if (userList.length > 0) {
-      console.info("session-service:fill-session:需要获取用户信息，数量:", userList.length);
+      console.info(
+        "session-service:fill-session:需要获取用户信息，数量:",
+        userList.length
+      );
       try {
-        const response = await netMaster.post(Api.GET_BASE_USER, { targetList: userList });
+        const response = await netMaster.post(Api.GET_BASE_USER, {
+          targetList: userList
+        });
         if (response.data.success) {
           const data = response.data.data;
-          console.info("session-service:fill-session:获取用户信息成功，数量:", data.userInfoList?.length || 0);
+          console.info(
+            "session-service:fill-session:获取用户信息成功，数量:",
+            data.userInfoList?.length || 0
+          );
           await sessionService.updateBaseUserInfoList(data.userInfoList);
         } else {
-          console.error("session-service:fill-session:获取用户信息失败:", response.data.errMsg);
+          console.error(
+            "session-service:fill-session:获取用户信息失败:",
+            response.data.errMsg
+          );
         }
       } catch (error) {
         console.error("session-service:fill-session:获取用户信息异常:", error);
       }
     }
     if (groupList.length > 0) {
-      console.info("session-service:fill-session:需要获取群组信息，数量:", groupList.length);
+      console.info(
+        "session-service:fill-session:需要获取群组信息，数量:",
+        groupList.length
+      );
       try {
-        const response = await netMaster.post(Api.GET_BASE_GROUP, { targetList: groupList });
+        const response = await netMaster.post(Api.GET_BASE_GROUP, {
+          targetList: groupList
+        });
         if (response.data.success) {
           const data = response.data.data;
-          console.info("session-service:fill-session:获取群组信息成功，数量:", data.groupInfoList?.length || 0);
+          console.info(
+            "session-service:fill-session:获取群组信息成功，数量:",
+            data.groupInfoList?.length || 0
+          );
           await sessionService.updateBaseGroupInfoList(data.groupInfoList);
         } else {
-          console.error("session-service:fill-session:获取群组信息失败:", response.data.errMsg);
+          console.error(
+            "session-service:fill-session:获取群组信息失败:",
+            response.data.errMsg
+          );
         }
       } catch (error) {
         console.error("session-service:fill-session:获取群组信息异常:", error);
@@ -2041,15 +2258,22 @@ class SessionService {
     }
   }
   // 如果插入后发现不存在，或者 contact_name 或者 contact_avatar 字段缺失，返回 contact，代表要查 api
-  async checkSession(contact) {
-    const obj = { sessionId: contact.sessionId, contactType: contact.contactType, contactId: contact.contactId };
+  async insertAndCheckSession(contact) {
+    const obj = {
+      sessionId: contact.sessionId,
+      contactType: contact.contactType,
+      contactId: contact.contactId
+    };
     if (contact.myRole) Object.assign(obj, { myRole: contact.myRole });
     const change = await sessionDao.insertOrIgnoreContact(obj);
     console.info("session-service:check-session:insert:", obj);
     if (change > 0) {
       return contact;
     } else {
-      await sessionDao.updatePartialBySessionId({ status: 1 }, contact.sessionId);
+      await sessionDao.updatePartialBySessionId(
+        { status: 1 },
+        contact.sessionId
+      );
     }
     const one = await sessionDao.selectSingleSession(contact.sessionId);
     if (one?.contactAvatar && one?.contactName) {
@@ -2058,31 +2282,57 @@ class SessionService {
       return contact;
     }
   }
+  // 退群或者被删，会话被弃用
+  async deprecateSession(sessionId) {
+    await sessionDao.updatePartialBySessionId(
+      { status: 0 },
+      sessionId
+    );
+  }
   // 整理所有会话的最后一条消息
   async tidySessionOfLastMessage() {
     const result = await sessionDao.selectAllSessionId();
     for (const session of result) {
-      const msgResult = await messageDao.getMessageBySessionId(session.sessionId, { limit: 1, direction: "newest" });
+      const msgResult = await messageDao.getMessageBySessionId(
+        session.sessionId,
+        { limit: 1, direction: "newest" }
+      );
       if (msgResult.messages.length > 0) {
         const content = objectUtil.getContentByMessage(msgResult.messages[0]);
-        const obj = { lastMsgTime: msgResult.messages[0].timestamp.toISOString(), lastMsgContent: content };
-        console.info("session-service:tidy-session:update-session:", obj, session.sessionId);
-        await sessionDao.updatePartialBySessionId(obj, session.sessionId);
+        const obj = {
+          lastMsgTime: msgResult.messages[0].timestamp.toISOString(),
+          lastMsgContent: content
+        };
+        console.info(
+          "session-service:tidy-session:update-session:",
+          obj,
+          session.sessionId
+        );
+        await sessionDao.updatePartialBySessionId(
+          obj,
+          session.sessionId
+        );
       } else {
-        console.info("session-service:tidy-session:no-message:", session.sessionId);
+        console.info(
+          "session-service:tidy-session:no-message:",
+          session.sessionId
+        );
       }
     }
   }
 }
 const sessionService = new SessionService();
 class WebsocketHandler {
+  // 聊天消息
   async handleChatMessage(msg) {
     console.log("handleMessage", msg);
     const insertId = await messageService.handleSingleMessage(msg);
     if (!insertId || insertId <= 0) return;
     const vo = messageAdapter.adaptWebSocketMessage(msg, insertId);
     channelUtil.sendSingleChatAckConfirm(msg);
-    const session = await sessionDao.selectSingleSession(msg.sessionId);
+    const session = await sessionDao.selectSingleSession(
+      msg.sessionId
+    );
     const mainWindow = electron.BrowserWindow.getAllWindows()[0];
     mainWindow.webContents.send("message:call-back:load-data", [vo]);
     mainWindow.webContents.send("session:call-back:load-data", [session]);
@@ -2101,10 +2351,14 @@ class WebsocketHandler {
     console.info("handle-session:", msg);
     const type = msg.metaSessionType <= 2 ? 1 : 2;
     Object.assign(msg, { contactType: type });
-    await sessionService.fillSession([msg]);
+    if (msg.metaSessionType === 2 || msg.metaSessionType === 4) {
+      await sessionService.deprecateSession(msg.sessionId);
+    } else {
+      await sessionService.fillSession([msg]);
+    }
     channelUtil.sendSingleSessionAckConfirm(msg);
     const session = await sessionService.selectSingleSessionById(msg.sessionId);
-    console.info("handle-session:select", session);
+    log.info("handle-session:select", session);
     if (session) {
       const mainWindow = electron.BrowserWindow.getAllWindows()[0];
       mainWindow.webContents.send("session:call-back:load-data", [session]);
@@ -2112,7 +2366,7 @@ class WebsocketHandler {
   }
   async handleBlack(msg) {
   }
-  // 被踢、被强制下线、被警告
+  // 被强制下线、被警告
   async handleClientEvent(msg) {
   }
 }
@@ -2218,7 +2472,10 @@ class PullService {
     console.log(`pull-service:pull-session:begin`);
     const response = await netMaster.get(Api.PULL_CONTACT);
     if (!response.data.success) {
-      console.error("pull-service:pull-friend-contact:拉取 session 失败:", response.data.errMsg);
+      console.error(
+        "pull-service:pull-friend-contact:拉取 session 失败:",
+        response.data.errMsg
+      );
       return;
     }
     const result = response.data.data;
@@ -2232,9 +2489,14 @@ class PullService {
     console.log("pull-service:pull-apply:cursor", cursor);
     const payload = { pageSize: 100 };
     if (cursor) Object.assign(payload, { cursor });
-    let response = await netMaster.get(Api.PULL_APPLICATION, { params: payload });
+    let response = await netMaster.get(Api.PULL_APPLICATION, {
+      params: payload
+    });
     if (!response.data.success) {
-      console.error("pull-service:pull-apply:拉取申请通知失败:", response.data.errMsg);
+      console.error(
+        "pull-service:pull-apply:拉取申请通知失败:",
+        response.data.errMsg
+      );
       return;
     }
     await applicationService.handleMoreApplication(response.data.data.list);
@@ -2242,7 +2504,10 @@ class PullService {
       payload.cursor = response.data.data.cursor;
       response = await netMaster.get(Api.PULL_APPLICATION, { params: payload });
       if (!response.data.success) {
-        console.error("pull-service:pull-apply:拉取申请通知失败:", response.data.errMsg);
+        console.error(
+          "pull-service:pull-apply:拉取申请通知失败:",
+          response.data.errMsg
+        );
         return;
       }
       await applicationService.handleMoreApplication(response.data.data.list);
@@ -2251,10 +2516,16 @@ class PullService {
   // 拉取用户信箱的所有消息
   async pullMailboxMessages() {
     try {
-      console.info("pull-service:pull-offline-message:开始拉取用户离线消息...", `${Api.PULL_MAILBOX}`);
+      console.info(
+        "pull-service:pull-offline-message:开始拉取用户离线消息...",
+        `${Api.PULL_MAILBOX}`
+      );
       const response = await netMaster.get(Api.PULL_MAILBOX);
       if (!response.data.success) {
-        console.error("pull-service:pull-offline-message:拉取离线消息失败:", response.data.errMsg);
+        console.error(
+          "pull-service:pull-offline-message:拉取离线消息失败:",
+          response.data.errMsg
+        );
         return;
       }
       const pullResult = response.data.data;
@@ -2262,7 +2533,9 @@ class PullService {
         console.info("pull-service:pull-offline-message:没有离线消息需要拉取");
         return;
       }
-      console.info(`pull-service:拉取到 ${pullResult.messageList.length} 条离线消息`);
+      console.info(
+        `pull-service:拉取到 ${pullResult.messageList.length} 条离线消息`
+      );
       const promiseList = [];
       const messageIds = [];
       for (const message of pullResult.messageList) {
@@ -2304,10 +2577,16 @@ class PullService {
   async adjustLocalDb(myContactList) {
     try {
       if (!myContactList || !myContactList.contactList || !Array.isArray(myContactList.contactList)) {
-        console.warn("pull-service:adjust-local-db:contactList 数据无效:", myContactList);
+        console.warn(
+          "pull-service:adjust-local-db:contactList 数据无效:",
+          myContactList
+        );
         return;
       }
-      console.info("pull-service:adjust-local-db:开始处理联系人列表，数量:", myContactList.contactList.length);
+      console.info(
+        "pull-service:adjust-local-db:开始处理联系人列表，数量:",
+        myContactList.contactList.length
+      );
       await sessionDao.abandonAllSession();
       await sessionService.fillSession(myContactList.contactList);
     } catch (error) {
@@ -2388,7 +2667,10 @@ const compressAudio = async (inputPath, outputPath) => {
       const buffer = fs.readFileSync(outputPath);
       const header = buffer.subarray(0, 4);
       if (buffer.length >= 4) {
-        console.log("文件头字节:", Array.from(header).map((b) => "0x" + b.toString(16).padStart(2, "0")).join(" "));
+        console.log(
+          "文件头字节:",
+          Array.from(header).map((b) => "0x" + b.toString(16).padStart(2, "0")).join(" ")
+        );
         if (header[0] === 26 && header[1] === 69 && header[2] === 223 && header[3] === 163) {
           console.log("✅ WebM文件格式验证通过");
           resolve();
@@ -2800,8 +3082,12 @@ class DeviceService {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = easeOut(progress);
-      const currentWidth = Math.round(startWidth + (targetWidth - startWidth) * easedProgress);
-      const currentHeight = Math.round(startHeight + (targetHeight - startHeight) * easedProgress);
+      const currentWidth = Math.round(
+        startWidth + (targetWidth - startWidth) * easedProgress
+      );
+      const currentHeight = Math.round(
+        startHeight + (targetHeight - startHeight) * easedProgress
+      );
       const currentX = Math.round(startX + (targetX - startX) * easedProgress);
       const currentY = Math.round(startY + (targetY - startY) * easedProgress);
       window.setBounds({
@@ -2880,18 +3166,26 @@ class DeviceService {
       });
       const isDev = process.env.NODE_ENV === "development";
       if (isDev && process.env["ELECTRON_RENDERER_URL"]) {
-        this.debugWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}#/debug`);
+        this.debugWindow.loadURL(
+          `${process.env["ELECTRON_RENDERER_URL"]}#/debug`
+        );
       } else if (isDev) {
         this.debugWindow.loadURL("http://localhost:5173/#/debug").catch(() => {
           console.warn("开发服务器连接失败，使用文件加载方式");
-          this.debugWindow?.loadFile(path.join(__dirname, "../renderer/index.html"), {
-            hash: "debug"
-          });
+          this.debugWindow?.loadFile(
+            path.join(__dirname, "../renderer/index.html"),
+            {
+              hash: "debug"
+            }
+          );
         });
       } else {
-        this.debugWindow.loadFile(path.join(__dirname, "../renderer/index.html"), {
-          hash: "debug"
-        });
+        this.debugWindow.loadFile(
+          path.join(__dirname, "../renderer/index.html"),
+          {
+            hash: "debug"
+          }
+        );
       }
       this.debugWindow.once("ready-to-show", () => {
         this.debugWindow?.show();
@@ -2911,381 +3205,815 @@ class DeviceService {
   }
 }
 const deviceService = new DeviceService();
-class AvatarCache {
-  cacheMap = /* @__PURE__ */ new Map();
-  jsonLoadingMap = /* @__PURE__ */ new Map();
-  jsonMap = /* @__PURE__ */ new Map();
-  beginServe() {
-    electron.ipcMain.handle(
-      "avatar:cache:seek-by-version",
-      async (_, params) => {
-        let item = this.cacheMap.get(params.userId);
-        if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
-          console.info("avatar:cache:seek-by-version 命中 主进程缓存");
-          return { success: true, pathResult: urlUtil.signByApp("avatar", item[params.strategy].localPath) };
-        } else if (fs.existsSync(this.getJsonPath(params.userId))) {
-          try {
-            item = JSON.parse(fs.readFileSync(this.getJsonPath(params.userId), "utf-8"));
-            console.info("avatar:cache:seek-by-version:比较版本 ", item, params);
-            if (item && this.checkVersion(item, params.strategy, params.version) && fs.existsSync(item[params.strategy].localPath)) {
-              console.info("avatar:cache:seek-by-version 命中 json 文件");
-              this.cacheMap.set(params.userId, item);
-              return {
-                success: true,
-                pathResult: urlUtil.signByApp("avatar", item[params.strategy].localPath)
-              };
-            }
-          } catch (error) {
-            console.error(error);
-          }
-        }
-        console.info("debug:downloadJson:下载元信息:  ", [urlUtil.atomPath, params.userId + ".json"].join("/"));
-        const result = await this.getMetaJson(params.userId);
-        return { success: false, pathResult: result[params.strategy] };
-      }
-    );
-    electron.ipcMain.handle("avatar:get-newer", async (_, { userId, strategy, avatarUrl }) => {
-      try {
-        const filePath = await this.setNewAvatar(userId, strategy, avatarUrl);
-        if (!filePath) return null;
-        return urlUtil.signByApp("avatar", filePath);
-      } catch (error) {
-        console.error("Failed to get avatar:", error);
-        return null;
-      }
-    });
-  }
-  // 单飞防并发设计
-  async getMetaJson(userId) {
-    const cached = this.jsonMap.get(userId);
-    if (cached) {
-      console.info("avatar-cache:get-meta-json:命中jsonMap", cached);
-      return cached;
-    }
-    const inflight = this.jsonLoadingMap.get(userId);
-    if (inflight) {
-      console.info("avatar-cache:get-meta-json:命中jsonLoadingMap", inflight);
-      return inflight;
-    }
-    const promise = netMinIO.downloadJson([urlUtil.atomPath, userId + ".json"].join("/")).then((result) => {
-      this.jsonMap.set(userId, result);
-      this.jsonLoadingMap.delete(userId);
-      setTimeout(() => this.jsonMap.delete(userId), 8e3);
-      return result;
-    }).catch((e) => {
-      this.jsonLoadingMap.delete(userId);
-      throw e;
-    });
-    this.jsonLoadingMap.set(userId, promise);
-    return promise;
-  }
-  // 主要业务逻辑：构造文件路径、确保文件目录存在、下载并保存头像、更新本地索引
-  async setNewAvatar(userId, strategy, avatarUrl) {
-    try {
-      const filePath = path.join(urlUtil.cachePaths["avatar"], userId, strategy, this.extractObjectFromUrl(avatarUrl));
-      urlUtil.ensureDir(path.join(urlUtil.cachePaths["avatar"], userId, strategy));
-      console.info("avatar-cache:getAvatarPath:准备下载头像:  ", [userId, avatarUrl, filePath].join("-"));
-      const success = await this.downloadAndSaveAvatar(avatarUrl, filePath);
-      if (success) {
-        this.updateCacheIndex(userId, strategy, this.extractVersionFromUrl(avatarUrl), filePath);
-        return filePath;
-      }
-      return null;
-    } catch (error) {
-      log.error("Failed to download and cache avatar:", error);
-      return null;
-    }
-  }
-  // 下载头像，并保存在本地磁盘
-  async downloadAndSaveAvatar(url, filePath) {
-    try {
-      const arrayBuffer = await netMinIO.downloadAvatar(url);
-      if (arrayBuffer) {
-        console.info("下载成功", url);
-        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      log.error("Failed to download avatar:", url, error);
-      return false;
-    }
-  }
-  //  更新本地版本号
-  updateCacheIndex(userId, strategy, version, filePath) {
-    let item = this.cacheMap.get(userId);
-    if (!item) {
-      const jsonPath = this.getJsonPath(userId);
-      if (fs.existsSync(jsonPath)) {
-        try {
-          item = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-        } catch {
-          log.error("文件损坏");
-        }
-      }
-      if (!item) item = {};
-    }
-    item[strategy] = { version, localPath: filePath };
-    this.cacheMap.set(userId, item);
-    this.saveItem(userId, item);
-  }
-  checkVersion(item, strategy, version) {
-    return item[strategy] && Number.parseInt(item[strategy].version) >= Number.parseInt(version);
-  }
-  extractVersionFromUrl(url) {
-    return new URL(url).pathname.split("/").at(-2) || "";
-  }
-  extractObjectFromUrl(url) {
-    return new URL(url).pathname.split("/").at(-1) || "";
-  }
-  saveItem(userId, cacheItem) {
-    try {
-      const jsonPath = this.getJsonPath(userId);
-      const tmpPath = jsonPath + ".tmp";
-      fs.writeFileSync(tmpPath, JSON.stringify(cacheItem, null, 2));
-      fs.renameSync(tmpPath, jsonPath);
-    } catch (error) {
-      log.error("Failed to save cache index:", error);
-    }
-  }
-  getJsonPath = (userId) => path.join(urlUtil.cachePaths["avatar"], userId, "index.json");
-  // {userData}/cache/avatar/{userId}/index.json
-}
-const avatarCache = new AvatarCache();
 class VoiceCache {
   beginServe() {
-    electron.ipcMain.handle("voice:cache:get:original", async (event, params) => {
-      try {
-        const data = await messageDao.getExtendData(params);
-        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
-          return urlUtil.signByApp("voice", data.originalLocalPath);
+    electron.ipcMain.handle(
+      "voice:cache:get:original",
+      async (event, params) => {
+        try {
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+            return urlUtil.signByApp("voice", data.originalLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("voice");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+          const voicePath = todayDir + "/" + fileName;
+          const voiceArrayBuffer = await netMinIO.downloadAudioWithProgress(
+            data.originalPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "original",
+                  mediaType: "voice",
+                  ...progress
+                });
+              },
+              timeout: 3e4
+            }
+          );
+          const voiceBuffer = Buffer.from(voiceArrayBuffer);
+          fs.writeFileSync(voicePath, voiceBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            originalLocalPath: voicePath
+          });
+          return urlUtil.signByApp("voice", voicePath);
+        } catch (error) {
+          console.error("下载语音失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "original",
+            mediaType: "voice",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("voice");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
-        const voicePath = todayDir + "/" + fileName;
-        const voiceArrayBuffer = await netMinIO.downloadAudioWithProgress(data.originalPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "original",
-              mediaType: "voice",
-              ...progress
-            });
-          },
-          timeout: 3e4
-        });
-        const voiceBuffer = Buffer.from(voiceArrayBuffer);
-        fs.writeFileSync(voicePath, voiceBuffer);
-        await messageDao.updateLocalPath(params.id, { originalLocalPath: voicePath });
-        return urlUtil.signByApp("voice", voicePath);
-      } catch (error) {
-        console.error("下载语音失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "original",
-          mediaType: "voice",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
+    );
   }
 }
 const voiceCache = new VoiceCache();
 class ImageCache {
   beginServe() {
-    electron.ipcMain.handle("image:cache:get:original", async (event, params) => {
-      try {
-        const data = await messageDao.getExtendData(params);
-        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
-          return urlUtil.signByApp("picture", data.originalLocalPath);
+    electron.ipcMain.handle(
+      "image:cache:get:original",
+      async (event, params) => {
+        try {
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+            return urlUtil.signByApp("picture", data.originalLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("picture");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+          const imagePath = todayDir + "/" + fileName;
+          const imageArrayBuffer = await netMinIO.downloadImageWithProgress(
+            data.originalPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "original",
+                  mediaType: "image",
+                  ...progress
+                });
+              },
+              timeout: 3e4
+            }
+          );
+          const imageBuffer = Buffer.from(imageArrayBuffer);
+          fs.writeFileSync(imagePath, imageBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            originalLocalPath: imagePath
+          });
+          return urlUtil.signByApp("picture", imagePath);
+        } catch (error) {
+          console.error("下载原始图片失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "original",
+            mediaType: "image",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("picture");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
-        const imagePath = todayDir + "/" + fileName;
-        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.originalPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "original",
-              mediaType: "image",
-              ...progress
-            });
-          },
-          timeout: 3e4
-        });
-        const imageBuffer = Buffer.from(imageArrayBuffer);
-        fs.writeFileSync(imagePath, imageBuffer);
-        await messageDao.updateLocalPath(params.id, { originalLocalPath: imagePath });
-        return urlUtil.signByApp("picture", imagePath);
-      } catch (error) {
-        console.error("下载原始图片失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "original",
-          mediaType: "image",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
-    electron.ipcMain.handle("image:cache:get:thumbnail", async (event, params) => {
-      try {
-        log.info("image:cache:get:thumbnail开始下载", params);
-        const data = await messageDao.getExtendData(params);
-        if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
-          return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+    );
+    electron.ipcMain.handle(
+      "image:cache:get:thumbnail",
+      async (event, params) => {
+        try {
+          log.info("image:cache:get:thumbnail开始下载", params);
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
+            return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("picture");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
+          const imagePath = todayDir + "/" + fileName;
+          log.info("image:cache:get:thumbnail:下载路径", imagePath);
+          const imageArrayBuffer = await netMinIO.downloadImageWithProgress(
+            data.thumbnailPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "thumbnail",
+                  mediaType: "image",
+                  ...progress
+                });
+              },
+              timeout: 3e4
+            }
+          );
+          const imageBuffer = Buffer.from(imageArrayBuffer);
+          fs.writeFileSync(imagePath, imageBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            thumbnailLocalPath: imagePath
+          });
+          return urlUtil.signByApp("picture", imagePath);
+        } catch (error) {
+          console.error("下载缩略图失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "thumbnail",
+            mediaType: "image",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("picture");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
-        const imagePath = todayDir + "/" + fileName;
-        log.info("image:cache:get:thumbnail:下载路径", imagePath);
-        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.thumbnailPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "thumbnail",
-              mediaType: "image",
-              ...progress
-            });
-          },
-          timeout: 3e4
-        });
-        const imageBuffer = Buffer.from(imageArrayBuffer);
-        fs.writeFileSync(imagePath, imageBuffer);
-        await messageDao.updateLocalPath(params.id, { thumbnailLocalPath: imagePath });
-        return urlUtil.signByApp("picture", imagePath);
-      } catch (error) {
-        console.error("下载缩略图失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "thumbnail",
-          mediaType: "image",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
+    );
   }
 }
 const imageCache = new ImageCache();
 class VideoCache {
   beginServe() {
-    electron.ipcMain.handle("video:cache:get:original", async (event, params) => {
-      try {
-        const data = await messageDao.getExtendData(params);
-        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
-          return urlUtil.signByApp("video", data.originalLocalPath);
+    electron.ipcMain.handle(
+      "video:cache:get:original",
+      async (event, params) => {
+        try {
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+            return urlUtil.signByApp("video", data.originalLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("video");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+          const videoPath = todayDir + "/" + fileName;
+          const videoArrayBuffer = await netMinIO.downloadVideoWithProgress(
+            data.originalPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "original",
+                  mediaType: "video",
+                  ...progress
+                });
+              },
+              timeout: 6e4
+            }
+          );
+          log.info("video:cache:get:original:下载成功");
+          const videoBuffer = Buffer.from(videoArrayBuffer);
+          fs.writeFileSync(videoPath, videoBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            originalLocalPath: videoPath
+          });
+          return urlUtil.signByApp("video", videoPath);
+        } catch (error) {
+          console.error("下载原始视频失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "original",
+            mediaType: "video",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("video");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
-        const videoPath = todayDir + "/" + fileName;
-        const videoArrayBuffer = await netMinIO.downloadVideoWithProgress(data.originalPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "original",
-              mediaType: "video",
-              ...progress
-            });
-          },
-          timeout: 6e4
-        });
-        log.info("video:cache:get:original:下载成功");
-        const videoBuffer = Buffer.from(videoArrayBuffer);
-        fs.writeFileSync(videoPath, videoBuffer);
-        await messageDao.updateLocalPath(params.id, { originalLocalPath: videoPath });
-        return urlUtil.signByApp("video", videoPath);
-      } catch (error) {
-        console.error("下载原始视频失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "original",
-          mediaType: "video",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
-    electron.ipcMain.handle("video:cache:get:thumbnail", async (event, params) => {
-      try {
-        const data = await messageDao.getExtendData(params);
-        if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
-          return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+    );
+    electron.ipcMain.handle(
+      "video:cache:get:thumbnail",
+      async (event, params) => {
+        try {
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.thumbnailLocalPath && urlUtil.existLocalFile(data.thumbnailLocalPath)) {
+            return urlUtil.signByApp("picture", data.thumbnailLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("picture");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
+          const imagePath = todayDir + "/" + fileName;
+          const imageArrayBuffer = await netMinIO.downloadImageWithProgress(
+            data.thumbnailPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "thumbnail",
+                  mediaType: "video",
+                  ...progress
+                });
+              },
+              timeout: 3e4
+            }
+          );
+          log.info("video:cache:get:thumbnail:下载成功");
+          const imageBuffer = Buffer.from(imageArrayBuffer);
+          fs.writeFileSync(imagePath, imageBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            thumbnailLocalPath: imagePath
+          });
+          return urlUtil.signByApp("picture", imagePath);
+        } catch (error) {
+          console.error("下载视频缩略图失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "thumbnail",
+            mediaType: "video",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("picture");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.thumbnailPath)}`;
-        const imagePath = todayDir + "/" + fileName;
-        const imageArrayBuffer = await netMinIO.downloadImageWithProgress(data.thumbnailPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "thumbnail",
-              mediaType: "video",
-              ...progress
-            });
-          },
-          timeout: 3e4
-        });
-        log.info("video:cache:get:thumbnail:下载成功");
-        const imageBuffer = Buffer.from(imageArrayBuffer);
-        fs.writeFileSync(imagePath, imageBuffer);
-        await messageDao.updateLocalPath(params.id, { thumbnailLocalPath: imagePath });
-        return urlUtil.signByApp("picture", imagePath);
-      } catch (error) {
-        console.error("下载视频缩略图失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "thumbnail",
-          mediaType: "video",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
+    );
   }
 }
 const videoCache = new VideoCache();
 class FileCache {
   beginServe() {
-    electron.ipcMain.handle("file:cache:get:original", async (event, params) => {
-      try {
-        const data = await messageDao.getExtendData(params);
-        if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
-          return urlUtil.signByApp("file", data.originalLocalPath);
+    electron.ipcMain.handle(
+      "file:cache:get:original",
+      async (event, params) => {
+        try {
+          const data = await messageDao.getExtendData(
+            params
+          );
+          if (data.originalLocalPath && urlUtil.existLocalFile(data.originalLocalPath)) {
+            return urlUtil.signByApp("file", data.originalLocalPath);
+          }
+          const todayDir = urlUtil.ensureTodayDir("file");
+          const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
+          const filePath = todayDir + "/" + fileName;
+          const fileArrayBuffer = await netMinIO.downloadFileWithProgress(
+            data.originalPath,
+            {
+              onProgress: (progress) => {
+                event.sender.send("media:download:progress", {
+                  messageId: params.id,
+                  type: "original",
+                  mediaType: "file",
+                  ...progress
+                });
+              },
+              timeout: 6e4
+            }
+          );
+          const fileBuffer = Buffer.from(fileArrayBuffer);
+          fs.writeFileSync(filePath, fileBuffer);
+          await messageDao.updateLocalPath(params.id, {
+            originalLocalPath: filePath
+          });
+          return urlUtil.signByApp("file", filePath);
+        } catch (error) {
+          console.error("下载文件失败:", error);
+          event.sender.send("media:download:error", {
+            messageId: params.id,
+            type: "original",
+            mediaType: "file",
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
         }
-        const todayDir = urlUtil.ensureTodayDir("file");
-        const fileName = `${params.id}_${Date.now()}${urlUtil.extractExt(data.originalPath)}`;
-        const filePath = todayDir + "/" + fileName;
-        const fileArrayBuffer = await netMinIO.downloadFileWithProgress(data.originalPath, {
-          onProgress: (progress) => {
-            event.sender.send("media:download:progress", {
-              messageId: params.id,
-              type: "original",
-              mediaType: "file",
-              ...progress
-            });
-          },
-          timeout: 6e4
-        });
-        const fileBuffer = Buffer.from(fileArrayBuffer);
-        fs.writeFileSync(filePath, fileBuffer);
-        await messageDao.updateLocalPath(params.id, { originalLocalPath: filePath });
-        return urlUtil.signByApp("file", filePath);
-      } catch (error) {
-        console.error("下载文件失败:", error);
-        event.sender.send("media:download:error", {
-          messageId: params.id,
-          type: "original",
-          mediaType: "file",
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw error;
       }
-    });
+    );
   }
 }
 const fileCache = new FileCache();
+class ProfileDao {
+  /**
+   * 根据targetId和contactType查询Profile
+   */
+  async selectProfile(targetId, contactType) {
+    try {
+      const sql = `
+        SELECT * FROM profiles 
+        WHERE target_id = ? AND contact_type = ?
+      `;
+      const row = await queryOne(sql, [targetId, contactType]);
+      if (!row) return null;
+      return row;
+    } catch (error) {
+      log.error("ProfileDao:selectProfile error:", error);
+      return null;
+    }
+  }
+  /**
+   * 插入新的Profile记录
+   */
+  async insertProfile(profile) {
+    try {
+      const now = Date.now();
+      const profileData = {
+        targetId: profile.targetId,
+        contactType: profile.contactType,
+        nickname: profile.nickname || null,
+        nickVersion: profile.nickVersion || "0",
+        avatarVersion: profile.avatarVersion || "0",
+        avatarOriginalPath: profile.avatarOriginalPath || null,
+        avatarThumbPath: profile.avatarThumbPath || null,
+        lastNickUpdate: profile.lastNickUpdate || now,
+        lastAvatarUpdate: profile.lastAvatarUpdate || now,
+        createdAt: profile.createdAt || now
+      };
+      const result = await insertOrReplace("profiles", profileData);
+      log.info(`ProfileDao: 插入Profile成功 ${profile.targetId}`);
+      return result;
+    } catch (error) {
+      log.error("ProfileDao:insertProfile error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 更新昵称信息
+   */
+  async updateNickname(targetId, contactType, data) {
+    try {
+      const now = Date.now();
+      const updateData = {
+        nickname: data.nickname,
+        nickVersion: data.nickVersion,
+        lastNickUpdate: now
+      };
+      const whereData = { targetId, contactType };
+      const result = await update("profiles", updateData, whereData);
+      log.info(`ProfileDao: 昵称更新成功 ${targetId}: ${data.nickname}`);
+      return result;
+    } catch (error) {
+      log.error("ProfileDao:updateNickname error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 更新头像信息
+   */
+  async updateAvatar(targetId, contactType, data) {
+    try {
+      const now = Date.now();
+      const updateData = {
+        avatarVersion: data.version,
+        lastAvatarUpdate: now
+      };
+      if (data.strategy === "thumbedAvatarUrl") {
+        updateData.avatarThumbPath = data.localPath;
+      } else {
+        updateData.avatarOriginalPath = data.localPath;
+      }
+      const whereData = { targetId, contactType };
+      const result = await update("profiles", updateData, whereData);
+      log.info(`ProfileDao: 头像更新成功 ${targetId}: ${data.localPath}`);
+      return result;
+    } catch (error) {
+      log.error("ProfileDao:updateAvatar error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 插入或更新Profile (UPSERT操作)
+   */
+  async upsertProfile(profile) {
+    try {
+      const existing = await this.selectProfile(profile.targetId, profile.contactType);
+      if (existing) {
+        return await this.updateProfilePartial(profile.targetId, profile.contactType, profile);
+      } else {
+        return await this.insertProfile(profile);
+      }
+    } catch (error) {
+      log.error("ProfileDao:upsertProfile error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 插入或替换昵称信息 (专用于昵称更新)
+   */
+  async upsertNickname(targetId, contactType, data) {
+    try {
+      const now = Date.now();
+      const profileData = {
+        targetId,
+        contactType,
+        nickname: data.nickname,
+        nickVersion: data.nickVersion,
+        lastNickUpdate: now,
+        createdAt: now
+      };
+      const result = await insertOrReplace("profiles", profileData);
+      log.info(`ProfileDao: 昵称upsert成功 ${targetId}: ${data.nickname}`);
+      return result;
+    } catch (error) {
+      log.error("ProfileDao:upsertNickname error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 插入或更新头像信息 (专用于头像更新)
+   */
+  async upsertAvatar(targetId, contactType, data) {
+    try {
+      const existing = await this.selectProfile(targetId, contactType);
+      const now = Date.now();
+      if (existing) {
+        return await this.updateAvatar(targetId, contactType, data);
+      } else {
+        const profileData = {
+          targetId,
+          contactType,
+          avatarVersion: data.version,
+          lastAvatarUpdate: now,
+          createdAt: now
+        };
+        if (data.strategy === "thumbedAvatarUrl") {
+          profileData.avatarThumbPath = data.localPath;
+        } else {
+          profileData.avatarOriginalPath = data.localPath;
+        }
+        const result = await insertOrReplace("profiles", profileData);
+        log.info(`ProfileDao: 头像insert成功 ${targetId}: ${data.localPath}`);
+        return result;
+      }
+    } catch (error) {
+      log.error("ProfileDao:upsertAvatar error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 部分更新Profile字段
+   */
+  async updateProfilePartial(targetId, contactType, updates) {
+    try {
+      const updateData = {};
+      if (updates.nickname !== void 0) updateData.nickname = updates.nickname;
+      if (updates.nickVersion !== void 0) updateData.nickVersion = updates.nickVersion;
+      if (updates.avatarVersion !== void 0) updateData.avatarVersion = updates.avatarVersion;
+      if (updates.avatarOriginalPath !== void 0) updateData.avatarOriginalPath = updates.avatarOriginalPath;
+      if (updates.avatarThumbPath !== void 0) updateData.avatarThumbPath = updates.avatarThumbPath;
+      if (updates.lastNickUpdate !== void 0) updateData.lastNickUpdate = updates.lastNickUpdate;
+      if (updates.lastAvatarUpdate !== void 0) updateData.lastAvatarUpdate = updates.lastAvatarUpdate;
+      if (Object.keys(updateData).length === 0) {
+        log.warn("ProfileDao:updateProfilePartial 没有字段需要更新");
+        return 0;
+      }
+      const whereData = {
+        targetId,
+        contactType
+      };
+      const result = await update("profiles", updateData, whereData);
+      log.info(`ProfileDao: 部分更新成功 ${targetId}`);
+      return result;
+    } catch (error) {
+      log.error("ProfileDao:updateProfilePartial error:", error);
+      return 0;
+    }
+  }
+  /**
+   * 批量查询多个Profile
+   */
+  async selectProfiles(targets) {
+    if (targets.length === 0) return [];
+    try {
+      const conditions = targets.map(() => "(target_id = ? AND contact_type = ?)").join(" OR ");
+      const params = targets.flatMap((t) => [t.targetId, t.contactType]);
+      const sql = `SELECT * FROM profiles WHERE ${conditions}`;
+      const rows = await queryAll(sql, params);
+      if (!rows || rows.length === 0) return [];
+      return rows;
+    } catch (error) {
+      log.error("ProfileDao:selectProfiles error:", error);
+      return [];
+    }
+  }
+}
+const profileDao = new ProfileDao();
+class ProfileService {
+  memoryCache = /* @__PURE__ */ new Map();
+  inflightRequests = /* @__PURE__ */ new Map();
+  CACHE_DURATION = 2 * 60 * 1e3;
+  // 2 分钟请求防抖
+  MEMORY_TTL = 8 * 1e3;
+  // 8 秒内存缓存
+  beginServe() {
+    electron.ipcMain.handle("profile:get-avatar-path", this.handleGetAvatarPath.bind(this));
+    electron.ipcMain.handle("profile:get-nickname", this.handleGetNickname.bind(this));
+    electron.ipcMain.handle("profile:trigger-update", this.handleTriggerUpdate.bind(this));
+  }
+  /**
+   * 获取头像本地路径
+   */
+  async handleGetAvatarPath(_event, params) {
+    try {
+      const { targetId, strategy, contactType, version } = params;
+      const profile = await this.getProfileFromDB(targetId, contactType);
+      if (profile?.avatarVersion) {
+        const currentVersion = parseInt(profile.avatarVersion);
+        const requestVersion = parseInt(version);
+        if (currentVersion >= requestVersion || profile?.lastAvatarUpdate > Date.now() - this.CACHE_DURATION) {
+          const localPath = strategy === "thumbedAvatarUrl" ? profile.avatarThumbPath : profile.avatarOriginalPath;
+          if (localPath && fs.existsSync(localPath)) {
+            return { success: true, localPath: urlUtil.signByApp("avatar", localPath) };
+          }
+        }
+      }
+      await this.triggerAvatarUpdate(targetId, contactType, strategy);
+      const updatedProfile = await this.getProfileFromDB(targetId, contactType);
+      if (updatedProfile) {
+        const localPath = strategy === "thumbedAvatarUrl" ? updatedProfile.avatarThumbPath : updatedProfile.avatarOriginalPath;
+        if (localPath && fs.existsSync(localPath)) {
+          return { success: true, localPath: urlUtil.signByApp("avatar", localPath) };
+        }
+      }
+      return { success: false };
+    } catch (error) {
+      log.error("ProfileService:handleGetAvatarPath error:", error);
+      return { success: false };
+    }
+  }
+  /**
+   * 获取昵称
+   */
+  async handleGetNickname(_event, params) {
+    try {
+      const { targetId, contactType, version } = params;
+      let profile = await this.getProfileFromDB(targetId, contactType);
+      if (profile?.nickVersion && profile?.nickname) {
+        const currentVersion = parseInt(profile.nickVersion);
+        const requestVersion = parseInt(version);
+        if (currentVersion >= requestVersion || profile?.lastNickUpdate > Date.now() - this.CACHE_DURATION) {
+          return profile.nickname;
+        }
+      }
+      await this.triggerNicknameUpdate(targetId, contactType);
+      profile = await this.getProfileFromDB(targetId, contactType);
+      return profile?.nickname || "";
+    } catch (error) {
+      log.error("ProfileService:handleGetNickname error:", error);
+      return "";
+    }
+  }
+  /**
+   * 触发Profile更新（后台更新，需要通知UI）
+   */
+  async handleTriggerUpdate(_event, params) {
+    try {
+      const { targetId, strategy, contactType } = params;
+      const cacheKey = `${targetId}_${contactType}_${strategy}`;
+      if (this.inflightRequests.has(cacheKey)) {
+        await this.inflightRequests.get(cacheKey);
+        return;
+      }
+      const promise = this.performProfileUpdate(targetId, contactType, strategy, true);
+      this.inflightRequests.set(cacheKey, promise);
+      try {
+        await promise;
+      } finally {
+        this.inflightRequests.delete(cacheKey);
+      }
+    } catch (error) {
+      log.error("ProfileService:handleTriggerUpdate error:", error);
+    }
+  }
+  /**
+   * 执行Profile更新
+   */
+  async performProfileUpdate(targetId, contactType, strategy, needNotify = false) {
+    try {
+      if (contactType === 1) {
+        await this.updateUserProfile(targetId, strategy, needNotify);
+      } else if (contactType === 2) {
+        await this.updateGroupProfile(targetId, strategy, needNotify);
+      }
+    } catch (error) {
+      log.error(`ProfileService: 更新失败 ${targetId}:`, error);
+    }
+  }
+  /**
+   * 更新用户Profile
+   */
+  async updateUserProfile(targetId, strategy, needNotify) {
+    const metaJson = await this.getUserMetaJson(targetId);
+    if (metaJson.nickname) {
+      await this.updateNicknameInDB(targetId, 1, {
+        nickname: metaJson.nickname,
+        nickVersion: metaJson.nickVersion || "0"
+      });
+      if (needNotify) {
+        this.notifyProfileUpdated(targetId, 1, "nickname", metaJson.nickname);
+      }
+    }
+    const avatarUrl = metaJson[strategy];
+    if (avatarUrl) {
+      const filePath = await this.downloadAndSaveAvatar(targetId, 1, strategy, avatarUrl);
+      if (needNotify && filePath) {
+        this.notifyProfileUpdated(targetId, 1, strategy, urlUtil.signByApp("avatar", filePath));
+      }
+    }
+  }
+  /**
+   * 更新群组Profile
+   */
+  async updateGroupProfile(targetId, strategy, needNotify) {
+    const groupInfo = await this.getGroupInfo(targetId);
+    log.info("ProfileService:updateGroupProfile", targetId, groupInfo);
+    if (groupInfo.nickname) {
+      await this.updateNicknameInDB(targetId, 2, {
+        nickname: groupInfo.nickname,
+        nickVersion: "1"
+      });
+      if (needNotify) {
+        this.notifyProfileUpdated(targetId, 2, "nickname", groupInfo.nickname);
+      }
+    }
+    if (groupInfo.avatar) {
+      const filePath = await this.downloadAndSaveAvatar(targetId, 2, strategy, groupInfo.avatar);
+      if (needNotify && filePath) {
+        this.notifyProfileUpdated(targetId, 2, strategy, urlUtil.signByApp("avatar", filePath));
+      }
+    }
+  }
+  /**
+   * 获取用户元信息JSON
+   */
+  async getUserMetaJson(userId) {
+    const cacheKey = `user_meta_${userId}`;
+    const cached = this.memoryCache.get(cacheKey);
+    if (cached) {
+      return cached.data;
+    }
+    const result = await netMinIO.downloadJson([urlUtil.atomPath, userId + ".json"].join("/"));
+    this.memoryCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
+    });
+    setTimeout(() => this.memoryCache.delete(cacheKey), this.MEMORY_TTL);
+    return result;
+  }
+  /**
+   * 获取群组信息
+   */
+  async getGroupInfo(groupId) {
+    const cacheKey = `group_info_${groupId}`;
+    const cached = this.memoryCache.get(cacheKey);
+    if (cached) {
+      return cached.data;
+    }
+    try {
+      log.info(`ProfileService:getGroupInfo: 获取群组信息 ${groupId}`);
+      const response = await netMaster.post("/group/base-info-list", { targetList: [groupId] });
+      const result = response.data;
+      if (result.success && result.data && result.data.groupInfoList && result.data.groupInfoList.length > 0) {
+        this.memoryCache.set(cacheKey, {
+          data: result.data.groupInfoList[0],
+          timestamp: Date.now()
+        });
+        setTimeout(() => this.memoryCache.delete(cacheKey), this.MEMORY_TTL);
+        return result.data.groupInfoList[0];
+      }
+      return null;
+    } catch (error) {
+      log.error(`ProfileService:getGroupInfo: 获取群组信息失败 ${groupId}:`, error);
+      return null;
+    }
+  }
+  /**
+   * 下载并保存头像
+   */
+  async downloadAndSaveAvatar(targetId, contactType, strategy, avatarUrl) {
+    try {
+      const version = this.extractVersionFromUrl(avatarUrl);
+      const fileName = this.extractObjectFromUrl(avatarUrl);
+      const filePath = path.join(urlUtil.cachePaths["avatar"], targetId + "_" + contactType, strategy, fileName);
+      urlUtil.ensureDir(path.dirname(filePath));
+      const arrayBuffer = await netMinIO.downloadAvatar(avatarUrl);
+      if (arrayBuffer) {
+        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+        await this.updateAvatarInDB(targetId, contactType, { strategy, version, localPath: filePath });
+        log.info(`ProfileService: 头像下载成功 ${targetId} -> ${filePath}`);
+        return filePath;
+      }
+    } catch (error) {
+      log.error(`ProfileService: 头像下载失败 ${targetId}:`, error);
+    }
+    return "";
+  }
+  /**
+   * 触发头像更新（主动请求路径，不需要通知）
+   */
+  async triggerAvatarUpdate(targetId, contactType, strategy) {
+    await this.performProfileUpdate(targetId, contactType, strategy, false);
+  }
+  /**
+   * 触发昵称更新（主动请求路径，不需要通知）
+   */
+  async triggerNicknameUpdate(targetId, contactType) {
+    await this.performProfileUpdate(targetId, contactType, "nickname", false);
+  }
+  /**
+   * 从数据库获取Profile
+   */
+  async getProfileFromDB(targetId, contactType) {
+    try {
+      const profile = await profileDao.selectProfile(targetId, contactType);
+      if (!profile) return null;
+      return {
+        targetId: profile.targetId,
+        contactType: profile.contactType,
+        nickname: profile.nickname || "",
+        nickVersion: profile.nickVersion || "0",
+        avatarVersion: profile.avatarVersion || "0",
+        avatarOriginalPath: profile.avatarOriginalPath || "",
+        avatarThumbPath: profile.avatarThumbPath || "",
+        lastNickUpdate: profile.lastNickUpdate,
+        lastAvatarUpdate: profile.lastAvatarUpdate,
+        createdAt: profile.createdAt
+      };
+    } catch (error) {
+      log.error("ProfileService:getProfileFromDB error:", error);
+      return null;
+    }
+  }
+  /**
+   * 更新数据库中的昵称信息
+   */
+  async updateNicknameInDB(targetId, contactType, data) {
+    try {
+      await profileDao.upsertNickname(targetId, contactType, { nickname: data.nickname, nickVersion: data.nickVersion });
+      log.info(`ProfileService: 昵称更新成功 ${targetId}: ${data.nickname}`);
+    } catch (error) {
+      log.error("ProfileService:updateNicknameInDB error:", error);
+    }
+  }
+  /**
+   * 更新数据库中的头像信息
+   */
+  async updateAvatarInDB(targetId, contactType, data) {
+    try {
+      const { strategy, version, localPath } = data;
+      await profileDao.upsertAvatar(targetId, contactType, { strategy, version, localPath });
+      log.info(`ProfileService: 头像路径更新成功 ${targetId}: ${localPath}`);
+    } catch (error) {
+      log.error("ProfileService:updateAvatarInDB error:", error);
+    }
+  }
+  /**
+   * 通知渲染进程Profile已更新
+   */
+  notifyProfileUpdated(targetId, contactType, strategy, metaInfo) {
+    try {
+      const window = electron.BrowserWindow.getAllWindows().at(0);
+      if (window) {
+        window.webContents.send("profile-updated", {
+          targetId,
+          contactType,
+          strategy,
+          metaInfo
+        });
+      }
+      log.info(`ProfileService: 通知UI更新 ${targetId}_${contactType}_${strategy}: ${metaInfo}`);
+    } catch (error) {
+      log.error("ProfileService:notifyProfileUpdated error:", error);
+    }
+  }
+  /**
+   * 从URL提取版本号
+   */
+  extractVersionFromUrl(url) {
+    try {
+      return new URL(url).pathname.split("/").at(-2) || "0";
+    } catch {
+      return "0";
+    }
+  }
+  /**
+   * 从URL提取文件名
+   */
+  extractObjectFromUrl(url) {
+    try {
+      return new URL(url).pathname.split("/").at(-1) || "avatar.png";
+    } catch {
+      return "avatar.png";
+    }
+  }
+}
+const profileService = new ProfileService();
 const Store = __Store.default || __Store;
 log.transports.file.level = "debug";
 log.transports.file.maxSize = 1002430;
@@ -3315,6 +4043,26 @@ console.info = (...args) => {
   deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
 };
 console.debug = (...args) => {
+  originalLogMethods.debug(...args);
+  deviceService.sendLogToDebugWindow("debug", args.join(" "), "MainProcess");
+};
+log.log = (...args) => {
+  originalLogMethods.log(...args);
+  deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
+};
+log.warn = (...args) => {
+  originalLogMethods.warn(...args);
+  deviceService.sendLogToDebugWindow("warn", args.join(" "), "MainProcess");
+};
+log.error = (...args) => {
+  originalLogMethods.error(...args);
+  deviceService.sendLogToDebugWindow("error", args.join(" "), "MainProcess");
+};
+log.info = (...args) => {
+  originalLogMethods.info(...args);
+  deviceService.sendLogToDebugWindow("info", args.join(" "), "MainProcess");
+};
+log.debug = (...args) => {
   originalLogMethods.debug(...args);
   deviceService.sendLogToDebugWindow("debug", args.join(" "), "MainProcess");
 };
@@ -3391,11 +4139,11 @@ const createWindow = () => {
     mainWindow.show();
   });
   proxyService.beginServe();
-  avatarCache.beginServe();
   voiceCache.beginServe();
   imageCache.beginServe();
   videoCache.beginServe();
   fileCache.beginServe();
+  profileService.beginServe();
   mediaTaskService.beginServe();
   jsonStoreService.beginServe();
   sessionService.beginServe();
@@ -3409,7 +4157,11 @@ const createWindow = () => {
     mainWindow.show();
     mainWindow.center();
     if (utils.is.dev) {
-      mainWindow.webContents.openDevTools({ mode: "detach", title: "devTool", activate: false });
+      mainWindow.webContents.openDevTools({
+        mode: "detach",
+        title: "devTool",
+        activate: false
+      });
       mainWindow.focus();
     }
   });
@@ -3418,16 +4170,18 @@ const createWindow = () => {
     return { action: "deny" };
   });
   if (utils.is.dev) {
-    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          "Content-Security-Policy": [
-            "default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"
-          ]
-        }
-      });
-    });
+    mainWindow.webContents.session.webRequest.onHeadersReceived(
+      (details, callback) => {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            "Content-Security-Policy": [
+              "default-src * 'unsafe-eval' 'unsafe-inline' data: blob: file:"
+            ]
+          }
+        });
+      }
+    );
   }
   if (utils.is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]).then();

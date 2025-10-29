@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
-import { useBlackStore } from "@renderer/status/black/store";
+/* eslint-disable */
 
-const props = defineProps<{ outTab: string }>();
-const emit = defineEmits<{ (e: "toggle", newValue: string): void }>();
-const blackStore = useBlackStore();
-onMounted(() => blackStore.init());
+import { onMounted } from "vue"
+import { useBlackStore } from "@renderer/status/black/store"
+
+const props = defineProps<{ outTab: string }>()
+const emit = defineEmits<{ (e: "toggle", newValue: string): void }>()
+const blackStore = useBlackStore()
+onMounted(() => blackStore.init())
 </script>
 
 <template>

@@ -1,11 +1,10 @@
 /* eslint-disable */
 
-import { ipcMain } from "electron";
-import { netMaster, netMinIO } from "@main/util/net-util";
-import { store } from "@main/index";
-import { uidKey } from "@main/electron-store/key";
-import urlUtil from "@main/util/url-util";
-import objectUtil from "@main/util/object-util";
+import { ipcMain } from 'electron'
+import { netMaster } from '@main/util/net-util'
+import { store } from '@main/index'
+import { uidKey } from '@main/electron-store/key'
+import objectUtil from '@main/util/object-util'
 
 export enum Api {
   LOGIN = "/user-account/login",
@@ -18,7 +17,7 @@ export enum Api {
   PULL_CONTACT = "/contact/pull-contact",
   PULL_APPLICATION = "/contact/cursor-pull-application",
   GET_BASE_USER = "/user-info/base-info-list",
-  
+
   // 群组
   GET_BASE_GROUP = "/group/base-info-list",
   CREATE_GROUP = "/group/create-group",
@@ -212,31 +211,6 @@ class ProxyService {
         return objectUtil.errorResponse(e)
       }
     })
-
-    ipcMain.handle("profile:name:get",async (_event, { userId }: { userId: string }) => {
-        try {
-          const path = [urlUtil.atomPath, userId + ".json"].join("/")
-          const json: any = await netMinIO.downloadJson(path)
-          console.log("profile:name:get:json", json)
-          const nickname: string = json?.nickname ?? json?.name ?? ""
-          const nicknameVersion: string = String(json.nicknameVersion || "0")
-          return { nickname, nicknameVersion }
-        } catch {
-          return { nickname: "", nickVersion: "0" }
-        }
-      })
-
-    ipcMain.handle("profile:avatar:get",async (_event, { userId }: { userId: string }) => {
-        try {
-          const path = [urlUtil.atomPath, userId + ".json"].join("/")
-          const json: any = await netMinIO.downloadJson(path)
-          const avatarVersion: string = String(json?.avatarVersion || "0")
-          console.info("profile:avatar:get", avatarVersion)
-          return { avatarVersion }
-        } catch {
-          return { avatarVersion: "0" }
-        }
-      })
   }
 }
 

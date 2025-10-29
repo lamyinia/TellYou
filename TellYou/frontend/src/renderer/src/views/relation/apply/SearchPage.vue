@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { onAvatarError, resolveAvatar } from "@renderer/utils/process";
+/* eslint-disable */
+
+import { ref } from "vue"
+import { onAvatarError, resolveAvatar } from "@renderer/utils/process"
 
 interface BaseInfo {
-  keyId: string;
-  type: string;
-  name: string;
-  avatar: string;
-  signature: string;
-  sex?: string;
+  keyId: string,
+  type: string,
+  name: string,
+  avatar: string,
+  signature: string,
+  sex?: string
 }
 
-const keyword = ref("");
-const remark = ref("");
+const keyword = ref("")
+const remark = ref("")
 const emit = defineEmits<{
-  notify: [text: string, color: "success" | "error" | "info"];
-}>();
-const showList = ref<BaseInfo[]>([]);
-const selectUserId = ref<string>("");
+  notify: [text: string, color: "success" | "error" | "info"]
+}>()
+const showList = ref<BaseInfo[]>([])
+const selectUserId = ref<string>("")
 
 const searchEvent = async (): Promise<void> => {
   showList.value.splice(0, showList.value.length);
