@@ -82,7 +82,7 @@ class ApplicationDao {
     return batchInsert("contact_applications", paramsList);
   }
 
-  public async getCursor(): Promise<string> {
+  public async getIncomingCursor(): Promise<string> {
     const sql =
       "select max(last_apply_time) as cursor from contact_applications where target_id = ?";
     const cursor = (await queryAll(sql, [store.get(uidKey)])) as unknown[] as {

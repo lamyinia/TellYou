@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * 通过维护 userId 和 Channel 的双射关系，保证接受和推送消息服务的执行 <br><br>
  * @author lanye
- * @date 2025/07/25
- * @描述: 负责管理用户 userId 和 Channel 的双射关系
+ * @since 2025/07/25
  */
 @Slf4j
 @Component
@@ -34,7 +34,7 @@ public class ChannelManagerUtil {
 
 
     /**
-     * 绑定用户id和Channel
+     * 绑定用户 Id 和 Channel
      */
     public void bind(Long userId, Channel channel) {
         USER_CHANNEL_MAP.put(userId, channel);
@@ -65,7 +65,7 @@ public class ChannelManagerUtil {
     }
 
     /**
-     * 解绑用户id和Channel
+     * 解绑用户 Id 和 Channel
      */
     private void unbindUserId(Long userId) {
         USER_CHANNEL_MAP.remove(userId);
@@ -90,7 +90,7 @@ public class ChannelManagerUtil {
     }
 
     /**
-     * @description: 向指定用户推送消息
+     * 向指定用户推送消息
      */
     public boolean doDeliver(Long userId, Object message) {
         Channel channel = getChannel(userId);

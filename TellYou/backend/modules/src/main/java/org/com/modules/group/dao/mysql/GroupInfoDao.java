@@ -1,6 +1,8 @@
 package org.com.modules.group.dao.mysql;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+
+import org.com.modules.common.domain.vo.req.PageReq;
 import org.com.modules.group.domain.entity.GroupInfo;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfo;
 import org.com.modules.group.mapper.GroupInfoMapper;
@@ -58,4 +60,5 @@ public class GroupInfoDao extends ServiceImpl<GroupInfoMapper, GroupInfo> {
                 .avatar(info.getAvatar())
                 .build()).toList();
     }
+
 }

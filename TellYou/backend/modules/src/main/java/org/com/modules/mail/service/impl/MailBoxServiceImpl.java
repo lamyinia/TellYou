@@ -64,7 +64,7 @@ public class MailBoxServiceImpl implements MailBoxService {
                 .targetId(aggregateDTO.getGroupId())
                 .sessionId(aggregateDTO.getSessionId())
                 .type(aggregateDTO.getAggregateType())
-                .content(names)
+                .content(userIds.toString())
                 .build();
 
         return MessageBuilder

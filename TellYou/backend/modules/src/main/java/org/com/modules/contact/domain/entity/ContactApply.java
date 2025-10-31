@@ -25,7 +25,7 @@ public class ContactApply {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
 
-    @Schema(description = "接收者 id")
+    @Schema(description = "同意者 id")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long acceptorId;
 

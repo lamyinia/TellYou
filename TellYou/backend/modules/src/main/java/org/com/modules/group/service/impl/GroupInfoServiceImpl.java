@@ -6,7 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.RedissonLocking;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.dao.mysql.SessionDao;
+import org.com.modules.contact.dao.mysql.ApplyDao;
 import org.com.modules.contact.dao.mysql.GroupContactDao;
+import org.com.modules.contact.domain.entity.ContactApply;
+import org.com.modules.contact.domain.enums.ConfirmEnum;
 import org.com.modules.group.dao.mysql.GroupInfoDao;
 import org.com.modules.contact.dao.mongodb.SessionDocDao;
 import org.com.modules.group.domain.entity.GroupInfo;
@@ -32,6 +35,7 @@ import java.util.List;
 public class GroupInfoServiceImpl implements GroupInfoService {
     private final GroupContactDao groupContactDao;
     private final GroupInfoDao groupInfoDao;
+    private final ApplyDao applyDao;
     private final SessionDao sessionDao;
     private final SessionDocDao mongoSessionDocDao;
 
@@ -87,5 +91,15 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     public SimpleGroupInfoList getBaseInfoList(List<Long> groupIds) {
         List<SimpleGroupInfo> resp = groupInfoDao.getBaseInfoList(groupIds);
         return new SimpleGroupInfoList(resp);
+    }
+
+    @Override
+    public List<Long> getMemberInfoList(MemberInfoListReq req) {
+        return groupContactDao.getMemberInfoList(req);
+    }
+
+    @Override
+    public List<ContactApply> getGroupApply(GroupApplyListReq req) {
+        return applyDao.getGroupApplyPage(req, ConfirmEnum.WAITING.getStatus());
     }
 }

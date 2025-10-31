@@ -22,5 +22,7 @@ public interface UserContactService {
 
     PullFriendContactResp pullFriendContact(Long uid);
 
-    CursorPageResp<ContactApply> ApplyInfoListByCursor(CursorPageReq req);
+    CursorPageResp<ContactApply> pullIncoming(CursorPageReq req);
+
+    CursorPageResp<ContactApply> pullOutPosting(CursorPageReq req);
 }

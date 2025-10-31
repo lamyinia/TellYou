@@ -2,6 +2,9 @@ package org.com.modules.contact.service;
 
 import org.com.modules.group.domain.vo.req.*;
 
+import java.util.List;
+
+
 public interface GroupContactService {
     void createGroup(CreateGroupReq req);
 
@@ -15,5 +18,5 @@ public interface GroupContactService {
 
     void withdrawManager(WithdrawManagerReq req);
 
-    void acceptMember(GroupApplyAcceptReq req);
+    List<Long> acceptMember(GroupApplyAcceptReq req);
 }

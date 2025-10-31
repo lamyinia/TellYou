@@ -24,6 +24,7 @@ public enum MessageTypeEnum {
     GROUP_VIDEO(8, MQConstant.SESSION_TOPIC, "群聊视频"),
     GROUP_VOICE(9, MQConstant.SESSION_TOPIC, "群聊语音"),
     GROUP_FILE(10, MQConstant.SESSION_TOPIC, "群聊文件"),
+
     SYSTEM_ENTER_NOTIFY(51, MQConstant.SESSION_TOPIC, "群聊系统通知入群"),
     SYSTEM_EXIT_NOTIFY(52, MQConstant.SESSION_TOPIC, "群聊系统通知退群"),
 

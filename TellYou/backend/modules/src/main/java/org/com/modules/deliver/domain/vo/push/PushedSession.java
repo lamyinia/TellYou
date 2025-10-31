@@ -24,6 +24,9 @@ public class PushedSession {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long receiverId;
 
+    /**
+     * @see org.com.modules.contact.domain.enums.SessionEventEnum
+     */
     @Schema(description = "改变类型")
     private Integer metaSessionType;
 

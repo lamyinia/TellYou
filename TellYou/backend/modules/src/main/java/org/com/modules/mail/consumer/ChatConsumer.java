@@ -71,10 +71,10 @@ public class ChatConsumer implements RocketMQListener<String> {
     @FlowControl(time = 10, count = 100, spEl = "#req.fromUserId", target = FlowControl.Target.EL)
     public void consumeMessage(ChatDTO req) {
         log.info("ChatConsumer 正在消费消息: {}", req.toString());
-        List<Long> uidList = getUidList(req);
-        if (uidList.isEmpty()) {
+        if (req.getType() == 51){
             return;
         }
+        List<Long> uidList = getUidList(req);
         MessageDoc messageDoc = messageAdapter.buildMessage(req);
         mailBoxService.insertChatMessage(messageDoc, uidList);
         applicationEventPublisher.publishEvent(new ChatSendEvent(this, messageDoc, uidList));

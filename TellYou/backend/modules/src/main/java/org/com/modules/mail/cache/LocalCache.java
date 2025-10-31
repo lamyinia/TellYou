@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -175,21 +176,5 @@ public class LocalCache {
         String key = USER_MUTE_KEY_PREFIX + userId + "_" + groupId;
         muteInfoCache.invalidate(key);
         log.debug("Invalidated user mute info cache: userId={}, groupId={}", userId, groupId);
-    }
-
-    public void logCacheStats() {
-        log.info("=== Caffeine Cache Statistics ===");
-        log.info("Group Members Cache: {}", groupMembersCache.stats());
-        log.info("Friend Relation Cache: {}", friendRelationCache.stats());
-        log.info("Mute Info Cache: {}", muteInfoCache.stats());
-    }
-    /**
-     * 清空所有缓存
-     */
-    public void clearAllCaches() {
-        groupMembersCache.invalidateAll();
-        friendRelationCache.invalidateAll();
-        muteInfoCache.invalidateAll();
-        log.info("All Caffeine caches cleared");
     }
 }

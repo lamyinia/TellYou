@@ -49,11 +49,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
         log.info("配置 Jwt 拦截器、Collector拦截器...");
         registry.addInterceptor(jwtTokenInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/userAccount/**");
+                .excludePathPatterns("/user-account/**");
 
         registry.addInterceptor(collectorInterceptor)
                 .addPathPatterns("/**");
-
-
     }
 }

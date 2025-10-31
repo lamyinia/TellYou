@@ -2,7 +2,7 @@ server:
   port: 8081
   node: 127_0_0_1-8081
   retry:
-    threads: 3
+    threads: 3  # 部署需要调整的参数
 tell-you:
   datacenter-id: 1
   worker-id: 2
@@ -39,6 +39,12 @@ spring:
     username: ${value.datasource.username}
     password: ${value.datasource.password}
     url: jdbc:mysql://${value.datasource.host}:${value.datasource.port}/${value.datasource.database}?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&connectionCollation=utf8mb4_unicode_ci
+    #  1）启用 Unicode 字符集支持，设置字符编码为UTF-8
+    #  2）允许在一个语句中执行多个 SQL 查询
+    #  3）禁用 SSL 加密连接
+    #  4）设置服务器时区为UTC
+    #  5）使用新的日期时间处理方式
+    #  6）设置字符集排序规则 = utf8mb4_unicode_ci
     driver-class-name: ${value.datasource.driver-class-name}
   data:
     redis:
@@ -81,7 +87,7 @@ logging:
   file:
     name: ./backend/logs/record.log
   level:
-    root: info          # 全局默认 info
+    root: info # 全局默认 info，部署后要改日志的配置
 
 knife4j:
   enable: true

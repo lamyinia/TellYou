@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.domain.entity.GroupContact;
+import org.com.modules.group.domain.vo.req.MemberInfoListReq;
 import org.com.modules.group.domain.vo.resp.ContactResp;
 import org.com.modules.contact.mapper.GroupContactMapper;
 import org.com.modules.contact.domain.enums.SessionTypeEnum;
@@ -63,5 +64,26 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                 .list();
 
         return list.stream().map(GroupContact::getUserId).toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Long> getMemberInfoList(MemberInfoListReq req){
+        List<GroupContact> list = lambdaQuery()
+                .eq(GroupContact::getGroupId, req.getGroupId())
+                .select(GroupContact::getUserId)
+                .eq(GroupContact::getIsDeleted, YesOrNoEnum.NO.getStatus())
+                .orderByDesc(GroupContact::getRole)
+                .orderByAsc(GroupContact::getLastActive)
+                .page(req.getPageReq().daoPage())
+                .getRecords();
+
+        return list.stream().map(GroupContact::getUserId).toList();
+    }
+
+    public List<GroupContact> selectGroupContactByUserIdList(Long groupId, List<Long> userIdList){
+        return lambdaQuery()
+                .eq(GroupContact::getGroupId, groupId)
+                .in(GroupContact::getUserId, userIdList)
+                .list();
     }
 }

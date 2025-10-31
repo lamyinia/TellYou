@@ -18,8 +18,9 @@ import org.springframework.stereotype.Component;
 
 /**
  *  来自 NettyChannel 的消息生产者，
- *  职责包括鉴权、幂等(设置唯一消息id)、消息校验(格式、敏感词检验)、流量控制。
- *  消费者的职责是业务分发、最终一致性、延迟策略、状态上报、死信处理。
+ *  职责包括幂等(设置唯一消息id)、消息校验(格式、敏感词检验)。
+ *  消费者的职责是业务分发。
+ *
  * @author lanye
  * @date 2025/07/27
  */
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ChannelHandler.Sharable
 @RequiredArgsConstructor
-public class ChatProducerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
+public class ChannelProducerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChannelManagerUtil channelManagerUtil;
     private final RocketMQTemplate rocketMQTemplate;
 

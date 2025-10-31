@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.contact.domain.entity.ContactApply;
 import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.contact.service.GroupContactService;
@@ -15,6 +16,7 @@ import org.com.modules.group.service.GroupInfoService;
 import org.com.modules.user.domain.vo.req.BaseInfoReq;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,10 +32,25 @@ public class GroupController {
     private final GroupContactService groupContactService;
     private final GroupInfoService groupInfoService;
 
+
     @PostMapping("/base-info-list")
-    @Operation(summary = "批量获取群名字、群头像")
+    @Operation(summary = "批量获取群名字、群头像，给客户端填充聊天室信息的接口") // TODO 如果一个人进了上万个群，这里拉取可能会有风险
     public ApiResult<SimpleGroupInfoList> getBaseInfoList(@RequestBody BaseInfoReq req){
         SimpleGroupInfoList resp = groupInfoService.getBaseInfoList(req.getTargetList());
+        return ApiResult.success(resp);
+    }
+
+    @GetMapping("/member-info-list")
+    @Operation(summary = "分页获取群成员 ID")
+    public ApiResult<List<Long>> getMemberInfoList(@Check @Valid @ModelAttribute MemberInfoListReq req){
+        List<Long> resp = groupInfoService.getMemberInfoList(req);
+        return ApiResult.success(resp);
+    }
+
+    @GetMapping("/apply-list")
+    @Operation(summary = "分页获取群成员申请表")
+    public ApiResult<List<ContactApply>> getGroupApply(@Check @Valid @ModelAttribute GroupApplyListReq req){
+        List<ContactApply> resp = groupInfoService.getGroupApply(req);
         return ApiResult.success(resp);
     }
 
@@ -61,9 +78,9 @@ public class GroupController {
 
     @PutMapping("/accept-apply")
     @Operation(summary = "管理员/群主 接受入群申请")
-    public ApiResult<Void> accept(@Check @Valid @RequestBody GroupApplyAcceptReq req){
-        groupContactService.acceptMember(req);
-        return ApiResult.success();
+    public ApiResult<List<Long>> accept(@Check @Valid @RequestBody GroupApplyAcceptReq req){
+        List<Long> resp = groupContactService.acceptMember(req);
+        return ApiResult.success(resp);
     }
 
     @DeleteMapping("/dissolve-group")

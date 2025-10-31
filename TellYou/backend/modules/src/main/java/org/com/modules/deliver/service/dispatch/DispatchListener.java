@@ -15,18 +15,23 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+/**
+ * 消息分发服务的监听器
+ * @author lanye
+ * @since 2025/10/31 15:02
+ */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @RocketMQMessageListener(topic = MQConstant.BROADCAST_TOPIC, consumerGroup = MQConstant.BROADCAST_GROUP + "-${server.node}")
-public class DispatchWorker implements RocketMQListener<SubscribedItem> {
+public class DispatchListener implements RocketMQListener<SubscribedItem> {
     @Value("${server.node}")
     private String node;
 
     private final RedissonClient redissonClient;
     private final MessageRetryService messageRetryService;
 
-    // redisson 的 RTopic 监听，推送通道消息
     @PostConstruct
     public void deliverOnSubscriber(){
         RTopic topic = redissonClient.getTopic(node);

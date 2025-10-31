@@ -36,11 +36,19 @@ public class UserContactController {
         return ApiResult.success(resp);
     }
 
-    @GetMapping("/cursor-pull-application")
-    @Operation(description = "游标拉取申请通知")
-    public ApiResult<CursorPageResp<ContactApply>> CursorPullApplication(@ModelAttribute @Valid CursorPageReq req){
-        CursorPageResp<ContactApply> resp = userContactService.ApplyInfoListByCursor(req);
-        log.info("{} 游标拉取结果：{}", RequestHolder.get().getUid(), resp.toString());
+    @GetMapping("/cursor-pull-incoming")
+    @Operation(description = "游标拉取收到的申请通知")
+    public ApiResult<CursorPageResp<ContactApply>> CursorPullIncoming(@ModelAttribute @Valid CursorPageReq req){
+        CursorPageResp<ContactApply> resp = userContactService.pullIncoming(req);
+        log.info("{} 的 Incoming 游标拉取结果：{}", RequestHolder.get().getUid(), resp.toString());
+        return ApiResult.success(resp);
+    }
+
+    @GetMapping("/cursor-pull-out-posting")
+    @Operation(description = "游标拉取发出的申请通知")
+    public ApiResult<CursorPageResp<ContactApply>> CursorOutPosting(@ModelAttribute @Valid CursorPageReq req){
+        CursorPageResp<ContactApply> resp = userContactService.pullOutPosting(req);
+        log.info("{} 的 outPosting 游标拉取结果：{}", RequestHolder.get().getUid(), resp.toString());
         return ApiResult.success(resp);
     }
 

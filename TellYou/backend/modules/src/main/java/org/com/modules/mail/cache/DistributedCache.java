@@ -1,5 +1,7 @@
 package org.com.modules.mail.cache;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.com.modules.mail.cache.entity.MuteInfo;
 import org.redisson.api.RBucket;
 import org.redisson.api.RSet;
@@ -17,13 +19,11 @@ import java.util.Set;
  * Redisson分布式缓存管理器
  * 作为二级缓存，提供跨节点的数据一致性
  */
+@Slf4j
+@RequiredArgsConstructor
 @Component
 public class DistributedCache {
-
-    private static final Logger log = LoggerFactory.getLogger(DistributedCache.class);
-
-    @Autowired
-    private RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
     @Value("${cache.redis.group-members.ttl:7200}")
     private long groupMembersTtlSeconds;
@@ -44,21 +44,16 @@ public class DistributedCache {
      * 获取群成员列表
      */
     public Set<Long> getGroupMembers(Long groupId) {
-        try {
-            String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
-            RSet<Long> rSet = redissonClient.getSet(key);
+        String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
+        RSet<Long> rSet = redissonClient.getSet(key);
 
-            if (rSet.isExists()) {
-                Set<Long> members = rSet.readAll();
-                log.debug("Retrieved group members from Redis: groupId={}, memberCount={}",
-                        groupId, members.size());
-                return members;
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("Failed to get group members from Redis: groupId={}", groupId, e);
-            return null;
+        if (rSet.isExists()) {
+            Set<Long> members = rSet.readAll();
+            log.debug("Retrieved group members from Redis: groupId={}, memberCount={}",
+                    groupId, members.size());
+            return members;
         }
+        return null;
     }
 
     /**
@@ -82,37 +77,36 @@ public class DistributedCache {
     }
 
     /**
-     * 添加群成员
+     * 分布式缓存添加群成员
      */
-    public void addGroupMember(Long groupId, Long userId) {
+    public void addGroupMember(Long groupId, Set<Long> userIds) {
         try {
             String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
             RSet<Long> rSet = redissonClient.getSet(key);
-
             if (rSet.isExists()) {
-                rSet.add(userId);
+                rSet.addAll(userIds);
                 rSet.expire(Duration.ofSeconds(groupMembersTtlSeconds));
-                log.debug("Added group member to Redis: groupId={}, userId={}", groupId, userId);
+                log.debug("Added group member to Redis: groupId={}, userIds={}", groupId, userIds);
             }
         } catch (Exception e) {
-            log.error("Failed to add group member to Redis: groupId={}, userId={}", groupId, userId, e);
+            log.error("Failed to add group member to Redis: groupId={}, userIds={}", groupId, userIds, e);
         }
     }
 
     /**
      * 移除群成员
      */
-    public void removeGroupMember(Long groupId, Long userId) {
+    public void removeGroupMember(Long groupId, Set<Long> userIds) {
         try {
             String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
             RSet<Long> rSet = redissonClient.getSet(key);
 
             if (rSet.isExists()) {
-                rSet.remove(userId);
-                log.debug("Removed group member from Redis: groupId={}, userId={}", groupId, userId);
+                rSet.removeAll(userIds);
+                log.debug("Removed group member from Redis: groupId={}, userIds={}", groupId, userIds);
             }
         } catch (Exception e) {
-            log.error("Failed to remove group member from Redis: groupId={}, userId={}", groupId, userId, e);
+            log.error("Failed to remove group member from Redis: groupId={}, userIds={}", groupId, userIds, e);
         }
     }
 

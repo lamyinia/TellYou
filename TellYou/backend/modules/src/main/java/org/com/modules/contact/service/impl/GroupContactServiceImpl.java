@@ -4,7 +4,10 @@ import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.RedissonLocking;
+import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.common.util.SnowFlakeUtil;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.com.modules.common.util.UrlUtil;
 import org.com.modules.contact.dao.mongodb.SessionDocDao;
 import org.com.modules.contact.dao.mysql.ApplyDao;
@@ -27,6 +30,7 @@ import org.com.modules.group.domain.entity.GroupInfo;
 import org.com.modules.group.domain.enums.GroupRoleEnum;
 import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.service.adapter.GroupInfoAdapter;
+import org.com.modules.mail.cache.CacheMissProducer;
 import org.com.modules.mail.domain.dto.AggregateDTO;
 import org.com.modules.mail.domain.enums.MessageTypeEnum;
 import org.com.modules.media.service.minio.UploadFileService;
@@ -42,7 +46,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 因为自己既想用 mongodb，又想用 mysql，导致 mongodb 的事务由 spring 管理，mysql 的事务由 seata 管理
@@ -67,6 +70,7 @@ public class GroupContactServiceImpl implements GroupContactService {
     private final SessionDocDao mongoSessionDocDao;
     private final UploadFileService uploadFileService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final CacheMissProducer cacheMissProducer;
     private final MinioTemplate minioTemplate;
 
     @Override
@@ -145,37 +149,75 @@ public class GroupContactServiceImpl implements GroupContactService {
 
     @Override
     @Transactional
-    @RedissonLocking(key = "#req.groupId")  // 群聊人数自增
-    public void acceptMember(GroupApplyAcceptReq req) {
-        ContactApply apply = applyDao.getById(req.getApplyId());
-        AssertUtil.isNotEmpty(apply, "申请表不存在");
-        AssertUtil.isTrue(apply.getStatus() == ConfirmEnum.WAITING.getStatus(), "该申请已被同意");
-        AssertUtil.isTrue(req.getGroupId() == apply.getTargetId(), "对方申请参数非法");
+    @RedissonLocking(key = "#req.groupId")  // 分布式锁控制群聊人数增加
+    public List<Long> acceptMember(GroupApplyAcceptReq req) {
+        List<ContactApply> applyList = applyDao.selectApplyByIds(req.getApplyIds());  // 过滤掉已经处理过的申请请求
 
         GroupInfo group = groupInfoDao.getById(req.getGroupId());
-        AssertUtil.isNotEmpty(group, "群聊不存在");
-        AssertUtil.isFalse(group.getMemberCount() >= GroupConstant.DEFAULT_MAX_MEMBER_COUNT, "群聊已经满了");
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
 
-        group.setUpdateTime(ValueConstant.getDefaultDate());
-        group.setMemberCount(group.getMemberCount() + 1);
-        apply.setStatus(ConfirmEnum.ACCEPTED.getStatus());
-        apply.setAcceptorId(req.getFromUserId());
+        applyList.forEach(apply -> {
+            apply.setStatus(ConfirmEnum.ACCEPTED.getStatus());
+            apply.setAcceptorId(req.getFromUserId());
+            AssertUtil.isTrue(req.getGroupId().equals(apply.getTargetId()), "参数错误，存在异常的申请");
+        });
+        AssertUtil.isFalse(group.getMemberCount() + applyList.size() > GroupConstant.DEFAULT_MAX_MEMBER_COUNT, "群聊已经满了");
 
-        GroupContact groupContact = GroupContactAdapter
-                .buildDefaultContact(req.getFromUserId(), group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole());
+        group.setMemberCount(group.getMemberCount() + applyList.size());
+        List <Long> newMembers = applyList.stream().map(ContactApply::getApplyUserId).toList();
+        
+        // 群关系版本化管理，可能有之前退群的用户
+        List<GroupContact> existingContactList = groupContactDao.selectGroupContactByUserIdList(req.getGroupId(), newMembers);
+        
+        // 创建已存在用户的映射，便于快速查找
+        Map<Long, GroupContact> existingContactMap = existingContactList.stream()
+                .collect(Collectors.toMap(GroupContact::getUserId, contact -> contact));
+        
+        // 分别处理退群用户和新用户
+        List<GroupContact> insertContactList = new ArrayList<>();
+        List<GroupContact> updateContactList = new ArrayList<>();
+        
+        applyList.forEach(apply -> {
+            Long userId = apply.getApplyUserId();
+            GroupContact existingContact = existingContactMap.get(userId);
+            
+            if (existingContact != null) {
+                AssertUtil.isTrue(existingContact.getIsDeleted() == YesOrNoEnum.YES.getStatus(), "用户已在群中，存在异常的申请");
+                
+                existingContact.setIsDeleted(YesOrNoEnum.NO.getStatus());
+                existingContact.setContactVersion(existingContact.getContactVersion() + 1);
+                existingContact.setJoinTime(new Date());
+                updateContactList.add(existingContact);
+            } else {
+                GroupContact groupContact = GroupContactAdapter
+                        .buildDefaultContact(userId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole());
+                insertContactList.add(groupContact);
+            }
+        });
 
-        applyDao.updateById(apply);
+        applyDao.updateBatchById(applyList);
         groupInfoDao.updateById(group);
-        groupContactDao.save(groupContact);
+        if (!insertContactList.isEmpty()) {
+            groupContactDao.saveBatch(insertContactList);
+        }
+        if (!updateContactList.isEmpty()) {
+            groupContactDao.updateBatchById(updateContactList);
+        }
 
-        PushedSession pushedSession = new PushedSession(group.getSessionId(), group.getId(),
-                null, SessionEventEnum.BUILD_PUBLIC.getStatus(), System.currentTimeMillis());
-        // 发布聚合事件
-        AggregateDTO aggregateDTO = new AggregateDTO(List.of(apply.getApplyUserId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
+        PushedSession pushedSession = new PushedSession(group.getSessionId(), group.getId(), null, SessionEventEnum.BUILD_PUBLIC.getStatus(), System.currentTimeMillis());
+        AggregateDTO aggregateDTO = new AggregateDTO(newMembers, group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
 
-        applicationEventPublisher.publishEvent(new SessionEvent(this, pushedSession, List.of(apply.getApplyUserId())));
-        applicationEventPublisher.publishEvent(new ApplyEvent(this, apply, List.of(apply.getApplyUserId())));
-        applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));
+        // 通知缓存失效
+        cacheMissProducer.addGroupMembers(group.getId(), newMembers);
+
+        // 推送消息
+        applicationEventPublisher.publishEvent(new SessionEvent(this, pushedSession, newMembers));  // 聊天室推送可以聚合
+        applyList.forEach(apply -> {
+            applicationEventPublisher.publishEvent(new ApplyEvent(this, apply, List.of(apply.getApplyUserId())));  // 申请通过不能聚合
+        });
+        applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));  // 入群消息可以聚合
+
+        return newMembers;
     }
 
     @Override

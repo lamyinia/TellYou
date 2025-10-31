@@ -9,6 +9,7 @@ import org.com.modules.contact.domain.enums.ConfirmEnum;
 import org.com.modules.contact.domain.enums.ContactTypeEnum;
 import org.com.modules.user.domain.vo.resp.SimpleApplyInfo;
 import org.com.modules.contact.mapper.ContactApplyMapper;
+import org.com.modules.group.domain.vo.req.GroupApplyListReq;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -52,8 +53,31 @@ public class ApplyDao extends ServiceImpl<ContactApplyMapper, ContactApply> {
         }).toList();
     }
 
-    public CursorPageResp<ContactApply> selectApplyByIdAndCursor(CursorPageReq cursorPageReq, Long userId){
+    public List<ContactApply> selectApplyByIds(List<Long> ids){
+        return lambdaQuery()
+                .in(ContactApply::getApplyId, ids)
+                .eq(ContactApply::getStatus, ConfirmEnum.WAITING.getStatus())
+                .list();
+    }
+
+    public CursorPageResp<ContactApply> pullIncoming(CursorPageReq cursorPageReq, Long userId){
         return CursorUtil.getCursorPageByMysqlAsc(this, cursorPageReq,
                 wrapper -> wrapper.eq(ContactApply::getTargetId, userId), ContactApply::getLastApplyTime);
+    }
+
+    public CursorPageResp<ContactApply> pullOutPosting(CursorPageReq cursorPageReq, Long userId){
+        return CursorUtil.getCursorPageByMysqlAsc(this, cursorPageReq,
+                wrapper -> wrapper.eq(ContactApply::getApplyUserId, userId), ContactApply::getLastApplyTime);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<ContactApply> getGroupApplyPage(GroupApplyListReq req, Integer status){
+        return lambdaQuery()
+                .eq(ContactApply::getTargetId, req.getGroupId())
+                .eq(ContactApply::getContactType, ContactTypeEnum.GROUP.getStatus())
+                .eq(ContactApply::getStatus, status)
+                .orderByDesc(ContactApply::getLastApplyTime)
+                .page(req.getPageReq().daoPage())
+                .getRecords();
     }
 }

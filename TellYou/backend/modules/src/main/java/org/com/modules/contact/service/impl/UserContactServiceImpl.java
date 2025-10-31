@@ -183,8 +183,14 @@ public class UserContactServiceImpl implements UserContactService {
     }
 
     @Override
-    public CursorPageResp<ContactApply> ApplyInfoListByCursor(CursorPageReq req) {
+    public CursorPageResp<ContactApply> pullIncoming(CursorPageReq req) {
         Long uid = RequestHolder.get().getUid();
-        return applyDao.selectApplyByIdAndCursor(req, uid);
+        return applyDao.pullIncoming(req, uid);
+    }
+
+    @Override
+    public CursorPageResp<ContactApply> pullOutPosting(CursorPageReq req) {
+        Long uid = RequestHolder.get().getUid();
+        return applyDao.pullOutPosting(req, uid);
     }
 }

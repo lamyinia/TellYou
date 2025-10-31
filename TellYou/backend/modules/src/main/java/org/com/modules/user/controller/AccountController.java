@@ -1,6 +1,5 @@
 package org.com.modules.user.controller;
 
-import cn.hutool.core.util.URLUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -8,17 +7,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.domain.vo.resp.ApiResult;
-import org.com.modules.media.service.minio.DownloadService;
-import org.com.modules.media.service.minio.UploadFileService;
+import org.com.modules.deliver.event.AggregateEvent;
+import org.com.modules.mail.cache.CacheMissProducer;
+import org.com.modules.mail.domain.dto.AggregateDTO;
+import org.com.modules.mail.domain.enums.MessageTypeEnum;
 import org.com.modules.user.domain.vo.req.LoginReq;
 import org.com.modules.user.domain.vo.req.RegisterReq;
 import org.com.modules.user.domain.vo.resp.LoginResp;
 import org.com.modules.user.service.UserInfoService;
-import org.com.tools.properties.MinioProperties;
-import org.com.tools.template.MinioTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,11 +32,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AccountController {
     private final UserInfoService userInfoService;
-    private final DownloadService downloadService;
-    private final UploadFileService uploadFileService;
-
-    private final MinioTemplate minioTemplate;
-    private final MinioProperties minioProperties;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @PostMapping("/login")
     @Operation(summary = "登录")
@@ -65,17 +61,8 @@ public class AccountController {
     @GetMapping("/test")
     @Operation(summary = "测试")
     public ApiResult<Void> test(Long uid){
-        String path = URLUtil.getPath("http://113.44.158.255:32788/lanye/avatar/thumb/1948031012053333361/1/index.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256");
-        log.info(path);  // info: /lanye/avatar/thumb/1948031012053333361/1/index.jpg
-
-//        Map<String, Object> map = new HashMap<>();
-//        map.put("avatarVersion", 5);
-//        map.put("nicknameVersion", 3);
-//        uploadFileService.writeAtomJson(String.valueOf(uid), map);
-
-        Map<String, Object> map = downloadService.getAtomJson(String.valueOf(uid));
-        log.info(map.toString());
-
+        AggregateDTO aggregateDTO = new AggregateDTO(List.of(uid), 1L, 1L, MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
+        applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));
         return ApiResult.success();
     }
 }

@@ -15,7 +15,8 @@ export enum Api {
   GET_AVATAR_UPLOAD_URL = "/media/user-avatar/upload-url",
   CONFIRM_UPLOAD = "/media/user-avatar/upload-confirm",
   PULL_CONTACT = "/contact/pull-contact",
-  PULL_APPLICATION = "/contact/cursor-pull-application",
+  PULL_INCOMING = "/contact/cursor-pull-incoming",
+  PULL_OUT_POSTING = "/contact/cursor-pull-out-posting",
   GET_BASE_USER = "/user-info/base-info-list",
 
   // 群组

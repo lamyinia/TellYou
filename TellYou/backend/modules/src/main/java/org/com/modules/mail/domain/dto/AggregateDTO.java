@@ -22,5 +22,8 @@ public class AggregateDTO {
 
     private Long sessionId;
 
+    /**
+     * @see org.com.modules.mail.domain.enums.MessageTypeEnum
+     */
     private Integer aggregateType;
 }

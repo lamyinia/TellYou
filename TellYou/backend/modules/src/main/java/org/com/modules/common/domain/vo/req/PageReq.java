@@ -19,10 +19,11 @@ public class PageReq {
     private Integer pageNo = 1;
 
     /**
-     * 获取mybatisPlus的page
-     * @return
+     * 获取 mybatisPlus 的 page
+     * @see
+     * com.baomidou.mybatisplus.extension.plugins.pagination.Page
      */
-    public Page plusPage() {
+    public Page daoPage() {
         return new Page(pageNo, pageSize);
     }
 }

@@ -5,6 +5,7 @@ import sessionDao from "@main/sqlite/dao/session-dao";
 import { Contact, sessionService } from "@main/service/session-service";
 import applicationDao from "@main/sqlite/dao/application-dao";
 import { applicationService } from "@main/service/application-service";
+/* eslint-disable */
 
 class PullService {
   public async pullData(): Promise<void> {
@@ -36,26 +37,26 @@ class PullService {
   // 游标拉取申请通知
   public async pullApply(): Promise<void> {
     console.log("pull-service:pull-apply:begin");
-    const cursor = await applicationDao.getCursor();
+    const cursor = await applicationDao.getIncomingCursor();
     console.log("pull-service:pull-apply:cursor", cursor);
 
     const payload = { pageSize: 100 } as { pageSize: number; cursor?: string };
     if (cursor) Object.assign(payload, { cursor });
-    let response = await netMaster.get(Api.PULL_APPLICATION, {
+    let response = await netMaster.get(Api.PULL_INCOMING, {
       params: payload,
     });
     if (!response.data.success) {
       console.error(
         "pull-service:pull-apply:拉取申请通知失败:",
         response.data.errMsg,
-      );
-      return;
+      )
+      return
     }
 
     await applicationService.handleMoreApplication(response.data.data.list);
     while (!response.data.data.isLast) {
       payload.cursor = response.data.data.cursor;
-      response = await netMaster.get(Api.PULL_APPLICATION, { params: payload });
+      response = await netMaster.get(Api.PULL_INCOMING, { params: payload });
       if (!response.data.success) {
         console.error(
           "pull-service:pull-apply:拉取申请通知失败:",

@@ -4,16 +4,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import org.com.modules.common.annotation.CheckMark;
-
-import java.util.List;
+import org.com.modules.common.domain.vo.req.PageReq;
 
 @Data
-@CheckMark(target = CheckMark.Target.MANAGER_AUTHORITY)
-@Schema(description = "接受入群申请传参")
-public class GroupApplyAcceptReq {
+@CheckMark(target = CheckMark.Target.MEMBER_AUTHORITY)
+@Schema(description = "群成员信息获取")
+public class MemberInfoListReq {
     @NotNull
     @CheckMark(target = CheckMark.Target.USER_ID)
-    @Schema(description = "邀人的群成员")
+    @Schema(description = "群成员 id")
     private Long fromUserId;
 
     @NotNull
@@ -21,6 +20,5 @@ public class GroupApplyAcceptReq {
     @Schema(description = "群组 id")
     private Long groupId;
 
-    @Schema(description = "申请表 id")
-    private List<Long> applyIds;
+    private PageReq pageReq;
 }
