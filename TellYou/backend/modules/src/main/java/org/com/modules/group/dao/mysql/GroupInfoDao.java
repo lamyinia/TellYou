@@ -16,7 +16,7 @@ public class GroupInfoDao extends ServiceImpl<GroupInfoMapper, GroupInfo> {
 
     public void assignOwner(Long groupId, Long backpackOwnerId){
         lambdaUpdate().eq(GroupInfo::getId, groupId)
-                .set(GroupInfo::getBackpackOwnerId, backpackOwnerId)
+                .set(GroupInfo::getGroupOwnerId, backpackOwnerId)
                 .set(GroupInfo::getUpdateTime, ValueConstant.getDefaultDate())
                 .update();
     }

@@ -6,6 +6,7 @@ import org.com.modules.contact.dao.mysql.FriendContactDao;
 import org.com.modules.contact.dao.mysql.GroupContactDao;
 import org.com.modules.contact.domain.entity.FriendContact;
 import org.com.modules.group.dao.mysql.GroupInfoDao;
+import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.mail.cache.entity.MuteInfo;
 import org.springframework.stereotype.Service;
 
@@ -38,26 +39,26 @@ public class VerifyService {
             return null;
         }
         try {
-            Set<Long> members = localCache.getGroupMembers(groupId);
+            Set<GroupMemberInfo> members = localCache.getGroupMembers(groupId);
             if (members != null) {
                 log.debug("Hit Caffeine cache for group members: groupId={}, memberCount={}", groupId, members.size());
-                return members;
+                return members.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
             members = distributedCache.getGroupMembers(groupId);
             if (members != null) {
                 log.debug("Hit Redis cache for group members: groupId={}, memberCount={}", groupId, members.size());
                 localCache.putGroupMembers(groupId, members);
-                return members;
+                return members.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
-            List<Long> memberList = groupContactDao.selectMemberListById(groupId);
+            List<GroupMemberInfo> memberList = groupContactDao.selectMemberListById(groupId);
             if (memberList != null) {
                 log.debug("Hit database for group members: groupId={}, memberCount={}",
                         groupId, memberList.size());
                 distributedCache.putGroupMembers(groupId, memberList.stream().collect(Collectors.toSet()));
                 localCache.putGroupMembers(groupId, memberList.stream().collect(Collectors.toSet()));
-                return memberList.stream().collect(Collectors.toSet());
+                return memberList.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
             log.debug("Group members not found: groupId={}", groupId);

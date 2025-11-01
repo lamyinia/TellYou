@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 import lombok.extern.slf4j.Slf4j;
+import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.mail.cache.entity.MuteInfo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,7 @@ public class LocalCache {
     @Value("${cache.caffeine.mute-info.expire-after-write:60}")
     private long muteInfoExpireAfterWriteMinutes;
 
-    private Cache<String, Set<Long>> groupMembersCache;
+    private Cache<String, Set<GroupMemberInfo>> groupMembersCache;
     private Cache<String, Boolean> friendRelationCache;
     private Cache<String, MuteInfo> muteInfoCache;
 
@@ -61,11 +62,11 @@ public class LocalCache {
     /**
      * 构建群成员缓存
      */
-    private Cache<String, Set<Long>> buildGroupMembersCache() {
+    private Cache<String, Set<GroupMemberInfo>> buildGroupMembersCache() {
         return Caffeine.newBuilder()
                 .maximumSize(groupMembersMaxSize)
                 .expireAfterAccess(Duration.ofMinutes(groupMembersExpireAfterAccessMinutes))
-                .removalListener((RemovalListener<String, Set<Long>>) (key, value, cause) -> {
+                .removalListener((RemovalListener<String, Set<GroupMemberInfo>>) (key, value, cause) -> {
                     log.debug("Group members cache removed: key={}, size={}, cause={}",
                             key, value != null ? value.size() : 0, cause);
                 })
@@ -102,12 +103,12 @@ public class LocalCache {
     }
 
 
-    public Set<Long> getGroupMembers(Long groupId) {
+    public Set<GroupMemberInfo> getGroupMembers(Long groupId) {
         String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
         return groupMembersCache.getIfPresent(key);
     }
 
-    public void putGroupMembers(Long groupId, Set<Long> members) {
+    public void putGroupMembers(Long groupId, Set<GroupMemberInfo> members) {
         String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
         groupMembersCache.put(key, members);
         log.debug("Cached group members: groupId={}, memberCount={}", groupId, members.size());

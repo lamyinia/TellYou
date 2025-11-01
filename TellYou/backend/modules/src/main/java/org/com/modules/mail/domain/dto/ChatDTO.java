@@ -36,6 +36,6 @@ public class ChatDTO implements Serializable {
     /** 发送时间（时间戳） */
     private Long timestamp;
 
-    /** 扩展字段（如图片宽高、文件大小等，JSON字符串或Map） */
+    /** 扩展字段 */
     private Map<String, Object> extra;
 }

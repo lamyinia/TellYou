@@ -6,6 +6,7 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.domain.entity.GroupContact;
 import org.com.modules.group.domain.vo.req.MemberInfoListReq;
 import org.com.modules.group.domain.vo.resp.ContactResp;
+import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.contact.mapper.GroupContactMapper;
 import org.com.modules.contact.domain.enums.SessionTypeEnum;
 import org.com.tools.constant.ValueConstant;
@@ -25,19 +26,18 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
     }
 
     public GroupContact getByBothId(Long userId, Long groupId){
-        return lambdaQuery().eq(GroupContact::getUserId, userId)
-                .eq(GroupContact::getGroupId, groupId).one();
-    }
-
-    public void leaveGroup(){
-
+        return lambdaQuery()
+                .eq(GroupContact::getUserId, userId)
+                .eq(GroupContact::getGroupId, groupId)
+                .one();
     }
 
     public void assignPower(Long userId, Long groupId, Integer role){
         lambdaUpdate().eq(GroupContact::getUserId, userId)
                 .eq(GroupContact::getGroupId, groupId)
                 .set(GroupContact::getLastActive, ValueConstant.getDefaultDate())
-                .set(GroupContact::getRole, role).update();
+                .set(GroupContact::getRole, role)
+                .update();
     }
 
     public List<ContactResp> selectGroupContactByUserId(Long userId){
@@ -57,13 +57,13 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
         }).toList();
     }
 
-    public List<Long> selectMemberListById(Long groupId){
+    public List<GroupMemberInfo> selectMemberListById(Long groupId){
         List<GroupContact> list = lambdaQuery()
                 .eq(GroupContact::getGroupId, groupId)
-                .select(GroupContact::getUserId)
+                .select(GroupContact::getUserId, GroupContact::getRole)
                 .list();
 
-        return list.stream().map(GroupContact::getUserId).toList();
+        return list.stream().map(item -> new GroupMemberInfo(item.getUserId(), item.getRole())).toList();
     }
 
     @SuppressWarnings("unchecked")
@@ -82,8 +82,8 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
 
     public List<GroupContact> selectGroupContactByUserIdList(Long groupId, List<Long> userIdList){
         return lambdaQuery()
-                .eq(GroupContact::getGroupId, groupId)
                 .in(GroupContact::getUserId, userIdList)
+                .eq(GroupContact::getGroupId, groupId)
                 .list();
     }
 }

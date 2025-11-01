@@ -9,6 +9,7 @@ import org.com.modules.contact.dao.mysql.SessionDao;
 import org.com.modules.contact.dao.mysql.ApplyDao;
 import org.com.modules.contact.dao.mysql.GroupContactDao;
 import org.com.modules.contact.domain.entity.ContactApply;
+import org.com.modules.contact.domain.entity.GroupContact;
 import org.com.modules.contact.domain.enums.ConfirmEnum;
 import org.com.modules.group.dao.mysql.GroupInfoDao;
 import org.com.modules.contact.dao.mongodb.SessionDocDao;
@@ -18,6 +19,7 @@ import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfo;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.group.service.GroupInfoService;
+import org.com.tools.constant.ValueConstant;
 import org.com.tools.utils.AssertUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,11 +42,6 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     private final SessionDocDao mongoSessionDocDao;
 
     @Override
-    public void assignOwner(AssignOwnerReq req) {
-        groupInfoDao.assignOwner(req.getGroupId(), req.getMemberId());
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     @GlobalTransactional(rollbackFor = Exception.class)
     public void dissolveGroup(DissolveGroupReq req) {
@@ -60,11 +57,29 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     @RedissonLocking(key = "#req.groupId")
     @Transactional(rollbackFor = Exception.class)
     public void transferOwner(TransferOwnerReq req) {
-        AssertUtil.isFalse(groupContactDao.validatePower(req.getMemberId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole()), "目标退群了");
+        GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
 
-        groupContactDao.assignPower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.MEMBER.getRole());
-        groupContactDao.assignPower(req.getMemberId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
-        groupInfoDao.assignOwner(req.getGroupId(),req.getMemberId());
+        GroupContact fromContact = groupContactDao.getByBothId(req.getFromUserId(), req.getGroupId());
+        AssertUtil.isNotEmpty(fromContact, "你不是该群的成员");
+        AssertUtil.isTrue(fromContact.getRole() >= GroupRoleEnum.MEMBER.getRole(), "你已经不是该群的成员了");
+        AssertUtil.isTrue(fromContact.getRole().equals(GroupRoleEnum.OWNER.getRole()), "你不是群主");
+
+        GroupContact targetContact = groupContactDao.getByBothId(req.getTargetId(), req.getGroupId());
+        AssertUtil.isNotEmpty(targetContact, "目标用户不是该群的成员");
+        AssertUtil.isTrue(targetContact.getRole() >= GroupRoleEnum.MEMBER.getRole(), "目标用户已经不是该群的成员了");
+
+        fromContact.setRole(GroupRoleEnum.MEMBER.getRole());
+        fromContact.setContactVersion(fromContact.getContactVersion() + 1);
+        targetContact.setRole(GroupRoleEnum.OWNER.getRole());
+        targetContact.setContactVersion(targetContact.getContactVersion() + 1);
+        groupContactDao.updateBatchById(List.of(fromContact, targetContact));
+
+        group.setGroupOwnerId(req.getTargetId());
+        group.setUpdateTime(ValueConstant.getDefaultDate());
+        groupInfoDao.updateById(group);
+
+        // 还需要补充推送系统消息、推送权限变更的逻辑
     }
 
     @Override

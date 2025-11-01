@@ -21,5 +21,5 @@ public class TransferOwnerReq {
 
     @NotNull
     @Schema(description = "目标 id")
-    private Long memberId;
+    private Long targetId;
 }

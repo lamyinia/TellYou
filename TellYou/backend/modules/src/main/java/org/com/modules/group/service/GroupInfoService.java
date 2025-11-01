@@ -7,8 +7,6 @@ import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import java.util.List;
 
 public interface GroupInfoService {
-    void assignOwner(AssignOwnerReq req);
-
     void dissolveGroup(DissolveGroupReq req);
 
     void transferOwner(TransferOwnerReq req);

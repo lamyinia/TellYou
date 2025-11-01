@@ -3,7 +3,7 @@ package org.com.modules.deliver.service.retry;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.com.modules.deliver.domain.vo.push.PushedBehaviour;
+import org.com.modules.deliver.domain.vo.push.PushedCommand;
 import org.com.modules.deliver.domain.vo.push.PushedChat;
 import org.com.modules.deliver.domain.vo.push.PushedApply;
 import org.com.modules.deliver.domain.vo.push.PushedSession;
@@ -167,7 +167,7 @@ public class MessageDelayQueue {
             case PushedChat letter -> letter.getMessageId() + "-message";
             case PushedApply letter -> letter.getApplyId() + "-apply";
             case PushedSession letter -> letter.getAckId() + "-session";
-            case PushedBehaviour letter -> "-behaviour";
+            case PushedCommand letter -> "-behaviour";
             default -> "null";
         };
     }

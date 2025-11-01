@@ -103,33 +103,58 @@ public class GroupContactServiceImpl implements GroupContactService {
     @Override
     @Transactional
     @RedissonLocking(key = "#req.groupId")
-    public void inviteFriend(InviteFriendReq req) {
+    public List<Long> inviteFriend(InviteFriendReq req) {
         GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
 
         if (group.getMemberCount() + req.getTargetList().size() > GroupConstant.DEFAULT_MAX_MEMBER_COUNT){
             throw new BusinessException(CommonErrorEnum.MEMBER_LIMIT);
         }
 
         List<Long> collectList = req.getTargetList().stream().distinct().collect(Collectors.toList());
-        List<GroupContact> contactList = new ArrayList<>();
-        collectList.forEach(targetId -> contactList
-                .add(GroupContactAdapter
-                        .buildDefaultContact(targetId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole()))
-        );
 
-        group.setMemberCount(group.getMemberCount() + contactList.size());
+        List<GroupContact> existingContactList = groupContactDao.selectGroupContactByUserIdList(req.getGroupId(), collectList);
+        Map<Long, GroupContact> existingContactMap = existingContactList.stream()
+                .collect(Collectors.toMap(GroupContact::getUserId, contact -> contact));
+        List<GroupContact> insertContactList = new ArrayList<>();
+        List<GroupContact> updateContactList = new ArrayList<>();
+
+        collectList.forEach(targetId -> {
+            GroupContact existingContact = existingContactMap.get(targetId);
+            if (existingContact != null && existingContact.getIsDeleted().equals(YesOrNoEnum.YES.getStatus())) {
+                existingContact.setIsDeleted(YesOrNoEnum.NO.getStatus());
+                existingContact.setContactVersion(existingContact.getContactVersion() + 1);
+                existingContact.setJoinTime(new Date());
+                existingContact.setRole(GroupRoleEnum.MEMBER.getRole());
+                updateContactList.add(existingContact);
+            } else if (existingContact == null){
+                GroupContact groupContact = GroupContactAdapter
+                        .buildDefaultContact(targetId, group.getId(), group.getSessionId(), GroupRoleEnum.MEMBER.getRole());
+                insertContactList.add(groupContact);
+            }
+        });
+
+        group.setMemberCount(group.getMemberCount() + insertContactList.size() + updateContactList.size());
         group.setUpdateTime(ValueConstant.getDefaultDate());
 
         groupInfoDao.updateById(group);
-        groupContactDao.saveBatch(contactList);
+        groupContactDao.saveBatch(insertContactList);
+        groupContactDao.updateBatchById(updateContactList);
+
+        insertContactList.addAll(updateContactList);
+        List<Long> newMembers = insertContactList.stream().map(GroupContact::getUserId).collect(Collectors.toList());
+
+        cacheMissProducer.addNewMembers(group.getId(), newMembers);
 
         PushedSession push = new PushedSession(group.getSessionId(), group.getId(), null,
                 SessionEventEnum.BUILD_PUBLIC.getStatus(), System.currentTimeMillis());
         // 发布聚合事件
-        AggregateDTO aggregateDTO = new AggregateDTO(req.getTargetList(), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
+        AggregateDTO aggregateDTO = new AggregateDTO(newMembers, group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
 
-        applicationEventPublisher.publishEvent(new SessionEvent(this, push, req.getTargetList()));
+        applicationEventPublisher.publishEvent(new SessionEvent(this, push, newMembers));
         applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));
+
+        return newMembers;
     }
 
     @Override
@@ -165,28 +190,28 @@ public class GroupContactServiceImpl implements GroupContactService {
 
         group.setMemberCount(group.getMemberCount() + applyList.size());
         List <Long> newMembers = applyList.stream().map(ContactApply::getApplyUserId).toList();
-        
+
         // 群关系版本化管理，可能有之前退群的用户
         List<GroupContact> existingContactList = groupContactDao.selectGroupContactByUserIdList(req.getGroupId(), newMembers);
-        
+
         // 创建已存在用户的映射，便于快速查找
         Map<Long, GroupContact> existingContactMap = existingContactList.stream()
                 .collect(Collectors.toMap(GroupContact::getUserId, contact -> contact));
-        
+
         // 分别处理退群用户和新用户
         List<GroupContact> insertContactList = new ArrayList<>();
         List<GroupContact> updateContactList = new ArrayList<>();
-        
+
         applyList.forEach(apply -> {
             Long userId = apply.getApplyUserId();
             GroupContact existingContact = existingContactMap.get(userId);
-            
+
             if (existingContact != null) {
                 AssertUtil.isTrue(existingContact.getIsDeleted() == YesOrNoEnum.YES.getStatus(), "用户已在群中，存在异常的申请");
-                
                 existingContact.setIsDeleted(YesOrNoEnum.NO.getStatus());
                 existingContact.setContactVersion(existingContact.getContactVersion() + 1);
                 existingContact.setJoinTime(new Date());
+                existingContact.setRole(GroupRoleEnum.MEMBER.getRole());
                 updateContactList.add(existingContact);
             } else {
                 GroupContact groupContact = GroupContactAdapter
@@ -208,7 +233,7 @@ public class GroupContactServiceImpl implements GroupContactService {
         AggregateDTO aggregateDTO = new AggregateDTO(newMembers, group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_ENTER_NOTIFY.getType());
 
         // 通知缓存失效
-        cacheMissProducer.addGroupMembers(group.getId(), newMembers);
+        cacheMissProducer.addNewMembers(group.getId(), newMembers);
 
         // 推送消息
         applicationEventPublisher.publishEvent(new SessionEvent(this, pushedSession, newMembers));  // 聊天室推送可以聚合
@@ -223,38 +248,93 @@ public class GroupContactServiceImpl implements GroupContactService {
     @Override
     @RedissonLocking(key = "#req.groupId")
     public void leaveGroup(LeaveGroupReq req) {
-        boolean isOwner = groupContactDao.validatePower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
+        GroupContact contact = groupContactDao.getByBothId(req.getFromUserId(), req.getGroupId());
+        AssertUtil.isNotEmpty(contact, "你不是该群的成员");
+        AssertUtil.isTrue(contact.getRole() >= GroupRoleEnum.MEMBER.getRole(), "你已经不是该群的成员了");
 
         GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
+
         if (group.getMemberCount().equals(GroupConstant.DEFAULT_MEMBER_COUNT)){
-            throw new BusinessException(CommonErrorEnum.GROUP_API_ERROR);  // 群只有 1 个人，请求解散改群的接口
+            // 群只有 1 个人，需要请求解散改群的接口
+            throw new BusinessException(CommonErrorEnum.GROUP_API_ERROR);
         }
-        if (isOwner){
-            if (group.getBackpackOwnerId() == null){
-                throw new BusinessException(CommonErrorEnum.BACKPACK_OWNER_ERROR);
-            }
-            groupContactDao.assignPower(group.getBackpackOwnerId(), req.getGroupId(), GroupRoleEnum.OWNER.getRole());
-            group.setGroupOwnerId(group.getBackpackOwnerId());
-            group.setBackpackOwnerId(null);
-        }
-        if (group.getBackpackOwnerId() == req.getFromUserId()){  // 备选群主退群
-            group.setBackpackOwnerId(null);
+        if (contact.getRole().equals(GroupRoleEnum.OWNER)){
+            //  群主退群前，要求指定群主
+            throw new BusinessException(CommonErrorEnum.BACKPACK_OWNER_ERROR);
         }
         group.setMemberCount(group.getMemberCount() - 1);
         group.setUpdateTime(ValueConstant.getDefaultDate());
 
-        groupContactDao.assignPower(req.getFromUserId(), req.getGroupId(), GroupRoleEnum.NORMAL.getRole());
+        contact.setRole(GroupRoleEnum.MEMBER.getRole());
+        contact.setIsDeleted(YesOrNoEnum.YES.getStatus());
+
+        groupContactDao.updateById(contact);
         groupInfoDao.updateById(group);
 
-        // 发布退群聚合事件
-        AggregateDTO leaveAggregateDTO = new AggregateDTO(List.of(req.getFromUserId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
+        cacheMissProducer.removeMembers(group.getId(), List.of(req.getFromUserId()));
 
-        applicationEventPublisher.publishEvent(new AggregateEvent(this, leaveAggregateDTO));
+        PushedSession pushedSession = new PushedSession(group.getSessionId(), group.getId(), req.getFromUserId(), SessionEventEnum.DELETE_PUBLIC.getStatus(), System.currentTimeMillis());
+        applicationEventPublisher.publishEvent(new SessionEvent(this, pushedSession, List.of(req.getFromUserId())));
+
+        AggregateDTO aggregateDTO = new AggregateDTO(List.of(req.getFromUserId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
+        applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));
+    }
+
+    @Override
+    @RedissonLocking(key = "#req.groupId")
+    public void kickOut(KickMemberReq req) {
+        GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
+
+        GroupContact contact = groupContactDao.getByBothId(req.getFromUserId(), req.getGroupId());
+        AssertUtil.isNotEmpty(contact, "你不是该群的成员");
+        AssertUtil.isTrue(contact.getRole() >= GroupRoleEnum.MEMBER.getRole(), "你已经不是该群的成员了");
+
+        GroupContact targetContact = groupContactDao.getByBothId(req.getTargetId(), req.getGroupId());
+        AssertUtil.isNotEmpty(targetContact, "目标用户不是该群的成员");
+        AssertUtil.isTrue(targetContact.getRole() >= GroupRoleEnum.MEMBER.getRole(), "目标用户已经不是该群的成员了");
+        AssertUtil.isTrue(targetContact.getRole().equals(GroupRoleEnum.MEMBER.getRole()), "没有权限踢出该用户，请对该用户降级");
+
+        if (group.getMemberCount().equals(GroupConstant.DEFAULT_MEMBER_COUNT)){
+            // 群只有 1 个人，需要请求解散改群的接口
+            throw new BusinessException(CommonErrorEnum.GROUP_API_ERROR);
+        }
+        targetContact.setRole(GroupRoleEnum.MEMBER.getRole());
+        targetContact.setIsDeleted(YesOrNoEnum.YES.getStatus());
+        groupContactDao.updateById(targetContact);
+
+        group.setMemberCount(group.getMemberCount() - 1);
+        group.setUpdateTime(ValueConstant.getDefaultDate());
+        groupInfoDao.updateById(group);
+
+        cacheMissProducer.removeMembers(group.getId(), List.of(req.getTargetId()));
+
+        PushedSession pushedSession = new PushedSession(group.getSessionId(), group.getId(), req.getTargetId(), SessionEventEnum.DELETE_PUBLIC.getStatus(), System.currentTimeMillis());
+        applicationEventPublisher.publishEvent(new SessionEvent(this, pushedSession, List.of(req.getTargetId())));
+
+        AggregateDTO aggregateDTO = new AggregateDTO(List.of(req.getTargetId()), group.getId(), group.getSessionId(), MessageTypeEnum.SYSTEM_EXIT_NOTIFY.getType());
+        applicationEventPublisher.publishEvent(new AggregateEvent(this, aggregateDTO));
     }
 
     @Override
     public void addManager(AddManagerReq req) {
+        GroupInfo group = groupInfoDao.getById(req.getGroupId());
+        AssertUtil.isNotEmpty(group, "群聊已经不存在");
 
+        List<Long> collectList = req.getMemberList().stream().distinct().collect(Collectors.toList());
+        List<GroupContact> ContactList = groupContactDao.selectGroupContactByUserIdList(req.getGroupId(), collectList);
+        AssertUtil.isTrue(ContactList.size() == collectList.size(), "存在非法的群成员ID");
+
+        ContactList.forEach(contact -> {
+            AssertUtil.isTrue(contact.getRole() >= GroupRoleEnum.MEMBER.getRole() && contact.getIsDeleted().equals(YesOrNoEnum.NO.getStatus()), "存在非法的群成员ID");
+            contact.setRole(GroupRoleEnum.MANAGER.getRole());
+            contact.setContactVersion(contact.getContactVersion() + 1);
+        });
+
+        groupContactDao.updateBatchById(ContactList);
+
+        // 还需要补充推送系统消息、推送权限变更的逻辑
     }
 
     @Override

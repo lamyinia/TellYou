@@ -8,7 +8,7 @@ import java.util.List;
 public interface GroupContactService {
     void createGroup(CreateGroupReq req);
 
-    void inviteFriend(InviteFriendReq req);
+    List<Long> inviteFriend(InviteFriendReq req);
 
     void applySend(GroupApplyReq req);
 
@@ -19,4 +19,6 @@ public interface GroupContactService {
     void withdrawManager(WithdrawManagerReq req);
 
     List<Long> acceptMember(GroupApplyAcceptReq req);
+
+    void kickOut(KickMemberReq req);
 }

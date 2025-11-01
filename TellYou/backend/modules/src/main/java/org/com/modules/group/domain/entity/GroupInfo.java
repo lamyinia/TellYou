@@ -15,7 +15,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GroupInfo {
-
     @TableId
     @Schema(description = "id")
     private Long id;
@@ -25,9 +24,6 @@ public class GroupInfo {
 
     @Schema(description = "群主id")
     private Long groupOwnerId;
-
-    @Schema(description = "备选群主id")
-    private Long backpackOwnerId;
 
     @Schema(description = "群名称")
     private String name;

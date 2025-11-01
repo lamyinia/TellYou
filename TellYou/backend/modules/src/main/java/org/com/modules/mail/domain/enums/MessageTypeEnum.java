@@ -19,14 +19,17 @@ public enum MessageTypeEnum {
     PRIVATE_VOICE(4, MQConstant.SESSION_TOPIC, "单聊语音"),
     PRIVATE_FILE(5, MQConstant.SESSION_TOPIC, "单聊文件"),
 
-    GROUP_TEXT(6, MQConstant.SESSION_TOPIC, "群聊文本"),
-    GROUP_IMAGE(7, MQConstant.SESSION_TOPIC, "群聊图片"),
-    GROUP_VIDEO(8, MQConstant.SESSION_TOPIC, "群聊视频"),
-    GROUP_VOICE(9, MQConstant.SESSION_TOPIC, "群聊语音"),
-    GROUP_FILE(10, MQConstant.SESSION_TOPIC, "群聊文件"),
+    GROUP_TEXT(11, MQConstant.SESSION_TOPIC, "群聊文本"),
+    GROUP_IMAGE(12, MQConstant.SESSION_TOPIC, "群聊图片"),
+    GROUP_VIDEO(13, MQConstant.SESSION_TOPIC, "群聊视频"),
+    GROUP_VOICE(14, MQConstant.SESSION_TOPIC, "群聊语音"),
+    GROUP_FILE(15, MQConstant.SESSION_TOPIC, "群聊文件"),
 
     SYSTEM_ENTER_NOTIFY(51, MQConstant.SESSION_TOPIC, "群聊系统通知入群"),
     SYSTEM_EXIT_NOTIFY(52, MQConstant.SESSION_TOPIC, "群聊系统通知退群"),
+    SYSTEM_POWER_ASSIGN(53, MQConstant.SESSION_TOPIC, "群聊系统通知权限赋予"),
+    SYSTEM_POWER_WITHDRAW(54, MQConstant.SESSION_TOPIC, "群聊系统通知权限撤销"),
+    SYSTEM_META_NOTICE(55, MQConstant.SESSION_TOPIC, "群聊系统通知群公告更改"),
 
     CHAT_ACK_CONFIRM(101, MQConstant.ACK_TOPIC, "-message"),
     APPLICATION_ACK_CONFIRM(102, MQConstant.ACK_TOPIC, "-apply"),

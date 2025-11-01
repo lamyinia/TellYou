@@ -2,6 +2,8 @@ package org.com.modules.mail.cache;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.mail.cache.entity.MuteInfo;
 import org.redisson.api.RBucket;
 import org.redisson.api.RSet;
@@ -43,12 +45,12 @@ public class DistributedCache {
     /**
      * 获取群成员列表
      */
-    public Set<Long> getGroupMembers(Long groupId) {
+    public Set<GroupMemberInfo> getGroupMembers(Long groupId) {
         String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
-        RSet<Long> rSet = redissonClient.getSet(key);
+        RSet<GroupMemberInfo> rSet = redissonClient.getSet(key);
 
         if (rSet.isExists()) {
-            Set<Long> members = rSet.readAll();
+            Set<GroupMemberInfo> members = rSet.readAll();
             log.debug("Retrieved group members from Redis: groupId={}, memberCount={}",
                     groupId, members.size());
             return members;
@@ -59,12 +61,11 @@ public class DistributedCache {
     /**
      * 缓存群成员列表
      */
-    public void putGroupMembers(Long groupId, Set<Long> members) {
+    public void putGroupMembers(Long groupId, Set<GroupMemberInfo> members) {
         try {
             String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
-            RSet<Long> rSet = redissonClient.getSet(key);
+            RSet<GroupMemberInfo> rSet = redissonClient.getSet(key);
 
-            // 清空现有数据并添加新数据
             rSet.clear();
             rSet.addAll(members);
             rSet.expire(Duration.ofSeconds(groupMembersTtlSeconds));
@@ -79,10 +80,10 @@ public class DistributedCache {
     /**
      * 分布式缓存添加群成员
      */
-    public void addGroupMember(Long groupId, Set<Long> userIds) {
+    public void addGroupMember(Long groupId, Set<GroupMemberInfo> userIds) {
         try {
             String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
-            RSet<Long> rSet = redissonClient.getSet(key);
+            RSet<GroupMemberInfo> rSet = redissonClient.getSet(key);
             if (rSet.isExists()) {
                 rSet.addAll(userIds);
                 rSet.expire(Duration.ofSeconds(groupMembersTtlSeconds));
@@ -96,10 +97,10 @@ public class DistributedCache {
     /**
      * 移除群成员
      */
-    public void removeGroupMember(Long groupId, Set<Long> userIds) {
+    public void removeGroupMember(Long groupId, Set<GroupMemberInfo> userIds) {
         try {
             String key = GROUP_MEMBERS_KEY_PREFIX + groupId;
-            RSet<Long> rSet = redissonClient.getSet(key);
+            RSet<GroupMemberInfo> rSet = redissonClient.getSet(key);
 
             if (rSet.isExists()) {
                 rSet.removeAll(userIds);

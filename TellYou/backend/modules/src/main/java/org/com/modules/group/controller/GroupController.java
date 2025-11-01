@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author lanye
- * @date 2025/07/31
+ * @since 2025/07/31
  */
 @Slf4j
 @Tag(name = "群组管理接口")
@@ -64,9 +64,9 @@ public class GroupController {
 
     @PostMapping("/invite")
     @Operation(summary = "邀请好友")
-    public ApiResult<Void> invite(@Check @Valid @RequestBody InviteFriendReq req){
-        groupContactService.inviteFriend(req);
-        return ApiResult.success();
+    public ApiResult<List<Long>> invite(@Check @Valid @RequestBody InviteFriendReq req){
+        List<Long> resp = groupContactService.inviteFriend(req);
+        return ApiResult.success(resp);
     }
 
     @PostMapping("/send-apply")
@@ -100,6 +100,7 @@ public class GroupController {
     @DeleteMapping("/kick-out")
     @Operation(summary = "踢出群聊")
     public ApiResult<Void> kickOut(@Check @Valid @RequestBody KickMemberReq req){
+        groupContactService.kickOut(req);
         return ApiResult.success();
     }
 
@@ -132,13 +133,6 @@ public class GroupController {
     @Operation(summary = "禁言开关")
     public ApiResult<Void> banChat(@Check @Valid @RequestBody BanChatReq req){
         groupInfoService.banChat(req);
-        return ApiResult.success();
-    }
-
-    @PutMapping("/assign-owner")
-    @Operation(summary = "指定备选群主")
-    public ApiResult<Void> assignOwner(@Check @Valid @RequestBody AssignOwnerReq req) {
-        groupInfoService.assignOwner(req);
         return ApiResult.success();
     }
 
