@@ -6,7 +6,11 @@ server:
 tell-you:
   datacenter-id: 1
   worker-id: 2
-
+  retry:
+    cache-expire: 30
+    maximum-size: 10000
+    max-retry-count: 3
+    retry-waiting-by-count: [1, 2, 4, 8]
   netty:
     port: 8082
   jwt:

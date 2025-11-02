@@ -56,8 +56,7 @@ public class ChatConsumer implements RocketMQListener<String> {
 
     @PostConstruct
     public void init() {
-        log.info("ChatConsumer 已启动，监听主题: {}, 消费者组: {}",
-                MQConstant.SESSION_TOPIC, MQConstant.SESSION_GROUP);
+        log.info("ChatConsumer 已启动，监听主题: {}, 消费者组: {}", MQConstant.SESSION_TOPIC, MQConstant.SESSION_GROUP);
         log.info("RocketMQ配置 - NameServer: 127.0.0.1:9876");
     }
 

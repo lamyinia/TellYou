@@ -31,7 +31,7 @@ public class MessageRetryService {
     private final ChannelManagerUtil channelManagerUtil;
 
 
-    @Retryable(value = RuntimeException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
+    // @Retryable(value = RuntimeException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
     public void retryDelivery(Long uid, Object vo) {
         boolean exist = channelManagerUtil.doDeliver(uid, vo);
         if (exist){

@@ -540,32 +540,21 @@ class DeviceService {
         titleBarStyle: "default",
       });
 
-      // 加载调试页面
+      // 加载专用调试页面
       const isDev = process.env.NODE_ENV === "development";
+      
       if (isDev && process.env["ELECTRON_RENDERER_URL"]) {
-        // 使用开发环境的URL
+        // 开发环境：加载专用调试页面
         this.debugWindow.loadURL(
-          `${process.env["ELECTRON_RENDERER_URL"]}#/debug`,
+          `${process.env["ELECTRON_RENDERER_URL"]}/debug.html`,
         );
       } else if (isDev) {
-        // 开发环境但没有ELECTRON_RENDERER_URL，尝试默认端口
-        this.debugWindow.loadURL("http://localhost:5173/#/debug").catch(() => {
-          // 如果加载失败，降级到文件加载
-          console.warn("开发服务器连接失败，使用文件加载方式");
-          this.debugWindow?.loadFile(
-            path.join(__dirname, "../renderer/index.html"),
-            {
-              hash: "debug",
-            },
-          );
-        });
+        // 开发环境但没有ELECTRON_RENDERER_URL
+        this.debugWindow.loadURL("http://localhost:5173/debug.html");
       } else {
-        // 生产环境使用文件加载
+        // 生产环境：加载打包后的专用调试页面
         this.debugWindow.loadFile(
-          path.join(__dirname, "../renderer/index.html"),
-          {
-            hash: "debug",
-          },
+          path.join(__dirname, "../renderer/debug.html"),
         );
       }
 
@@ -583,13 +572,14 @@ class DeviceService {
       });
 
       // 开发环境下打开开发者工具
-      if (isDev) {
+      if (process.env.NODE_ENV === "development") {
         this.debugWindow.webContents.openDevTools();
       }
     } catch (error) {
       console.error("创建调试窗口失败:", error);
     }
   }
+
 }
 
 export const deviceService = new DeviceService();

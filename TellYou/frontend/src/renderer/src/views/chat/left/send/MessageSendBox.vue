@@ -4,6 +4,7 @@
 import { ref, computed, nextTick, watch } from "vue"
 import MediaSendBox from "@renderer/views/chat/left/send/MediaSendBox.vue"
 import VoicePreview from "@renderer/views/chat/left/send/VoicePreview.vue"
+import EmojiPicker from "@renderer/components/EmojiPicker.vue"
 import { Session } from "@shared/types/session"
 import { useUserStore } from "@main/electron-store/persist/user-store"
 
@@ -23,16 +24,31 @@ const showVoicePreview = ref(false)
 const previewAudioBlob = ref<Blob | null>(null)
 const previewDuration = ref(0)
 const error = ref("")
+const showEmojiPicker = ref(false)
 
 const MIN_RECORDING_DURATION = 1
 const MAX_RECORDING_DURATION = 60
 
 const adjustHeight = (): void => {
   if (!textareaRef.value) return
+  // 临时移除尾随空格来正确计算宽度（不影响实际值）
+  const originalValue = textareaRef.value.value
+  const trimmedValue = originalValue.replace(/\s+$/, "")
+  const hasTrailingSpaces = originalValue !== trimmedValue
+  
+  if (hasTrailingSpaces) {
+    textareaRef.value.value = trimmedValue
+  }
+  
   textareaRef.value.style.height = "auto"
   const scrollHeight = textareaRef.value.scrollHeight
   const maxHeight = 5 * 1.6 * 14 + 20 // 5行 * 行高 * 字体大小 + 内边距
   textareaRef.value.style.height = Math.min(scrollHeight, maxHeight) + "px"
+  
+  // 恢复原始值（包括尾随空格）
+  if (hasTrailingSpaces) {
+    textareaRef.value.value = originalValue
+  }
 }
 const sendMessage = async (): Promise<void> => {
   const current = props.currentContact
@@ -237,6 +253,32 @@ const clearVoicePreview = (): void => {
   previewDuration.value = 0
 }
 
+const toggleEmojiPicker = (): void => {
+  showEmojiPicker.value = !showEmojiPicker.value
+}
+
+const insertEmoji = (emoji: string): void => {
+  if (!textareaRef.value) return
+  
+  const textarea = textareaRef.value
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = message.value
+  
+  // 在光标位置插入emoji
+  message.value = text.slice(0, start) + emoji + text.slice(end)
+  
+  // 恢复光标位置（emoji后面）
+  nextTick(() => {
+    if (textarea) {
+      const newPosition = start + emoji.length
+      textarea.setSelectionRange(newPosition, newPosition)
+      textarea.focus()
+      adjustHeight()
+    }
+  })
+}
+
 watch(
   message,
   () => {
@@ -262,6 +304,11 @@ watch(
       :current-contact="currentContact"
       @sent="handleMediaSent"
     />
+    <EmojiPicker
+      :visible="showEmojiPicker"
+      @select="insertEmoji"
+      @close="showEmojiPicker = false"
+    />
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
@@ -279,7 +326,9 @@ watch(
       >
         <v-icon>mdi-microphone</v-icon>
       </v-btn>
-      <v-btn icon class="icon-btn"><v-icon>mdi-emoticon-outline</v-icon></v-btn>
+      <v-btn icon class="icon-btn" @click="toggleEmojiPicker">
+        <v-icon>mdi-emoticon-outline</v-icon>
+      </v-btn>
 
       <div class="input-wrap">
         <textarea
@@ -372,6 +421,9 @@ watch(
     background 0.2s,
     border-color 0.2s,
     box-shadow 0.2s;
+  /* 防止内容溢出导致容器拉伸 */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .input-wrap:focus-within {
   background: rgba(255, 255, 255, 0.14);
@@ -396,6 +448,19 @@ watch(
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   transition: height 0.2s ease-out;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* 修复中文和空格渲染问题 - 关键设置 */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* 中英文混合换行 */
+  word-break: break-word;
+  /* 防止空格被压缩和字符间距异常 */
+  text-align: left;
+  letter-spacing: normal;
+  /* 确保宽度计算正确，防止拉伸 */
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .send-btn {
   border-radius: 20px;

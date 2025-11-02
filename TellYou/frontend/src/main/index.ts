@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, protocol, shell, Tray } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
-import icon from "@shared/resources/icon.png?asset";
+import icon from "@shared/resources/software/application.png?asset";
 import __Store from "electron-store";
 import log from "electron-log";
 import os from "os";
