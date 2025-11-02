@@ -41,16 +41,21 @@ public class UserInBoxDoc {
     @Indexed
     @Field("sender_id")
     private Long senderId;
+
     /** 会话ID */
     @Indexed
     @Field("session_id")
     private Long sessionId;
+
 
     /** 引用ID */
     @Indexed
     @Field("quote_id")
     private String quoteId;
 
+    /**
+     * @see org.com.modules.mail.domain.enums.MessageTypeEnum
+     */
     @Indexed
     @Field("quote_type")
     private Integer quoteType;

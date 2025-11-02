@@ -16,4 +16,82 @@
     <sql id="Base_Column_List">
         user_id,group_id,session_id,role,join_time,last_active
     </sql>
+
+    <!-- 查询可邀请的好友列表（排除已在群内的好友和黑名单中的好友） -->
+    <!-- 时间复杂度分析（NOT EXISTS 方案）：
+         1. WHERE fc.user_id = #{req.fromUserId} 使用索引：O(log N_fc)，得到 n 条好友记录
+         2. NOT EXISTS group_contact: 对每条好友记录，使用 uk_group_uid(group_id, uid) 唯一索引查找
+            - 因为是唯一索引，查找是 O(log M_gc)，但一旦找到匹配立即返回（短路）
+            - 如果没有匹配，也只需要一次索引查找：O(log M_gc)
+         3. NOT EXISTS black: 对每条好友记录，使用 uk_from_target(from_id, target) 唯一索引查找
+            - 同样 O(log P_b)，短路特性
+         4. ORDER BY fc.created_at DESC: O(k log k) 其中 k 是最终结果集大小
+         
+         总体时间复杂度：
+         - O(log N_fc + n * log M_gc + n * log P_b + k log k)
+         - 如果 n ≈ k，近似为 O(n * log M + n * log P + k log k) ≈ O(n * log(max(M,P)) + k log k)
+         - 比 LEFT JOIN 方案更优，因为：
+           1. 避免了 JOIN 产生的中间结果集
+           2. EXISTS 的短路特性，一旦找到匹配立即返回
+           3. 索引使用更直接，不需要考虑 JOIN 顺序
+    -->
+    <select id="getInvitableFriendList" resultType="org.com.modules.group.domain.vo.resp.InvitableFriendResp">
+        SELECT fc.contact_id AS userId
+        FROM friend_contact fc
+        WHERE fc.user_id = #{req.fromUserId}
+          AND fc.status = 1
+          AND fc.is_deleted = 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM group_contact gc
+              WHERE gc.user_id = fc.contact_id
+                AND gc.group_id = #{req.groupId}
+                AND gc.is_deleted = 0
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM black b
+              WHERE b.from_id = fc.user_id
+                AND b.target = fc.contact_id
+                AND b.type = 0
+                AND b.is_deleted = 0
+          )
+        ORDER BY fc.created_at DESC
+    </select>
 </mapper>
+
+<!-- 
+    废弃方案:
+    查询可邀请的好友列表（排除已在群内的好友和黑名单中的好友）
+     时间复杂度分析：
+         1. WHERE fc.from_id = #{req.fromUserId} 使用 idx_from_id 索引：O(log N_fc)
+         2. LEFT JOIN group_contact: 对于每个好友(假设有 n 个)，查找 gc.uid = fc.to_id AND gc.group_id = #{req.groupId}
+            - 可以使用 uk_group_uid(group_id, uid) 唯一索引：O(1) 或 O(log M_gc)
+            - 但 JOIN 条件顺序不完全匹配，可能退化为 O(log M_gc) 其中 M_gc 是 group_contact 表大小
+         3. LEFT JOIN black: 对于每个好友，查找 b.from_id = fc.from_id AND b.target = fc.to_id
+            - 可以使用 uk_from_target(from_id, target) 唯一索引：O(1) 或 O(log P_b)
+         4. ORDER BY fc.create_time DESC: O(k log k) 其中 k 是最终结果集大小
+         
+         总体时间复杂度：
+         - 最坏情况：O(n * log M_gc + n * log P_b + k log k)
+           = O(n * (log M_gc + log P_b) + k log k)
+           ≈ O(n * log²(M_gc * P_b) + k log k) （如果 n ≈ k，则近似为 O(n log² n)）
+         - 最佳情况（有复合索引优化）：O(n + k log k) ≈ O(n log n)
+    <select id="getInvitableFriendList" resultType="org.com.modules.group.domain.vo.resp.InvitableFriendResp">
+        SELECT fc.contact_id AS userId
+        FROM friend_contact fc
+        LEFT JOIN group_contact gc ON fc.contact_id = gc.user_id
+            AND gc.group_id = #{req.groupId}
+            AND gc.is_deleted = 0
+        LEFT JOIN black b ON fc.user_id = b.from_id
+            AND fc.contact_id = b.target
+            AND b.type = 0
+            AND b.is_deleted = 0
+        WHERE fc.user_id = #{req.fromUserId}
+          AND fc.status = 1
+          AND fc.is_deleted = 0
+          AND gc.user_id IS NULL
+          AND b.id IS NULL
+        ORDER BY fc.created_at DESC
+    </select>
+ -->

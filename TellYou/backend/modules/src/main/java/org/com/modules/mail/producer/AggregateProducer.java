@@ -14,11 +14,23 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 
+/**
+ * 聚合消息的生产者
+ * @author lanye
+ * @since 2025/11/02 22:51
+ */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AggregateProducer {
     private final RocketMQTemplate rocketMQTemplate;
+    /**
+     * 消费者
+     * @see
+     * org.com.modules.mail.consumer.AggregateConsumer
+     */
+
     private final RedissonClient redisson;
 
     private static final String AGGREGATION_SET_PREFIX = "group:agg:";

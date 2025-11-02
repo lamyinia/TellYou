@@ -34,7 +34,7 @@ public class CacheMissConsumer implements RocketMQListener<CacheMissMessage> {
             log.warn("Received null cache invalidate message");
             return;
         }
-        log.info("Processing cache invalidate message: {}", message.toString());
+        log.info("收到缓存失效广播: {}", message.toString());
         switch (message.getCacheType()) {
             case CacheMissMessage.CACHE_TYPE_GROUP_MEMBERS:
                 handleGroupMembersInvalidate(message);

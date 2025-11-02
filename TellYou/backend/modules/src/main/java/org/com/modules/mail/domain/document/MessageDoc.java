@@ -50,9 +50,12 @@ public class MessageDoc {
     @Field("client_message_id")
     private String clientMessageId;
 
-    /** 消息类型：1-文本 2-图片 3-语音 4-视频 5-文件 6-红包 7-系统消息 */
     @Field("message_type")
     private Integer messageType;
+    /**
+     * @see
+     *
+     */
 
     /** 发送者ID */
     @Indexed

@@ -184,7 +184,7 @@ watch(
             </span>
           </div>
           <button class="close-btn" @click="close">
-            <i class="iconfont icon-close"></i>
+            <span class="close-icon">×</span>
           </button>
         </div>
 
@@ -302,6 +302,12 @@ watch(
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+.close-icon {
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 300;
 }
 
 .drawer-content {

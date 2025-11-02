@@ -19,11 +19,11 @@ public enum MessageTypeEnum {
     PRIVATE_VOICE(4, MQConstant.SESSION_TOPIC, "单聊语音"),
     PRIVATE_FILE(5, MQConstant.SESSION_TOPIC, "单聊文件"),
 
-    GROUP_TEXT(11, MQConstant.SESSION_TOPIC, "群聊文本"),
-    GROUP_IMAGE(12, MQConstant.SESSION_TOPIC, "群聊图片"),
-    GROUP_VIDEO(13, MQConstant.SESSION_TOPIC, "群聊视频"),
-    GROUP_VOICE(14, MQConstant.SESSION_TOPIC, "群聊语音"),
-    GROUP_FILE(15, MQConstant.SESSION_TOPIC, "群聊文件"),
+    GROUP_TEXT(21, MQConstant.SESSION_TOPIC, "群聊文本"),
+    GROUP_IMAGE(22, MQConstant.SESSION_TOPIC, "群聊图片"),
+    GROUP_VIDEO(23, MQConstant.SESSION_TOPIC, "群聊视频"),
+    GROUP_VOICE(24, MQConstant.SESSION_TOPIC, "群聊语音"),
+    GROUP_FILE(25, MQConstant.SESSION_TOPIC, "群聊文件"),
 
     SYSTEM_ENTER_NOTIFY(51, MQConstant.SESSION_TOPIC, "群聊系统通知入群"),
     SYSTEM_EXIT_NOTIFY(52, MQConstant.SESSION_TOPIC, "群聊系统通知退群"),

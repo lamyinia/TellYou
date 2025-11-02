@@ -30,6 +30,12 @@ import java.util.Set;
 public class AggregateConsumer implements RocketMQListener<String> {
     private final RedissonClient redisson;
     private final RocketMQTemplate rocketMQTemplate;
+    /**
+     * 消费者
+     * @see
+     * org.com.modules.mail.consumer.ChatConsumer
+     */
+
     private static final String AGGREGATION_SET_PREFIX = "group:agg:";
     private final MailBoxServiceImpl mailBoxService;
 
@@ -47,7 +53,7 @@ public class AggregateConsumer implements RocketMQListener<String> {
                 java.util.List<Long> userIds = userIdStrings.stream()
                         .map(Long::parseLong)
                         .toList();
-                Message<String> chatDTO = mailBoxService.produceChatDTO(aggregateDTO, userIds);
+                Message<String> chatDTO = mailBoxService.aggregateDTOConvertChatDTO(aggregateDTO, userIds);
                 rocketMQTemplate.syncSend(MQConstant.SESSION_TOPIC, chatDTO);  // 生成 ChatDTO 发给 ChatConsumer, fromUid是0，表示系统消息
                 log.info("发送聚合消息，群组: {}, 用户数: {}", aggregateDTO.getGroupId(), userIds.size());
             }

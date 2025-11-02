@@ -4,6 +4,7 @@ import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.contact.domain.entity.ContactApply;
 import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
+import org.com.modules.group.domain.vo.resp.InvitableFriendResp;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 
 import java.util.List;
@@ -26,5 +27,7 @@ public interface GroupInfoService {
     PageResp<GroupMemberInfoResp> getMemberInfoList(MemberInfoListReq req);
 
     List<ContactApply> getGroupApply(GroupApplyListReq req);
+
+    PageResp<InvitableFriendResp> getInvitableFriendList(InvitableFriendListReq req);
 }
 

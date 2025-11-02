@@ -22,7 +22,7 @@ export enum Api {
   // 群组
   GET_BASE_GROUP = "/group/base-info-list",
   CREATE_GROUP = "/group/create-group",
-  INVITE_FRIEND = "/group/invite-friend",
+  INVITE_FRIEND = "/group/invite",
   DISSOLVE_GROUP = "/group/dissolve-group",
   LEAVE_GROUP = "/group/leave-group",
   SEND_GROUP_APPLY = "/group/send-apply",
@@ -34,6 +34,7 @@ export enum Api {
   ADD_MANAGER = "/group/add-manager",
   WITHDRAW_MANAGER = "/group/withdraw-manager",
   GET_MEMBER_INFO_LIST = "/group/member-info-list",
+  GET_INVITABLE_FRIEND_LIST = "/group/invitable-friend-list",
 
   // 好友
   SEND_FRIEND_APPLY = "/contact/friend-send-apply",
@@ -122,7 +123,7 @@ class ProxyService {
         return objectUtil.errorResponse(e)
       }
     })
-    ipcMain.handle("proxy:group:invite-friend", async (_, params: { groupId: string, targetIdList: string[] }) => {
+    ipcMain.handle("proxy:group:invite-friend", async (_, params: { groupId: string, targetList: string[] }) => {
       Object.assign(params, { fromUserId: store.get(uidKey) })
       try {
         const response = await netMaster.post(Api.INVITE_FRIEND, params)
@@ -215,6 +216,25 @@ class ProxyService {
       }
       try {
         const response = await netMaster.get(Api.GET_MEMBER_INFO_LIST, {
+          params: queryParams
+        })
+        return response.data
+      } catch (e: any) {
+        return objectUtil.errorResponse(e)
+      }
+    })
+    ipcMain.handle("proxy:group:get-invitable-friend-list", async (_, params: { groupId: string, pageNo?: number, pageSize?: number }) => {
+      const queryParams: any = {
+        groupId: params.groupId,
+        fromUserId: store.get(uidKey)
+      }
+      // 构建分页参数，使用点号格式以匹配Spring的@ModelAttribute
+      if (params.pageNo || params.pageSize) {
+        queryParams["pageReq.pageNo"] = params.pageNo || 1
+        queryParams["pageReq.pageSize"] = params.pageSize || 20
+      }
+      try {
+        const response = await netMaster.get(Api.GET_INVITABLE_FRIEND_LIST, {
           params: queryParams
         })
         return response.data

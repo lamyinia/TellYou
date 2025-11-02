@@ -9,9 +9,12 @@ import ImageMessage from "@renderer/views/chat/left/message/ImageMessage.vue"
 import VideoMessage from "@renderer/views/chat/left/message/VideoMessage.vue"
 import VoiceMessage from "@renderer/views/chat/left/message/VoiceMessage.vue"
 import FileMessage from "@renderer/views/chat/left/message/FileMessage.vue"
+import SystemMessage from "@renderer/views/chat/left/message/SystemMessage.vue"
 import MessageSendBox from "@renderer/views/chat/left/send/MessageSendBox.vue"
 import MemberDrawer from "@renderer/views/chat/group/MemberDrawer.vue"
+import InvitableDrawer from "@renderer/views/chat/group/InvitableDrawer.vue"
 import membersIcon from "@renderer/assets/group/members.svg"
+import inviteFriendIcon from "@renderer/assets/group/invite-friend.svg"
 
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || "")
@@ -21,6 +24,7 @@ const listRef = ref<HTMLElement | null>(null)
 const isFirstLoad = ref(true)
 const preloadThreshold = 80
 const memberDrawerOpen = ref(false)
+const inviteDrawerOpen = ref(false)
 
 const isGroupChat = computed(() => props.currentContact?.contactType === 2)
 
@@ -28,11 +32,12 @@ const toggleMemberDrawer = (): void => {
   memberDrawerOpen.value = !memberDrawerOpen.value
 }
 
+const toggleInviteDrawer = (): void => {
+  inviteDrawerOpen.value = !inviteDrawerOpen.value
+}
+
 // 简单防抖工具，避免高频滚动触发加载
-const debounce = <T extends (...args: any[]) => void>(
-  fn: T,
-  delay = 100,
-): ((...args: Parameters<T>) => void) => {
+const debounce = <T extends (...args: any[]) => void>(fn: T, delay = 100,): ((...args: Parameters<T>) => void) => {
   let timer: number | undefined
   return (...args: Parameters<T>) => {
     if (timer) window.clearTimeout(timer)
@@ -90,7 +95,7 @@ const scrollToBottom = async (): Promise<void> => {
     requestAnimationFrame(() => {
       if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
       resolve()
-    }),
+    })
   )
 }
 
@@ -126,21 +131,30 @@ const onScroll = debounce(() => {
 
 <template>
   <div class="star-panel-bg">
-    <div class="star-header">
-      <button
-        v-if="isGroupChat"
-        class="member-icon-btn"
-        @click="toggleMemberDrawer"
-        title="群成员"
-      >
-        <img :src="membersIcon" alt="成员" class="member-icon" />
-      </button>
+    <div class="star-header" :class="{ 'group-chat': isGroupChat }">
+      <span v-if="isGroupChat" class="icon-buttons">
+        <button
+          class="member-icon-btn"
+          @click="toggleMemberDrawer"
+          title="群成员"
+        >
+          <img :src="membersIcon" alt="成员" class="member-icon" />
+        </button>
+        <button
+          class="invite-icon-btn"
+          @click="toggleInviteDrawer"
+          title="邀请好友"
+        >
+          <img :src="inviteFriendIcon" alt="邀请" class="invite-icon" />
+        </button>
+      </span>
       <div class="star-title">{{ contactName }}</div>
     </div>
 
     <div ref="listRef" class="star-messages" @scroll="onScroll">
       <template v-for="msg in displayedMessages" :key="msg.id">
-        <TextMessage v-if="msg.messageType === 'text'" :message="msg" />
+        <SystemMessage v-if="msg.messageType === 'system'" :message="msg" />
+        <TextMessage v-else-if="msg.messageType === 'text'" :message="msg" />
         <ImageMessage v-else-if="msg.messageType === 'image'" :message="msg" />
         <VideoMessage v-else-if="msg.messageType === 'video'" :message="msg" />
         <VoiceMessage v-else-if="msg.messageType === 'voice'" :message="msg" />
@@ -152,7 +166,14 @@ const onScroll = debounce(() => {
     <MessageSendBox :current-contact="currentContact" @go-bottom="goToBottom" />
 
     <MemberDrawer
+      v-if="isGroupChat"
       v-model="memberDrawerOpen"
+      :current-contact="currentContact"
+    />
+
+    <InvitableDrawer
+      v-if="isGroupChat"
+      v-model="inviteDrawerOpen"
       :current-contact="currentContact"
     />
   </div>
@@ -172,12 +193,23 @@ const onScroll = debounce(() => {
 .star-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end; /* 默认靠右对齐（私聊） */
   padding: 24px 32px 12px 32px;
   background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.member-icon-btn {
+.star-header.group-chat {
+  justify-content: space-between; /* 群聊时：图标在左，标题在右 */
+}
+
+.icon-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-icon-btn,
+.invite-icon-btn {
   background: rgba(213, 133, 133, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
@@ -188,12 +220,14 @@ const onScroll = debounce(() => {
   align-items: center;
   justify-content: center;
 }
-.member-icon-btn:hover {
+.member-icon-btn:hover,
+.invite-icon-btn:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.25);
   transform: scale(1.05);
 }
-.member-icon {
+.member-icon,
+.invite-icon {
   width: 24px;
   height: 24px;
   object-fit: contain;
@@ -201,7 +235,8 @@ const onScroll = debounce(() => {
   filter: brightness(0) invert(1);
   transition: filter 0.2s;
 }
-.member-icon-btn:hover .member-icon {
+.member-icon-btn:hover .member-icon,
+.invite-icon-btn:hover .invite-icon {
   /* hover 时使用更亮的颜色 */
   filter: brightness(0) invert(1) brightness(1.2);
 }

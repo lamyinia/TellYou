@@ -41,31 +41,31 @@ public class VerifyService {
         try {
             Set<GroupMemberInfo> members = localCache.getGroupMembers(groupId);
             if (members != null) {
-                log.debug("Hit Caffeine cache for group members: groupId={}, memberCount={}", groupId, members.size());
+                log.debug("groupMembers 命中本地缓存: groupId={}, memberCount={}", groupId, members.size());
                 return members.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
             members = distributedCache.getGroupMembers(groupId);
             if (members != null) {
-                log.debug("Hit Redis cache for group members: groupId={}, memberCount={}", groupId, members.size());
+                log.debug("groupMembers 命中分布式缓存: groupId={}, memberCount={}", groupId, members.size());
                 localCache.putGroupMembers(groupId, members);
                 return members.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
             List<GroupMemberInfo> memberList = groupContactDao.selectMemberListById(groupId);
             if (memberList != null) {
-                log.debug("Hit database for group members: groupId={}, memberCount={}",
+                log.debug("groupMembers 命中数据库: groupId={}, memberCount={}",
                         groupId, memberList.size());
                 distributedCache.putGroupMembers(groupId, memberList.stream().collect(Collectors.toSet()));
                 localCache.putGroupMembers(groupId, memberList.stream().collect(Collectors.toSet()));
                 return memberList.stream().map(GroupMemberInfo::getUserId).collect(Collectors.toSet());
             }
 
-            log.debug("Group members not found: groupId={}", groupId);
+            log.debug("groupMembers 未找到: groupId={}", groupId);
             return null;
 
         } catch (Exception e) {
-            log.error("Failed to get group members: groupId={}", groupId, e);
+            log.error("groupMembers 获取失败: groupId={}", groupId, e);
             return null;
         }
     }
@@ -81,14 +81,14 @@ public class VerifyService {
         try {
             Boolean isFriend = localCache.getFriendRelation(userId1, userId2);
             if (isFriend != null) {
-                log.debug("Hit Caffeine cache for friend relation: userId1={}, userId2={}, isFriend={}",
+                log.debug("friendRelation 命中本地缓存: userId1={}, userId2={}, isFriend={}",
                         userId1, userId2, isFriend);
                 return isFriend;
             }
 
             isFriend = distributedCache.getFriendRelation(userId1, userId2);
             if (isFriend != null) {
-                log.debug("Hit Redis cache for friend relation: userId1={}, userId2={}, isFriend={}",
+                log.debug("friendRelation 命中分布式缓存: userId1={}, userId2={}, isFriend={}",
                         userId1, userId2, isFriend);
 
                 localCache.putFriendRelation(userId1, userId2, isFriend);
@@ -97,13 +97,13 @@ public class VerifyService {
 
             FriendContact friendContact = friendContactDao.findByBothId(userId1, userId2);
             isFriend = friendContact != null && friendContact.getStatus() == 1;
-            log.debug("Hit database for friend relation: userId1={}, userId2={}, isFriend={}",
+            log.debug("friendRelation 命中数据库: userId1={}, userId2={}, isFriend={}",
                     userId1, userId2, isFriend);
             distributedCache.putFriendRelation(userId1, userId2, isFriend);
             localCache.putFriendRelation(userId1, userId2, isFriend);
             return isFriend;
         } catch (Exception e) {
-            log.error("Failed to check friend relation: userId1={}, userId2={}", userId1, userId2, e);
+            log.error("friendRelation 获取失败: userId1={}, userId2={}", userId1, userId2, e);
             return null;
         }
     }

@@ -4,10 +4,13 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.domain.entity.GroupContact;
+import org.com.modules.group.domain.vo.req.InvitableFriendListReq;
 import org.com.modules.group.domain.vo.req.MemberInfoListReq;
 import org.com.modules.group.domain.vo.resp.ContactResp;
 import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
+import org.com.modules.group.domain.vo.resp.InvitableFriendResp;
 import org.com.modules.common.domain.vo.resp.PageResp;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.contact.mapper.GroupContactMapper;
 import org.com.modules.contact.domain.enums.SessionTypeEnum;
@@ -94,5 +97,12 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
                 .in(GroupContact::getUserId, userIdList)
                 .eq(GroupContact::getGroupId, groupId)
                 .list();
+    }
+
+    @SuppressWarnings("unchecked")
+    public PageResp<InvitableFriendResp> getInvitableFriendList(InvitableFriendListReq req){
+        Page<InvitableFriendResp> page = req.getPageReq().daoPage();
+        com.baomidou.mybatisplus.core.metadata.IPage<InvitableFriendResp> result = baseMapper.getInvitableFriendList(page, req);
+        return PageResp.init(result);
     }
 }

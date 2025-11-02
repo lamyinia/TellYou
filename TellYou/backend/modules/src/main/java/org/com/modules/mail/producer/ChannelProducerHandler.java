@@ -30,7 +30,13 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChannelProducerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChannelManagerUtil channelManagerUtil;
+
     private final RocketMQTemplate rocketMQTemplate;
+    /**
+     * 消费者
+     * @see
+     * org.com.modules.mail.consumer.ChatConsumer
+     */
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, TextWebSocketFrame textWebSocketFrame) throws Exception {

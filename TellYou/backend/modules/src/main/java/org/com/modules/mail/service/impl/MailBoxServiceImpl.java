@@ -8,9 +8,11 @@ import org.com.modules.mail.domain.document.MessageDoc;
 import org.com.modules.mail.domain.document.UserInBoxDoc;
 import org.com.modules.mail.domain.dto.AggregateDTO;
 import org.com.modules.mail.domain.dto.ChatDTO;
+import org.com.modules.mail.domain.enums.MessageTypeEnum;
 import org.com.modules.mail.service.MailBoxService;
 import org.com.modules.user.dao.UserInfoDao;
 import org.com.modules.user.domain.vo.resp.SimpleUserInfo;
+import org.com.tools.constant.ValueConstant;
 import org.springframework.beans.BeanUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
@@ -21,6 +23,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+/**
+ * 处理聊天消息相关的服务
+ * @author lanye
+ * @since 2025/11/02 23:00
+ */
 
 @Slf4j
 @Service
@@ -40,7 +48,6 @@ public class MailBoxServiceImpl implements MailBoxService {
             userInBoxDoc.setQuoteId(messageDoc.getMessageId());
             userInBoxDoc.setQuoteType(messageDoc.getMessageType());
             userInBoxDoc.setUserId(id);
-
             // 聊天信息的额外信息，会话自增 id
             Map<String, Object> extra = userInBoxDoc.getExtra();
             if (extra == null) extra = new HashMap<>();
@@ -56,15 +63,18 @@ public class MailBoxServiceImpl implements MailBoxService {
     }
 
     @Override
-    public Message<String> produceChatDTO(AggregateDTO aggregateDTO, List<Long> userIds) {
+    public Message<String> aggregateDTOConvertChatDTO(AggregateDTO aggregateDTO, List<Long> userIds) {
         List<SimpleUserInfo> baseInfoLists = userInfoDao.getBaseInfoList(userIds);
         String names = baseInfoLists.stream().map(SimpleUserInfo::getNickname).collect(Collectors.joining(","));
+        String content = names + MessageTypeEnum.of(aggregateDTO.getAggregateType()).getDesc();
+
         ChatDTO chatDTO = ChatDTO.builder()
                 .fromUserId(0L)
+                .timestamp(System.currentTimeMillis())
                 .targetId(aggregateDTO.getGroupId())
                 .sessionId(aggregateDTO.getSessionId())
                 .type(aggregateDTO.getAggregateType())
-                .content(userIds.toString())
+                .content(content)
                 .build();
 
         return MessageBuilder

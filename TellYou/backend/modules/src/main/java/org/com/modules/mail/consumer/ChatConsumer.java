@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 聊天室消费者。在多人群聊中，精准投递的主要开销主要是在路由表的开销，但如果是单聊，必须精准投递
+ * 聊天室消息消费者。在多人群聊中，精准投递的主要开销主要是在路由表的开销，但如果是单聊，必须精准投递
  * @业务逻辑
  * 1) 信息持久化在信箱(mongodb)；2) 通知在线的用户；3）多人群聊中，由于精准投递中写扩散中查路由表的开销很大，
  * 在节点不多的情况下，可以采取集群广播的方式(如果节点很多，当然也可以混合路由去优化)
@@ -47,7 +47,8 @@ public class ChatConsumer implements RocketMQListener<String> {
     private final MailBoxService mailBoxService;
     private final VerifyService verifyService;
 
-    private final Integer[] needGroup = {6, 7, 8, 9, 10, 51, 52};
+    public static final Integer[] needGroup = {21, 22, 23, 24, 25, 51, 52, 53, 54, 55};
+    public static final Integer[] noControl = {51, 52, 53, 54, 55};
     /**
      * @see
      * org.com.modules.mail.domain.enums.MessageTypeEnum
@@ -65,15 +66,17 @@ public class ChatConsumer implements RocketMQListener<String> {
     public void onMessage(String text) {
         ChatDTO req = JSON.parseObject(text, ChatDTO.class);
         ChatConsumer proxy = (ChatConsumer) ApplicationContextProvider.currentProxy();
-        proxy.consumeMessage(req);
+        if (ArrayUtil.contains(noControl, req.getType())){
+            this.consumeMessage(req);  // 不需要限流
+        } else {
+            proxy.consumeMessage(req);
+        }
     }
 
     @FlowControl(time = 10, count = 100, spEl = "#req.fromUserId", target = FlowControl.Target.EL)
     public void consumeMessage(ChatDTO req) {
         log.info("ChatConsumer 正在消费消息: {}", req.toString());
-        if (req.getType() == 51){
-            return;
-        }
+
         List<Long> uidList = getUidList(req);
         MessageDoc messageDoc = messageAdapter.buildMessage(req);
         mailBoxService.insertChatMessage(messageDoc, uidList);
@@ -86,7 +89,7 @@ public class ChatConsumer implements RocketMQListener<String> {
     private List<Long> getUidList(ChatDTO req) {
         if (ArrayUtil.contains(needGroup, req.getType())) {
             Set<Long> groupMembers = verifyService.getGroupMembers(req.getTargetId());
-            if (groupMembers == null || groupMembers.isEmpty() || !groupMembers.contains(req.getFromUserId())) {
+            if (groupMembers == null || groupMembers.isEmpty()) {
                 return List.of();
             }
 

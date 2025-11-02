@@ -10,7 +10,7 @@ class MessageService {
     ipcMain.handle("websocket:send", async (_, msg) => {
       console.log(msg);
       try {
-        channelUtil.sendText(msg);
+        await channelUtil.sendText(msg);
         console.log("发送成功");
         return true;
       } catch (error) {

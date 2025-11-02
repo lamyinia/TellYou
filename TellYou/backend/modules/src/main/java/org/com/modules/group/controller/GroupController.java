@@ -12,6 +12,7 @@ import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.contact.domain.entity.ContactApply;
 import org.com.modules.group.domain.vo.req.*;
 import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
+import org.com.modules.group.domain.vo.resp.InvitableFriendResp;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.contact.service.GroupContactService;
 import org.com.modules.group.service.GroupInfoService;
@@ -42,11 +43,20 @@ public class GroupController {
         return ApiResult.success(resp);
     }
 
+    // /group/member-info-list?groupId=...&fromUserId=...&pageReq.pageNo=1&pageReq.pageSize=25
     @GetMapping("/member-info-list")
-    @Operation(summary = "分页获取群成员信息（ID和角色）", 
+    @Operation(summary = "分页获取群成员信息（ID和角色）",
                description = "返回群成员的userId和role（包含分页信息），头像和昵称需要通过 /user-info/base-info-list 批量接口获取")
     public ApiResult<PageResp<GroupMemberInfoResp>> getMemberInfoList(@Check @Valid @ModelAttribute MemberInfoListReq req){
         PageResp<GroupMemberInfoResp> resp = groupInfoService.getMemberInfoList(req);
+        return ApiResult.success(resp);
+    }
+
+    @GetMapping("/invitable-friend-list")
+    @Operation(summary = "分页获取可邀请的好友列表",
+               description = "返回可邀请的好友ID列表（排除已在群内的好友和黑名单中的好友），头像和昵称需要通过 /user-info/base-info-list 批量接口获取")
+    public ApiResult<PageResp<InvitableFriendResp>> getInvitableFriendList(@Check @Valid @ModelAttribute InvitableFriendListReq req){
+        PageResp<InvitableFriendResp> resp = groupInfoService.getInvitableFriendList(req);
         return ApiResult.success(resp);
     }
 

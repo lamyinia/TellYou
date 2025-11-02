@@ -35,22 +35,18 @@ const adjustHeight = (): void => {
   textareaRef.value.style.height = Math.min(scrollHeight, maxHeight) + "px"
 }
 const sendMessage = async (): Promise<void> => {
-  const userStore = useUserStore();
-  const fromUserId = userStore.myId;
-  const current = props.currentContact;
-  if (!fromUserId || !current || !message.value) return;
+  const current = props.currentContact
+  if (!current || !message.value) return
 
   const payload = {
-    fromUserId,
-    targetId: current.contactId,
     sessionId: current.sessionId,
     content: message.value,
-  };
-  const success = await window.electronAPI.wsSend(payload);
+  }
+  const success = await window.electronAPI.wsSend(payload)
   if (success) {
-    message.value = "";
-    await nextTick();
-    emit("goBottom");
+    message.value = ""
+    await nextTick()
+    emit("goBottom")
   }
 }
 const onKeydown = async (e: KeyboardEvent): Promise<void> => {
@@ -82,10 +78,10 @@ const startRecording = async (): Promise<void> => {
         channelCount: 1,
         sampleSize: 16,
       },
-    });
+    })
 
     if (!audioConfig.success) {
-      throw new Error(audioConfig.error || "获取音频配置失败");
+      throw new Error(audioConfig.error || "获取音频配置失败")
     }
     console.log("Electron音频配置获取成功:", audioConfig)
     let stream: MediaStream
@@ -187,15 +183,12 @@ const handleAudioRecorded = async (audioBlob: Blob): Promise<void> => {
     blobSize: audioBlob.size,
     blobType: audioBlob.type,
   })
-};
+}
 
 const sendVoice = async (): Promise<void> => {
   if (!previewAudioBlob.value) return
   try {
-    await window.electronAPI.invoke(
-      "test",
-      await previewAudioBlob.value.arrayBuffer(),
-    )
+    await window.electronAPI.invoke("test",await previewAudioBlob.value.arrayBuffer())
     // 将Blob转换为ArrayBuffer以便传输
     // const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
     // const uint8Array = new Uint8Array(arrayBuffer)
@@ -242,7 +235,7 @@ const clearVoicePreview = (): void => {
   showVoicePreview.value = false
   previewAudioBlob.value = null
   previewDuration.value = 0
-};
+}
 
 watch(
   message,
