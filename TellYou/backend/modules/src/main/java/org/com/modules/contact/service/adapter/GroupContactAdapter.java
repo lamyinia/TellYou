@@ -1,5 +1,6 @@
 package org.com.modules.contact.service.adapter;
 
+import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.domain.entity.GroupContact;
 import org.com.tools.constant.ValueConstant;
 
@@ -13,6 +14,7 @@ public class GroupContactAdapter {
                 .contactVersion(ValueConstant.DEFAULT_VALUE)
                 .joinTime(ValueConstant.getDefaultDate())
                 .lastActive(ValueConstant.getDefaultDate())
+                .isDeleted(YesOrNoEnum.NO.getStatus())
                 .build();
     }
 }

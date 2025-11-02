@@ -8,8 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.annotation.Check;
 import org.com.modules.common.domain.vo.resp.ApiResult;
+import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.contact.domain.entity.ContactApply;
 import org.com.modules.group.domain.vo.req.*;
+import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.contact.service.GroupContactService;
 import org.com.modules.group.service.GroupInfoService;
@@ -41,9 +43,10 @@ public class GroupController {
     }
 
     @GetMapping("/member-info-list")
-    @Operation(summary = "分页获取群成员 ID")
-    public ApiResult<List<Long>> getMemberInfoList(@Check @Valid @ModelAttribute MemberInfoListReq req){
-        List<Long> resp = groupInfoService.getMemberInfoList(req);
+    @Operation(summary = "分页获取群成员信息（ID和角色）", 
+               description = "返回群成员的userId和role（包含分页信息），头像和昵称需要通过 /user-info/base-info-list 批量接口获取")
+    public ApiResult<PageResp<GroupMemberInfoResp>> getMemberInfoList(@Check @Valid @ModelAttribute MemberInfoListReq req){
+        PageResp<GroupMemberInfoResp> resp = groupInfoService.getMemberInfoList(req);
         return ApiResult.success(resp);
     }
 

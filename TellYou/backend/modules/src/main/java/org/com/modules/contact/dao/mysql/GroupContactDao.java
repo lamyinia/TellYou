@@ -6,6 +6,8 @@ import org.com.modules.common.domain.enums.YesOrNoEnum;
 import org.com.modules.contact.domain.entity.GroupContact;
 import org.com.modules.group.domain.vo.req.MemberInfoListReq;
 import org.com.modules.group.domain.vo.resp.ContactResp;
+import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
+import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.mail.cache.entity.GroupMemberInfo;
 import org.com.modules.contact.mapper.GroupContactMapper;
 import org.com.modules.contact.domain.enums.SessionTypeEnum;
@@ -67,17 +69,24 @@ public class GroupContactDao extends ServiceImpl<GroupContactMapper,GroupContact
     }
 
     @SuppressWarnings("unchecked")
-    public List<Long> getMemberInfoList(MemberInfoListReq req){
-        List<GroupContact> list = lambdaQuery()
+    public PageResp<GroupMemberInfoResp> getMemberInfoList(MemberInfoListReq req){
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<GroupContact> page = lambdaQuery()
                 .eq(GroupContact::getGroupId, req.getGroupId())
-                .select(GroupContact::getUserId)
+                .select(GroupContact::getUserId, GroupContact::getRole) // 同时查询userId和role
                 .eq(GroupContact::getIsDeleted, YesOrNoEnum.NO.getStatus())
-                .orderByDesc(GroupContact::getRole)
-                .orderByAsc(GroupContact::getLastActive)
-                .page(req.getPageReq().daoPage())
-                .getRecords();
+                .orderByDesc(GroupContact::getRole) // 先按角色排序（群主>管理员>成员）
+                .orderByAsc(GroupContact::getJoinTime) // 再按入群时间排序
+                .page(req.getPageReq().daoPage());
 
-        return list.stream().map(GroupContact::getUserId).toList();
+        List<GroupMemberInfoResp> list = page.getRecords().stream().map(contact -> 
+            GroupMemberInfoResp.builder()
+                .userId(contact.getUserId())
+                .role(contact.getRole())
+                .build()
+        ).toList();
+
+        // 返回分页信息
+        return PageResp.init(page, list);
     }
 
     public List<GroupContact> selectGroupContactByUserIdList(Long groupId, List<Long> userIdList){

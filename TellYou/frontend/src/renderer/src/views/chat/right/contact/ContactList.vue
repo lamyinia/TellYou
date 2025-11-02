@@ -85,6 +85,8 @@ const selectContact = (contact: Session): void => {
   padding: 0;
   position: relative;
   overflow: hidden;
+  flex: 1; /* 占满父容器，避免高度计算问题 */
+  min-height: 0; /* 允许 flex 收缩 */
 }
 
 .contact-bg::before {
@@ -227,8 +229,8 @@ const selectContact = (contact: Session): void => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 14px 14px 14px;
-  overflow-y: auto; /* 让该容器成为真正的滚动容器，便于自定义滚动条生效 */
+  padding: 14px 14px 50px 14px; /* 顶部14px，底部50px确保最后一个会话完全显示 */
+  overflow-y: auto; /* 唯一的滚动容器 */
   overflow-x: hidden;
   scrollbar-gutter: stable; /* 避免滚动条出现时布局抖动（Chromium/Edge/Electron 支持） */
   /* Firefox 自定义滚动条 */
@@ -241,8 +243,13 @@ const selectContact = (contact: Session): void => {
   box-shadow: none !important;
   flex: 1;
   min-height: 0;
-  padding-bottom: 12px;
+  padding-bottom: 0; /* 移除 v-list 的 padding-bottom，由父容器统一控制 */
   overflow: visible; /* 让父容器负责滚动，避免 vuetify 列表自身产生滚动条 */
+}
+
+/* 确保最后一个会话项完全可见 */
+.contact-list :deep(.v-list .v-list-item:last-child) {
+  margin-bottom: 6px; /* 确保最后一项的下边距不被裁剪 */
 }
 
 .contact-list::-webkit-scrollbar {

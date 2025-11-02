@@ -33,7 +33,7 @@ export enum Api {
   TRANSFER_OWNER = "/group/transfer-owner",
   ADD_MANAGER = "/group/add-manager",
   WITHDRAW_MANAGER = "/group/withdraw-manager",
-  GET_MEMBER_LIST = "/group/get-member-list",
+  GET_MEMBER_INFO_LIST = "/group/member-info-list",
 
   // 好友
   SEND_FRIEND_APPLY = "/contact/friend-send-apply",
@@ -110,7 +110,7 @@ class ProxyService {
         return objectUtil.errorResponse(e)
       }
     })
-    ipcMain.handle("proxy:application:accept-group-member-apply", async (_, params: any) => {
+    ipcMain.handle("proxy:application:accept-group-member-apply", async () => {
       return null
     })
     ipcMain.handle("proxy:group:create-group", async (_, params: { name: string } ) => {
@@ -203,10 +203,20 @@ class ProxyService {
         return objectUtil.errorResponse(e)
       }
     })
-    ipcMain.handle("proxy:group:get-member-list", async (_, params: { groupId: string }) => {
-      Object.assign(params, { fromUserId: store.get(uidKey) })
+    ipcMain.handle("proxy:group:get-member-list", async (_, params: { groupId: string, pageNo?: number, pageSize?: number }) => {
+      const queryParams: any = {
+        groupId: params.groupId,
+        fromUserId: store.get(uidKey)
+      }
+      // 构建分页参数，使用点号格式以匹配Spring的@ModelAttribute
+      if (params.pageNo || params.pageSize) {
+        queryParams["pageReq.pageNo"] = params.pageNo || 1
+        queryParams["pageReq.pageSize"] = params.pageSize || 25
+      }
       try {
-        const response = await netMaster.get(Api.GET_MEMBER_LIST, params)
+        const response = await netMaster.get(Api.GET_MEMBER_INFO_LIST, {
+          params: queryParams
+        })
         return response.data
       } catch (e: any) {
         return objectUtil.errorResponse(e)

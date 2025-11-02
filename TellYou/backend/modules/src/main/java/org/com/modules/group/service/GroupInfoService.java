@@ -1,7 +1,9 @@
 package org.com.modules.group.service;
 
+import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.contact.domain.entity.ContactApply;
 import org.com.modules.group.domain.vo.req.*;
+import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 
 import java.util.List;
@@ -21,7 +23,7 @@ public interface GroupInfoService {
 
     SimpleGroupInfoList getBaseInfoList(List<Long> groupIds);
 
-    List<Long> getMemberInfoList(MemberInfoListReq req);
+    PageResp<GroupMemberInfoResp> getMemberInfoList(MemberInfoListReq req);
 
     List<ContactApply> getGroupApply(GroupApplyListReq req);
 }

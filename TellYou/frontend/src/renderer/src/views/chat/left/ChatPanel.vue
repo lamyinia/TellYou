@@ -10,6 +10,8 @@ import VideoMessage from "@renderer/views/chat/left/message/VideoMessage.vue"
 import VoiceMessage from "@renderer/views/chat/left/message/VoiceMessage.vue"
 import FileMessage from "@renderer/views/chat/left/message/FileMessage.vue"
 import MessageSendBox from "@renderer/views/chat/left/send/MessageSendBox.vue"
+import MemberDrawer from "@renderer/views/chat/group/MemberDrawer.vue"
+import membersIcon from "@renderer/assets/group/members.svg"
 
 const props = defineProps<{ currentContact: Session | null }>()
 const contactName = computed(() => props.currentContact?.contactName || "")
@@ -18,6 +20,13 @@ const currentSessionId = computed(() => props.currentContact?.sessionId || "")
 const listRef = ref<HTMLElement | null>(null)
 const isFirstLoad = ref(true)
 const preloadThreshold = 80
+const memberDrawerOpen = ref(false)
+
+const isGroupChat = computed(() => props.currentContact?.contactType === 2)
+
+const toggleMemberDrawer = (): void => {
+  memberDrawerOpen.value = !memberDrawerOpen.value
+}
 
 // 简单防抖工具，避免高频滚动触发加载
 const debounce = <T extends (...args: any[]) => void>(
@@ -118,6 +127,14 @@ const onScroll = debounce(() => {
 <template>
   <div class="star-panel-bg">
     <div class="star-header">
+      <button
+        v-if="isGroupChat"
+        class="member-icon-btn"
+        @click="toggleMemberDrawer"
+        title="群成员"
+      >
+        <img :src="membersIcon" alt="成员" class="member-icon" />
+      </button>
       <div class="star-title">{{ contactName }}</div>
     </div>
 
@@ -133,6 +150,11 @@ const onScroll = debounce(() => {
     </div>
 
     <MessageSendBox :current-contact="currentContact" @go-bottom="goToBottom" />
+
+    <MemberDrawer
+      v-model="memberDrawerOpen"
+      :current-contact="currentContact"
+    />
   </div>
 </template>
 
@@ -155,12 +177,41 @@ const onScroll = debounce(() => {
   background: linear-gradient(135deg, #1a237e 0%, #0d133d 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
+.member-icon-btn {
+  background: rgba(213, 133, 133, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.member-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+.member-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  /* 使用 filter 将黑色图标转换为白色，使其更醒目 */
+  filter: brightness(0) invert(1);
+  transition: filter 0.2s;
+}
+.member-icon-btn:hover .member-icon {
+  /* hover 时使用更亮的颜色 */
+  filter: brightness(0) invert(1) brightness(1.2);
+}
 .star-title {
   color: #fff;
   font-size: 1.4rem;
   font-weight: bold;
   letter-spacing: 2px;
   text-shadow: 0 2px 8px #000;
+  text-align: right;
 }
 .star-messages {
   flex: 1;

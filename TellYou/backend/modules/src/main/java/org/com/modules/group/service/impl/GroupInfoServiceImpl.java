@@ -15,7 +15,9 @@ import org.com.modules.group.dao.mysql.GroupInfoDao;
 import org.com.modules.contact.dao.mongodb.SessionDocDao;
 import org.com.modules.group.domain.entity.GroupInfo;
 import org.com.modules.group.domain.enums.GroupRoleEnum;
+import org.com.modules.common.domain.vo.resp.PageResp;
 import org.com.modules.group.domain.vo.req.*;
+import org.com.modules.group.domain.vo.resp.GroupMemberInfoResp;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfo;
 import org.com.modules.group.domain.vo.resp.SimpleGroupInfoList;
 import org.com.modules.group.service.GroupInfoService;
@@ -109,7 +111,7 @@ public class GroupInfoServiceImpl implements GroupInfoService {
     }
 
     @Override
-    public List<Long> getMemberInfoList(MemberInfoListReq req) {
+    public PageResp<GroupMemberInfoResp> getMemberInfoList(MemberInfoListReq req) {
         return groupContactDao.getMemberInfoList(req);
     }
 

@@ -22,14 +22,14 @@ const showList = ref<BaseInfo[]>([])
 const selectUserId = ref<string>("")
 
 const searchEvent = async (): Promise<void> => {
-  showList.value.splice(0, showList.value.length);
+  showList.value.splice(0, showList.value.length)
   if (keyword.value.trim() === "" || keyword.value.length !== 19) {
-    return;
+    return
   }
   const data = await window.electronAPI.invoke("proxy:search:user-or-group", {
     contactId: keyword.value,
     contactType: 1,
-  });
+  })
   if (data && data.userId > 0) {
     showList.value.push({
       keyId: data.userId,
@@ -38,38 +38,38 @@ const searchEvent = async (): Promise<void> => {
       avatar: data.avatar,
       signature: data.signature,
       sex: data.sex === 0 ? "女" : "男",
-    });
-    console.log("search-page:search-result:", data);
+    })
+    console.log("search-page:search-result:", data)
   } else {
-    emit("notify", "查询失败", "info");
+    emit("notify", "查询失败", "info")
   }
-};
+}
 const handleSelect = (userId: string): void => {
-  selectUserId.value = userId;
-};
+  selectUserId.value = userId
+}
 const sendRequest = async (): Promise<void> => {
   if (!selectUserId.value) {
-    emit("notify", "请先选择一个用户", "error");
-    return;
+    emit("notify", "请先选择一个用户", "error")
+    return
   }
   try {
     const description =
-      remark.value.trim() === "" ? "发起好友申请" : remark.value;
-    const payload = { contactId: selectUserId.value, description };
+      remark.value.trim() === "" ? "发起好友申请" : remark.value
+    const payload = { contactId: selectUserId.value, description }
     const response = await window.electronAPI.invoke(
       "proxy:application:send-user",
       payload,
-    );
-    console.log("search-page:send-result", response);
+    )
+    console.log("search-page:send-result", response)
     if (response.success) {
-      emit("notify", "发送成功", "success");
+      emit("notify", "发送成功", "success")
     } else {
-      emit("notify", response.errMsg, "error");
+      emit("notify", response.errMsg, "error")
     }
   } catch (error) {
-    console.log("search-page:send-error:", error);
+    console.log("search-page:send-error:", error)
   }
-};
+}
 </script>
 
 <template>

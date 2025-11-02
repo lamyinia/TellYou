@@ -85,13 +85,13 @@ onMounted(() => {
   background: rgba(24, 28, 70, 0.92);
   border-left: 1px solid #2c2f4a;
   color: #fff;
-  overflow-y: auto;
-  height: 100vh;
+  overflow: hidden; /* 移除滚动，让内部 .contact-list 处理滚动 */
+  height: calc(100vh - 32px); /* 减去底部 margin，确保内容不被裁剪 */
   border-radius: 0 18px 18px 0;
   margin: 0px 0px 32px 0;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
   display: flex;
-  align-items: flex-start;
-  padding-top: 2px; /* 移除顶部空隙 */
+  flex-direction: column;
+  padding: 0; /* 移除所有 padding，让内部组件控制 */
 }
 </style>
