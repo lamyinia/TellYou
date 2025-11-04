@@ -68,7 +68,6 @@ public class SignServiceImpl implements SignService {
         String thumbnailObjectName = URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + next + StrUtil.SLASH
                 + ValueConstant.SINGLE_FILE + suffix2;
 
-        // 使用安全的预签名URL生成
         String originalContentType = UrlUtil.getMimeType(suffix1);
         String thumbnailContentType = UrlUtil.getMimeType(suffix2);
 

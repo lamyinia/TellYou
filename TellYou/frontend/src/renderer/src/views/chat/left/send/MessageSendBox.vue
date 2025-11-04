@@ -7,9 +7,17 @@ import VoicePreview from "@renderer/views/chat/left/send/VoicePreview.vue"
 import EmojiPicker from "@renderer/components/EmojiPicker.vue"
 import { Session } from "@shared/types/session"
 import { useUserStore } from "@main/electron-store/persist/user-store"
+import { useSessionStore } from "@renderer/status/session/store"
 
 const props = defineProps<{ currentContact: Session | null }>()
 const emit = defineEmits<{ (e: "goBottom"): void }>()
+
+// 获取当前会话信息
+const sessionStore = useSessionStore()
+const currentSession = computed(() => {
+  const sessionId = sessionStore.currentSessionId
+  return sessionId ? sessionStore.getSession(sessionId) : null
+})
 
 const message = ref("")
 const disabled = computed(() => !message.value || !props.currentContact)
@@ -35,16 +43,16 @@ const adjustHeight = (): void => {
   const originalValue = textareaRef.value.value
   const trimmedValue = originalValue.replace(/\s+$/, "")
   const hasTrailingSpaces = originalValue !== trimmedValue
-  
+
   if (hasTrailingSpaces) {
     textareaRef.value.value = trimmedValue
   }
-  
+
   textareaRef.value.style.height = "auto"
   const scrollHeight = textareaRef.value.scrollHeight
   const maxHeight = 5 * 1.6 * 14 + 20 // 5行 * 行高 * 字体大小 + 内边距
   textareaRef.value.style.height = Math.min(scrollHeight, maxHeight) + "px"
-  
+
   // 恢复原始值（包括尾随空格）
   if (hasTrailingSpaces) {
     textareaRef.value.value = originalValue
@@ -92,8 +100,8 @@ const startRecording = async (): Promise<void> => {
         autoGainControl: true,
         sampleRate: 44100,
         channelCount: 1,
-        sampleSize: 16,
-      },
+        sampleSize: 16
+      }
     })
 
     if (!audioConfig.success) {
@@ -203,44 +211,57 @@ const handleAudioRecorded = async (audioBlob: Blob): Promise<void> => {
 
 const sendVoice = async (): Promise<void> => {
   if (!previewAudioBlob.value) return
+  
+  const session = currentSession.value
+  if (!session) {
+    error.value = "未选择聊天对象"
+    return
+  }
+  
   try {
-    await window.electronAPI.invoke("test",await previewAudioBlob.value.arrayBuffer())
-    // 将Blob转换为ArrayBuffer以便传输
-    // const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
-    // const uint8Array = new Uint8Array(arrayBuffer)
-    // const userStore = useUserStore()
-    // const fromUId = userStore.myId
-    // const current = props.currentContact
-    // if (!fromUId || !current) {
-    //   error.value = '发送失败：用户信息或联系人信息缺失'
-    //   return
-    // }
-    // const voicePayload = {
-    //   fromUId,
-    //   toUserId: current.contactId,
-    //   sessionId: current.sessionId,
-    //   messageType: 'voice',
-    //   voiceData: Array.from(uint8Array), // 转换为普通数组以便序列化
-    //   duration: previewDuration.value,
-    //   mimeType: previewAudioBlob.value.type || 'audio/webm'
-    // }
-    // console.log('发送语音消息:', {
-    //   size: previewAudioBlob.value.size,
-    //   duration: previewDuration.value,
-    //   type: previewAudioBlob.value.type
-    // })
-    //
-    // // 通过WebSocket发送语音消息
-    // const success = await window.electronAPI.wsSend(voicePayload)
-    //
-    // if (success) {
-    //   clearVoicePreview()
-    //   emit('goBottom')
-    // } else {
-    //   error.value = '语音发送失败，请重试'
-    // }
-  } catch (err) {
-    error.value = "语音发送失败"
+    // 将Blob转换为数组以便传输
+    const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    const blobData = Array.from(uint8Array)
+    
+    // 获取文件扩展名
+    const mimeType = previewAudioBlob.value.type || 'audio/webm'
+    const extName = mimeType.includes('webm') ? '.webm' : '.wav'
+    
+    console.log('开始保存语音文件:', {
+      size: previewAudioBlob.value.size,
+      duration: previewDuration.value,
+      type: mimeType
+    })
+    
+    // 保存Blob到本地文件
+    const saveResult = await window.electronAPI.invoke('device:save-voice', {blobData, extName})
+    if (!saveResult.success) {
+      throw new Error(saveResult.error || '保存语音文件失败')
+    }
+    
+    console.log('语音文件保存成功:', saveResult.filePath)
+    
+    // 发送上传请求
+    const payload = {
+      filePath: saveResult.filePath,
+      mediaType: 'voice',
+      chat: {
+        targetId: session.contactId,
+        contactType: session.contactType,
+        sessionId: session.sessionId
+      }
+    }
+    
+    console.log('发送语音消息:', payload)
+    window.electronAPI.send('media:send:start', payload)
+    
+    // 清理预览状态
+    clearVoicePreview()
+    emit('goBottom')
+    
+  } catch (err: any) {
+    error.value = err.message || "语音发送失败"
     console.error("语音发送失败:", err)
   }
 }
@@ -259,15 +280,15 @@ const toggleEmojiPicker = (): void => {
 
 const insertEmoji = (emoji: string): void => {
   if (!textareaRef.value) return
-  
+
   const textarea = textareaRef.value
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const text = message.value
-  
+
   // 在光标位置插入emoji
   message.value = text.slice(0, start) + emoji + text.slice(end)
-  
+
   // 恢复光标位置（emoji后面）
   nextTick(() => {
     if (textarea) {
@@ -279,12 +300,9 @@ const insertEmoji = (emoji: string): void => {
   })
 }
 
-watch(
-  message,
-  () => {
+watch(message, () => {
     nextTick(() => adjustHeight())
-  },
-  { immediate: true },
+  }, { immediate: true }
 )
 </script>
 

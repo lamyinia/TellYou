@@ -1,11 +1,18 @@
 <script setup lang="ts">
 /* eslint-disable */
 
-import { ref } from "vue"
+import { ref, computed } from "vue"
+import { useSessionStore } from "@renderer/status/session/store"
+import { Session } from "@shared/types/session"
 
-const props = defineProps<{ currentContact?: any }>()
+const props = defineProps<{ currentContact?: Session }>()
 
 const emit = defineEmits<{ (e: "sent"): void }>()
+
+// 获取当前会话信息
+const currentSession = computed(() => {
+  return props.currentContact
+})
 
 const selectedFiles = ref<File[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -19,10 +26,7 @@ const handleFileSelect = (event: Event) => {
   if (!files || files.length === 0) return
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    const isDuplicate = selectedFiles.value.some(
-      (existingFile) =>
-        existingFile.name === file.name && existingFile.size === file.size,
-    );
+    const isDuplicate = selectedFiles.value.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size)
     if (!isDuplicate) {
       selectedFiles.value.push(file)
     }
@@ -39,6 +43,23 @@ const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
 }
+
+// 检测文件媒体类型
+const detectMediaType = (file: File): string => {
+  const mimeType = file.type.toLowerCase()
+  const fileName = file.name.toLowerCase()
+  if (mimeType.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|avif)$/.test(fileName)) {
+    return 'image'
+  }
+  if (mimeType.startsWith('video/') || /\.(mp4|avi|mov|wmv|flv|webm|mkv)$/.test(fileName)) {
+    return 'video'
+  }
+  // 音频类型 (注意：这里是文件类型的音频，不是语音录制)
+  if (mimeType.startsWith('audio/') || /\.(mp3|wav|ogg|aac|flac|m4a)$/.test(fileName)) {
+    return 'file' // 按照需求，音频文件也归类为file
+  }
+  return 'file'
+}
 const removeFile = (index: number): void => {
   selectedFiles.value.splice(index, 1)
 }
@@ -48,6 +69,13 @@ const clearAllFiles = (): void => {
 }
 const sendAllFiles = async (): Promise<void> => {
   if (selectedFiles.value.length === 0) return
+
+  const session = currentSession.value
+  if (!session) {
+    error.value = "未选择聊天对象"
+    return
+  }
+
   try {
     console.log("开始发送文件:", selectedFiles.value.length, "个文件")
     const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100mb
@@ -59,34 +87,40 @@ const sendAllFiles = async (): Promise<void> => {
     }
     for (const file of selectedFiles.value) {
       console.log(`处理文件: ${file.name}, 大小: ${formatFileSize(file.size)}`)
-      const arrayBuffer = await file.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      const filePayload = {
-        messageType: "file",
+
+      const mediaType = detectMediaType(file)
+
+      // 读取文件内容为ArrayBuffer
+      const fileBuffer = await file.arrayBuffer()
+
+      const payload = {
         fileName: file.name,
+        fileBuffer: fileBuffer,
         fileSize: file.size,
-        mimeType: file.type || "application/octet-stream",
-        fileData: Array.from(uint8Array),
-        timestamp: Date.now(),
+        mimeType: file.type,
+        mediaType: mediaType,
+        chat: {
+          targetId: session.contactId,
+          contactType: session.contactType,
+          sessionId: session.sessionId
+        }
       }
-      console.log(`发送文件消息:`, {
-        path: file.path,
+
+      console.log(`发送${mediaType}消息:`, {
         name: file.name,
         size: file.size,
         type: file.type,
+        mediaType
       })
 
-      // 这里可以调用具体的文件发送API
-      // const success = await window.electronAPI.sendFile(filePayload)
-      // if (!success) {
-      //   throw new Error(`文件 "${file.name}" 发送失败`)
-      // }
+      window.electronAPI.send("media:send:start-by-buffer", payload)
     }
+
     console.log("所有文件发送完成")
     clearAllFiles()
     emit("sent")
-  } catch (err) {
-    error.value = "发送失败"
+  } catch (err: any) {
+    error.value = err.message || "发送失败"
     console.error("文件发送失败:", err)
   }
 }

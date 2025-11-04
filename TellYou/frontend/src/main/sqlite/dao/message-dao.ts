@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { insertOrIgnore, queryAll, update } from "../atom";
+import { insertOrIgnore, queryAll, update, sqliteRun, sqliteInsert } from "../atom";
 import messageAdapter from "../adapter/message-adapter";
 
 type MessageQueryOptions = {
@@ -13,7 +13,7 @@ type MessageRow = {
   id: number
   sessionId: string
   sequenceId: string
-  senderId: string;
+  senderId: string
   senderName: string
   msgType: number
   isRecalled: number
@@ -40,10 +40,7 @@ class MessageDao {
     return rows[0].id
   }
 
-  public async getMessageBySessionId(
-    sessionId: string,
-    options: MessageQueryOptions
-  ): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
+  public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
     try {
       const limit = Number(options?.limit) || 50
       const direction: "newest" | "older" | "newer" =
@@ -115,6 +112,83 @@ class MessageDao {
     } catch (error) {
       console.error("更新扩展数据失败:", error)
     }
+  }
+
+  // 插入上传中消息
+  public async insertUploadingMessage(params: {
+    sessionId: string,
+    msgId: string,
+    sequenceId: string,
+    senderId: string,
+    senderName: string,
+    msgType: number,
+    text: string,
+    extData: string,
+    sendTime: string
+  }): Promise<number> {
+    const sql = `
+      INSERT INTO messages (session_id, msg_id, sequence_id, sender_id, sender_name, msg_type, text, ext_data, send_time, is_read)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    `
+    const lastID = await sqliteInsert(sql, [
+      params.sessionId,
+      params.msgId,
+      params.sequenceId,
+      params.senderId, 
+      params.senderName,
+      params.msgType,
+      params.text,
+      params.extData,
+      params.sendTime
+    ])
+    return lastID
+  }
+
+  // 通过objectName查找消息
+  public async findByObjectName(objectName: string): Promise<MessageRow | null> {
+    const sql = "SELECT * FROM messages WHERE text = ? AND msg_type = 0"
+    const rows = await queryAll(sql, [objectName]) as MessageRow[]
+    return rows[0] || null
+  }
+
+  // 更新消息状态
+  public async updateMessageType(id: number, msgType: number): Promise<void> {
+    const sql = "UPDATE messages SET msg_type = ? WHERE id = ?"
+    await sqliteRun(sql, [msgType, id])
+  }
+
+  // 通过ID获取消息
+  public async getById(id: number): Promise<MessageRow | null> {
+    const sql = "SELECT * FROM messages WHERE id = ?"
+    const rows = await queryAll(sql, [id]) as MessageRow[]
+    return rows[0] || null
+  }
+
+  // WebSocket回填消息数据
+  public async updateMessageFromWebSocket(id: number, wsMessage: any): Promise<void> {
+    const sql = `
+      UPDATE messages 
+      SET msg_type = ?, sequence_id = ?, ext_data = ?, send_time = ?
+      WHERE id = ?
+    `
+    
+    // 合并ext_data
+    const currentRow = await this.getById(id)
+    const currentExtData = JSON.parse(currentRow?.extData || '{}')
+    const newExtData = {
+      ...currentExtData,
+      originalPath: wsMessage.originalPath,
+      thumbnailPath: wsMessage.thumbnailPath,
+      sequenceId: wsMessage.sequenceId
+    }
+    
+    await sqliteRun(sql, [
+      wsMessage.msgType, // 2 for image
+      wsMessage.sequenceId,
+      JSON.stringify(newExtData),
+      wsMessage.sendTime,
+      id
+    ])
   }
 }
 const messageDao = new MessageDao()

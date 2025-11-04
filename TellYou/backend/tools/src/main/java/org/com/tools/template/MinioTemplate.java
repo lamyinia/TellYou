@@ -147,7 +147,7 @@ public class MinioTemplate {
 
     /**
      * 生成安全的预签名URL（带Content-Type约束）
-     * 
+     *
      * 注意：MinIO预签名URL本身不支持文件大小限制，maxFileSize参数主要用于：
      * 1. 参数验证和日志记录
      * 2. 配合UploadSecurityUtil在上传确认时进行大小验证
@@ -167,7 +167,7 @@ public class MinioTemplate {
         if (StrUtil.isBlank(contentType)) {
             throw new IllegalArgumentException("Content-Type不能为空");
         }
-        if (maxFileSize <= 0 || maxFileSize > 100 * 1024 * 1024) { // 最大100MB
+        if (maxFileSize <= 0 || maxFileSize > 100 * 1024 * 1024) {
             throw new IllegalArgumentException("文件大小必须在1字节到100MB之间");
         }
         if (expirySeconds <= 0 || expirySeconds > 300) { // 最大5分钟
@@ -175,10 +175,8 @@ public class MinioTemplate {
         }
 
         try {
-            //  使用extraHeaders强制Content-Type验证
             Map<String, String> extraHeaders = new HashMap<>();
             extraHeaders.put("Content-Type", contentType);
-            //  额外的查询参数用于验证
             Map<String, String> extraQueryParams = new HashMap<>();
             extraQueryParams.put("response-content-type", contentType);
 

@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VerifyService {
+public class MultiLevelCacheService {
     private final LocalCache localCache;
     private final DistributedCache distributedCache;
     private final GroupInfoDao groupInfoDao;

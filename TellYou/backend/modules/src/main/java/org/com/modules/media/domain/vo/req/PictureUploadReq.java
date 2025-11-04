@@ -25,8 +25,8 @@ public class PictureUploadReq {
     private Long fileSize;
 
     @NotNull(message = "文件后缀不能为空")
-    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp)$",
-            message = "图片文件格式只支持 .png, .jpg, .jpeg, .gif, .webp")
+    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp|avif)$",
+            message = "图片文件格式只支持 .png, .jpg, .jpeg, .gif, .webp, .avif")
     @Schema(description = "文件后缀")
     private String fileSuffix;
 

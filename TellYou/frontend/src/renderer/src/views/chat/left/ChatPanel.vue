@@ -10,6 +10,8 @@ import VideoMessage from "@renderer/views/chat/left/message/VideoMessage.vue"
 import VoiceMessage from "@renderer/views/chat/left/message/VoiceMessage.vue"
 import FileMessage from "@renderer/views/chat/left/message/FileMessage.vue"
 import SystemMessage from "@renderer/views/chat/left/message/SystemMessage.vue"
+import UploadingMessage from "@renderer/views/chat/left/message/UploadingMessage.vue"
+import FailUploadedMessage from "@renderer/views/chat/left/message/FailUploadedMessage.vue"
 import MessageSendBox from "@renderer/views/chat/left/send/MessageSendBox.vue"
 import MemberDrawer from "@renderer/views/chat/group/MemberDrawer.vue"
 import InvitableDrawer from "@renderer/views/chat/group/InvitableDrawer.vue"
@@ -154,6 +156,8 @@ const onScroll = debounce(() => {
     <div ref="listRef" class="star-messages" @scroll="onScroll">
       <template v-for="msg in displayedMessages" :key="msg.id">
         <SystemMessage v-if="msg.messageType === 'system'" :message="msg" />
+        <UploadingMessage v-else-if="msg.messageType === 'uploading'" :message="msg" />
+        <FailUploadedMessage v-else-if="msg.messageType === 'upload_failed'" :message="msg" />
         <TextMessage v-else-if="msg.messageType === 'text'" :message="msg" />
         <ImageMessage v-else-if="msg.messageType === 'image'" :message="msg" />
         <VideoMessage v-else-if="msg.messageType === 'video'" :message="msg" />

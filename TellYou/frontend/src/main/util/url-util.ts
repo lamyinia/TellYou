@@ -156,6 +156,12 @@ class UrlUtil {
     this.ensureDir(todayPath);
     return todayPath;
   }
+
+  public generateFilePath(host: string, extName: string): string {
+    const today = new Date().toISOString().split("T")[0]
+    const todayPath = join(this.cachePaths[host], today)
+    return todayPath + '/' + Date.now() + extName
+  }
 }
 
 const urlUtil: UrlUtil = new UrlUtil();

@@ -12,7 +12,7 @@ import org.com.modules.common.annotation.FlowControl;
 import org.com.modules.common.util.ApplicationContextProvider;
 import org.com.modules.deliver.event.ChatSendEvent;
 import org.com.modules.group.service.adapter.MessageAdapter;
-import org.com.modules.mail.cache.VerifyService;
+import org.com.modules.mail.cache.MultiLevelCacheService;
 import org.com.modules.mail.domain.document.MessageDoc;
 import org.com.modules.mail.domain.dto.ChatDTO;
 import org.com.modules.mail.service.MailBoxService;
@@ -45,7 +45,7 @@ public class ChatConsumer implements RocketMQListener<String> {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final MessageAdapter messageAdapter;
     private final MailBoxService mailBoxService;
-    private final VerifyService verifyService;
+    private final MultiLevelCacheService multiLevelCacheService;
 
     public static final Integer[] needGroup = {21, 22, 23, 24, 25, 51, 52, 53, 54, 55};
     public static final Integer[] noControl = {51, 52, 53, 54, 55};
@@ -76,7 +76,7 @@ public class ChatConsumer implements RocketMQListener<String> {
     public void consumeMessage(ChatDTO req) {
         log.info("ChatConsumer 正在消费消息: {}", req.toString());
 
-        List<Long> uidList = getUidList(req);
+        List<Long> uidList = getUserIdList(req);
         MessageDoc messageDoc = messageAdapter.buildMessage(req);
         mailBoxService.insertChatMessage(messageDoc, uidList);
         applicationEventPublisher.publishEvent(new ChatSendEvent(this, messageDoc, uidList));
@@ -85,9 +85,9 @@ public class ChatConsumer implements RocketMQListener<String> {
     /**
      * 用户发消息，校验用户对会话的权限，如果非法，发布异步事件通知客户端
      */
-    private List<Long> getUidList(ChatDTO req) {
+    private List<Long> getUserIdList(ChatDTO req) {
         if (ArrayUtil.contains(needGroup, req.getType())) {
-            Set<Long> groupMembers = verifyService.getGroupMembers(req.getTargetId());
+            Set<Long> groupMembers = multiLevelCacheService.getGroupMembers(req.getTargetId());
             if (groupMembers == null || groupMembers.isEmpty()) {
                 return List.of();
             }

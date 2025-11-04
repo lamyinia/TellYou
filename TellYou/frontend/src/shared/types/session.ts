@@ -33,7 +33,7 @@ export interface Message {
   id: number;
   sessionId: string;
   content: string;
-  messageType: "text" | "image" | "video" | "voice" | "file" | "system";
+  messageType: "text" | "image" | "video" | "voice" | "file" | "system" | "uploading" | "upload_failed";
   senderId: string;
   senderName: string;
   timestamp: Date;

@@ -1,35 +1,37 @@
+/* eslint-disable */
+
 export interface ChatMessage {
-  id: number;
-  sessionId: string;
-  content: string;
-  messageType: "text" | "image" | "file" | "system" | "voice" | "video";
-  senderId: string;
-  senderName: string;
-  avatarVersion: string;
-  nicknameVersion: string;
-  timestamp: Date;
-  isRead: boolean;
+  id: number
+  sessionId: string
+  content: string
+  messageType: "text" | "image" | "file" | "system" | "voice" | "video" | "uploading" | "upload_failed"
+  senderId: string
+  senderName: string
+  avatarVersion: string
+  nicknameVersion: string
+  timestamp: Date
+  isRead: boolean
 }
 
 export interface MessagePageInfo {
-  sessionId: string;
-  hasMore: boolean;
-  hasMoreNewer: boolean;
-  oldestMessageId: number | null;
-  newestMessageId: number | null;
-  totalCount: number;
+  sessionId: string
+  hasMore: boolean
+  hasMoreNewer: boolean
+  oldestMessageId: number | null
+  newestMessageId: number | null
+  totalCount: number
 }
 
 export interface MessageCacheConfig {
-  maxMessagesPerSession: number;
-  maxCachedSessions: number;
-  pageSize: number;
-  preloadThreshold: number;
-  cacheExpireTime: number;
+  maxMessagesPerSession: number
+  maxCachedSessions: number
+  pageSize: number
+  preloadThreshold: number
+  cacheExpireTime: number
 }
 
 export interface MessagesResponse {
-  messages: ChatMessage[];
-  hasMore: boolean;
-  totalCount: number;
+  messages: ChatMessage[]
+  hasMore: boolean
+  totalCount: number
 }

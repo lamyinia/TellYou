@@ -67,8 +67,10 @@ class MessageAdapter {
    */
   public adaptMessageRowToMessage(row: any): Message {
     const extData = JSON.parse(row.extData || "{}")
-    const getMessageType = (msgType: number): "text" | "image" | "video" | "voice" | "file" | "system" => {
+    const getMessageType = (msgType: number): "text" | "image" | "video" | "voice" | "file" | "system" | "uploading" | "upload_failed" => {
       switch (msgType) {
+        case 0: return "uploading"
+        case -1: return "upload_failed"
         case 1:
         case 21:
           return "text"

@@ -2,7 +2,6 @@ package org.com.modules.deliver.domain.vo.push;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -21,8 +20,11 @@ public class PushedChat implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long sequenceNumber;
 
-    @Schema(description="消息类型：1文本 2图片 3语音 4视频 5文件 6红包")
     private Integer messageType;
+    /**
+     * @see
+     * org.com.modules.mail.domain.enums.MessageTypeEnum
+     */
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long senderId;

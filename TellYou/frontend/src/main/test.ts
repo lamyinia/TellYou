@@ -1,8 +1,10 @@
+/* eslint-disable */
+
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
-import log from "electron-log";
-import urlUtil from "@main/util/url-util";
+import { mediaUtil } from "./util/media-util";
+import log from 'electron-log'
 
 const measureTime = (label: string) => {
   const startTime = Date.now();
@@ -161,135 +163,25 @@ const test_video_preview = async () => {
 };
 
 export const test = async (blob: ArrayBuffer): Promise<void> => {
-  console.log("=== 开始分析录音文件 ===");
-  console.log("接收到的ArrayBuffer大小:", blob.byteLength, "bytes");
+  try {
+    const inputPath = 'D:\\multi-media-material\\video\\ailun.mp4'
+    const outputPath = 'D:\\multi-media-material\\compress\\ailun_out.avif'
 
-  const inputPath: string = "D:/multi-media-material/temp/input.webm";
-  const outPutPath: string =
-    "D:/multi-media-material/compress/audio_compressed.webm";
-  urlUtil.ensureDir(path.dirname(inputPath));
-  const buffer = Buffer.from(blob);
-  console.log("转换后的Buffer大小:", buffer.length, "bytes");
+    console.log('开始处理视频文件:', inputPath)
+    const mediaFile = await mediaUtil.getNormal(inputPath)
+    console.log('媒体文件信息:', {
+      size: mediaFile.buffer.length,
+      mimeType: mediaFile.mimeType
+    })
 
-  // fs.writeFileSync(inputPath, buffer)
+    const result = await mediaUtil.generateVideoThumbnail(mediaFile)
 
-  // 使用FFmpeg压缩音频
-  await compressAudio(inputPath, outPutPath);
-};
 
-// 音频压缩函数
-export const compressAudio = async (
-  inputPath: string,
-  outputPath: string,
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    // 检查输入文件是否存在
-    if (!fs.existsSync(inputPath)) {
-      reject(new Error(`输入文件不存在: ${inputPath}`));
-      return;
-    }
+    fs.writeFileSync(outputPath, result.thumbnailBuffer)
+    console.log('缩略图已保存到:', outputPath)
 
-    // 检查输入文件大小
-    const inputStats = fs.statSync(inputPath);
-    console.log(`输入文件大小: ${(inputStats.size / 1024).toFixed(1)}KB`);
-
-    if (inputStats.size === 0) {
-      reject(new Error("输入文件为空"));
-      return;
-    }
-
-    // 确保输出目录存在
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    // 删除已存在的输出文件
-    if (fs.existsSync(outputPath)) {
-      fs.unlinkSync(outputPath);
-    }
-
-    console.log("开始FFmpeg压缩...");
-    console.log("输入文件:", inputPath);
-    console.log("输出文件:", outputPath);
-
-    ffmpeg(inputPath)
-      .audioCodec("libopus") // 使用Opus编解码器
-      .audioBitrate("24k") // 设置比特率为24kbps
-      .audioFrequency(16000) // 采样率16kHz（语音质量）
-      .audioChannels(1) // 单声道
-      .format("webm") // 输出格式
-      .outputOptions([
-        "-avoid_negative_ts",
-        "make_zero", // 避免负时间戳
-        "-fflags",
-        "+genpts", // 生成PTS
-      ])
-      .on("start", (commandLine) => {
-        console.log("FFmpeg命令:", commandLine);
-      })
-      .on("progress", (progress) => {
-        console.log("压缩进度:", progress.percent + "%");
-      })
-      .on("end", () => {
-        console.log("FFmpeg处理完成");
-        if (!fs.existsSync(outputPath)) {
-          reject(new Error("输出文件未生成"));
-          return;
-        }
-        const outputStats = fs.statSync(outputPath);
-        console.log(`压缩后大小: ${(outputStats.size / 1024).toFixed(1)}KB`);
-
-        if (outputStats.size === 0) {
-          reject(new Error("输出文件为空"));
-          return;
-        }
-
-        // 验证文件头是否为WebM格式
-        const buffer = fs.readFileSync(outputPath);
-        const header = buffer.subarray(0, 4);
-
-        // WebM文件应该以EBML头开始 (0x1A 0x45 0xDF 0xA3)
-        if (buffer.length >= 4) {
-          console.log(
-            "文件头字节:",
-            Array.from(header)
-              .map((b) => "0x" + b.toString(16).padStart(2, "0"))
-              .join(" "),
-          );
-
-          // 检查是否为有效的WebM/Matroska文件
-          if (
-            header[0] === 0x1a &&
-            header[1] === 0x45 &&
-            header[2] === 0xdf &&
-            header[3] === 0xa3
-          ) {
-            console.log("✅ WebM文件格式验证通过");
-            resolve();
-          } else {
-            console.error("❌ 文件头不匹配WebM格式");
-            reject(new Error("生成的文件不是有效的WebM格式"));
-          }
-        } else {
-          reject(new Error("文件太小，可能损坏"));
-        }
-      })
-      .on("error", (err) => {
-        console.error("FFmpeg压缩失败:", err);
-
-        // 清理可能生成的损坏文件
-        if (fs.existsSync(outputPath)) {
-          try {
-            fs.unlinkSync(outputPath);
-            console.log("已清理损坏的输出文件");
-          } catch (cleanupErr) {
-            console.error("清理文件失败:", cleanupErr);
-          }
-        }
-
-        reject(err);
-      })
-      .save(outputPath);
-  });
-};
+  } catch (error) {
+    console.error('测试失败:', error)
+    throw error
+  }
+}
