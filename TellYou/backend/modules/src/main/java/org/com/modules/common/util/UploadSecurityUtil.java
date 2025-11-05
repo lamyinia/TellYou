@@ -60,8 +60,7 @@ public class UploadSecurityUtil {
             RBucket<Map<String, Object>> bucket = redissonClient.getBucket(cacheKey);
             Map<String, Object> requestInfo = bucket.get();
             if (requestInfo == null) {
-                log.warn("{}上传验证失败：缓存信息不存在，对象: {}, 用户: {}",
-                        resourceType.getDisplayName(), objectName, userId);
+                log.warn("{}上传验证失败：缓存信息不存在，对象: {}, 用户: {}", resourceType.getDisplayName(), objectName, userId);
                 throw new BusinessException(20008, resourceType.getDisplayName() + "上传请求已过期或无效");
             }
             // 2.验证用户身份
@@ -76,15 +75,13 @@ public class UploadSecurityUtil {
         */
             // 6.验证成功，清理缓存
             bucket.delete();
-            log.info("{}上传安全验证通过，对象: {}, 用户: {}",
-                    resourceType.getDisplayName(), objectName, userId);
+            log.info("{}上传安全验证通过，对象: {}, 用户: {}, 字节大小: {}", resourceType.getDisplayName(), objectName, userId, requestInfo);
         } catch (BusinessException e) {
             // 清理可能的缓存
             cleanupCache(redissonClient, cacheKey);
             throw e;
         } catch (Exception e) {
-            log.error("{}上传安全验证异常，对象: {}, 用户: {}",
-                     resourceType.getDisplayName(), objectName, userId, e);
+            log.error("{}上传安全验证异常，对象: {}, 用户: {}", resourceType.getDisplayName(), objectName, userId, e);
             cleanupCache(redissonClient, cacheKey);
             throw new BusinessException(20013, resourceType.getDisplayName() + "安全验证异常");
         }
@@ -122,9 +119,7 @@ public class UploadSecurityUtil {
                 throw new BusinessException(20010, resourceType.getDisplayName() + "文件大小超出申请范围");
             }
 
-            log.debug("{}文件大小验证通过，对象: {}, 期望: {}字节, 实际: {}字节, 容差: {}%",
-                     resourceType.getDisplayName(), objectName, expectedSize, actualSize,
-                     (int)(resourceType.getTolerance() * 100));
+            log.info("{}文件大小验证通过，对象: {}, 期望: {}字节, 实际: {}字节, 容差: {}%", resourceType.getDisplayName(), objectName, expectedSize, actualSize, (int)(resourceType.getTolerance() * 100));
 
         } catch (Exception e) {
             if (e instanceof BusinessException) {

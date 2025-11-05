@@ -28,7 +28,7 @@ public class FileUploadReq {
     private String fileName;
 
     @NotNull(message = "文件后缀不能为空")
-    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp|mp4|mp3|zip|rar|pdf|doc|docx|xls|xlsx|txt|csv|json|xml|html|css|js|java|py|js|c|cc|cpp|cs|go|rs|rb|rbx)$",
+    @Pattern(regexp = "^\\.(png|jpg|jpeg|gif|webp|mp4|mp3|zip|rar|pdf|ppt|pptx|doc|docx|xls|xlsx|txt|csv|json|xml|html|css|js|java|py|js|c|cc|cpp|cs|go|rs|rb|rbx)$",
             message = "文件格式只支持 .png, .jpg, .jpeg, .gif, .webp, .mp4, .mp3, .zip, .rar")
     @Schema(description = "文件后缀")
     private String fileSuffix;

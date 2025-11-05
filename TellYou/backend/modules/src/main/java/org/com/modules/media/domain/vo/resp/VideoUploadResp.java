@@ -9,7 +9,7 @@ import lombok.Data;
 @Schema(description = "视频上传响应体")
 public class VideoUploadResp {
     @Schema(description = "视频上传URL")
-    private String uploadUrl;
+    private String originalUploadUrl;
 
     @Schema(description = "缩略图上传URL")
     private String thumbnailUploadUrl;

@@ -6,7 +6,6 @@ import MediaSendBox from "@renderer/views/chat/left/send/MediaSendBox.vue"
 import VoicePreview from "@renderer/views/chat/left/send/VoicePreview.vue"
 import EmojiPicker from "@renderer/components/EmojiPicker.vue"
 import { Session } from "@shared/types/session"
-import { useUserStore } from "@main/electron-store/persist/user-store"
 import { useSessionStore } from "@renderer/status/session/store"
 
 const props = defineProps<{ currentContact: Session | null }>()
@@ -211,55 +210,43 @@ const handleAudioRecorded = async (audioBlob: Blob): Promise<void> => {
 
 const sendVoice = async (): Promise<void> => {
   if (!previewAudioBlob.value) return
-  
-  const session = currentSession.value
-  if (!session) {
+  const contact = props.currentContact
+  if (!contact) {
     error.value = "未选择聊天对象"
     return
   }
-  
+
   try {
-    // 将Blob转换为数组以便传输
     const arrayBuffer = await previewAudioBlob.value.arrayBuffer()
     const uint8Array = new Uint8Array(arrayBuffer)
     const blobData = Array.from(uint8Array)
-    
-    // 获取文件扩展名
     const mimeType = previewAudioBlob.value.type || 'audio/webm'
     const extName = mimeType.includes('webm') ? '.webm' : '.wav'
-    
-    console.log('开始保存语音文件:', {
-      size: previewAudioBlob.value.size,
-      duration: previewDuration.value,
-      type: mimeType
-    })
-    
-    // 保存Blob到本地文件
+
+    console.log('开始保存语音文件:', {size: previewAudioBlob.value.size, duration: previewDuration.value, type: mimeType})
+
     const saveResult = await window.electronAPI.invoke('device:save-voice', {blobData, extName})
     if (!saveResult.success) {
       throw new Error(saveResult.error || '保存语音文件失败')
     }
-    
+
     console.log('语音文件保存成功:', saveResult.filePath)
-    
-    // 发送上传请求
+
     const payload = {
       filePath: saveResult.filePath,
       mediaType: 'voice',
+      duration: previewDuration.value, // 传递音频时长
       chat: {
-        targetId: session.contactId,
-        contactType: session.contactType,
-        sessionId: session.sessionId
+        targetId: contact.contactId,
+        contactType: contact.contactType,
+        sessionId: contact.sessionId
       }
     }
-    
+
     console.log('发送语音消息:', payload)
-    window.electronAPI.send('media:send:start', payload)
-    
-    // 清理预览状态
+    window.electronAPI.send('media:send:start-by-filepath', payload)
     clearVoicePreview()
     emit('goBottom')
-    
   } catch (err: any) {
     error.value = err.message || "语音发送失败"
     console.error("语音发送失败:", err)

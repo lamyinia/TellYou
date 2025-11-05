@@ -6,7 +6,7 @@ import { BrowserWindow, ipcMain, app, shell } from "electron"
 import { test } from "@main/test"
 import fs from "fs"
 import path from "path"
-import { mediaUtil } from "@main/util/media-util"
+import mediaUtil from "@main/util/media-util"
 import urlUtil from "@main/util/url-util"
 
 /**
@@ -89,7 +89,7 @@ class DeviceService {
           if (win?.isMaximized()) {
             win?.unmaximize()
           } else {
-            win?.maximize() 
+            win?.maximize()
           }
           break
         case 3:
@@ -285,7 +285,7 @@ class DeviceService {
         return { success: true }
       } catch (error) {
         console.error("显示文件位置失败:", error)
-        return { success: false, error: error.message }
+        return { success: false, error: error }
       }
     })
 
@@ -405,21 +405,15 @@ class DeviceService {
       }
     })
 
-    ipcMain.handle('device:save-voice', async (_, { blobData, extName }: { blobData: number[], extName: string }) => {
+    ipcMain.handle('device:save-voice', async (_, { blobData, extName }: { blobData: number[], extName: string }): Promise<any> => {
       try {
-        // 生成文件路径
         const filePath = urlUtil.generateFilePath('voice', extName)
-        
-        // 确保目录存在
         const dir = path.dirname(filePath)
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true })
         }
-        
-        // 将数组转换为Buffer并写入文件
         const buffer = Buffer.from(blobData)
         fs.writeFileSync(filePath, buffer)
-        
         console.log('文件保存成功:', filePath)
         return { success: true, filePath }
       } catch (error) {
@@ -567,7 +561,7 @@ class DeviceService {
 
       // 加载专用调试页面 - 统一处理开发和生产环境
       const isDev = process.env.NODE_ENV === "development"
-      
+
       if (isDev) {
         // 开发环境：使用开发服务器
         const devUrl = process.env["ELECTRON_RENDERER_URL"] || "http://localhost:5173"

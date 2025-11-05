@@ -5,7 +5,7 @@ import path, { join } from 'path'
 import fs, { existsSync, mkdirSync } from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
-import { mediaUtil } from '@main/util/media-util'
+import mediaUtil from '@main/util/media-util'
 import { netMaster, netMinIO } from '@main/util/net-util'
 import messageDao from '@main/sqlite/dao/message-dao'
 import messageAdapter from '@main/sqlite/adapter/message-adapter'
@@ -13,6 +13,7 @@ import { store } from '@main/index'
 import { uidKey } from '@main/electron-store/key'
 import { getMessageId } from '@shared/utils/process'
 import urlUtil from '@main/util/url-util'
+import feedbackSendUtil from '@main/util/feedback-send-util'
 
 export enum MediaType {
   IMAGE = "image",
@@ -26,6 +27,7 @@ interface UploadContext {
   filePath: string
   mediaType: MediaType
   fileName?: string
+  duration?: number // 音频/视频时长（秒）
   chat: {
     targetId: string
     contactType: number
@@ -88,11 +90,12 @@ class MediaTaskService {
 
 
   private async uploadMediaByFilepath(event: Electron.IpcMainEvent, params: any): Promise<void> {
-    const { filePath, mediaType, chat } = params
+    const { filePath, mediaType, chat, duration } = params
     const context: UploadContext = {
       filePath,
       fileName: path.basename(filePath),
       mediaType: mediaType as MediaType,
+      duration, // 传递音频时长
       chat
     }
 
@@ -102,7 +105,6 @@ class MediaTaskService {
   private async uploadMediaByBuffer(event: Electron.IpcMainEvent, params: any): Promise<void> {
     const { fileName, fileBuffer, mediaType, chat } = params
 
-    // 创建临时文件
     const tempFilePath = path.join(this.tempDir, `temp_${Date.now()}_${fileName}`)
     fs.writeFileSync(tempFilePath, Buffer.from(fileBuffer))
 
@@ -116,7 +118,6 @@ class MediaTaskService {
     try {
       await this.processAndUploadMedia(event, context)
     } finally {
-      // 清理临时文件
       try {
         fs.unlinkSync(tempFilePath)
       } catch (error) {
@@ -156,7 +157,7 @@ class MediaTaskService {
           extData: uploadingMessage.extData,
           sendTime: uploadingMessage.sendTime
         }, context.messageId)
-
+        console.info('通知渲染进程 loading-message', vo)
         event.sender.send('message:call-back:load-data', [vo])
       }
 
@@ -166,8 +167,9 @@ class MediaTaskService {
         messageId: context.messageId,
         sessionId: context.chat.sessionId,
         mediaType: context.mediaType,
-        filePath: context.filePath
+        filePath: context.filePath || context.fileName || 'unknown'
       })
+      console.log('发送上传开始事件:', { messageId: context.messageId, sessionId: context.chat.sessionId, mediaType: context.mediaType })
 
       // 8. 开始上传
       console.info("开始上传:", context)
@@ -176,12 +178,12 @@ class MediaTaskService {
       console.info("确认上传完成:", context)
       await this.confirmUploadMessage(context)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("媒体消息发送失败:", error)
+      feedbackSendUtil.broadcastInfo('媒体消息发送失败...', error.message || '')
 
-      // 通知渲染进程上传失败
       if (context.messageId) {
-        await messageDao.updateMessageType(context.messageId, -1) // 标记为失败
+        await messageDao.updateMessageType(context.messageId, -1)
         event.sender.send('media:upload:failed', {
           messageId: context.messageId,
           error: error instanceof Error ? error.message : String(error)
@@ -202,27 +204,40 @@ class MediaTaskService {
         thumbnailFile
       }
     } else if (context.mediaType === MediaType.VIDEO) {
-      // 视频处理：生成缩略图
-      const originalFile = mediaFile
+      // 视频处理：获取视频信息和生成缩略图
+      const videoInfo = await mediaUtil.getVideoInfo(mediaFile)
       const thumbnailResult = await mediaUtil.generateVideoThumbnail(mediaFile)
+
+      const originalFile = {
+        ...mediaFile,
+        duration: Math.round(videoInfo.duration || 0), // 视频时长（秒，整数）
+        width: videoInfo.width || 0,
+        height: videoInfo.height || 0,
+        fileName: context.fileName
+      }
+
       const thumbnailFile = {
         buffer: thumbnailResult.thumbnailBuffer,
         size: thumbnailResult.thumbnailSize,
         mimeType: 'image/avif',
         newSuffix: '.avif'
       }
+
+      console.log('获取视频信息:', { duration: originalFile.duration, width: originalFile.width, height: originalFile.height })
+
       return {
         originalFile,
         thumbnailFile
       }
     } else if (context.mediaType === MediaType.VOICE) {
-      const audioInfo = await mediaUtil.getAudioInfo(mediaFile)
       const compressedFile = await mediaUtil.compressAudio(mediaFile)
       const originalFile = {
         ...compressedFile,
-        duration: audioInfo.duration,
+        duration: context.duration || 0, // 使用渲染进程传递的时长
         fileName: context.fileName
       }
+
+      console.log('使用渲染进程传递的音频时长:', context.duration)
 
       return {
         originalFile
@@ -235,43 +250,41 @@ class MediaTaskService {
   }
 
   private async saveLocalPath(context: UploadContext): Promise<void> {
-    // 生成本地存储路径
     const { processedFiles } = context
 
-    // 路径标准化工具函数
     const normalizePath = (filePath: string) => path.normalize(filePath.replace(/\//g, path.sep))
 
     if (context.mediaType === MediaType.IMAGE && processedFiles) {
       // 确保目录存在并生成正确的文件路径
       const originalPath = urlUtil.generateFilePath('picture', context.processedFiles.originalFile.newSuffix)
       const thumbnailPath = urlUtil.generateFilePath('picture', context.processedFiles.thumbnailFile.newSuffix)
-      
+
       // 确保目录存在
       urlUtil.ensureTodayDir('picture')
-      
+
       processedFiles.originalLocalPath = normalizePath(originalPath)
       processedFiles.thumbnailLocalPath = normalizePath(thumbnailPath)
     } else if (context.mediaType === MediaType.VIDEO && processedFiles) {
       const originalPath = urlUtil.generateFilePath('video', context.processedFiles.originalFile.newSuffix)
       const thumbnailPath = urlUtil.generateFilePath('picture', '.avif')
-      
+
       urlUtil.ensureTodayDir('video')
       urlUtil.ensureTodayDir('picture')
-      
+
       processedFiles.originalLocalPath = normalizePath(originalPath)
       processedFiles.thumbnailLocalPath = normalizePath(thumbnailPath)
     } else if (context.mediaType === MediaType.VOICE && processedFiles) {
       const originalPath = urlUtil.generateFilePath('voice', context.processedFiles.originalFile.newSuffix)
-      
+
       urlUtil.ensureTodayDir('voice')
-      
+
       processedFiles.originalLocalPath = normalizePath(originalPath)
     } else if (context.mediaType === MediaType.FILE && processedFiles) {
       const ext = context.filePath.split('.').pop() || ''
       const originalPath = urlUtil.generateFilePath('file', `.${ext}`)
-      
+
       urlUtil.ensureTodayDir('file')
-      
+
       processedFiles.originalLocalPath = normalizePath(originalPath)
     }
 
@@ -282,7 +295,6 @@ class MediaTaskService {
       fs.writeFileSync(processedFiles.originalLocalPath, processedFiles.originalFile.buffer)
     }
 
-    // 写入缩略图文件
     if (processedFiles.thumbnailFile) {
       if (context.mediaType === MediaType.VIDEO) {
         fs.writeFileSync(processedFiles.thumbnailLocalPath, processedFiles.thumbnailFile.buffer)
@@ -293,16 +305,15 @@ class MediaTaskService {
   }
 
   private async fillRequestFields(context: UploadContext): Promise<void> {
-    const myId = store.get(uidKey) as string
+    const fromUserId = store.get(uidKey) as string
     const { processedFiles } = context
-
     // 验证必要参数
-    if (!myId) {
+    if (!fromUserId) {
       throw new Error('用户ID未找到，请先登录')
     }
 
     context.requestFields = {
-      fromUserId: myId,
+      fromUserId: fromUserId,
       targetId: context.chat.targetId,
       contactType: context.chat.contactType,
     }
@@ -317,7 +328,8 @@ class MediaTaskService {
       context.requestFields = {
         ...context.requestFields,
         fileSize: processedFiles.originalFile.buffer.length,
-        fileSuffix: processedFiles.originalFile.newSuffix || '.mp4'
+        fileSuffix: processedFiles.originalFile.newSuffix || '.mp4',
+        videoDuration: Math.round(processedFiles.originalFile.duration || 0) // 视频时长（秒，整数）
       }
     } else if (context.mediaType === MediaType.VOICE && processedFiles) {
       context.requestFields = {
@@ -358,18 +370,16 @@ class MediaTaskService {
   }
 
   private async insertUploadMessage(context: UploadContext): Promise<number> {
-    const myId = store.get(uidKey) as string
+    const fromUserId = store.get(uidKey) as string
     const myName = store.get('myName') as string
     const now = new Date().toISOString()
 
-    // 验证必要参数
-    if (!myId) {
+    if (!fromUserId) {
       throw new Error('用户ID未找到，请先登录')
     }
 
-    console.log('用户信息:', { myId, myName })
+    console.log('用户信息:', { fromUserId, myName })
 
-    // 构建扩展数据
     const extData = {
       originalLocalPath: context.processedFiles?.originalLocalPath,
       thumbnailLocalPath: context.processedFiles?.thumbnailLocalPath,
@@ -379,19 +389,18 @@ class MediaTaskService {
       fileSuffix: context.requestFields?.fileSuffix
     }
 
-    // 生成消息ID和序列ID
     const msgId = getMessageId()
-    const sequenceId = msgId // 使用相同的ID作为序列ID
-    
+    const sequenceId = msgId
+    const objectName = urlUtil.extractObjectName(context.uploadUrls?.originalUploadUrl || '')
     // 插入上传中消息
     const messageId = await messageDao.insertUploadingMessage({
       sessionId: context.chat.sessionId,
       msgId: msgId,
       sequenceId: sequenceId,
-      senderId: myId,
+      senderId: fromUserId,
       senderName: myName || '未知用户',
-      msgType: 0, // 上传中状态
-      text: context.uploadUrls?.originalObjectName || '', // 存储objectName用于匹配
+      msgType: 0,
+      text: objectName, // 存储objectName用于匹配
       extData: JSON.stringify(extData),
       sendTime: now
     })
@@ -401,12 +410,11 @@ class MediaTaskService {
   }
 
   private async beginUpload(event: Electron.IpcMainEvent, context: UploadContext): Promise<void> {
-    const { uploadUrls, processedFiles } = context
-
     try {
+      const { uploadUrls, processedFiles } = context
+
       if (uploadUrls.originalUploadUrl && processedFiles?.originalFile) {
         console.log('开始上传原文件:', uploadUrls.originalUploadUrl)
-
         await this.uploadToMinIO(uploadUrls.originalUploadUrl, processedFiles.originalFile, (progress) => {
           event.sender.send('media:upload:progress', {
             messageId: context.messageId,
@@ -435,11 +443,6 @@ class MediaTaskService {
       })
 
       console.log('文件上传完成')
-
-      // 通知渲染进程上传成功
-      event.sender.send('media:upload:success', {
-        messageId: context.messageId
-      })
 
     } catch (error) {
       console.error('文件上传失败:', error)
@@ -517,7 +520,7 @@ class MediaTaskService {
       // 确定要上传的buffer和MIME类型
       const uploadBuffer = file.compressedBuffer || file.buffer
       const mimeType = file.newMimeType || file.mimeType || 'application/octet-stream'
-      
+
       if (!uploadBuffer || !Buffer.isBuffer(uploadBuffer)) {
         throw new Error('无效的文件数据')
       }
@@ -531,6 +534,11 @@ class MediaTaskService {
         onUploadProgress: (progressEvent) => {
           if (onProgress && progressEvent.total) {
             const percentage = Math.round((progressEvent.loaded / progressEvent.total) * 100)
+            console.log('MinIO上传进度:', {
+              loaded: progressEvent.loaded,
+              total: progressEvent.total,
+              percentage: percentage + '%'
+            })
             onProgress(percentage)
           }
         }

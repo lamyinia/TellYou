@@ -3,8 +3,7 @@
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
-import { mediaUtil } from "./util/media-util";
-import log from 'electron-log'
+import mediaUtil from "./util/media-util";
 
 const measureTime = (label: string) => {
   const startTime = Date.now();

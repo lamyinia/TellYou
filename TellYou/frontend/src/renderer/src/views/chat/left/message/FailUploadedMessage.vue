@@ -18,8 +18,6 @@ const isSelf = computed(() => props.message.senderId === userStore.myId)
 const showStrategy = "thumbedAvatarUrl"
 
 const uploadInfo = ref<UploadInfo | null>(null)
-
-// 计算显示的媒体类型
 const mediaTypeText = computed(() => {
   switch (uploadInfo.value?.mediaType || props.message.messageType) {
     case 'image': return '图片'
@@ -30,44 +28,24 @@ const mediaTypeText = computed(() => {
   }
 })
 
-// 获取错误信息
 const errorMessage = computed(() => {
   return props.error || uploadInfo.value?.error || '上传失败，请重试'
 })
 
-// 上传状态监听器
-const handleUploadStatusChange = (messageId: number, info: UploadInfo | null) => {
-  if (messageId === props.message.id) {
-    uploadInfo.value = info
-  }
-}
 
-// 重试上传
+
 const retryUpload = () => {
   mediaUploadManager.retryUpload(props.message.id)
 }
 
-// 删除消息
 const deleteMessage = () => {
-  // 取消上传追踪
   mediaUploadManager.cancelUpload(props.message.id)
-  
-  // 通知主进程删除消息
-  window.electronAPI.send('message:delete', { messageId: props.message.id })
 }
 
 onMounted(() => {
-  // 获取初始上传信息
   uploadInfo.value = mediaUploadManager.getUploadInfo(props.message.id)
-  
-  // 添加状态监听器
-  mediaUploadManager.addListener(handleUploadStatusChange)
 })
 
-onUnmounted(() => {
-  // 移除状态监听器
-  mediaUploadManager.removeListener(handleUploadStatusChange)
-})
 </script>
 
 <template>
@@ -106,16 +84,8 @@ onUnmounted(() => {
                 <span class="error-text">{{ errorMessage }}</span>
               </div>
             </div>
-            <div class="upload-actions">
-              <button class="retry-btn" @click="retryUpload" title="重试上传">
-                <i class="iconfont icon-refresh"></i>
-              </button>
-              <button class="delete-btn" @click="deleteMessage" title="删除消息">
-                <i class="iconfont icon-delete"></i>
-              </button>
-            </div>
           </div>
-          
+
           <!-- 错误详情 -->
           <div class="error-details">
             <div class="error-time">
@@ -164,7 +134,7 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
-          
+
           <!-- 错误详情 -->
           <div class="error-details">
             <div class="error-time">
@@ -330,11 +300,11 @@ onUnmounted(() => {
 }
 
 @keyframes errorPulse {
-  0%, 100% { 
+  0%, 100% {
     border-color: #fed7d7;
     box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.1);
   }
-  50% { 
+  50% {
     border-color: #fc8181;
     box-shadow: 0 0 0 4px rgba(229, 62, 62, 0.1);
   }

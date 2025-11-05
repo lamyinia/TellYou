@@ -5,6 +5,7 @@ import ffmpeg from "fluent-ffmpeg"
 import { promises as fs } from "fs"
 import path from "path"
 import urlUtil from "@main/util/url-util"
+import feedbackSendUtil from "./feedback-send-util"
 
 export interface MediaFile {
   buffer: Buffer,
@@ -46,12 +47,12 @@ const NON_COMPRESSIBLE_TYPES: string[] = [
   "application/json",
   "application/xml"
 ]
-const MOTION_IMAGE_TYPES = ["image/gif", "image/webp", "image/avif"]
+const MOTION_IMAGE_TYPES = ["image/gif", "image/webp"]
 const IM_COMPRESSION_CONFIG = {
   thumbnail: {
     format: "avif",
     maxSize: 300,
-    quality: 80,
+    quality: 30,
     crf: 63,
     cpuUsed: 4
   },
@@ -109,12 +110,90 @@ class MediaUtil {
   public isMotionImage(mimeType: string): boolean {
     return MOTION_IMAGE_TYPES.includes(mimeType)
   }
+
+  /**
+   * 检测AVIF文件是否为动图（使用FFmpeg）
+   * @param buffer AVIF文件buffer
+   * @returns Promise<boolean> 是否为动图
+   */
+  private async isAvifAnimated(buffer: Buffer): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        // 创建临时文件
+        const tempInputPath = path.join(urlUtil.tempPath, `avif_detect_${Date.now()}.avif`)
+
+        // 写入临时文件
+        require('fs').writeFileSync(tempInputPath, buffer)
+
+        // 使用FFmpeg检测视频信息
+        ffmpeg.ffprobe(tempInputPath, (err, metadata) => {
+          // 清理临时文件
+          try {
+            require('fs').unlinkSync(tempInputPath)
+          } catch (cleanupError) {
+            console.warn('清理临时文件失败:', cleanupError)
+          }
+
+          if (err) {
+            console.error('FFmpeg检测AVIF失败:', err)
+            // 如果FFmpeg检测失败，默认按静态图处理
+            resolve(false)
+            return
+          }
+
+          try {
+            // 检查是否有视频流且帧数大于1
+            const videoStream = metadata.streams?.find(stream => stream.codec_type === 'video')
+            const frameCount = videoStream?.nb_frames ? parseInt(videoStream.nb_frames) : 0
+            const duration = videoStream?.duration ? parseFloat(videoStream.duration) : 0
+
+            // 判断是否为动图：有多帧或有时长
+            const isAnimated = frameCount > 1 || duration > 0
+
+            console.info(`AVIF动图检测结果: ${isAnimated ? '动图' : '静态图'} (frames: ${frameCount}, duration: ${duration}s)`)
+            resolve(isAnimated)
+          } catch (parseError) {
+            console.error('解析FFmpeg元数据失败:', parseError)
+            // 解析失败时默认按静态图处理
+            resolve(false)
+          }
+        })
+      } catch (error) {
+        console.error('AVIF动图检测过程失败:', error)
+        // 检测过程失败时默认按静态图处理
+        resolve(false)
+      }
+    })
+  }
   /**
    * 获取文件后缀
    */
   public getSuffixByMimeType(mimeType: string): string {
     return this.suffixMap[mimeType] || ".jpg"
   }
+
+  /**
+   * 计算缩放后的尺寸
+   */
+  private calculateDimensions(width: number, height: number, maxSize: number): { newWidth: number; newHeight: number } {
+    if (width <= maxSize && height <= maxSize) {
+      return { newWidth: width, newHeight: height }
+    }
+
+    const aspectRatio = width / height
+    if (width > height) {
+      return {
+        newWidth: maxSize,
+        newHeight: Math.round(maxSize / aspectRatio)
+      }
+    } else {
+      return {
+        newWidth: Math.round(maxSize * aspectRatio),
+        newHeight: maxSize
+      }
+    }
+  }
+
   /**
    * 获取上传格式
    */
@@ -141,9 +220,39 @@ class MediaUtil {
 
   async processImage(mediaFile: MediaFile, strategy: "thumb" | "original"): Promise<CompressionResult> {
     const { mimeType } = mediaFile
+
+    // 特殊处理AVIF
+    if (mimeType === 'image/avif') {
+      return this.processAvif(mediaFile, strategy)
+    }
+
+    // 其他动图类型
     if (this.isMotionImage(mimeType)) {
       return this.processMotion(mediaFile, strategy)
+    }
+
+    // 静态图片
+    if (strategy === "thumb") {
+      return this.processStaticThumbnail(mediaFile)
     } else {
+      return this.processStaticOriginal(mediaFile)
+    }
+  }
+
+  /**
+   * 处理AVIF文件（自动检测静态/动态）
+   */
+  private async processAvif(mediaFile: MediaFile, strategy: "thumb" | "original"): Promise<CompressionResult> {
+    console.info('开始处理AVIF文件，检测是否为动图...')
+
+    // 检测是否为动图
+    const isAnimated = await this.isAvifAnimated(mediaFile.buffer)
+
+    if (isAnimated) {
+      console.info('检测到AVIF动图，使用FFmpeg处理')
+      return this.processMotion(mediaFile, strategy)
+    } else {
+      console.info('检测到AVIF静态图，使用Sharp处理')
       if (strategy === "thumb") {
         return this.processStaticThumbnail(mediaFile)
       } else {
@@ -158,23 +267,15 @@ class MediaUtil {
   async processMotion(mediaFile: MediaFile, strategy: "thumb" | "original"): Promise<CompressionResult> {
     const { buffer } = mediaFile
     try {
-      const tempInputPath = path.join(
-        urlUtil.tempPath,
-        `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`
-      )
-      const tempOutputPath = path.join(
-        urlUtil.tempPath,
-        `motion_thumb_${Date.now()}.avif`
-      )
-      console.info("临时目录", urlUtil.tempPath)
+      const tempInputPath = path.join(urlUtil.tempPath, `motion_input_${Date.now()}.${mediaFile.mimeType.split("/")[1]}`)
+      const tempOutputPath = path.join(urlUtil.tempPath, `motion_thumb_${Date.now()}.avif`)
+      console.info("processMotion：临时目录", urlUtil.tempPath)
 
       await fs.mkdir(path.dirname(tempInputPath), { recursive: true })
       await fs.writeFile(tempInputPath, buffer)
-      const currentConfig =
-        strategy === "thumb"
-          ? IM_COMPRESSION_CONFIG.thumbnail
-          : IM_COMPRESSION_CONFIG.original
+      const currentConfig = strategy === "thumb" ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original
 
+      feedbackSendUtil.broadcastInfo("媒体资源处理中...", "动图可能耗费较长时间，请耐心等待")
       const compressedBuffer = await new Promise<Buffer>((resolve, reject) => {
         ffmpeg(tempInputPath)
           .size(`${currentConfig.maxSize}x?`)
@@ -206,8 +307,7 @@ class MediaUtil {
 
       await fs.unlink(tempInputPath).catch(() => {})
       await fs.unlink(tempOutputPath).catch(() => {})
-      const compressionRatio =
-        (1 - compressedBuffer.length / buffer.length) * 100
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
 
       return {
         compressedBuffer,
@@ -233,19 +333,13 @@ class MediaUtil {
       const metadata = await sharpInstance.metadata()
       const { width = 0, height = 0 } = metadata
 
-      const { newWidth, newHeight } = this.calculateDimensions(
-        width,
-        height,
-        config.maxSize
-      )
-
+      const { newWidth, newHeight } = this.calculateDimensions(width, height, config.maxSize)
       const compressedBuffer = await sharpInstance
         .resize(newWidth, newHeight, { fit: "cover" })
         .avif({ quality: config.quality })
         .toBuffer()
 
-      const compressionRatio =
-        (1 - compressedBuffer.length / buffer.length) * 100
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
 
       return {
         compressedBuffer,
@@ -313,9 +407,7 @@ class MediaUtil {
         newMimeType = "image/jpeg"
       }
 
-      const compressionRatio =
-        (1 - compressedBuffer.length / buffer.length) * 100
-
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
       return {
         compressedBuffer,
         compressedSize: compressedBuffer.length,
@@ -411,20 +503,12 @@ class MediaUtil {
         inputExtension = '.mp3'
       }
 
-      const tempInputPath = path.join(
-        process.cwd(),
-        "temp",
-        `input_${Date.now()}${inputExtension}`
-      )
-      const tempOutputPath = path.join(
-        process.cwd(),
-        "temp",
-        `output_${Date.now()}.ogg`
-      )
+      const tempInputPath = path.join(process.cwd(), "temp", `input_${Date.now()}${inputExtension}`)
+      const tempOutputPath = path.join(process.cwd(), "temp", `output_${Date.now()}.ogg`)
 
       await fs.mkdir(path.dirname(tempInputPath), { recursive: true })
       await fs.writeFile(tempInputPath, buffer)
-      
+
       const compressedBuffer = await new Promise<Buffer>((resolve, reject) => {
         ffmpeg(tempInputPath)
           .audioBitrate("64k") // Opus在64k就有极佳表现
@@ -458,8 +542,7 @@ class MediaUtil {
       await fs.unlink(tempInputPath).catch(() => {})
       await fs.unlink(tempOutputPath).catch(() => {})
 
-      const compressionRatio =
-        (1 - compressedBuffer.length / buffer.length) * 100
+      const compressionRatio = (1 - compressedBuffer.length / buffer.length) * 100
 
       return {
         compressedBuffer,
@@ -480,21 +563,9 @@ class MediaUtil {
   async generateVideoThumbnail(mediaFile: MediaFile): Promise<ThumbnailResult> {
     const { buffer } = mediaFile;
     try {
-      const tempVideoPath = path.join(
-        process.cwd(),
-        "temp",
-        `video_${Date.now()}.mp4`
-      )
-      const tempJpgPath = path.join(
-        process.cwd(),
-        "temp",
-        `thumb_${Date.now()}.jpg`
-      )
-      const tempAvifPath = path.join(
-        process.cwd(),
-        "temp",
-        `thumb_${Date.now()}.avif`
-      )
+      const tempVideoPath = path.join(process.cwd(), "temp", `video_${Date.now()}.mp4`)
+      const tempJpgPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.jpg`)
+      const tempAvifPath = path.join(process.cwd(), "temp", `thumb_${Date.now()}.avif`)
 
       await fs.mkdir(path.dirname(tempVideoPath), { recursive: true })
       await fs.writeFile(tempVideoPath, buffer)
@@ -540,7 +611,6 @@ class MediaUtil {
           .run()
       })
 
-      // 清理临时文件
       await fs.unlink(tempVideoPath).catch(() => {})
       await fs.unlink(tempJpgPath).catch(() => {})
       await fs.unlink(tempAvifPath).catch(() => {})
@@ -555,78 +625,83 @@ class MediaUtil {
       throw new Error(`视频缩略图生成失败: ${(error as Error).message}`)
     }
   }
+
   /**
-   * 获取音频信息
+   * 获取音频信息（已弃用，建议从渲染进程传递时长）
+   * @deprecated 建议从渲染进程传递音频时长，避免复杂的FFmpeg检测
    */
   async getAudioInfo(mediaFile: MediaFile): Promise<{ duration: number }> {
-    const { buffer } = mediaFile;
+    console.warn('getAudioInfo方法已弃用，建议从渲染进程传递音频时长')
 
+    // 简化版本，仅作为备用
+    const { buffer } = mediaFile;
     try {
-      const tempAudioPath = path.join(
-        process.cwd(),
-        "temp",
-        `audio_${Date.now()}.webm`
-      )
+      const tempAudioPath = path.join(urlUtil.tempPath, `audio_${Date.now()}.webm`)
 
       await fs.mkdir(path.dirname(tempAudioPath), { recursive: true })
       await fs.writeFile(tempAudioPath, buffer)
 
-      const audioInfo = await new Promise<{ duration: number }>((resolve, reject) => {
+      const audioInfo = await new Promise<{ duration: number }>((resolve) => {
         ffmpeg.ffprobe(tempAudioPath, (err, metadata) => {
           if (err) {
-            reject(err)
+            console.error('FFmpeg检测音频失败:', err)
+            resolve({ duration: 0 })
             return
           }
-          resolve({
-            duration: metadata.format.duration || 0
-          })
+
+          let duration = 0
+          if (metadata.format?.duration) {
+            duration = parseFloat(metadata.format.duration.toString())
+          }
+
+          resolve({ duration })
         })
       })
 
       await fs.unlink(tempAudioPath).catch(() => {})
-
       return audioInfo
     } catch (error) {
-      throw new Error(`获取音频信息失败: ${(error as Error).message}`)
+      console.error('获取音频信息失败:', error)
+      return { duration: 0 }
     }
   }
 
   /**
    * 获取视频信息
    */
-  async getVideoInfo(mediaFile: MediaFile): Promise<VideoInfo> {
+  async getVideoInfo(mediaFile: MediaFile): Promise<{ duration: number; width: number; height: number }> {
     const { buffer } = mediaFile;
 
     try {
-      const tempVideoPath = path.join(
-        process.cwd(),
-        "temp",
-        `video_${Date.now()}.mp4`
-      )
+      const tempVideoPath = path.join(urlUtil.tempPath, `video_${Date.now()}.mp4`)
 
       await fs.mkdir(path.dirname(tempVideoPath), { recursive: true })
       await fs.writeFile(tempVideoPath, buffer)
 
-      const videoInfo = await new Promise<VideoInfo>((resolve, reject) => {
+      const videoInfo = await new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
         ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
           if (err) {
+            console.error('FFmpeg获取视频信息失败:', err)
             reject(err)
             return
           }
-          const videoStream = metadata.streams.find(
-            (stream) => stream.codec_type === "video",
-          )
-          // const audioStream = metadata.streams.find((stream) => stream.codec_type === 'audio')
+
+          const videoStream = metadata.streams?.find(stream => stream.codec_type === 'video')
           if (!videoStream) {
-            reject(new Error("未找到视频流"))
+            reject(new Error('未找到视频流'))
             return
           }
+
+          const duration = metadata.format?.duration ? parseFloat(metadata.format.duration.toString()) : 0
+          const width = videoStream.width || 0
+          const height = videoStream.height || 0
+
+          console.log('视频信息获取成功:', { duration, width, height })
+
           resolve({
-            duration: metadata.format.duration || 0,
-            width: videoStream.width || 0,
-            height: videoStream.height || 0,
-            bitrate: parseInt(String(metadata.format.bit_rate || "0")),
-            codec: videoStream.codec_name || "unknown"
+            duration,
+            width,
+            height
           })
         })
       })
@@ -635,28 +710,11 @@ class MediaUtil {
 
       return videoInfo
     } catch (error) {
+      console.error('获取视频信息失败:', error)
       throw new Error(`获取视频信息失败: ${(error as Error).message}`)
-    }
-  }
-
-  /**
-   * 计算压缩尺寸
-   */
-  private calculateDimensions(originalWidth: number, originalHeight: number,maxSize: number): { newWidth: number; newHeight: number } {
-    if (originalWidth <= maxSize && originalHeight <= maxSize) {
-      return { newWidth: originalWidth, newHeight: originalHeight }
-    }
-
-    const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight)
-
-    return {
-      newWidth: Math.round(originalWidth * ratio),
-      newHeight: Math.round(originalHeight * ratio)
     }
   }
 }
 
-// 创建 MediaUtil 实例
 const mediaUtil = new MediaUtil()
-
-export { mediaUtil, MediaUtil }
+export default mediaUtil

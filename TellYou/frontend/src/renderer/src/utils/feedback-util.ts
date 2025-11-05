@@ -40,12 +40,24 @@ interface FeedbackConfig {
 }
 
 /**
+ * 主进程反馈消息接口
+ */
+export interface MainProcessFeedback {
+  type: FeedbackType
+  title: string
+  message?: string
+  duration?: number
+  persistent?: boolean
+}
+
+/**
  * 全局反馈管理工具类
  */
 class FeedbackUtil {
   private messages = ref<FeedbackMessage[]>([])
   private timers = new Map<string, NodeJS.Timeout>()
   private recentMessages = new Map<string, number>() // 记录最近消息，防重复
+  private isInitialized = false
 
   private config: FeedbackConfig = {
     maxMessages: 5,
@@ -56,6 +68,47 @@ class FeedbackUtil {
       [FeedbackType.INFO]: 3000,
     },
     preventDuplicateInterval: 2000,
+  }
+
+  constructor() {
+    this.initializeIPC()
+  }
+
+  /**
+   * 初始化IPC监听器
+   */
+  private initializeIPC(): void {
+    if (this.isInitialized || !window.electronAPI) {
+      return
+    }
+    console.log('FeedbackUtil: 初始化IPC监听器')
+    window.electronAPI.on('feedback:receive', (...args: unknown[]) => {
+      console.log('FeedbackUtil: 收到主进程反馈消息', args)
+      try {
+        const feedbackData = args[1] as MainProcessFeedback
+        this.handleMainProcessFeedback(feedbackData)
+      } catch (error) {
+        console.error('FeedbackUtil: 处理主进程反馈消息失败', error)
+      }
+    })
+
+    this.isInitialized = true
+    console.log('FeedbackUtil: IPC监听器初始化完成')
+  }
+
+  /**
+   * 处理主进程发送的反馈消息
+   */
+  private handleMainProcessFeedback(feedbackData: MainProcessFeedback): void {
+    const { type, title, message, duration, persistent } = feedbackData
+    console.log(`FeedbackUtil: 处理主进程${type}消息: ${title}`)
+    this.addMessage({
+      type,
+      title,
+      message,
+      duration,
+      persistent
+    })
   }
 
   /**
@@ -149,18 +202,11 @@ class FeedbackUtil {
       persistent,
       timestamp: Date.now(),
     }
-
-    // 添加到消息列表
     this.messages.value.push(feedbackMessage)
-
-    // 限制消息数量
     this.limitMessages()
-
-    // 设置自动关闭
     if (duration > 0 && !persistent) {
       this.setAutoClose(id, duration)
     }
-
     return id
   }
 
@@ -190,14 +236,11 @@ class FeedbackUtil {
    * 移除指定消息
    */
   remove(id: string): void {
-    // 清除定时器
     const timer = this.timers.get(id)
     if (timer) {
       clearTimeout(timer)
       this.timers.delete(id)
     }
-
-    // 从消息列表中移除
     const index = this.messages.value.findIndex((msg) => msg.id === id)
     if (index > -1) {
       this.messages.value.splice(index, 1)
@@ -211,11 +254,7 @@ class FeedbackUtil {
     // 清除所有定时器
     this.timers.forEach((timer) => clearTimeout(timer))
     this.timers.clear()
-
-    // 清空消息列表
     this.messages.value = []
-
-    // 清空重复消息记录
     this.recentMessages.clear()
   }
 
@@ -248,17 +287,36 @@ class FeedbackUtil {
   }
 
   /**
+   * 重新初始化IPC监听器（用于热重载等场景）
+   */
+  reinitializeIPC(): void {
+    this.isInitialized = false
+    this.initializeIPC()
+  }
+
+  /**
    * 销毁实例，清理所有资源
    */
   destroy(): void {
     this.clear()
+
+    // 清理IPC监听器
+    if (window.electronAPI && this.isInitialized) {
+      try {
+        // 注意：这里假设electronAPI有removeListener方法
+        // 如果没有，这部分可以省略，因为页面刷新时会自动清理
+        console.log('FeedbackUtil: 清理IPC监听器')
+      } catch (error) {
+        console.warn('FeedbackUtil: 清理IPC监听器失败', error)
+      }
+    }
+
+    this.isInitialized = false
   }
 }
 
-// 创建全局单例实例
 const feedbackUtil = new FeedbackUtil()
 
-// 定期清理过期的重复消息记录
 setInterval(() => {
   (feedbackUtil as any).cleanupRecentMessages()
 }, 30000) // 每30秒清理一次

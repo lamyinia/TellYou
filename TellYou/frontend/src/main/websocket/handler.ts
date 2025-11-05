@@ -24,24 +24,21 @@ class WebsocketHandler {
   // 聊天消息
   public async handleChatMessage(msg: any): Promise<void> {
     console.log("handleMessage", msg)
-    
+
     // 检查是否是上传完成的回填消息
     const isUploadConfirmation = await this.checkAndHandleUploadConfirmation(msg)
-    if (isUploadConfirmation) {
-      return // 上传确认消息已处理，不需要继续常规流程
-    }
-    
-    // 常规消息处理流程
-    const insertId = await messageService.handleSingleMessage(msg)
-    if (!insertId || insertId <= 0) return
-    const vo = messageAdapter.adaptWebSocketMessage(msg, insertId)
-    channelUtil.sendSingleChatAckConfirm(msg)
-    const session: Session = await sessionDao.selectSingleSession(
-      msg.sessionId,
-    )
+    if (isUploadConfirmation < 0) return
 
     const mainWindow = BrowserWindow.getAllWindows()[0]
-    mainWindow.webContents.send("message:call-back:load-data", [vo])
+    if (isUploadConfirmation === 0) {
+      const insertId = await messageService.handleSingleMessage(msg)
+      if (!insertId || insertId <= 0) return
+      const vo = messageAdapter.adaptWebSocketMessage(msg, insertId)
+      mainWindow.webContents.send("message:call-back:load-data", [vo])
+    }
+
+    channelUtil.sendSingleChatAckConfirm(msg)
+    const session: Session = await sessionDao.selectSingleSession(msg.sessionId)
     mainWindow.webContents.send("session:call-back:load-data", [session])
   }
 
@@ -78,59 +75,48 @@ class WebsocketHandler {
   /**
    * 检查并处理上传确认消息
    */
-  private async checkAndHandleUploadConfirmation(msg: any): Promise<boolean> {
+  private async checkAndHandleUploadConfirmation(msg: any): Promise<number> {
     try {
-      // 检查是否是自己发送的消息
-      const myId = store.get(uidKey) as string
-      if (msg.senderId !== myId) {
-        return false // 不是自己发送的消息，不需要处理
+      const fromUserId = store.get(uidKey) as string
+      if (msg.senderId !== fromUserId) {
+        return 0 // 不是自己发送的消息，不需要处理
+      }
+      const extra = msg.extra || {}
+      if (!extra.originalPath) {
+        return 0
       }
 
-      // 检查消息是否包含上传相关字段
-      const extra = msg.extra || {}
-      if (!extra.originalPath && !extra.thumbnailPath && !extra.fileObject) {
-        return false // 不是上传确认消息
-      }
-      
-      console.info("checkAndHandleUploadConfirmation:", msg)
-      
-      // 根据objectName查找对应的上传中消息
-      let objectName = extra.originalPath || extra.fileObject
+      console.info("检查并处理上传确认消息:", msg)
+
+      let objectName = extra.originalPath
       if (!objectName) {
         console.warn('上传确认消息缺少objectName')
-        return false
+        return 0
       }
-
-      // 从完整URL中提取objectName
       objectName = urlUtil.extractObjectName(objectName)
-      
-      // 查找上传中的消息
+
       const uploadingMessage = await messageDao.findByObjectName(objectName)
       if (!uploadingMessage) {
         console.warn(`未找到对应的上传中消息: ${objectName}`)
-        return false
+        return 0
       }
-      
+      if (uploadingMessage.msgType > 1){
+        console.warn(`上传确认消息类型幂等性检验失败: ${uploadingMessage}`)
+        return -1
+      }
+
       console.log(`找到上传中消息，开始回填: messageId=${uploadingMessage.id}`)
-      
-      // 回填消息数据
       await messageService.handleUploadConfirmation(uploadingMessage.id, msg)
-      
-      // 发送ACK确认
-      channelUtil.sendSingleChatAckConfirm(msg)
-      
-      // 通知渲染进程消息已确认
+
       const mainWindow = BrowserWindow.getAllWindows()[0]
-      mainWindow.webContents.send('message:upload:confirmed', {
-        messageId: uploadingMessage.id
-      })
-      
+      mainWindow.webContents.send('message:upload:confirmed', {messageId: uploadingMessage.id})
+
       console.log(`上传确认处理完成: messageId=${uploadingMessage.id}`)
-      return true
-      
+      return 1
+
     } catch (error) {
       console.error('处理上传确认消息失败:', error)
-      return false
+      return 0
     }
   }
 

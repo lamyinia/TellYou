@@ -7,10 +7,13 @@ class MessageAdapter {
    * 将 WebSocket 消息转换为 Message 对象
    */
   public adaptWebSocketMessage(msg: any, insertId: number): Message {
-    // 判断是否是系统消息（type 51-55）
-    const getMessageType = (msgType: number | undefined): "text" | "image" | "video" | "voice" | "file" | "system" => {
-      if (!msgType) return "text"
+    // 判断消息类型，包括上传状态
+    const getMessageType = (msgType: number | undefined): "text" | "image" | "video" | "voice" | "file" | "system" | "uploading" | "upload_failed" => {
+      if (msgType === undefined || msgType === null) return "text"
+
       switch (msgType) {
+        case 0: return "uploading"
+        case -1: return "upload_failed"
         case 1:
         case 21:
           return "text"
@@ -23,7 +26,7 @@ class MessageAdapter {
       }
     }
 
-    const msgType = msg.type || msg.messageType
+    const msgType = msg.type || msg.messageType || msg.msgType
     const messageType = getMessageType(Number(msgType))
 
     return {

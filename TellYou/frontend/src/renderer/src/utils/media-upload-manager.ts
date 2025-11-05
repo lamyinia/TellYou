@@ -1,5 +1,7 @@
 /* eslint-disable */
 
+import { reactive } from 'vue'
+
 export interface UploadInfo {
   messageId: number
   sessionId: string
@@ -12,11 +14,11 @@ export interface UploadInfo {
 }
 
 class MediaUploadManager {
-  private uploadingMessages = new Map<number, UploadInfo>()
-  private listeners = new Set<(messageId: number, info: UploadInfo | null) => void>()
+  public uploadingMessages = reactive(new Map<number, UploadInfo>())
   private isInitialized = false
 
   constructor() {
+    console.log('MediaUploadManager 构造函数被调用')
     this.initialize()
   }
 
@@ -25,10 +27,20 @@ class MediaUploadManager {
    */
   private initialize(): void {
     if (this.isInitialized) return
-    
-    // 监听上传开始事件
+
+    console.log('开始初始化MediaUploadManager IPC监听器')
+    console.log('window.electronAPI 是否可用:', !!window.electronAPI)
+
+    if (!window.electronAPI) {
+      console.error('window.electronAPI 不可用，无法初始化上传监听器')
+      return
+    }
+
     window.electronAPI.on('media:upload:started', (...args: unknown[]) => {
-      const data = args[0] as { messageId: number, sessionId: string, mediaType: string, filePath: string }
+      console.log('MediaUploadManager 监听上传开始事件', args)
+      const data = args[1] as { messageId: number, sessionId: string, mediaType: string, filePath: string }
+      console.log('MediaUploadManager 解析的上传数据:', data)
+
       this.startUpload(data.messageId, {
         messageId: data.messageId,
         sessionId: data.sessionId,
@@ -36,37 +48,37 @@ class MediaUploadManager {
         filePath: data.filePath
       })
     })
-
-    // 监听上传进度更新
     window.electronAPI.on('media:upload:progress', (...args: unknown[]) => {
-      const data = args[0] as { messageId: number, progress: number }
+      console.log('MediaUploadManager 监听上传进度更新', args)
+      const data = args[1] as { messageId: number, progress: number }
       this.updateProgress(data.messageId, data.progress)
     })
 
-    // 监听上传成功
-    window.electronAPI.on('media:upload:success', (...args: unknown[]) => {
-      const data = args[0] as { messageId: number }
-      this.markSuccess(data.messageId)
-    })
-
-    // 监听上传失败
     window.electronAPI.on('media:upload:failed', (...args: unknown[]) => {
-      const data = args[0] as { messageId: number, error: string }
+      console.log('MediaUploadManager 监听上传失败', args)
+      const data = args[1] as { messageId: number, error: string }
       this.markFailed(data.messageId, data.error)
     })
 
-    // 监听WebSocket消息确认（上传完成的最终确认）
     window.electronAPI.on('message:upload:confirmed', (...args: unknown[]) => {
-      const data = args[0] as { messageId: number }
-      // WebSocket确认后，标记为最终成功
+      console.log('MediaUploadManager 监听WebSocket消息确认（上传完成的最终确认）', args)
+      const data = args[1] as { messageId: number }
       setTimeout(() => {
         this.uploadingMessages.delete(data.messageId)
-        this.notifyListeners(data.messageId, null)
-      }, 500) // 给UI一点时间显示成功状态
+        console.log('MediaUploadManager 上传完成，已从响应式Map中移除:', data.messageId)
+      }, 500)
     })
 
     this.isInitialized = true
-    console.log('MediaUploadManager initialized')
+    console.log('MediaUploadManager initialized - 所有事件监听器已注册')
+
+    // 测试响应式Map是否正常工作
+    setTimeout(() => {
+      console.log('MediaUploadManager 初始化完成，当前状态:', {
+        isInitialized: this.isInitialized,
+        uploadingCount: this.uploadingMessages.size
+      })
+    }, 1000)
   }
 
   /**
@@ -79,23 +91,29 @@ class MediaUploadManager {
       status: 'uploading',
       startTime: Date.now()
     }
-    
+
     this.uploadingMessages.set(messageId, uploadInfo)
-    this.notifyListeners(messageId, uploadInfo)
-    
-    console.log('开始上传:', messageId, uploadInfo)
+    console.log('MediaUploadManager 上传信息已存储到响应式Map:', messageId, this.uploadingMessages.has(messageId))
+    console.log('MediaUploadManager 当前上传中的消息数量:', this.uploadingMessages.size)
+    console.log('MediaUploadManager 开始上传:', messageId, uploadInfo)
   }
 
   /**
    * 更新上传进度
    */
   public updateProgress(messageId: number, progress: number): void {
+    console.log('MediaUploadManager 收到进度更新请求:', messageId, progress + '%')
     const uploadInfo = this.uploadingMessages.get(messageId)
+    console.log('MediaUploadManager 找到上传信息:', !!uploadInfo)
+
     if (uploadInfo) {
+      const oldProgress = uploadInfo.progress
       uploadInfo.progress = Math.max(0, Math.min(100, progress))
-      this.notifyListeners(messageId, uploadInfo)
-      
-      console.log('上传进度更新:', messageId, progress + '%')
+      console.log('MediaUploadManager 进度变化:', oldProgress + '% -> ' + uploadInfo.progress + '%')
+      console.log('MediaUploadManager 上传进度更新:', messageId, progress + '%')
+    } else {
+      console.error('MediaUploadManager 未找到messageId对应的上传信息:', messageId)
+      console.log('MediaUploadManager 当前上传中的消息:', Array.from(this.uploadingMessages.keys()))
     }
   }
 
@@ -107,9 +125,7 @@ class MediaUploadManager {
     if (uploadInfo) {
       uploadInfo.status = 'failed'
       uploadInfo.error = error
-      this.notifyListeners(messageId, uploadInfo)
-      
-      console.error('上传失败:', messageId, error)
+      console.error('MediaUploadManager 上传失败:', messageId, error)
     }
   }
 
@@ -121,15 +137,13 @@ class MediaUploadManager {
     if (uploadInfo) {
       uploadInfo.status = 'success'
       uploadInfo.progress = 100
-      this.notifyListeners(messageId, uploadInfo)
-      
-      // 延迟移除，给UI一点时间显示成功状态
+      console.log('MediaUploadManager 上传成功:', messageId)
+
+      // 延迟删除，让组件有时间显示成功状态
       setTimeout(() => {
         this.uploadingMessages.delete(messageId)
-        this.notifyListeners(messageId, null)
+        console.log('MediaUploadManager 成功状态显示完毕，已从响应式Map中移除:', messageId)
       }, 1000)
-      
-      console.log('上传成功:', messageId)
     }
   }
 
@@ -154,9 +168,7 @@ class MediaUploadManager {
     const uploadInfo = this.uploadingMessages.get(messageId)
     if (uploadInfo) {
       this.uploadingMessages.delete(messageId)
-      this.notifyListeners(messageId, null)
-      
-      console.log('取消上传:', messageId)
+      console.log('MediaUploadManager 取消上传:', messageId)
     }
   }
 
@@ -170,42 +182,12 @@ class MediaUploadManager {
       uploadInfo.progress = 0
       uploadInfo.error = undefined
       uploadInfo.startTime = Date.now()
-      
-      this.notifyListeners(messageId, uploadInfo)
-      
-      // 通知主进程重新开始上传
+
       window.electronAPI.send('media:retry:upload', { messageId })
-      
-      console.log('重试上传:', messageId)
+      console.log('MediaUploadManager 重试上传:', messageId)
     }
   }
 
-  /**
-   * 添加状态变化监听器
-   */
-  public addListener(listener: (messageId: number, info: UploadInfo | null) => void): void {
-    this.listeners.add(listener)
-  }
-
-  /**
-   * 移除状态变化监听器
-   */
-  public removeListener(listener: (messageId: number, info: UploadInfo | null) => void): void {
-    this.listeners.delete(listener)
-  }
-
-  /**
-   * 通知所有监听器
-   */
-  private notifyListeners(messageId: number, info: UploadInfo | null): void {
-    this.listeners.forEach(listener => {
-      try {
-        listener(messageId, info)
-      } catch (error) {
-        console.error('上传状态监听器执行失败:', error)
-      }
-    })
-  }
 
   /**
    * 清理过期的上传记录（超过1小时的失败记录）
@@ -213,12 +195,11 @@ class MediaUploadManager {
   public cleanup(): void {
     const now = Date.now()
     const expireTime = 60 * 60 * 1000 // 1小时
-    
+
     for (const [messageId, info] of this.uploadingMessages.entries()) {
       if (info.status === 'failed' && (now - info.startTime) > expireTime) {
         this.uploadingMessages.delete(messageId)
-        this.notifyListeners(messageId, null)
-        console.log('清理过期上传记录:', messageId)
+        console.log('MediaUploadManager 清理过期上传记录:', messageId)
       }
     }
   }
@@ -229,7 +210,7 @@ class MediaUploadManager {
   public getStats(): { uploading: number, failed: number, total: number } {
     let uploading = 0
     let failed = 0
-    
+
     for (const info of this.uploadingMessages.values()) {
       if (info.status === 'uploading') {
         uploading++
@@ -237,7 +218,7 @@ class MediaUploadManager {
         failed++
       }
     }
-    
+
     return {
       uploading,
       failed,
@@ -253,17 +234,14 @@ class MediaUploadManager {
 
     // 清理所有数据
     this.uploadingMessages.clear()
-    this.listeners.clear()
     this.isInitialized = false
 
     console.log('MediaUploadManager destroyed')
   }
 }
 
-// 创建全局单例
 export const mediaUploadManager = new MediaUploadManager()
 
-// 定期清理过期记录
 setInterval(() => {
   mediaUploadManager.cleanup()
 }, 10 * 60 * 1000) // 每10分钟清理一次

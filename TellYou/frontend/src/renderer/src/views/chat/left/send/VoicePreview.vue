@@ -126,8 +126,8 @@ onMounted(() => {
   if (props.audioBlob) {
     console.log("开始设置音频源，Blob信息:", {
       size: props.audioBlob.size,
-      type: props.audioBlob.type,
-    });
+      type: props.audioBlob.type
+    })
     nextTick(() => {
       if (audioElement.value) {
         const reader = new FileReader()

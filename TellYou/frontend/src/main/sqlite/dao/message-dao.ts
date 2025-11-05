@@ -106,7 +106,15 @@ class MessageDao {
   public async updateLocalPath(id: number, data: { originalLocalPath?: string; thumbnailLocalPath?: string }): Promise<void> {
     try {
       const extData = await this.getExtendData({ id })
-      Object.assign(extData, data)
+
+      // 只更新指定的字段，不覆盖其他字段
+      if (data.originalLocalPath !== undefined) {
+        extData.originalLocalPath = data.originalLocalPath
+      }
+      if (data.thumbnailLocalPath !== undefined) {
+        extData.thumbnailLocalPath = data.thumbnailLocalPath
+      }
+
       const extDataString = JSON.stringify(extData)
       await update("messages", { extData: extDataString }, { id })
     } catch (error) {
@@ -134,7 +142,7 @@ class MessageDao {
       params.sessionId,
       params.msgId,
       params.sequenceId,
-      params.senderId, 
+      params.senderId,
       params.senderName,
       params.msgType,
       params.text,
@@ -167,26 +175,34 @@ class MessageDao {
   // WebSocket回填消息数据
   public async updateMessageFromWebSocket(id: number, wsMessage: any): Promise<void> {
     const sql = `
-      UPDATE messages 
+      UPDATE messages
       SET msg_type = ?, sequence_id = ?, ext_data = ?, send_time = ?
       WHERE id = ?
     `
-    
-    // 合并ext_data
+    const date = new Date(Number(wsMessage.adjustedTimestamp || wsMessage.timestamp || Date.now())).toISOString()
     const currentRow = await this.getById(id)
+    if (!currentRow){
+      console.warn('updateMessageFromWebSocket 失败，currentRow 为空')
+    }
     const currentExtData = JSON.parse(currentRow?.extData || '{}')
+    console.info('updateMessageFromWebSocket json parse 1')
+    
+    // wsMessage.extra 已经是对象，不需要再解析
+    const msgExtData = wsMessage.extra || {}
+    console.info('updateMessageFromWebSocket 直接使用 extra 对象:', msgExtData)
+
     const newExtData = {
       ...currentExtData,
-      originalPath: wsMessage.originalPath,
-      thumbnailPath: wsMessage.thumbnailPath,
-      sequenceId: wsMessage.sequenceId
+      originalPath: msgExtData.originalPath,
+      thumbnailPath: msgExtData?.thumbnailPath,
+      sequenceId: wsMessage.sequenceNumber
     }
-    
+
     await sqliteRun(sql, [
-      wsMessage.msgType, // 2 for image
-      wsMessage.sequenceId,
+      wsMessage.messageType,
+      wsMessage.sequenceNumber,
       JSON.stringify(newExtData),
-      wsMessage.sendTime,
+      date,
       id
     ])
   }

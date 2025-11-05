@@ -95,7 +95,7 @@ public class SignServiceImpl implements SignService {
         String hash1 = FileHashUtil.generateFileHash(req.getFromUserId(), req.getTargetId(), req.getFileSize(), "", FileHashUtil.HashStrategy.METADATA_BASED);
         String hash2 = FileHashUtil.generateFileHash(req.getFromUserId(), req.getTargetId(), req.getFileSize()+996, "", FileHashUtil.HashStrategy.METADATA_BASED);
 
-        String suffix1 = getOriginalImageSuffix(req.getFileSuffix());
+        String suffix1 = req.getFileSuffix();
         String suffix2 = getThumbedImageSuffix();
 
         String originalContentType = UrlUtil.getMimeType(suffix1);
@@ -121,6 +121,7 @@ public class SignServiceImpl implements SignService {
         String object = UrlUtil.generateObjectName(MediaTypeEnum.FILE.getValue(), req.getTargetId() + "_" + req.getContactType(), hash, suffix);
         String uploadUrl = minioTemplate.getSecurePreSignedObjectUrl(object, contentType, req.getFileSize(), 300);
         UploadSecurityUtil.cacheUploadRequest(object, req.getFileSize(), suffix, req.getFromUserId(), UploadSecurityUtil.ResourceType.FILE, redissonClient);
+
         return new FileUploadResp(uploadUrl);
     }
 
@@ -143,6 +144,7 @@ public class SignServiceImpl implements SignService {
 
         UploadSecurityUtil.cacheUploadRequest(object1, req.getFileSize(), suffix1, req.getFromUserId(), UploadSecurityUtil.ResourceType.VIDEO, redissonClient);
         UploadSecurityUtil.cacheUploadRequest(object2, req.getFileSize(), suffix2, req.getFromUserId(), UploadSecurityUtil.ResourceType.VIDEO, redissonClient);
+
         return new VideoUploadResp(videoUploadUrl, thumbnailUploadUrl);
     }
 

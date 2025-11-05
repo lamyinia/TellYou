@@ -180,7 +180,7 @@ class NetMaster {
     })
   }
   // 图片上传预签名URL获取
-  public async getPictureUploadUrl(params: {fileSize: number, fileSuffix: string, messageId?: string}): 
+  public async getPictureUploadUrl(params: {fileSize: number, fileSuffix: string, messageId?: string}):
       Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
     const response = await this.get(Api.GET_PICTURE_UPLOAD_URL, { params })
     return response.data.data
@@ -222,7 +222,7 @@ class NetMaster {
   public async confirmPictureUploaded(params: {
     uploadUrls: any,
     targetId: string,
-    contactType: string,
+    contactType: number,
     sessionId: string,
     messageId?: string
   }): Promise<any> {
@@ -250,7 +250,7 @@ class NetMaster {
   public async confirmVoiceUploaded(params: {
     uploadUrls: any,
     targetId: string,
-    contactType: string,
+    contactType: number,
     sessionId: string,
     duration: number,
     messageId?: string
@@ -261,7 +261,7 @@ class NetMaster {
         targetId: params.targetId,
         contactType: params.contactType,
         sessionId: params.sessionId,
-        fileObject: urlUtil.extractObjectName(params.uploadUrls.uploadUrl),
+        fileObject: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
         duration: params.duration,
         messageId: params.messageId
       })
@@ -275,7 +275,7 @@ class NetMaster {
   public async confirmVideoUploaded(params: {
     uploadUrls: any,
     targetId: string,
-    contactType: string,
+    contactType: number,
     sessionId: string,
     videoDuration: number,
     fileSize: number,
@@ -291,11 +291,10 @@ class NetMaster {
           params.uploadUrls.originalUploadUrl
         ),
         thumbnailObject: urlUtil.extractObjectName(
-          params.uploadUrls.previewUploadUrl
+          params.uploadUrls.thumbnailUploadUrl
         ),
         videoDuration: params.videoDuration,
         fileSize: params.fileSize,
-        messageId: params.messageId
       })
       return response.data
     } catch (e: any) {
@@ -307,7 +306,7 @@ class NetMaster {
   public async confirmFileUploaded(params: {
     uploadUrls: any,
     targetId: string,
-    contactType: string,
+    contactType: number,
     sessionId: string,
     fileName: string,
     fileSize: number,
@@ -319,7 +318,7 @@ class NetMaster {
         targetId: params.targetId,
         contactType: params.contactType,
         sessionId: params.sessionId,
-        fileObject: urlUtil.extractObjectName(params.uploadUrls.uploadUrl),
+        fileObject: urlUtil.extractObjectName(params.uploadUrls.originalUploadUrl),
         fileName: params.fileName,
         fileSize: params.fileSize,
         messageId: params.messageId
