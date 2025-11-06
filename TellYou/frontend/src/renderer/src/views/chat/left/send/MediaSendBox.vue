@@ -2,8 +2,8 @@
 /* eslint-disable */
 
 import { ref, computed } from "vue"
-import { useSessionStore } from "@renderer/status/session/store"
 import { Session } from "@shared/types/session"
+import ioUtil from "@renderer/utils/io-util"
 
 const props = defineProps<{ currentContact?: Session }>()
 
@@ -14,52 +14,128 @@ const currentSession = computed(() => {
   return props.currentContact
 })
 
-const selectedFiles = ref<File[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
+interface FileInfo {
+  path: string
+  name: string
+  size: number
+  ext: string
+}
+
+const selectedFiles = ref<FileInfo[]>([])
 const error = ref<string>("")
-const selectFiles = () => {
-  fileInput.value?.click()
-}
-const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const files = target.files
-  if (!files || files.length === 0) return
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const isDuplicate = selectedFiles.value.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size)
-    if (!isDuplicate) {
-      selectedFiles.value.push(file)
+const isDragging = ref<boolean>(false)
+
+const selectFiles = async () => {
+  try {
+    const result = await window.electronAPI.invoke('dialog:open-file', {
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { 
+          name: 'All Files', 
+          extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg',
+                      'mp4', 'avi', 'mov', 'webm', 'mkv', '3gp', 'wmv', 'flv',
+                      'mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma',
+                      'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'rtf',
+                      'zip', 'rar', '7z', 'tar', 'gz'] 
+        },
+        { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg'] },
+        { name: 'Videos', extensions: ['mp4', 'avi', 'mov', 'webm', 'mkv', '3gp', 'wmv', 'flv'] },
+        { name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'] },
+        { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'rtf'] },
+        { name: 'Archives', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] }
+      ]
+    })
+    
+    if (!result.canceled && result.filePaths.length > 0) {
+      const fileInfos = await window.electronAPI.invoke('file:get-multiple-info', result.filePaths)
+      for (const fileInfo of fileInfos) {
+        const isDuplicate = selectedFiles.value.some(
+          (existingFile) => existingFile.path === fileInfo.path
+        )
+        if (!isDuplicate) {
+          selectedFiles.value.push(fileInfo)
+        }
+      }
+      
+      error.value = ""
     }
+  } catch (err: any) {
+    error.value = err.message || "文件选择失败"
+    console.error("文件选择失败:", err)
   }
-
-  target.value = ""
-  error.value = ""
 }
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 B"
-  const k = 1024
-  const sizes = ["B", "KB", "MB", "GB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+const handleDrop = async (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = false
+  
+  try {
+    const files = Array.from(event.dataTransfer?.files || [])
+    console.log('拖拽文件数量:', files.length)
+    
+    if (files.length === 0) {
+      console.warn('没有检测到拖拽的文件')
+      return
+    }
+    
+    // 在Electron中获取文件路径的正确方式
+    const filePaths: string[] = []
+    for (const file of files) {
+      // 尝试多种方式获取文件路径
+      const filePath = (file as any).path || (file as any).webkitRelativePath || file.name
+      if (filePath && filePath !== file.name) {
+        filePaths.push(filePath)
+      } else {
+        // 如果无法获取路径，尝试通过文件系统API
+        console.warn('无法获取文件路径，文件名:', file.name)
+        error.value = "拖拽文件失败：无法获取文件路径，请使用文件选择按钮"
+        return
+      }
+    }
+    
+    console.log('获取到的文件路径:', filePaths)
+    
+    if (filePaths.length > 0) {
+      const fileInfos = await window.electronAPI.invoke('file:get-multiple-info', filePaths)
+      
+      for (const fileInfo of fileInfos) {
+        const isDuplicate = selectedFiles.value.some(
+          (existingFile) => existingFile.path === fileInfo.path
+        )
+        if (!isDuplicate) {
+          selectedFiles.value.push(fileInfo)
+        }
+      }
+      
+      error.value = "" // 清除错误信息
+    }
+  } catch (err: any) {
+    error.value = err.message || "拖拽文件处理失败"
+    console.error("拖拽文件处理失败:", err)
+  }
 }
 
-// 检测文件媒体类型
-const detectMediaType = (file: File): string => {
-  const mimeType = file.type.toLowerCase()
-  const fileName = file.name.toLowerCase()
-  if (mimeType.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|avif)$/.test(fileName)) {
-    return 'image'
-  }
-  if (mimeType.startsWith('video/') || /\.(mp4|avi|mov|wmv|flv|webm|mkv)$/.test(fileName)) {
-    return 'video'
-  }
-  // 音频类型 (注意：这里是文件类型的音频，不是语音录制)
-  if (mimeType.startsWith('audio/') || /\.(mp3|wav|ogg|aac|flac|m4a)$/.test(fileName)) {
-    return 'file' // 按照需求，音频文件也归类为file
-  }
-  return 'file'
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
 }
+
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  // 只有当离开整个拖拽区域时才重置状态
+  if (event.relatedTarget === null || !(event.currentTarget as Element).contains(event.relatedTarget as Node)) {
+    isDragging.value = false
+  }
+}
+
 const removeFile = (index: number): void => {
   selectedFiles.value.splice(index, 1)
 }
@@ -79,25 +155,24 @@ const sendAllFiles = async (): Promise<void> => {
   try {
     console.log("开始发送文件:", selectedFiles.value.length, "个文件")
     const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100mb
-    for (const file of selectedFiles.value) {
-      if (file.size > MAX_FILE_SIZE) {
-        error.value = `文件 "${file.name}" 超过大小限制（100MB）`
-        return
-      }
+    
+    let totalSize = 0
+    for (const fileInfo of selectedFiles.value) {
+      totalSize += fileInfo.size
     }
-    for (const file of selectedFiles.value) {
-      console.log(`处理文件: ${file.name}, 大小: ${formatFileSize(file.size)}`)
-
-      const mediaType = detectMediaType(file)
-
-      // 读取文件内容为ArrayBuffer
-      const fileBuffer = await file.arrayBuffer()
-
+    if (totalSize > MAX_FILE_SIZE) {
+      error.value = `文件总大小超过限制（100MB）`
+      return
+    }
+    
+    for (const fileInfo of selectedFiles.value) {
+      console.log(`处理文件: ${fileInfo.name}, 大小: ${ioUtil.formatFileSize(fileInfo.size)}`)
+      const mediaType = detectMediaTypeByExtension(fileInfo.ext)
       const payload = {
-        fileName: file.name,
-        fileBuffer: fileBuffer,
-        fileSize: file.size,
-        mimeType: file.type,
+        filePath: fileInfo.path,
+        fileName: fileInfo.name,
+        fileSize: fileInfo.size,
+        fileExt: fileInfo.ext,
         mediaType: mediaType,
         chat: {
           targetId: session.contactId,
@@ -107,13 +182,13 @@ const sendAllFiles = async (): Promise<void> => {
       }
 
       console.log(`发送${mediaType}消息:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type,
+        path: fileInfo.path,
+        name: fileInfo.name,
+        size: fileInfo.size,
+        ext: fileInfo.ext,
         mediaType
       })
-
-      window.electronAPI.send("media:send:start-by-buffer", payload)
+      window.electronAPI.send("media:send:start-by-filepath", payload)
     }
 
     console.log("所有文件发送完成")
@@ -124,14 +199,36 @@ const sendAllFiles = async (): Promise<void> => {
     console.error("文件发送失败:", err)
   }
 }
+
+const detectMediaTypeByExtension = (ext: string): string => {
+  const extension = ext.toLowerCase().replace('.', '')
+  
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'].includes(extension)) {
+    return 'image'
+  }
+  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'].includes(extension)) {
+    return 'video'
+  }
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(extension)) {
+    return 'voice'
+  }
+  return 'file'
+}
 </script>
 
 <template>
-  <div class="media-send-box">
+  <div 
+    class="media-send-box"
+    :class="{ 'is-dragging': isDragging }"
+    @drop="handleDrop"
+    @dragover="handleDragOver"
+    @dragenter="handleDragEnter"
+    @dragleave="handleDragLeave"
+  >
     <div class="file-select-section">
       <button class="select-file-btn" @click="selectFiles">
         <i class="iconfont icon-plus"></i>
-        选择文件
+        {{ isDragging ? '释放文件到此处' : '选择文件或拖拽到此处' }}
       </button>
     </div>
     <div v-if="selectedFiles.length > 0" class="file-preview-section">
@@ -154,7 +251,7 @@ const sendAllFiles = async (): Promise<void> => {
           </div>
           <div class="file-info">
             <div class="file-name">{{ file.name }}</div>
-            <div class="file-size">{{ formatFileSize(file.size) }}</div>
+            <div class="file-size">{{ ioUtil.formatFileSize(file.size) }}</div>
           </div>
           <button class="remove-file-btn" @click="removeFile(index)">
             <i class="iconfont icon-close"></i>
@@ -171,15 +268,6 @@ const sendAllFiles = async (): Promise<void> => {
         发送 {{ selectedFiles.length }} 个文件
       </button>
     </div>
-    <!-- 隐藏的文件输入 -->
-    <input
-      ref="fileInput"
-      type="file"
-      multiple
-      accept="*/*"
-      style="display: none"
-      @change="handleFileSelect"
-    />
   </div>
 </template>
 
@@ -201,6 +289,13 @@ const sendAllFiles = async (): Promise<void> => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.media-send-box.is-dragging {
+  border-color: #007AFF;
+  background: rgba(0, 122, 255, 0.1);
+  box-shadow: 0 -4px 20px rgba(0, 122, 255, 0.3);
 }
 
 .file-select-section {

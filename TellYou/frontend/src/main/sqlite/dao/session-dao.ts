@@ -34,11 +34,7 @@ class SessionDao {
   }
 
   // 只有消息更新，才需要更新会话 20251019（发现 bug，为 null 时不会更新，已修）
-  public async keepSessionFresh(data: {
-    content: string
-    sendTime: string
-    sessionId: string
-  }): Promise<number> {
+  public async keepSessionFresh(data: { content: string, sendTime: string, sessionId: string }): Promise<number> {
     const sql = `UPDATE sessions
                  SET last_msg_time = ?, last_msg_content = ?
                  WHERE session_id = ? AND (last_msg_time IS NULL OR datetime(?) > datetime(last_msg_time))`

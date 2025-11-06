@@ -81,9 +81,9 @@ class UrlUtil {
     this.cacheRootPath = join(app.getPath("userData"), "caching");
     this.tempPath = join(app.getPath("userData"), "temp");
     this.protocolHost.forEach((host) => {
-      this.cachePaths[host] = join(this.cacheRootPath, host);
-      this.ensureDir(this.cachePaths[host]);
-    });
+      this.cachePaths[host] = join(this.cacheRootPath, host)
+      this.ensureDir(this.cachePaths[host])
+    })
   }
   // 注册本地文件访问协议
   public registerProtocol(): void {

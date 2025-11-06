@@ -14,8 +14,7 @@ class SessionService {
       "session:update:partial",
       async (_, params: any, sessionId: string) => {
         return await sessionDao.updatePartialBySessionId(params, sessionId)
-      }
-    )
+      })
     ipcMain.on("session:load-data", async (event) => {
       console.log("开始查询session")
       const result: Session[] = await sessionDao.selectSessions()
@@ -141,7 +140,8 @@ class SessionService {
         await sessionDao.updatePartialBySessionId(obj as Partial<Session>, session.sessionId)
       } else {
         console.info("session-service:tidy-session:no-message:", session.sessionId)
-        await sessionDao.updatePartialBySessionId({lastMsgTime: "", lastMsgContent: "[暂无消息]"} as Partial<Session>, session.sessionId)
+        // 必须是 1970-01-01 00:00:00, Unix 纪元最小值
+        await sessionDao.updatePartialBySessionId({lastMsgTime: new Date(0).toISOString(), lastMsgContent: "[暂无消息]"} as Partial<Session>, session.sessionId)
       }
     }
   }

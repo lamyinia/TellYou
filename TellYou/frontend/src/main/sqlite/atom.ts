@@ -12,8 +12,8 @@ import { join } from "path"
  * @date 2025/10/12 16:19
  */
 
-type ColumnMap = { [bizField: string]: string };
-type GlobalColumnMap = { [tableName: string]: ColumnMap };
+type ColumnMap = { [bizField: string]: string }
+type GlobalColumnMap = { [tableName: string]: ColumnMap }
 const globalColumnMap: GlobalColumnMap = {}
 let dataBase: sqlite3.Database
 

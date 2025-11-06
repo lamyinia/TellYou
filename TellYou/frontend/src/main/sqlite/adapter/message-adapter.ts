@@ -1,5 +1,6 @@
 /* eslint-disable */
 
+import urlUtil from "@main/util/url-util"
 import type { Message } from "@shared/types/session"
 
 class MessageAdapter {
@@ -28,11 +29,20 @@ class MessageAdapter {
 
     const msgType = msg.type || msg.messageType || msg.msgType
     const messageType = getMessageType(Number(msgType))
+    let content = msg.content || ""
+    if (messageType === "file") {
+      content = JSON.stringify({
+        fileName: msg.extra?.["fileName"] || "",
+        fileSize: msg.extra?.["fileSize"] || 0,
+        fileSuffix: urlUtil.extractExt(msg.extra?.["originalPath"] || ""),
+        mimeType: "application/octet-stream",
+      })
+    }
 
     return {
       id: Number(insertId) || 0,
       sessionId: msg.sessionId,
-      content: String(msg.content ?? ""),
+      content: String(content),
       messageType: messageType,
       senderId: msg.senderId || msg.fromUserId || "0",
       senderName: msg.fromName ?? "",
@@ -48,7 +58,10 @@ class MessageAdapter {
    */
   public adaptToDatabaseMessage(message: any): any {
     const date = new Date(Number(message.adjustedTimestamp || message.timestamp || Date.now())).toISOString()
-    // 系统消息可能使用 type 字段而不是 messageType
+    if (message.extra?.originalPath){
+      message.extra.fileSuffix = urlUtil.extractExt(message.extra.originalPath|| "")
+    }
+
     const msgType = message.messageType || 1
     return {
       sessionId: String(message.sessionId),
@@ -85,10 +98,19 @@ class MessageAdapter {
         default: return "system";
       }
     }
+    let content = row.text
+    if (getMessageType(row.msgType) === "file") {
+      content = JSON.stringify({
+        fileName: extData.fileName || "未知文件",
+        fileSize: extData.fileSize || 0,
+        fileSuffix: extData.fileSuffix || "",
+        originalLocalPath: urlUtil.signByApp('file', extData.originalLocalPath)
+      })
+    }
     return {
       id: row.id,
       sessionId: row.sessionId,
-      content: row.text || row.extData || "",
+      content: content,
       messageType: getMessageType(row.msgType),
       senderId: row.senderId,
       senderName: row.senderName || "",

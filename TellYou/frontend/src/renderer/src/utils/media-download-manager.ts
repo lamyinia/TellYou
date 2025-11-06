@@ -36,29 +36,26 @@ class MediaDownloadManager {
   // 初始化IPC监听器
   private initializeListeners(): void {
     // 监听下载进度
-    window.electronAPI.on(
-      "media:download:progress",
-      (event: any, data: any) => {
-        const key = `${data.messageId}-${data.type}-${data.mediaType}`
-        const state: DownloadState = {
-          status: "downloading",
-          progress: {
-            loaded: data.loaded,
+    window.electronAPI.on("media:download:progress", (event: any, data: any) => {
+      const key = `${data.messageId}-${data.type}-${data.mediaType}`
+      const state: DownloadState = {
+        status: "downloading",
+        progress: {
+          loaded: data.loaded,
             total: data.total,
             percentage: data.percentage,
             speed: data.speed,
             timeRemaining: data.timeRemaining,
           },
         }
-        this.updateState(key, state)
-      },
-    )
+      this.updateState(key, state)
+    })
     // 监听下载失败
     window.electronAPI.on("media:download:error", (event: any, data: any) => {
       const key = `${data.messageId}-${data.type}-${data.mediaType}`
       const state: DownloadState = {
         status: "error",
-        error: data.error,
+        error: data.error,        
       }
       this.updateState(key, state)
     })
@@ -73,52 +70,39 @@ class MediaDownloadManager {
     }
   }
   // 获取下载状态
-  getDownloadState(
-    messageId: number,
-    type: "original" | "thumbnail",
-    mediaType: MediaType,
-  ): DownloadState | null {
+  getDownloadState(messageId: number, type: "original" | "thumbnail", mediaType: MediaType): DownloadState | null {
     const key = `${messageId}-${type}-${mediaType}`
     return this.downloadStates.get(key) || null
   }
   // 订阅下载状态变化
-  subscribe(
-    messageId: number,
-    type: "original" | "thumbnail",
-    mediaType: MediaType,
-    callback: (state: DownloadState) => void,
-  ): () => void {
+  subscribe(messageId: number, type: "original" | "thumbnail", mediaType: MediaType, callback: (state: DownloadState) => void): () => void {
     const key = `${messageId}-${type}-${mediaType}`
     if (!this.callbacks.has(key)) {
-      this.callbacks.set(key, []);
+      this.callbacks.set(key, [])
     }
     this.callbacks.get(key)!.push(callback)
     // 如果已有状态，立即触发回调
     const currentState = this.downloadStates.get(key)
     if (currentState) {
-      callback(currentState);
+      callback(currentState)
     }
     // 返回取消订阅函数
     return () => {
-      const callbacks = this.callbacks.get(key);
+      const callbacks = this.callbacks.get(key)
       if (callbacks) {
-        const index = callbacks.indexOf(callback);
+        const index = callbacks.indexOf(callback)
         if (index > -1) {
-          callbacks.splice(index, 1);
+          callbacks.splice(index, 1)
         }
         if (callbacks.length === 0) {
-          this.callbacks.delete(key);
-          this.downloadStates.delete(key);
+          this.callbacks.delete(key)
+          this.downloadStates.delete(key)
         }
       }
-    };
+    }
   }
   // 请求媒体文件
-  async requestMedia(
-    messageId: number,
-    type: "original" | "thumbnail",
-    mediaType: MediaType,
-  ): Promise<string | null> {
+  async requestMedia(messageId: number, type: "original" | "thumbnail", mediaType: MediaType): Promise<string | null> {
     try {
       const channel = `${mediaType}:cache:get:${type}`
       const result = await window.electronAPI.invoke(channel, {
@@ -137,30 +121,19 @@ class MediaDownloadManager {
     }
   }
   // 创建响应式状态（用于组件）
-  createReactiveState(
-    messageId: number,
-    type: "original" | "thumbnail",
-    mediaType: MediaType,
-  ): { state: any; unsubscribe: () => void } {
+  createReactiveState(messageId: number, type: "original" | "thumbnail", mediaType: MediaType): { state: any; unsubscribe: () => void } {
     const state = ref<DownloadState>({ status: "idle" })
-    const unsubscribe = this.subscribe(
-      messageId,
-      type,
-      mediaType,
-      (newState) => {
-        state.value = newState
-      },
-    )
+    const unsubscribe = this.subscribe(messageId, type, mediaType, (newState) => {
+      state.value = newState
+    })
     return {
       state,
-      unsubscribe,
+      unsubscribe
     }
   }
   // 清理指定消息的状态
   clearMessageStates(messageId: number): void {
-    const keysToDelete = Array.from(this.downloadStates.keys()).filter((key) =>
-      key.startsWith(`${messageId}-`),
-    )
+    const keysToDelete = Array.from(this.downloadStates.keys()).filter((key) =>key.startsWith(`${messageId}-`))
     keysToDelete.forEach((key) => {
       this.downloadStates.delete(key)
       this.callbacks.delete(key)

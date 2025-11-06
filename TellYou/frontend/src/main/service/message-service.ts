@@ -31,14 +31,14 @@ class MessageService {
   public async handleSingleMessage(message: any): Promise<number> {
     console.log("message-service:handle-single-message", message);
     const messageData = messageAdapter.adaptToDatabaseMessage(message);
-    const msgId: number = await messageDao.addLocalMessage(messageData);
+    const messageId: number = await messageDao.addLocalMessage(messageData);
 
     await sessionDao.keepSessionFresh({
       content: objectUtil.getContentByRow(messageData),
       sendTime: new Date(Number(message.adjustedTimestamp)).toISOString(),
       sessionId: message.sessionId
     })
-    return msgId
+    return messageId
   }
 
   public async getExtendData(params: { id: number }): Promise<any> {
@@ -50,7 +50,6 @@ class MessageService {
    */
   public async handleUploadConfirmation(localMessageId: number, wsMessage: any): Promise<void> {
     try {
-      console.log(`开始处理上传确认: localMessageId=${localMessageId}`, wsMessage)
       await messageDao.updateMessageFromWebSocket(localMessageId, wsMessage)
       const updatedMessage = await messageDao.getById(localMessageId)
       if (!updatedMessage) {
@@ -58,10 +57,9 @@ class MessageService {
       }
 
       const vo = messageAdapter.adaptWebSocketMessage(wsMessage, localMessageId)
-
       await sessionDao.keepSessionFresh({
         content: objectUtil.getContentByRow(updatedMessage),
-        sendTime: wsMessage.sendTime || new Date().toISOString(),
+        sendTime: updatedMessage.sendTime || new Date().toISOString(),
         sessionId: wsMessage.sessionId
       })
 

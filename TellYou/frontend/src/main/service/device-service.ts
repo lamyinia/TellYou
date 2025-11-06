@@ -421,6 +421,50 @@ class DeviceService {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
       }
     })
+    ipcMain.handle('dialog:open-file', async (_, options) => {
+      const { dialog } = require('electron')
+      const { BrowserWindow } = require('electron')
+      const mainWindow = BrowserWindow.getAllWindows()[0]
+      return await dialog.showOpenDialog(mainWindow, options)
+    })
+
+    ipcMain.handle('file:get-info', async (_, filePath: string) => {
+      try {
+        const stats = await fs.promises.stat(filePath)
+        const path = require('path')
+        return {
+          size: stats.size,
+          name: path.basename(filePath),
+          ext: path.extname(filePath),
+          path: filePath
+        }
+      } catch (error) {
+        console.error('获取文件信息失败:', error)
+        throw error
+      }
+    })
+
+    ipcMain.handle('file:get-multiple-info', async (_, filePaths: string[]) => {
+      try {
+        const path = require('path')
+        const results = await Promise.all(
+          filePaths.map(async (filePath) => {
+            const stats = await fs.promises.stat(filePath)
+            return {
+              size: stats.size,
+              name: path.basename(filePath),
+              ext: path.extname(filePath),
+              path: filePath
+            }
+          })
+        )
+        return results
+      } catch (error) {
+        console.error('批量获取文件信息失败:', error)
+        throw error
+      }
+    })
+
     ipcMain.handle("test", (_, data: any) => {
       test(data)
     })

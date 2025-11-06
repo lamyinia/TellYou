@@ -96,7 +96,7 @@ class MediaUtil {
     ".webm": "video/webm",
     ".ogg": "audio/ogg",
     ".mpeg": "audio/mpeg",
-    ".wav": "audio/wav"
+    ".wav": "audio/wav",
   }
   /**
    * 检查文件是否需要压缩
@@ -117,50 +117,37 @@ class MediaUtil {
    * @returns Promise<boolean> 是否为动图
    */
   private async isAvifAnimated(buffer: Buffer): Promise<boolean> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       try {
-        // 创建临时文件
         const tempInputPath = path.join(urlUtil.tempPath, `avif_detect_${Date.now()}.avif`)
-
-        // 写入临时文件
-        require('fs').writeFileSync(tempInputPath, buffer)
-
-        // 使用FFmpeg检测视频信息
-        ffmpeg.ffprobe(tempInputPath, (err, metadata) => {
-          // 清理临时文件
+        await require('fs').promises.writeFile(tempInputPath, buffer)
+        ffmpeg.ffprobe(tempInputPath, async (err, metadata) => {
           try {
-            require('fs').unlinkSync(tempInputPath)
+            await require('fs').promises.unlink(tempInputPath)
           } catch (cleanupError) {
             console.warn('清理临时文件失败:', cleanupError)
           }
-
           if (err) {
             console.error('FFmpeg检测AVIF失败:', err)
-            // 如果FFmpeg检测失败，默认按静态图处理
             resolve(false)
             return
           }
 
           try {
-            // 检查是否有视频流且帧数大于1
             const videoStream = metadata.streams?.find(stream => stream.codec_type === 'video')
             const frameCount = videoStream?.nb_frames ? parseInt(videoStream.nb_frames) : 0
             const duration = videoStream?.duration ? parseFloat(videoStream.duration) : 0
-
-            // 判断是否为动图：有多帧或有时长
             const isAnimated = frameCount > 1 || duration > 0
 
             console.info(`AVIF动图检测结果: ${isAnimated ? '动图' : '静态图'} (frames: ${frameCount}, duration: ${duration}s)`)
             resolve(isAnimated)
           } catch (parseError) {
             console.error('解析FFmpeg元数据失败:', parseError)
-            // 解析失败时默认按静态图处理
             resolve(false)
           }
         })
       } catch (error) {
         console.error('AVIF动图检测过程失败:', error)
-        // 检测过程失败时默认按静态图处理
         resolve(false)
       }
     })
@@ -221,17 +208,12 @@ class MediaUtil {
   async processImage(mediaFile: MediaFile, strategy: "thumb" | "original"): Promise<CompressionResult> {
     const { mimeType } = mediaFile
 
-    // 特殊处理AVIF
     if (mimeType === 'image/avif') {
       return this.processAvif(mediaFile, strategy)
     }
-
-    // 其他动图类型
     if (this.isMotionImage(mimeType)) {
       return this.processMotion(mediaFile, strategy)
     }
-
-    // 静态图片
     if (strategy === "thumb") {
       return this.processStaticThumbnail(mediaFile)
     } else {
@@ -491,7 +473,6 @@ class MediaUtil {
     const { buffer, mimeType } = mediaFile
 
     try {
-      // 根据输入格式确定正确的文件扩展名
       let inputExtension = '.webm'
       if (mimeType.includes('webm')) {
         inputExtension = '.webm'
@@ -633,7 +614,6 @@ class MediaUtil {
   async getAudioInfo(mediaFile: MediaFile): Promise<{ duration: number }> {
     console.warn('getAudioInfo方法已弃用，建议从渲染进程传递音频时长')
 
-    // 简化版本，仅作为备用
     const { buffer } = mediaFile;
     try {
       const tempAudioPath = path.join(urlUtil.tempPath, `audio_${Date.now()}.webm`)
@@ -712,6 +692,96 @@ class MediaUtil {
     } catch (error) {
       console.error('获取视频信息失败:', error)
       throw new Error(`获取视频信息失败: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * 流式复制文件 - 用于大文件的内存友好复制
+   * @param sourcePath 源文件路径
+   * @param targetPath 目标文件路径
+   * @param onProgress 进度回调 (可选)
+   */
+  public async streamCopyFile(
+    sourcePath: string, 
+    targetPath: string, 
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    const fs = require('fs')
+    const path = require('path')
+    
+    console.log(`开始流式复制文件: ${sourcePath} -> ${targetPath}`)
+    
+    // 确保目标目录存在
+    const targetDir = path.dirname(targetPath)
+    await fs.promises.mkdir(targetDir, { recursive: true })
+    
+    // 获取文件大小用于进度计算
+    const stats = await fs.promises.stat(sourcePath)
+    const totalSize = stats.size
+    let copiedSize = 0
+    
+    return new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(sourcePath, {
+        highWaterMark: 1024 * 1024 // 1MB 缓冲区
+      })
+      const writeStream = fs.createWriteStream(targetPath)
+      
+      // 监听复制进度
+      readStream.on('data', (chunk: Buffer) => {
+        copiedSize += chunk.length
+        if (onProgress && totalSize > 0) {
+          const progress = Math.round((copiedSize / totalSize) * 100)
+          onProgress(progress)
+        }
+      })
+      
+      // 复制完成
+      writeStream.on('finish', () => {
+        console.log(`流式复制完成: ${targetPath}`)
+        resolve()
+      })
+      
+      // 错误处理
+      readStream.on('error', (error) => {
+        console.error('读取源文件失败:', error)
+        writeStream.destroy()
+        reject(error)
+      })
+      
+      writeStream.on('error', (error) => {
+        console.error('写入目标文件失败:', error)
+        readStream.destroy()
+        reject(error)
+      })
+      
+      // 开始流式复制
+      readStream.pipe(writeStream)
+    })
+  }
+
+  /**
+   * 获取文件基本信息（不加载内容到内存）
+   * @param filePath 文件路径
+   */
+  public async getFileBasicInfo(filePath: string): Promise<{
+    size: number
+    name: string
+    ext: string
+    mimeType: string
+  }> {
+    const fs = require('fs')
+    const path = require('path')
+    
+    const stats = await fs.promises.stat(filePath)
+    const name = path.basename(filePath)
+    const ext = path.extname(filePath)
+    const mimeType = this.getMimeTypeBySuffix(ext)
+    
+    return {
+      size: stats.size,
+      name,
+      ext,
+      mimeType
     }
   }
 }

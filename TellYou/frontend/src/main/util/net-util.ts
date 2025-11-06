@@ -658,6 +658,170 @@ class NetMinIO {
 const netMaster = new NetMaster(masterInstance)
 const netMinIO = new NetMinIO(minioInstance)
 
+// 流式上传相关类型定义
+export interface StreamUploadOptions {
+  onProgress?: (progress: number) => void
+  chunkSize?: number
+  timeout?: number
+}
+
+// 流式上传工具类
+export class StreamUploader {
+  /**
+   * 流式上传文件到指定URL
+   */
+  static async streamUploadFile(
+    uploadUrl: string,
+    filePath: string,
+    options: StreamUploadOptions = {}
+  ): Promise<void> {
+    const fs = require('fs')
+    const https = require('https')
+    const http = require('http')
+    const { URL } = require('url')
+
+    const { onProgress, timeout = 30000 } = options
+
+    // 获取文件信息
+    const stats = await fs.promises.stat(filePath)
+    const totalSize = stats.size
+    let uploadedSize = 0
+
+    console.log(`开始流式上传: ${filePath}, 大小: ${totalSize} bytes`)
+
+    return new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(filePath)
+      const parsedUrl = new URL(uploadUrl)
+      const isHttps = parsedUrl.protocol === 'https:'
+      const client = isHttps ? https : http
+
+      const requestOptions = {
+        method: 'PUT',
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: {
+          'Content-Length': totalSize,
+          'Content-Type': 'application/octet-stream'
+        },
+        timeout
+      }
+
+      const req = client.request(requestOptions, (res) => {
+        console.log(`流式上传响应状态: ${res.statusCode}`)
+
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          console.log('流式上传成功')
+          resolve()
+        } else {
+          reject(new Error(`流式上传失败: HTTP ${res.statusCode}`))
+        }
+      })
+
+      // 监听上传进度
+      readStream.on('data', (chunk) => {
+        uploadedSize += chunk.length
+        if (onProgress) {
+          const progress = Math.round((uploadedSize / totalSize) * 100)
+          onProgress(progress)
+        }
+      })
+
+      // 错误处理
+      readStream.on('error', (error) => {
+        console.error('读取文件流失败:', error)
+        reject(error)
+      })
+      req.on('error', (error) => {
+        console.error('上传请求失败:', error)
+        reject(error)
+      })
+      req.on('timeout', () => {
+        console.error('上传超时')
+        req.destroy()
+        reject(new Error('上传超时'))
+      })
+
+      // 开始流式传输
+      readStream.pipe(req)
+    })
+  }
+
+  /**
+   * 分块上传大文件
+   */
+  static async chunkUploadFile(
+    uploadUrl: string,
+    filePath: string,
+    options: StreamUploadOptions = {}
+  ): Promise<void> {
+    const fs = require('fs')
+    const { onProgress, chunkSize = 5 * 1024 * 1024 } = options // 默认5MB块
+
+    const stats = await fs.promises.stat(filePath)
+    const totalSize = stats.size
+    const totalChunks = Math.ceil(totalSize / chunkSize)
+
+    console.log(`开始分块上传: ${filePath}, 总大小: ${totalSize}, 分块数: ${totalChunks}`)
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize
+      const end = Math.min(start + chunkSize, totalSize)
+      const chunkStream = fs.createReadStream(filePath, { start, end: end - 1 })
+
+      await this.uploadChunk(uploadUrl, chunkStream, i, totalChunks)
+
+      if (onProgress) {
+        const progress = Math.round(((i + 1) / totalChunks) * 100)
+        onProgress(progress)
+      }
+    }
+  }
+
+  /**
+   * 上传单个分块
+   */
+  private static async uploadChunk(
+    uploadUrl: string,
+    chunkStream: any,
+    chunkIndex: number,
+    totalChunks: number
+  ): Promise<void> {
+    // 这里可以根据具体的分块上传协议实现
+    // 目前先使用简单的流式上传
+    return new Promise((resolve, reject) => {
+      const https = require('https')
+      const http = require('http')
+      const { URL } = require('url')
+
+      const parsedUrl = new URL(uploadUrl)
+      const isHttps = parsedUrl.protocol === 'https:'
+      const client = isHttps ? https : http
+
+      const req = client.request({
+        method: 'PUT',
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-Chunk-Index': chunkIndex.toString(),
+          'X-Total-Chunks': totalChunks.toString()
+        }
+      }, (res) => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve()
+        } else {
+          reject(new Error(`分块上传失败: HTTP ${res.statusCode}`))
+        }
+      })
+
+      req.on('error', reject)
+      chunkStream.pipe(req)
+    })
+  }
+}
+
 export { netMaster, netMinIO }
 export type {
   ApiResponse,

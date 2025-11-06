@@ -78,40 +78,38 @@ class WebsocketHandler {
   private async checkAndHandleUploadConfirmation(msg: any): Promise<number> {
     try {
       const fromUserId = store.get(uidKey) as string
+
       if (msg.senderId !== fromUserId) {
-        return 0 // 不是自己发送的消息，不需要处理
-      }
-      const extra = msg.extra || {}
-      if (!extra.originalPath) {
         return 0
       }
 
-      console.info("检查并处理上传确认消息:", msg)
+      const extra = msg.extra || {}
+      console.info("checkAndHandleUploadConfirmation 检查并处理上传确认消息:", msg)
 
       let objectName = extra.originalPath
       if (!objectName) {
-        console.warn('上传确认消息缺少objectName')
+        console.warn('checkAndHandleUploadConfirmation 上传确认消息缺少objectName')
         return 0
       }
       objectName = urlUtil.extractObjectName(objectName)
 
       const uploadingMessage = await messageDao.findByObjectName(objectName)
       if (!uploadingMessage) {
-        console.warn(`未找到对应的上传中消息: ${objectName}`)
+        console.warn(`checkAndHandleUploadConfirmation 未找到对应的上传中消息: ${objectName}`)
         return 0
       }
       if (uploadingMessage.msgType > 1){
-        console.warn(`上传确认消息类型幂等性检验失败: ${uploadingMessage}`)
+        console.warn(`checkAndHandleUploadConfirmation 上传确认消息类型幂等性检验失败: ${uploadingMessage}`)
         return -1
       }
 
-      console.log(`找到上传中消息，开始回填: messageId=${uploadingMessage.id}`)
+      console.info(`checkAndHandleUploadConfirmation 找到上传中消息，开始回填: messageId=${uploadingMessage.id}`)
       await messageService.handleUploadConfirmation(uploadingMessage.id, msg)
 
       const mainWindow = BrowserWindow.getAllWindows()[0]
       mainWindow.webContents.send('message:upload:confirmed', {messageId: uploadingMessage.id})
 
-      console.log(`上传确认处理完成: messageId=${uploadingMessage.id}`)
+      console.info(`checkAndHandleUploadConfirmation 上传确认处理完成: messageId=${uploadingMessage.id}`)
       return 1
 
     } catch (error) {

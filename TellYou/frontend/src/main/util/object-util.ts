@@ -18,8 +18,8 @@ class ObjectUtil {
     if (msg.msgType === 0) return '[正在上传]'
     if (msg.msgType === 1 || msg.msgType === 21) return msg.text || ""
     if (msg.msgType === 2 || msg.msgType === 22) return '[图片]'
-    if (msg.msgType === 3 || msg.msgType === 23) return '[语音]'
-    if (msg.msgType === 4 || msg.msgType === 24) return '[视频]'
+    if (msg.msgType === 3 || msg.msgType === 23) return '[视频]'
+    if (msg.msgType === 4 || msg.msgType === 24) return '[语音]'
     if (msg.msgType === 5 || msg.msgType === 25) return '[文件]'
     if (msg.msgType === 51 || msg.msgType === 52 || msg.msgType === 53 || msg.msgType === 54 || msg.msgType === 55) return '[系统消息]'
     return '未知'

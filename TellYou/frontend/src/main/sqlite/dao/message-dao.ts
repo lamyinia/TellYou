@@ -185,11 +185,7 @@ class MessageDao {
       console.warn('updateMessageFromWebSocket 失败，currentRow 为空')
     }
     const currentExtData = JSON.parse(currentRow?.extData || '{}')
-    console.info('updateMessageFromWebSocket json parse 1')
-    
-    // wsMessage.extra 已经是对象，不需要再解析
     const msgExtData = wsMessage.extra || {}
-    console.info('updateMessageFromWebSocket 直接使用 extra 对象:', msgExtData)
 
     const newExtData = {
       ...currentExtData,

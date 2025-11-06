@@ -1,139 +1,131 @@
 <script setup lang="ts">
 /* eslint-disable */
 
-import type { ChatMessage } from "@renderer/status/message/class";
-import { useUserStore } from "@main/electron-store/persist/user-store";
-import { computed, ref, onMounted, onUnmounted } from "vue";
-import Avatar from "@renderer/components/Avatar.vue";
-import NickName from "@renderer/components/NickName.vue";
+import type { ChatMessage } from "@renderer/status/message/class"
+import { useUserStore } from "@main/electron-store/persist/user-store"
+import { computed, ref, onMounted, onUnmounted } from "vue"
+import Avatar from "@renderer/components/Avatar.vue"
+import NickName from "@renderer/components/NickName.vue"
 import {
   mediaDownloadManager,
   type DownloadState,
-} from "@renderer/utils/media-download-manager";
-import { Download, FileText, FolderOpen } from "lucide-vue-next";
+} from "@renderer/utils/media-download-manager"
+import { Download, FileText, FolderOpen } from "lucide-vue-next"
 
-const props = defineProps<{ message: ChatMessage }>();
-const userStore = useUserStore();
-const isSelf = computed(() => props.message.senderId === userStore.myId);
-const showStrategy = "thumbedAvatarUrl";
+const props = defineProps<{ message: ChatMessage }>()
+const userStore = useUserStore()
+const isSelf = computed(() => props.message.senderId === userStore.myId)
+const showStrategy = "thumbedAvatarUrl"
 
-const downloadState = ref<DownloadState>({ status: "idle" });
-const fileUrl = ref("");
-const isDownloading = ref(false);
-const previewImageUrl = ref("");
+const downloadState = ref<DownloadState>({ status: "idle" })
+const fileUrl = ref("")
+const isDownloading = ref(false)
+const previewImageUrl = ref("")
 
-let unsubscribe: (() => void) | null = null;
+let unsubscribe: (() => void) | null = null
 
 const fileInfo = computed(() => {
-  const content = props.message.content;
+  const content = props.message.content
   try {
-    console.log("file-message:parsed", content);
-    const parsed = JSON.parse(content);
+    console.log("file-message:parsed", content)
+    const parsed = JSON.parse(content)
+    if (parsed.originalLocalPath) {
+      fileUrl.value = parsed.originalLocalPath
+      console.log('fileUrl.value', fileUrl.value)
+    }
     return {
       fileName: parsed.fileName || "未知文件",
       fileSize: parsed.fileSize || 0,
       fileSuffix: parsed.fileSuffix || "",
-      mimeType: parsed.mimeType || "application/octet-stream",
-    };
+    }
   } catch {
     return {
       fileName: "未知文件",
       fileSize: 0,
       fileSuffix: "",
-      mimeType: "application/octet-stream",
-    };
+    }
   }
-});
+})
 // 格式化文件大小
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
 
 // 订阅下载状态
 const subscribeToDownload = () => {
   unsubscribe = mediaDownloadManager.subscribe(props.message.id, (state) => {
-    downloadState.value = state;
+    downloadState.value = state
     if (state.status === "completed" && state.url) {
-      fileUrl.value = state.url;
+      fileUrl.value = state.url
     }
-  });
-};
+  })
+}
 
 // 下载文件
 const downloadFile = async () => {
-  if (isDownloading.value) return;
+  if (isDownloading.value) return
 
   try {
-    isDownloading.value = true;
-    const result = await mediaDownloadManager.requestMedia(
-      props.message.id,
-      "original",
-      "file",
-    );
+    isDownloading.value = true
+    const result = await mediaDownloadManager.requestMedia(props.message.id, "original", "file")
     if (result) {
-      fileUrl.value = result;
+      fileUrl.value = result
     }
   } catch (error) {
-    console.error("文件下载失败:", error);
+    console.error("文件下载失败:", error)
   } finally {
-    isDownloading.value = false;
+    isDownloading.value = false
   }
-};
+}
 const showInFolder = async () => {
   if (!fileUrl.value) {
-    await downloadFile();
+    await downloadFile()
   }
   if (fileUrl.value) {
     try {
-      const result = await window.electronAPI.invoke(
-        "file:show-in-folder",
-        fileUrl.value,
-      );
+      const result = await window.electronAPI.invoke("file:show-in-folder", fileUrl.value)
       if (!result.success) {
-        console.error("显示文件位置失败:", result.error);
+        console.error("显示文件位置失败:", result.error)
       }
     } catch (error) {
-      console.error("显示文件位置失败:", error);
+      console.error("显示文件位置失败:", error)
     }
   }
-};
+}
 
 // 获取文件预览图
 const loadPreviewImage = async () => {
   try {
-    const result = await window.electronAPI.invoke(
-      "file:get-preview-image",
-      fileInfo.value.fileSuffix,
-    );
+    const result = await window.electronAPI.invoke("file:get-preview-image", fileInfo.value.fileSuffix)
     if (result && result.success) {
       // 使用浏览器兼容的方式处理二进制数据
-      const uint8Array = new Uint8Array(result.data);
-      let binaryString = "";
+      const uint8Array = new Uint8Array(result.data)
+      let binaryString = ""
       for (let i = 0; i < uint8Array.length; i++) {
-        binaryString += String.fromCharCode(uint8Array[i]);
+        binaryString += String.fromCharCode(uint8Array[i])
       }
-      const base64Data = btoa(binaryString);
-      previewImageUrl.value = `data:${result.mimeType};base64,${base64Data}`;
+      const base64Data = btoa(binaryString)
+      previewImageUrl.value = `data:${result.mimeType};base64,${base64Data}`
     }
   } catch (error) {
-    console.error("获取文件预览图失败:", error);
+    console.error("获取文件预览图失败:", error)
   }
-};
+}
 
 onMounted(() => {
-  subscribeToDownload();
-  loadPreviewImage();
-});
+  subscribeToDownload()
+  loadPreviewImage()
+})
 
 onUnmounted(() => {
   if (unsubscribe) {
-    unsubscribe();
+    unsubscribe()
   }
-});
+})
 </script>
 
 <template>
