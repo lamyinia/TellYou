@@ -1,4 +1,4 @@
-import { queryAll, sqliteRun } from "@main/sqlite/atom";
+import sqliteManager from "@main/sqlite/atom";
 
 export interface BlackRow {
   id: number;
@@ -17,11 +17,11 @@ class BlackDao {
     pageSize: number,
   ): Promise<PagedResult<BlackRow>> {
     const offset = (pageNo - 1) * pageSize;
-    const rows = (await queryAll(
+    const rows = (await sqliteManager.queryAll(
       `SELECT * FROM blacklist ORDER BY create_time DESC LIMIT ? OFFSET ?`,
       [pageSize, offset],
     )) as unknown as BlackRow[];
-    const totalRow = (await queryAll(
+    const totalRow = (await sqliteManager.queryAll(
       `SELECT COUNT(1) AS total FROM blacklist`,
       [],
     )) as Array<{
@@ -34,7 +34,7 @@ class BlackDao {
     if (!userIds.length) return 0;
     const placeholders = userIds.map(() => "?").join(",");
     const sql = `DELETE FROM blacklist WHERE target_id IN (${placeholders})`;
-    return sqliteRun(sql, userIds);
+    return sqliteManager.sqliteRun(sql, userIds).then(result => result.changes);
   }
 }
 const blackDao = new BlackDao();

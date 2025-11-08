@@ -663,6 +663,7 @@ export interface StreamUploadOptions {
   onProgress?: (progress: number) => void
   chunkSize?: number
   timeout?: number
+  contentType?: string  // 自定义Content-Type
 }
 
 // 流式上传工具类
@@ -680,7 +681,7 @@ export class StreamUploader {
     const http = require('http')
     const { URL } = require('url')
 
-    const { onProgress, timeout = 30000 } = options
+    const { onProgress, timeout = 600000 } = options  // 默认10分钟超时
 
     // 获取文件信息
     const stats = await fs.promises.stat(filePath)
@@ -694,6 +695,8 @@ export class StreamUploader {
       const parsedUrl = new URL(uploadUrl)
       const isHttps = parsedUrl.protocol === 'https:'
       const client = isHttps ? https : http
+      
+      let isCompleted = false  // 标记请求是否已完成
 
       const requestOptions = {
         method: 'PUT',
@@ -702,21 +705,32 @@ export class StreamUploader {
         path: parsedUrl.pathname + parsedUrl.search,
         headers: {
           'Content-Length': totalSize,
-          'Content-Type': 'application/octet-stream'
-        },
-        timeout
+          'Content-Type': options.contentType || this.getMimeTypeFromPath(filePath)
+        }
+        // 移除timeout，使用手动超时控制
       }
 
       const req = client.request(requestOptions, (res) => {
         console.log(`流式上传响应状态: ${res.statusCode}`)
 
         if (res.statusCode === 200 || res.statusCode === 201) {
+          isCompleted = true
           console.log('流式上传成功')
           resolve()
         } else {
+          isCompleted = true
           reject(new Error(`流式上传失败: HTTP ${res.statusCode}`))
         }
       })
+
+      // 手动超时控制
+      const timeoutId = setTimeout(() => {
+        if (!isCompleted) {
+          console.error('上传超时')
+          req.destroy()
+          reject(new Error('上传超时'))
+        }
+      }, timeout)
 
       // 监听上传进度
       readStream.on('data', (chunk) => {
@@ -729,17 +743,24 @@ export class StreamUploader {
 
       // 错误处理
       readStream.on('error', (error) => {
-        console.error('读取文件流失败:', error)
-        reject(error)
+        if (!isCompleted) {
+          clearTimeout(timeoutId)
+          console.error('读取文件流失败:', error)
+          reject(error)
+        }
       })
+      
       req.on('error', (error) => {
-        console.error('上传请求失败:', error)
-        reject(error)
+        if (!isCompleted) {
+          clearTimeout(timeoutId)
+          console.error('上传请求失败:', error)
+          reject(error)
+        }
       })
-      req.on('timeout', () => {
-        console.error('上传超时')
-        req.destroy()
-        reject(new Error('上传超时'))
+
+      // 请求完成时清理超时
+      req.on('finish', () => {
+        clearTimeout(timeoutId)
       })
 
       // 开始流式传输
@@ -819,6 +840,31 @@ export class StreamUploader {
       req.on('error', reject)
       chunkStream.pipe(req)
     })
+  }
+
+  /**
+   * 根据文件路径获取MIME类型
+   */
+  static getMimeTypeFromPath(filePath: string): string {
+    const path = require('path')
+    const ext = path.extname(filePath).toLowerCase()
+    
+    const mimeMap: Record<string, string> = {
+      '.avif': 'image/avif',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.ogg': 'audio/ogg',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.pdf': 'application/pdf'
+    }
+    
+    return mimeMap[ext] || 'application/octet-stream'
   }
 }
 

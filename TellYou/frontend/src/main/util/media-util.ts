@@ -14,24 +14,19 @@ export interface MediaFile {
   size: number
 }
 export interface CompressionResult {
-  compressedBuffer: Buffer,
+  compressedBuffer?: Buffer,  // 传统方式的buffer（可选）
   compressedSize: number,
   compressionRatio: number,
   newMimeType: string,
-  newSuffix: string
+  newSuffix: string,
+  outputPath?: string         // 流式处理的输出路径（可选）
 }
 export interface ThumbnailResult {
   thumbnailBuffer: Buffer,
   thumbnailSize: number,
   dimensions: { width: number; height: number }
 }
-export interface VideoInfo {
-  duration: number,
-  width: number,
-  height: number,
-  bitrate: number,
-  codec: string
-}
+
 const NON_COMPRESSIBLE_TYPES: string[] = [
   "application/pdf",
   "application/msword",
@@ -608,45 +603,6 @@ class MediaUtil {
   }
 
   /**
-   * 获取音频信息（已弃用，建议从渲染进程传递时长）
-   * @deprecated 建议从渲染进程传递音频时长，避免复杂的FFmpeg检测
-   */
-  async getAudioInfo(mediaFile: MediaFile): Promise<{ duration: number }> {
-    console.warn('getAudioInfo方法已弃用，建议从渲染进程传递音频时长')
-
-    const { buffer } = mediaFile;
-    try {
-      const tempAudioPath = path.join(urlUtil.tempPath, `audio_${Date.now()}.webm`)
-
-      await fs.mkdir(path.dirname(tempAudioPath), { recursive: true })
-      await fs.writeFile(tempAudioPath, buffer)
-
-      const audioInfo = await new Promise<{ duration: number }>((resolve) => {
-        ffmpeg.ffprobe(tempAudioPath, (err, metadata) => {
-          if (err) {
-            console.error('FFmpeg检测音频失败:', err)
-            resolve({ duration: 0 })
-            return
-          }
-
-          let duration = 0
-          if (metadata.format?.duration) {
-            duration = parseFloat(metadata.format.duration.toString())
-          }
-
-          resolve({ duration })
-        })
-      })
-
-      await fs.unlink(tempAudioPath).catch(() => {})
-      return audioInfo
-    } catch (error) {
-      console.error('获取音频信息失败:', error)
-      return { duration: 0 }
-    }
-  }
-
-  /**
    * 获取视频信息
    */
   async getVideoInfo(mediaFile: MediaFile): Promise<{ duration: number; width: number; height: number }> {
@@ -701,31 +657,27 @@ class MediaUtil {
    * @param targetPath 目标文件路径
    * @param onProgress 进度回调 (可选)
    */
-  public async streamCopyFile(
-    sourcePath: string, 
-    targetPath: string, 
-    onProgress?: (progress: number) => void
-  ): Promise<void> {
+  public async streamCopyFile(sourcePath: string, targetPath: string,onProgress?: (progress: number) => void): Promise<void> {
     const fs = require('fs')
     const path = require('path')
-    
+
     console.log(`开始流式复制文件: ${sourcePath} -> ${targetPath}`)
-    
+
     // 确保目标目录存在
     const targetDir = path.dirname(targetPath)
-    await fs.promises.mkdir(targetDir, { recursive: true })
-    
+    await require('fs').promises.mkdir(targetDir, { recursive: true })
+
     // 获取文件大小用于进度计算
-    const stats = await fs.promises.stat(sourcePath)
+    const stats = await require('fs').promises.stat(sourcePath)
     const totalSize = stats.size
     let copiedSize = 0
-    
+
     return new Promise((resolve, reject) => {
       const readStream = fs.createReadStream(sourcePath, {
         highWaterMark: 1024 * 1024 // 1MB 缓冲区
       })
       const writeStream = fs.createWriteStream(targetPath)
-      
+
       // 监听复制进度
       readStream.on('data', (chunk: Buffer) => {
         copiedSize += chunk.length
@@ -734,26 +686,26 @@ class MediaUtil {
           onProgress(progress)
         }
       })
-      
+
       // 复制完成
       writeStream.on('finish', () => {
         console.log(`流式复制完成: ${targetPath}`)
         resolve()
       })
-      
+
       // 错误处理
       readStream.on('error', (error) => {
         console.error('读取源文件失败:', error)
         writeStream.destroy()
         reject(error)
       })
-      
+
       writeStream.on('error', (error) => {
         console.error('写入目标文件失败:', error)
         readStream.destroy()
         reject(error)
       })
-      
+
       // 开始流式复制
       readStream.pipe(writeStream)
     })
@@ -769,14 +721,13 @@ class MediaUtil {
     ext: string
     mimeType: string
   }> {
-    const fs = require('fs')
     const path = require('path')
-    
-    const stats = await fs.promises.stat(filePath)
+
+    const stats = await require('fs').promises.stat(filePath)
     const name = path.basename(filePath)
     const ext = path.extname(filePath)
     const mimeType = this.getMimeTypeBySuffix(ext)
-    
+
     return {
       size: stats.size,
       name,
@@ -784,6 +735,434 @@ class MediaUtil {
       mimeType
     }
   }
+
+  /**
+   * 从文件路径处理图片（仿照processImage逻辑）
+   * @param filePath 图片文件路径
+   * @param strategy 处理策略：缩略图或原图
+   */
+  async processImageFromPath(filePath: string, strategy: "thumb" | "original"): Promise<CompressionResult> {
+    // 获取文件MIME类型（不读取文件内容）
+    const mimeType = this.getMimeTypeBySuffix(path.extname(filePath))
+
+    if (mimeType === 'image/avif') {
+      return this.processAvifFromPath(filePath, strategy)
+    }
+    if (this.isMotionImage(mimeType)) {
+      return this.processMotionFromPath(filePath, strategy)
+    }
+    if (strategy === "thumb") {
+      return this.processStaticThumbnailFromPath(filePath)
+    } else {
+      return this.processStaticOriginalFromPath(filePath)
+    }
+  }
+
+  /**
+   * 从文件路径处理AVIF文件（仿照processAvif逻辑）
+   */
+  private async processAvifFromPath(filePath: string, strategy: "thumb" | "original"): Promise<CompressionResult> {
+    console.info('开始处理AVIF文件，检测是否为动图...')
+
+    // 检测是否为动图（使用文件路径，不读取完整文件）
+    const isAnimated = await this.isAvifAnimatedFromPath(filePath)
+
+    if (isAnimated) {
+      console.info('检测到AVIF动图，使用FFmpeg处理')
+      return this.processMotionFromPath(filePath, strategy)
+    } else {
+      console.info('检测到AVIF静态图，使用Sharp处理')
+      if (strategy === "thumb") {
+        return this.processStaticThumbnailFromPath(filePath)
+      } else {
+        return this.processStaticOriginalFromPath(filePath)
+      }
+    }
+  }
+
+  /**
+   * 从文件路径处理动图文件（流式处理，不加载到内存）
+   */
+  private async processMotionFromPath(filePath: string, strategy: "thumb" | "original"): Promise<CompressionResult> {
+    console.info('流式处理动图文件')
+    
+    const tempOutputPath = path.join(urlUtil.tempPath, `motion_${strategy}_${Date.now()}.avif`)
+    const currentConfig = strategy === "thumb" ? IM_COMPRESSION_CONFIG.thumbnail : IM_COMPRESSION_CONFIG.original
+    
+    return new Promise((resolve, reject) => {
+      feedbackSendUtil.broadcastInfo("媒体资源处理中...", "动图可能耗费较长时间，请耐心等待")
+      
+      // 直接使用原文件路径，不需要写入临时输入文件
+      ffmpeg(filePath)
+        .size(`${currentConfig.maxSize}x?`)
+        .outputOptions([
+          "-c:v libaom-av1",
+          "-b:v 0",
+          `-crf ${currentConfig.crf}`,
+          `-cpu-used 8`,
+          "-threads 0",
+          "-pix_fmt yuv420p",
+          "-movflags +faststart",
+          "-vsync cfr",
+          "-f avif"
+        ])
+        .save(tempOutputPath)
+        .on("end", async () => {
+          try {
+            // 不读取文件内容，只获取文件大小
+            const stats = await require('fs').promises.stat(tempOutputPath)
+            resolve({
+              outputPath: tempOutputPath,  // 返回文件路径，不返回buffer
+              compressedSize: stats.size,
+              compressionRatio: 0.8, // 估算压缩比
+              newMimeType: "image/avif",
+              newSuffix: ".avif"
+            } as any)
+          } catch (error) {
+            reject(error)
+          }
+        })
+        .on("error", (err) => {
+          console.error("FFmpeg处理动图失败:", err.message)
+          reject(new Error(`动图处理失败: ${err.message}`))
+        })
+    })
+  }
+
+  /**
+   * 从文件路径处理静态图缩略图（流式处理，不加载到内存）
+   */
+  private async processStaticThumbnailFromPath(filePath: string): Promise<CompressionResult> {
+    console.info('流式处理静态图缩略图')
+    
+    const tempOutputPath = path.join(urlUtil.tempPath, `thumb_${Date.now()}.avif`)
+    const config = IM_COMPRESSION_CONFIG.thumbnail
+    
+    return new Promise((resolve, reject) => {
+      // 使用FFmpeg直接处理文件路径
+      ffmpeg(filePath)
+        .outputOptions([
+          `-vf scale=${config.maxSize}:${config.maxSize}:force_original_aspect_ratio=decrease`,
+          '-c:v libaom-av1',
+          `-crf ${config.crf}`,
+          '-b:v 0',
+          '-f avif'
+        ])
+        .save(tempOutputPath)
+        .on("end", async () => {
+          try {
+            // 不读取文件内容，只获取文件大小
+            const stats = await require('fs').promises.stat(tempOutputPath)
+            resolve({
+              outputPath: tempOutputPath,  // 返回文件路径，不返回buffer
+              compressedSize: stats.size,
+              compressionRatio: 0.8, // 估算压缩比
+              newMimeType: "image/avif",
+              newSuffix: ".avif"
+            } as any)
+          } catch (error) {
+            reject(error)
+          }
+        })
+        .on("error", (err) => {
+          console.error("FFmpeg处理静态图缩略图失败:", err.message)
+          reject(new Error(`静态图缩略图处理失败: ${err.message}`))
+        })
+    })
+  }
+
+  /**
+   * 从文件路径处理静态图原图（流式处理，不加载到内存）
+   */
+  private async processStaticOriginalFromPath(filePath: string): Promise<CompressionResult> {
+    console.info('流式处理静态图原图')
+    
+    const mimeType = this.getMimeTypeBySuffix(path.extname(filePath))
+    
+    // 检查是否需要压缩
+    if (NON_COMPRESSIBLE_TYPES.includes(mimeType)) {
+      console.info('文件类型不需要压缩，直接返回原文件路径')
+      const stats = await require('fs').promises.stat(filePath)
+      return {
+        outputPath: filePath,  // 直接返回原文件路径
+        compressedSize: stats.size,
+        compressionRatio: 1.0,
+        newMimeType: mimeType,
+        newSuffix: path.extname(filePath)
+      } as any
+    }
+    
+    const tempOutputPath = path.join(urlUtil.tempPath, `original_${Date.now()}.avif`)
+    const config = IM_COMPRESSION_CONFIG.original
+    
+    return new Promise((resolve, reject) => {
+      // 使用FFmpeg直接处理文件路径
+      ffmpeg(filePath)
+        .outputOptions([
+          `-vf scale=${config.maxSize}:${config.maxSize}:force_original_aspect_ratio=decrease`,
+          '-c:v libaom-av1',
+          `-crf ${config.crf}`,
+          '-b:v 0',
+          '-f avif'
+        ])
+        .save(tempOutputPath)
+        .on("end", async () => {
+          try {
+            // 不读取文件内容，只获取文件大小
+            const stats = await require('fs').promises.stat(tempOutputPath)
+            resolve({
+              outputPath: tempOutputPath,  // 返回文件路径，不返回buffer
+              compressedSize: stats.size,
+              compressionRatio: 0.85, // 估算压缩比
+              newMimeType: "image/avif",
+              newSuffix: ".avif"
+            } as any)
+          } catch (error) {
+            reject(error)
+          }
+        })
+        .on("error", (err) => {
+          console.error("FFmpeg处理静态图原图失败:", err.message)
+          reject(new Error(`静态图原图处理失败: ${err.message}`))
+        })
+    })
+  }
+
+  /**
+   * 从文件路径检测AVIF是否为动图（仿照isAvifAnimated逻辑）
+   */
+  private async isAvifAnimatedFromPath(filePath: string): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      try {
+        // 直接使用文件路径进行FFmpeg检测，不需要读取完整文件
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+          if (err) {
+            console.error('FFmpeg检测AVIF失败:', err)
+            resolve(false)
+            return
+          }
+
+          try {
+            const videoStream = metadata.streams?.find(stream => stream.codec_type === 'video')
+            const frameCount = videoStream?.nb_frames ? parseInt(videoStream.nb_frames) : 0
+            const duration = videoStream?.duration ? parseFloat(videoStream.duration) : 0
+            const isAnimated = frameCount > 1 || duration > 0
+
+            console.info(`AVIF动图检测结果: ${isAnimated ? '动图' : '静态图'} (frames: ${frameCount}, duration: ${duration}s)`)
+            resolve(isAnimated)
+          } catch (parseError) {
+            console.error('解析FFmpeg元数据失败:', parseError)
+            resolve(false)
+          }
+        })
+      } catch (error) {
+        console.error('AVIF动图检测过程失败:', error)
+        resolve(false)
+      }
+    })
+  }
+
+  /**
+   * 从文件路径获取视频信息（不加载视频到内存）
+   * @param filePath 视频文件路径
+   */
+  public async getVideoInfoFromPath(filePath: string): Promise<{
+    duration: number
+    width: number
+    height: number
+    mimeType: string
+  }> {
+    console.log(`流式获取视频信息: ${filePath}`)
+
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          console.error('获取视频信息失败:', err)
+          reject(new Error(`获取视频信息失败: ${err.message}`))
+          return
+        }
+
+        try {
+          const videoStream = metadata.streams?.find(stream => stream.codec_type === 'video')
+          if (!videoStream) {
+            throw new Error('未找到视频流')
+          }
+
+          const duration = Math.round(videoStream.duration ? parseFloat(videoStream.duration) : 0)
+          const width = videoStream.width || 0
+          const height = videoStream.height || 0
+          const mimeType = this.getMimeTypeBySuffix(path.extname(filePath))
+
+          console.log(`视频信息获取完成: ${duration}s, ${width}x${height}`)
+
+          resolve({
+            duration,
+            width,
+            height,
+            mimeType
+          })
+        } catch (parseError) {
+          console.error('解析视频元数据失败:', parseError)
+          reject(new Error(`解析视频元数据失败: ${(parseError as Error).message}`))
+        }
+      })
+    })
+  }
+
+  /**
+   * 从文件路径生成视频缩略图（不加载视频到内存）
+   * @param filePath 视频文件路径
+   */
+  public async generateVideoThumbnailFromPath(filePath: string): Promise<{
+    outputPath: string
+    size: number
+    mimeType: string
+    newSuffix: string
+  }> {
+    console.log(`流式生成视频缩略图: ${filePath}`)
+
+    const tempOutputPath = path.join(urlUtil.tempPath, `video_thumb_${Date.now()}.avif`)
+
+    return new Promise((resolve, reject) => {
+      ffmpeg(filePath)
+        .screenshots({
+          timestamps: ['10%'],
+          filename: path.basename(tempOutputPath, '.avif') + '.png',
+          folder: path.dirname(tempOutputPath),
+          size: '200x200'
+        })
+        .on('end', async () => {
+          try {
+            // 生成的是PNG，需要转换为AVIF
+            const tempPngPath = path.join(path.dirname(tempOutputPath), path.basename(tempOutputPath, '.avif') + '.png')
+            
+            // 使用FFmpeg将PNG转换为AVIF
+            await new Promise<void>((resolveConvert, rejectConvert) => {
+              ffmpeg(tempPngPath)
+                .outputOptions([
+                  '-c:v libaom-av1',
+                  '-crf 30',
+                  '-b:v 0',
+                  '-f avif'
+                ])
+                .save(tempOutputPath)
+                .on('end', () => resolveConvert())
+                .on('error', (err) => rejectConvert(err))
+            })
+
+            // 清理临时PNG文件
+            await require('fs').promises.unlink(tempPngPath).catch(() => {})
+
+            // 获取最终文件大小
+            const stats = await require('fs').promises.stat(tempOutputPath)
+            
+            console.log(`视频缩略图生成完成: ${tempOutputPath}, ${stats.size} bytes`)
+
+            resolve({
+              outputPath: tempOutputPath,  // 返回文件路径，不返回buffer
+              size: stats.size,
+              mimeType: 'image/avif',
+              newSuffix: '.avif'
+            })
+          } catch (error) {
+            console.error('处理视频缩略图失败:', error)
+            reject(error)
+          }
+        })
+        .on('error', (error) => {
+          console.error('生成视频缩略图失败:', error)
+          reject(new Error(`生成视频缩略图失败: ${error.message}`))
+        })
+    })
+  }
+
+  /**
+   * 从文件路径获取音频信息（不加载音频到内存）
+   * @param filePath 音频文件路径
+   */
+  public async getAudioInfoFromPath(filePath: string): Promise<{
+    duration: number
+    mimeType: string
+  }> {
+    console.log(`流式获取音频信息: ${filePath}`)
+
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          console.error('获取音频信息失败:', err)
+          reject(new Error(`获取音频信息失败: ${err.message}`))
+          return
+        }
+
+        try {
+          const audioStream = metadata.streams?.find(stream => stream.codec_type === 'audio')
+          if (!audioStream) {
+            throw new Error('未找到音频流')
+          }
+
+          const duration = Math.round(audioStream.duration ? parseFloat(audioStream.duration) : 0)
+          const mimeType = this.getMimeTypeBySuffix(path.extname(filePath))
+
+          console.log(`音频信息获取完成: ${duration}s`)
+
+          resolve({
+            duration,
+            mimeType
+          })
+        } catch (parseError) {
+          console.error('解析音频元数据失败:', parseError)
+          reject(new Error(`解析音频元数据失败: ${(parseError as Error).message}`))
+        }
+      })
+    })
+  }
+
+  /**
+   * 从文件路径压缩音频文件（不加载到内存）
+   * @param filePath 音频文件路径
+   * @param targetQuality 目标质量 (0-9, 0最高质量)
+   */
+  public async compressAudioFromPath(filePath: string, targetQuality: number = 2): Promise<{
+    outputPath: string
+    size: number
+    mimeType: string
+    newSuffix: string
+  }> {
+    console.log(`流式压缩音频: ${filePath}, 质量: ${targetQuality}`)
+
+    const tempOutputPath = path.join(urlUtil.tempPath, `audio_compressed_${Date.now()}.ogg`)
+
+    return new Promise((resolve, reject) => {
+      ffmpeg(filePath)
+        .audioCodec('libvorbis')
+        .audioQuality(targetQuality)
+        .format('ogg')
+        .save(tempOutputPath)
+        .on('end', async () => {
+          try {
+            // 不读取文件内容，只获取文件大小
+            const stats = await require('fs').promises.stat(tempOutputPath)
+
+            console.log(`音频压缩完成: ${tempOutputPath}, ${stats.size} bytes`)
+
+            resolve({
+              outputPath: tempOutputPath,  // 返回文件路径，不返回buffer
+              size: stats.size,
+              mimeType: 'audio/ogg',
+              newSuffix: '.ogg'
+            })
+          } catch (error) {
+            console.error('处理压缩音频失败:', error)
+            reject(error)
+          }
+        })
+        .on('error', (error) => {
+          console.error('压缩音频失败:', error)
+          reject(new Error(`压缩音频失败: ${error.message}`))
+        })
+    })
+  }
+
 }
 
 const mediaUtil = new MediaUtil()

@@ -45,13 +45,10 @@ class FileCache {
                 })
               },
               timeout: 60000
-            }
-          )
+            })
           const fileBuffer = Buffer.from(fileArrayBuffer)
           fs.writeFileSync(filePath, fileBuffer)
-          await messageDao.updateLocalPath(params.id, {
-            originalLocalPath: filePath,
-          })
+          await messageDao.updateLocalPath(params.id, { originalLocalPath: filePath })
           return urlUtil.signByApp("file", filePath)
         } catch (error) {
           console.error("下载文件失败:", error)

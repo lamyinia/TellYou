@@ -104,7 +104,15 @@ class MessageAdapter {
         fileName: extData.fileName || "未知文件",
         fileSize: extData.fileSize || 0,
         fileSuffix: extData.fileSuffix || "",
-        originalLocalPath: urlUtil.signByApp('file', extData.originalLocalPath)
+        originalLocalPath: extData?.originalLocalPath ? urlUtil.signByApp('file', extData.originalLocalPath) : ''
+      })
+    } else if (getMessageType(row.msgType) === "voice") {
+      content = JSON.stringify({
+        fileName: extData.fileName || "未知语音",
+        fileSize: extData.fileSize || 0,
+        fileSuffix: extData.fileSuffix || "",
+        duration: extData.duration || 0,
+        originalLocalPath: extData?.originalLocalPath ? urlUtil.signByApp('voice', extData.originalLocalPath) : ''
       })
     }
     return {

@@ -465,6 +465,77 @@ class DeviceService {
       }
     })
 
+    // 处理拖拽文件的IPC接口
+    ipcMain.handle('file:process-drag-files', async (_, filesData: Array<{
+      name: string,
+      content: ArrayBuffer,
+      type: string
+    }>) => {
+      try {
+        const os = require('os')
+        const tempDir = path.join(os.tmpdir(), 'tellyou-drag-files')
+        
+        // 确保临时目录存在
+        await fs.promises.mkdir(tempDir, { recursive: true })
+        
+        const processedFiles: Array<{
+          path: string,
+          name: string,
+          size: number,
+          ext: string
+        }> = []
+        
+        for (const fileData of filesData) {
+          // 生成唯一的临时文件名
+          const timestamp = Date.now()
+          const randomSuffix = Math.random().toString(36).substring(2, 8)
+          const tempFileName = `${timestamp}_${randomSuffix}_${fileData.name}`
+          const tempFilePath = path.join(tempDir, tempFileName)
+          
+          // 将文件内容写入临时文件
+          await fs.promises.writeFile(tempFilePath, Buffer.from(fileData.content))
+          
+          // 获取文件信息
+          const stats = await fs.promises.stat(tempFilePath)
+          processedFiles.push({
+            path: tempFilePath,
+            name: fileData.name,
+            size: stats.size,
+            ext: path.extname(fileData.name)
+          })
+          
+          console.log(`拖拽文件已处理: ${fileData.name} -> ${tempFilePath}`)
+        }
+        
+        return processedFiles
+      } catch (error) {
+        console.error('处理拖拽文件失败:', error)
+        throw error
+      }
+    })
+
+    // 清理临时拖拽文件
+    ipcMain.handle('file:cleanup-drag-temp', async (_, filePaths: string[]) => {
+      try {
+        const cleanupPromises = filePaths.map(async (filePath) => {
+          try {
+            if (await fs.promises.access(filePath).then(() => true).catch(() => false)) {
+              await fs.promises.unlink(filePath)
+              console.log(`临时文件已清理: ${filePath}`)
+            }
+          } catch (error) {
+            console.warn(`清理临时文件失败: ${filePath}`, error)
+          }
+        })
+        
+        await Promise.all(cleanupPromises)
+        return { success: true }
+      } catch (error) {
+        console.error('批量清理临时文件失败:', error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    })
+
     ipcMain.handle("test", (_, data: any) => {
       test(data)
     })

@@ -23,6 +23,32 @@ const isPlaying = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 
+// 从消息content中解析语音信息
+const voiceInfo = computed(() => {
+  try {
+    return JSON.parse(props.message.content);
+  } catch {
+    return {};
+  }
+});
+
+// 从数据库extData中获取duration
+const voiceDuration = computed(() => {
+  return voiceInfo.value.duration || 0;
+});
+
+// 显示的时长：播放时显示剩余时间，未播放时显示总时长
+const displayDuration = computed(() => {
+  if (isPlaying.value && voiceDuration.value > 0) {
+    // 播放中：显示剩余时间
+    const remaining = voiceDuration.value - currentTime.value;
+    return Math.max(0, remaining);
+  } else {
+    // 未播放：显示总时长
+    return voiceDuration.value;
+  }
+});
+
 let unsubscribe: (() => void) | null = null;
 
 onMounted(async () => {
@@ -166,15 +192,7 @@ const togglePlay = async () => {
 };
 
 const onLoadedMetadata = () => {
-  if (audioElement.value) {
-    const audioDuration = audioElement.value.duration;
-    // 确保duration是有效数值
-    if (isFinite(audioDuration) && !isNaN(audioDuration) && audioDuration > 0) {
-      duration.value = audioDuration;
-    } else {
-      duration.value = 0;
-    }
-  }
+  // 不再需要从音频元素获取duration，直接使用数据库中的duration
 };
 
 const onTimeUpdate = () => {
@@ -262,14 +280,14 @@ const waveformBars = generateWaveform();
                 :key="index"
                 class="wave-bar"
                 :class="{
-                  active: isPlaying && (currentTime / duration) * 20 > index,
+                  active: isPlaying && voiceDuration > 0 && (currentTime / voiceDuration) * 20 > index,
                 }"
                 :style="{ height: height * 100 + '%' }"
               />
             </div>
 
             <div class="voice-duration">
-              {{ formatTime(duration || 0) }}
+              {{ formatTime(displayDuration) }}
             </div>
 
             <!-- 下载进度遮罩 -->
@@ -324,14 +342,14 @@ const waveformBars = generateWaveform();
                 :key="index"
                 class="wave-bar"
                 :class="{
-                  active: isPlaying && (currentTime / duration) * 20 > index,
+                  active: isPlaying && voiceDuration > 0 && (currentTime / voiceDuration) * 20 > index,
                 }"
                 :style="{ height: height * 100 + '%' }"
               />
             </div>
 
             <div class="voice-duration">
-              {{ formatTime(duration || 0) }}
+              {{ formatTime(displayDuration) }}
             </div>
             <!-- 下载进度遮罩 -->
             <div v-if="isDownloading" class="download-overlay">

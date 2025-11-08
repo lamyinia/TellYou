@@ -20,18 +20,16 @@ class MessageService {
         return false;
       }
     })
-    ipcMain.handle(
-      "message:get-by-sessionId",
+    ipcMain.handle("message:get-by-sessionId",
       (_, sessionId: string | number, options: any) => {
         return messageDao.getMessageBySessionId(String(sessionId), options)
-      }
-    )
+      })
   }
 
   public async handleSingleMessage(message: any): Promise<number> {
     console.log("message-service:handle-single-message", message);
     const messageData = messageAdapter.adaptToDatabaseMessage(message);
-    const messageId: number = await messageDao.addLocalMessage(messageData);
+    const messageId: number = await messageDao.insertOrIgnore(messageData).then(result => result.lastInsertRowID || 0)
 
     await sessionDao.keepSessionFresh({
       content: objectUtil.getContentByRow(messageData),
@@ -40,11 +38,6 @@ class MessageService {
     })
     return messageId
   }
-
-  public async getExtendData(params: { id: number }): Promise<any> {
-    return messageDao.getExtendData(params);
-  }
-
   /**
    * 处理上传确认消息，将上传中消息更新为正常消息
    */

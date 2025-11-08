@@ -11,6 +11,7 @@ import {
   type DownloadState,
 } from "@renderer/utils/media-download-manager"
 import { Download, FileText, FolderOpen } from "lucide-vue-next"
+import feedbackUtil from "@renderer/utils/feedback-util"
 
 const props = defineProps<{ message: ChatMessage }>()
 const userStore = useUserStore()
@@ -31,7 +32,6 @@ const fileInfo = computed(() => {
     const parsed = JSON.parse(content)
     if (parsed.originalLocalPath) {
       fileUrl.value = parsed.originalLocalPath
-      console.log('fileUrl.value', fileUrl.value)
     }
     return {
       fileName: parsed.fileName || "未知文件",
@@ -42,7 +42,7 @@ const fileInfo = computed(() => {
     return {
       fileName: "未知文件",
       fileSize: 0,
-      fileSuffix: "",
+      fileSuffix: ""
     }
   }
 })
@@ -57,10 +57,12 @@ const formatFileSize = (bytes: number): string => {
 
 // 订阅下载状态
 const subscribeToDownload = () => {
-  unsubscribe = mediaDownloadManager.subscribe(props.message.id, (state) => {
+  unsubscribe = mediaDownloadManager.subscribe(props.message.id, "original", "file", (state) => {
     downloadState.value = state
-    if (state.status === "completed" && state.url) {
-      fileUrl.value = state.url
+    if (state.status === "completed" && state.localPath) {
+      fileUrl.value = state.localPath
+    } else if (state.status === "error") {
+      feedbackUtil.error("文件下载失败", state.error || "未知错误")
     }
   })
 }
@@ -74,8 +76,13 @@ const downloadFile = async () => {
     const result = await mediaDownloadManager.requestMedia(props.message.id, "original", "file")
     if (result) {
       fileUrl.value = result
+      feedbackUtil.success("文件下载完成", `${fileInfo.value.fileName} 已保存到本地`)
+    } else {
+      feedbackUtil.error("文件下载失败", "无法获取文件内容")
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    feedbackUtil.error("文件下载失败", errorMessage)
     console.error("文件下载失败:", error)
   } finally {
     isDownloading.value = false
@@ -89,9 +96,11 @@ const showInFolder = async () => {
     try {
       const result = await window.electronAPI.invoke("file:show-in-folder", fileUrl.value)
       if (!result.success) {
-        console.error("显示文件位置失败:", result.error)
+        feedbackUtil.error("无法显示文件位置", result.error || "文件可能已被移动或删除")
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      feedbackUtil.error("无法显示文件位置", errorMessage)
       console.error("显示文件位置失败:", error)
     }
   }
@@ -173,15 +182,16 @@ onUnmounted(() => {
               <button
                 class="action-btn download-btn"
                 :disabled="
-                  isDownloading || downloadState.status === 'downloading'
+                  isDownloading || downloadState.status === 'downloading' || !!fileUrl
                 "
-                :title="fileUrl ? '重新下载' : '下载文件'"
+                :title="fileUrl ? '文件已存在本地' : '下载文件'"
                 @click="downloadFile"
               >
                 <Download :size="16" />
                 <span v-if="downloadState.status === 'downloading'">
                   {{ downloadState.progress?.percentage || 0 }}%
                 </span>
+                <span v-else-if="fileUrl">已下载</span>
                 <span v-else>下载</span>
               </button>
               <button
@@ -254,15 +264,16 @@ onUnmounted(() => {
               <button
                 class="action-btn download-btn"
                 :disabled="
-                  isDownloading || downloadState.status === 'downloading'
+                  isDownloading || downloadState.status === 'downloading' || !!fileUrl
                 "
-                :title="fileUrl ? '重新下载' : '下载文件'"
+                :title="fileUrl ? '文件已存在本地' : '下载文件'"
                 @click="downloadFile"
               >
                 <Download :size="16" />
                 <span v-if="downloadState.status === 'downloading'">
                   {{ downloadState.progress?.percentage || 0 }}%
                 </span>
+                <span v-else-if="fileUrl">已下载</span>
                 <span v-else>下载</span>
               </button>
               <button

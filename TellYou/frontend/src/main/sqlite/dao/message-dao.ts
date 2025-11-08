@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { insertOrIgnore, queryAll, update, sqliteRun, sqliteInsert } from "../atom";
+import sqliteManager, { SqliteResult } from "../atom";
 import messageAdapter from "../adapter/message-adapter";
 
 type MessageQueryOptions = {
@@ -30,14 +30,17 @@ type MessageRow = {
  */
 
 class MessageDao {
-  public async addLocalMessage(data: any): Promise<number> {
-    const changes = await insertOrIgnore("messages", data)
-    if (!changes) return 0
-    const rows = (await queryAll(
-      "select id from messages where session_id = ? and sequence_id = ? LIMIT 1",
-      [data.sessionId, String(data.sequenceId)]
-    )) as Array<{ id: number }>
-    return rows[0].id
+  public async insertOrIgnore(data: any): Promise<SqliteResult> {
+    const result = await sqliteManager.insertOrIgnore("messages", data)
+    return result
+  }
+  public async insertOrReplace(data: any): Promise<SqliteResult> {
+    const result = await sqliteManager.insertOrReplace("messages", data)
+    return result
+  }
+  public async update(data: Record<string, unknown>, paramData: Record<string, unknown>): Promise<SqliteResult> {
+    const result = await sqliteManager.update("messages", data, paramData)
+    return result
   }
 
   public async getMessageBySessionId(sessionId: string, options: MessageQueryOptions): Promise<{ messages: unknown[]; hasMore: boolean; totalCount: number }> {
@@ -53,14 +56,14 @@ class MessageDao {
 
       let sendTimeOrder: string = "desc"
       if (direction === "older" && beforeId) {
-        const beforeMessage = (await queryAll("select send_time from messages where id = ?", [beforeId])) as Array<{ sendTime: string }>
+        const beforeMessage = (await sqliteManager.queryAll("select send_time from messages where id = ?", [beforeId])) as Array<{ sendTime: string }>
         if (beforeMessage.length > 0) {
           where += " and send_time < ?"
           params.push(beforeMessage[0].sendTime)
         }
       } else if (direction === "newer" && afterId) {
         sendTimeOrder = "asc"
-        const afterMessage = (await queryAll("select send_time from messages where id = ?", [afterId])) as Array<{ sendTime: string }>
+        const afterMessage = (await sqliteManager.queryAll("select send_time from messages where id = ?", [afterId])) as Array<{ sendTime: string }>
         if (afterMessage.length > 0) {
           where += " and send_time > ?"
           params.push(afterMessage[0].sendTime)
@@ -74,14 +77,14 @@ class MessageDao {
         order by send_time ${sendTimeOrder}, id desc
         LIMIT ${limit}
       `
-      const rows = (await queryAll(sql, params)) as MessageRow[]
+      const rows = (await sqliteManager.queryAll(sql, params)) as MessageRow[]
       const messages = rows.map((r) => messageAdapter.adaptMessageRowToMessage(r))
-      const totalCountRow = (await queryAll("select count(1) as total from messages where session_id = ?", [sessionId])) as Array<{ total: number }>
+      const totalCountRow = (await sqliteManager.queryAll("select count(1) as total from messages where session_id = ?", [sessionId])) as Array<{ total: number }>
       const totalCount = totalCountRow[0]?.total || 0
       let hasMore = false
       if (messages.length > 0) {
         const lastMessage: any = messages.at(-1)
-        const moreRow = (await queryAll("select count(1) as cnt from messages where session_id = ? and send_time < ?", [sessionId, lastMessage.timestamp.toString()])) as Array<{ cnt: number }>
+        const moreRow = (await sqliteManager.queryAll("select count(1) as cnt from messages where session_id = ? and send_time < ?", [sessionId, lastMessage.timestamp.toString()])) as Array<{ cnt: number }>
         hasMore = (moreRow[0]?.cnt || 0) > 0
       }
       console.info("查询参数:", options, "返回消息数:", messages.length, "hasMore:", hasMore)
@@ -94,7 +97,7 @@ class MessageDao {
 
   public async getExtendData(params: { id: number }): Promise<any> {
     try {
-      const rows = (await queryAll("select ext_data from messages where id = ?", [params.id]))
+      const rows = (await sqliteManager.queryAll("select ext_data from messages where id = ?", [params.id]))
       const extDataString = (rows[0]?.extData as string) || "{}"
       return JSON.parse(extDataString)
     } catch (error) {
@@ -106,8 +109,6 @@ class MessageDao {
   public async updateLocalPath(id: number, data: { originalLocalPath?: string; thumbnailLocalPath?: string }): Promise<void> {
     try {
       const extData = await this.getExtendData({ id })
-
-      // 只更新指定的字段，不覆盖其他字段
       if (data.originalLocalPath !== undefined) {
         extData.originalLocalPath = data.originalLocalPath
       }
@@ -116,13 +117,12 @@ class MessageDao {
       }
 
       const extDataString = JSON.stringify(extData)
-      await update("messages", { extData: extDataString }, { id })
+      await sqliteManager.update("messages", { extData: extDataString }, { id })
     } catch (error) {
       console.error("更新扩展数据失败:", error)
     }
   }
 
-  // 插入上传中消息
   public async insertUploadingMessage(params: {
     sessionId: string,
     msgId: string,
@@ -134,55 +134,48 @@ class MessageDao {
     extData: string,
     sendTime: string
   }): Promise<number> {
-    const sql = `
-      INSERT INTO messages (session_id, msg_id, sequence_id, sender_id, sender_name, msg_type, text, ext_data, send_time, is_read)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    `
-    const lastID = await sqliteInsert(sql, [
-      params.sessionId,
-      params.msgId,
-      params.sequenceId,
-      params.senderId,
-      params.senderName,
-      params.msgType,
-      params.text,
-      params.extData,
-      params.sendTime
-    ])
-    return lastID
+    const data = {
+      sessionId: params.sessionId,
+      msgId: params.msgId,
+      sequenceId: params.sequenceId,
+      senderId: params.senderId,
+      senderName: params.senderName,
+      msgType: params.msgType,
+      text: params.text,
+      extData: params.extData,
+      sendTime: params.sendTime,
+      isRead: 0
+    }
+    const result = await this.insertOrIgnore(data)
+    return result.lastInsertRowID || 0
   }
 
   // 通过objectName查找消息
   public async findByObjectName(objectName: string): Promise<MessageRow | null> {
     const sql = "SELECT * FROM messages WHERE text = ? AND msg_type = 0"
-    const rows = await queryAll(sql, [objectName]) as MessageRow[]
+    const rows = await sqliteManager.queryAll(sql, [objectName]) as MessageRow[]
     return rows[0] || null
   }
 
   // 更新消息状态
   public async updateMessageType(id: number, msgType: number): Promise<void> {
-    const sql = "UPDATE messages SET msg_type = ? WHERE id = ?"
-    await sqliteRun(sql, [msgType, id])
+    await this.update({ msgType }, { id })
   }
 
   // 通过ID获取消息
   public async getById(id: number): Promise<MessageRow | null> {
     const sql = "SELECT * FROM messages WHERE id = ?"
-    const rows = await queryAll(sql, [id]) as MessageRow[]
+    const rows = await sqliteManager.queryAll(sql, [id]) as MessageRow[]
     return rows[0] || null
   }
 
   // WebSocket回填消息数据
   public async updateMessageFromWebSocket(id: number, wsMessage: any): Promise<void> {
-    const sql = `
-      UPDATE messages
-      SET msg_type = ?, sequence_id = ?, ext_data = ?, send_time = ?
-      WHERE id = ?
-    `
     const date = new Date(Number(wsMessage.adjustedTimestamp || wsMessage.timestamp || Date.now())).toISOString()
     const currentRow = await this.getById(id)
     if (!currentRow){
       console.warn('updateMessageFromWebSocket 失败，currentRow 为空')
+      return
     }
     const currentExtData = JSON.parse(currentRow?.extData || '{}')
     const msgExtData = wsMessage.extra || {}
@@ -194,13 +187,14 @@ class MessageDao {
       sequenceId: wsMessage.sequenceNumber
     }
 
-    await sqliteRun(sql, [
-      wsMessage.messageType,
-      wsMessage.sequenceNumber,
-      JSON.stringify(newExtData),
-      date,
-      id
-    ])
+    const updateData = {
+      msgType: wsMessage.messageType,
+      sequenceId: wsMessage.sequenceNumber,
+      extData: JSON.stringify(newExtData),
+      sendTime: date
+    }
+
+    await this.update(updateData, { id })
   }
 }
 const messageDao = new MessageDao()

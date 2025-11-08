@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* eslint-disable */
 
-import { ref, computed } from "vue"
+import { ref, computed, onUnmounted } from "vue"
 import { Session } from "@shared/types/session"
 import ioUtil from "@renderer/utils/io-util"
 
@@ -9,7 +9,6 @@ const props = defineProps<{ currentContact?: Session }>()
 
 const emit = defineEmits<{ (e: "sent"): void }>()
 
-// 获取当前会话信息
 const currentSession = computed(() => {
   return props.currentContact
 })
@@ -24,19 +23,21 @@ interface FileInfo {
 const selectedFiles = ref<FileInfo[]>([])
 const error = ref<string>("")
 const isDragging = ref<boolean>(false)
+// 跟踪临时文件路径，用于清理
+const tempFilePaths = ref<string[]>([])
 
 const selectFiles = async () => {
   try {
     const result = await window.electronAPI.invoke('dialog:open-file', {
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { 
-          name: 'All Files', 
+        {
+          name: 'All Files',
           extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg',
                       'mp4', 'avi', 'mov', 'webm', 'mkv', '3gp', 'wmv', 'flv',
                       'mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma',
                       'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'rtf',
-                      'zip', 'rar', '7z', 'tar', 'gz'] 
+                      'zip', 'rar', '7z', 'tar', 'gz']
         },
         { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg'] },
         { name: 'Videos', extensions: ['mp4', 'avi', 'mov', 'webm', 'mkv', '3gp', 'wmv', 'flv'] },
@@ -45,7 +46,7 @@ const selectFiles = async () => {
         { name: 'Archives', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] }
       ]
     })
-    
+
     if (!result.canceled && result.filePaths.length > 0) {
       const fileInfos = await window.electronAPI.invoke('file:get-multiple-info', result.filePaths)
       for (const fileInfo of fileInfos) {
@@ -56,7 +57,7 @@ const selectFiles = async () => {
           selectedFiles.value.push(fileInfo)
         }
       }
-      
+
       error.value = ""
     }
   } catch (err: any) {
@@ -69,47 +70,48 @@ const handleDrop = async (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
   isDragging.value = false
-  
+
   try {
     const files = Array.from(event.dataTransfer?.files || [])
     console.log('拖拽文件数量:', files.length)
-    
+
     if (files.length === 0) {
       console.warn('没有检测到拖拽的文件')
       return
     }
-    
-    // 在Electron中获取文件路径的正确方式
-    const filePaths: string[] = []
-    for (const file of files) {
-      // 尝试多种方式获取文件路径
-      const filePath = (file as any).path || (file as any).webkitRelativePath || file.name
-      if (filePath && filePath !== file.name) {
-        filePaths.push(filePath)
-      } else {
-        // 如果无法获取路径，尝试通过文件系统API
-        console.warn('无法获取文件路径，文件名:', file.name)
-        error.value = "拖拽文件失败：无法获取文件路径，请使用文件选择按钮"
-        return
-      }
-    }
-    
-    console.log('获取到的文件路径:', filePaths)
-    
-    if (filePaths.length > 0) {
-      const fileInfos = await window.electronAPI.invoke('file:get-multiple-info', filePaths)
-      
-      for (const fileInfo of fileInfos) {
-        const isDuplicate = selectedFiles.value.some(
-          (existingFile) => existingFile.path === fileInfo.path
-        )
-        if (!isDuplicate) {
-          selectedFiles.value.push(fileInfo)
+
+    console.log('开始读取拖拽文件内容...')
+    const filesData = await Promise.all(
+      files.map(async (file) => {
+        console.log(`读取文件: ${file.name}, 大小: ${file.size}`)
+        return {
+          name: file.name,
+          content: await file.arrayBuffer(),
+          type: file.type
         }
+      })
+    )
+
+    console.log('文件内容读取完成，发送到主进程处理...')
+
+    const processedFiles = await window.electronAPI.invoke('file:process-drag-files', filesData)
+    console.log('主进程处理完成，文件数量:', processedFiles.length)
+
+    for (const fileInfo of processedFiles) {
+      const isDuplicate = selectedFiles.value.some(
+        (existingFile) => existingFile.name === fileInfo.name && existingFile.size === fileInfo.size
+      )
+      if (!isDuplicate) {
+        selectedFiles.value.push(fileInfo)
+        // 跟踪临时文件路径
+        tempFilePaths.value.push(fileInfo.path)
+        console.log(`文件已添加到列表: ${fileInfo.name}`)
+      } else {
+        console.log(`跳过重复文件: ${fileInfo.name}`)
       }
-      
-      error.value = "" // 清除错误信息
     }
+
+    error.value = "" // 清除错误信息
   } catch (err: any) {
     error.value = err.message || "拖拽文件处理失败"
     console.error("拖拽文件处理失败:", err)
@@ -136,12 +138,27 @@ const handleDragLeave = (event: DragEvent) => {
   }
 }
 
+// 清理临时文件的函数
+const cleanupTempFiles = async (): Promise<void> => {
+  if (tempFilePaths.value.length > 0) {
+    try {
+      console.log('清理临时文件:', tempFilePaths.value.length, '个文件')
+      await window.electronAPI.invoke('file:cleanup-drag-temp', tempFilePaths.value)
+      tempFilePaths.value = []
+    } catch (error) {
+      console.warn('清理临时文件失败:', error)
+    }
+  }
+}
+
 const removeFile = (index: number): void => {
   selectedFiles.value.splice(index, 1)
 }
-const clearAllFiles = (): void => {
+const clearAllFiles = async (): Promise<void> => {
   selectedFiles.value = []
   error.value = ""
+  // 清理临时文件
+  await cleanupTempFiles()
 }
 const sendAllFiles = async (): Promise<void> => {
   if (selectedFiles.value.length === 0) return
@@ -155,7 +172,7 @@ const sendAllFiles = async (): Promise<void> => {
   try {
     console.log("开始发送文件:", selectedFiles.value.length, "个文件")
     const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100mb
-    
+
     let totalSize = 0
     for (const fileInfo of selectedFiles.value) {
       totalSize += fileInfo.size
@@ -164,7 +181,7 @@ const sendAllFiles = async (): Promise<void> => {
       error.value = `文件总大小超过限制（100MB）`
       return
     }
-    
+
     for (const fileInfo of selectedFiles.value) {
       console.log(`处理文件: ${fileInfo.name}, 大小: ${ioUtil.formatFileSize(fileInfo.size)}`)
       const mediaType = detectMediaTypeByExtension(fileInfo.ext)
@@ -192,7 +209,7 @@ const sendAllFiles = async (): Promise<void> => {
     }
 
     console.log("所有文件发送完成")
-    clearAllFiles()
+    await clearAllFiles()
     emit("sent")
   } catch (err: any) {
     error.value = err.message || "发送失败"
@@ -202,7 +219,7 @@ const sendAllFiles = async (): Promise<void> => {
 
 const detectMediaTypeByExtension = (ext: string): string => {
   const extension = ext.toLowerCase().replace('.', '')
-  
+
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'].includes(extension)) {
     return 'image'
   }
@@ -214,10 +231,15 @@ const detectMediaTypeByExtension = (ext: string): string => {
   }
   return 'file'
 }
+
+// 组件卸载时清理临时文件
+onUnmounted(async () => {
+  await cleanupTempFiles()
+})
 </script>
 
 <template>
-  <div 
+  <div
     class="media-send-box"
     :class="{ 'is-dragging': isDragging }"
     @drop="handleDrop"

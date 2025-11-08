@@ -46,9 +46,9 @@ interface UploadContext {
   skipProcessing?: boolean
 }
 
+
 class MediaTaskService {
   private tempDir: string = ""
-  // private readonly CHUNK_SIZE = 5 * 1024 * 1024 // 5MB 分块
 
   public async beginServe(): Promise<void> {
     ffmpeg.setFfmpegPath(ffmpegStatic as string)
@@ -72,19 +72,33 @@ class MediaTaskService {
         try {
           console.log("开始上传头像:", { filePath, fileSize, fileSuffix })
           const uploadUrls = await netMaster.getUserAvatarUploadUrl(fileSize, fileSuffix)
-          const mediaFile = await mediaUtil.getNormal(filePath)
-          const originalFile = await mediaUtil.processImage(mediaFile, "original")
-          const thumbnailFile = await mediaUtil.processImage(mediaFile, "thumb")
-          await netMinIO.simpleUploadFile(
+
+          // 使用流式处理，不加载到内存
+          const originalResult = await mediaUtil.processImageFromPath(filePath, "original")
+          const thumbnailResult = await mediaUtil.processImageFromPath(filePath, "thumb")
+
+          // 使用流式上传
+          await StreamUploader.streamUploadFile(
             uploadUrls.originalUploadUrl,
-            originalFile.compressedBuffer,
-            originalFile.newMimeType
+            originalResult.outputPath!,
+            { 
+              contentType: originalResult.newMimeType,
+              timeout: 600000  // 10分钟超时
+            }
           )
-          await netMinIO.simpleUploadFile(
+          await StreamUploader.streamUploadFile(
             uploadUrls.thumbnailUploadUrl,
-            thumbnailFile.compressedBuffer,
-            thumbnailFile.newMimeType
+            thumbnailResult.outputPath!,
+            { 
+              contentType: thumbnailResult.newMimeType,
+              timeout: 600000  // 10分钟超时
+            }
           )
+
+          // 清理临时文件
+          await fs.promises.unlink(originalResult.outputPath!).catch(() => {})
+          await fs.promises.unlink(thumbnailResult.outputPath!).catch(() => {})
+
           await netMaster.confirmUserAvatarUploaded(uploadUrls)
           console.log("确认上传完成头像URL:", uploadUrls.originalUploadUrl)
           return {
@@ -100,7 +114,7 @@ class MediaTaskService {
 
 
   private async uploadMediaByFilepath(event: Electron.IpcMainEvent, params: any): Promise<void> {
-    const { filePath, fileName, fileSize, fileExt, mediaType, chat, duration } = params
+    const { filePath, fileName, fileSize, mediaType, chat, duration } = params
 
     console.log(`开始处理文件路径: ${filePath}`)
 
@@ -277,27 +291,84 @@ class MediaTaskService {
   }
 
   /**
-   * 流式处理：生成基本信息，跳过复杂处理
+   * 流式处理：处理文件但不加载到内存，返回处理后的文件路径
    */
   private async handleStreamProcessing(context: UploadContext): Promise<any> {
     console.log(`流式处理中等文件: ${context.fileName} (${context.fileSize} bytes)`)
 
     if (context.mediaType === MediaType.IMAGE) {
-      // 对于图片，尝试生成基本缩略图，但限制处理时间
       try {
-        const mediaFile = await mediaUtil.getNormal(context.filePath)
-        const thumbnailFile = await mediaUtil.processImage(mediaFile, "thumb")
+        // 使用流式处理方法，直接输出到临时文件
+        const originalResult = await mediaUtil.processImageFromPath(context.filePath, "original")
+        const thumbnailResult = await mediaUtil.processImageFromPath(context.filePath, "thumb")
+
         return {
           originalFile: {
-            filePath: context.filePath,
+            filePath: originalResult.outputPath,        // 直接使用输出路径
             fileName: context.fileName,
-            size: context.fileSize,
-            mimeType: mediaFile.mimeType
+            size: originalResult.compressedSize,
+            mimeType: originalResult.newMimeType,
+            newSuffix: originalResult.newSuffix,
+            streamProcessed: true                       // 标记为流式处理
           },
-          thumbnailFile
+          thumbnailFile: {
+            filePath: thumbnailResult.outputPath,       // 缩略图也不保留buffer，使用文件路径
+            size: thumbnailResult.compressedSize,
+            mimeType: thumbnailResult.newMimeType,
+            newSuffix: thumbnailResult.newSuffix
+          }
         }
       } catch (error) {
         console.warn('流式处理图片失败，降级为跳过处理:', error)
+        return this.handleSkipProcessing(context)
+      }
+    } else if (context.mediaType === MediaType.VIDEO) {
+      try {
+        // 视频流式处理
+        const videoInfo = await mediaUtil.getVideoInfoFromPath(context.filePath)
+        const thumbnailResult = await mediaUtil.generateVideoThumbnailFromPath(context.filePath)
+
+        return {
+          originalFile: {
+            filePath: context.filePath,        // 视频文件直接使用原路径
+            fileName: context.fileName,
+            size: context.fileSize,
+            duration: videoInfo.duration,
+            width: videoInfo.width,
+            height: videoInfo.height,
+            mimeType: videoInfo.mimeType,
+            streamProcessed: true              // 标记为流式处理
+          },
+          thumbnailFile: {
+            filePath: thumbnailResult.outputPath, // 缩略图使用输出路径
+            size: thumbnailResult.size,
+            mimeType: thumbnailResult.mimeType,
+            newSuffix: thumbnailResult.newSuffix
+          }
+        }
+      } catch (error) {
+        console.warn('流式处理视频失败，降级为跳过处理:', error)
+        return this.handleSkipProcessing(context)
+      }
+    } else if (context.mediaType === MediaType.VOICE) {
+      try {
+        // 音频流式处理
+        const audioInfo = await mediaUtil.getAudioInfoFromPath(context.filePath)
+        const compressedResult = await mediaUtil.compressAudioFromPath(context.filePath)
+
+        return {
+          originalFile: {
+            filePath: compressedResult.outputPath, // 返回压缩后的文件路径
+            fileName: context.fileName,
+            size: compressedResult.size,
+            duration: audioInfo.duration,
+            mimeType: compressedResult.mimeType,
+            newSuffix: compressedResult.newSuffix,
+            streamProcessed: true               // 标记为流式处理
+          }
+        }
+      } catch (error) {
+        console.warn('流式处理音频失败，降级为跳过处理:', error)
         return this.handleSkipProcessing(context)
       }
     } else {
@@ -367,8 +438,9 @@ class MediaTaskService {
     const normalizePath = (filePath: string) => path.normalize(filePath.replace(/\//g, path.sep))
 
     // 根据处理策略选择保存方式
-    if (processedFiles?.originalFile?.skipProcessing) {
-      console.log(`使用流式复制保存大文件: ${context.fileName} (${context.fileSize} bytes)`)
+    if (processedFiles?.originalFile?.skipProcessing || processedFiles?.originalFile?.streamProcessed) {
+      const saveType = processedFiles.originalFile.skipProcessing ? '跳过处理的大文件' : '流式处理的文件'
+      console.log(`使用流式复制保存${saveType}: ${context.fileName} (${context.fileSize} bytes)`)
       await this.handleStreamCopyToLocal(context)
       return
     }
@@ -459,18 +531,42 @@ class MediaTaskService {
     }
 
     urlUtil.ensureTodayDir(targetDir)
-    console.log(`流式复制: ${context.filePath} -> ${targetPath}`)
-    await mediaUtil.streamCopyFile(context.filePath, targetPath, (progress) => {
+    
+    // 确定源文件路径
+    let sourcePath: string
+    if (processedFiles.originalFile.streamProcessed && processedFiles.originalFile.filePath) {
+      // 流式处理后的文件，使用处理后的文件路径
+      sourcePath = processedFiles.originalFile.filePath
+      console.log(`流式复制处理后文件: ${sourcePath} -> ${targetPath}`)
+    } else {
+      // 跳过处理的文件，使用原文件路径
+      sourcePath = context.filePath
+      console.log(`流式复制原文件: ${sourcePath} -> ${targetPath}`)
+    }
+    
+    await mediaUtil.streamCopyFile(sourcePath, targetPath, (progress) => {
       console.log(`复制进度: ${progress}%`)
     })
 
     processedFiles.originalLocalPath = normalizePath(targetPath)
+
+    // 处理缩略图保存
     if (processedFiles.thumbnailFile) {
       const thumbnailPath = urlUtil.generateFilePath('picture', '.avif')
       urlUtil.ensureTodayDir('picture')
       processedFiles.thumbnailLocalPath = normalizePath(thumbnailPath)
-      await fs.promises.writeFile(thumbnailPath, processedFiles.thumbnailFile.buffer)
-      console.log(`缩略图保存完成: ${thumbnailPath}`)
+
+      if (processedFiles.thumbnailFile.filePath) {
+        // 流式复制缩略图
+        console.log(`流式复制缩略图: ${processedFiles.thumbnailFile.filePath} -> ${thumbnailPath}`)
+        await mediaUtil.streamCopyFile(processedFiles.thumbnailFile.filePath, thumbnailPath, (progress) => {
+          console.log(`缩略图复制进度: ${progress}%`)
+        })
+      } else if (processedFiles.thumbnailFile.buffer) {
+        // 传统方式保存缩略图
+        await fs.promises.writeFile(thumbnailPath, processedFiles.thumbnailFile.buffer)
+        console.log(`缩略图保存完成: ${thumbnailPath}`)
+      }
     }
   }
 
@@ -489,24 +585,57 @@ class MediaTaskService {
     }
 
     if (context.mediaType === MediaType.IMAGE && processedFiles) {
+      // 支持流式处理：从文件路径获取大小
+      let fileSize: number
+      if (processedFiles.originalFile.streamProcessed && processedFiles.originalFile.filePath) {
+        // 流式处理：从文件路径获取大小
+        const stats = await fs.promises.stat(processedFiles.originalFile.filePath)
+        fileSize = stats.size
+      } else {
+        // 传统处理：从buffer获取大小
+        fileSize = processedFiles.originalFile.compressedSize || processedFiles.originalFile.size || 0
+      }
+
       context.requestFields = {
         ...context.requestFields,
-        fileSize: processedFiles.originalFile.compressedSize,
+        fileSize,
         fileSuffix: processedFiles.originalFile.newSuffix
       }
     } else if (context.mediaType === MediaType.VIDEO && processedFiles) {
+      // 支持流式处理：从文件路径获取大小
+      let fileSize: number
+      if (processedFiles.originalFile.streamProcessed && processedFiles.originalFile.filePath) {
+        // 流式处理：从文件路径获取大小
+        const stats = await fs.promises.stat(processedFiles.originalFile.filePath)
+        fileSize = stats.size
+      } else {
+        // 传统处理：从buffer获取大小
+        fileSize = processedFiles.originalFile.buffer?.length || processedFiles.originalFile.size || 0
+      }
+
       context.requestFields = {
         ...context.requestFields,
-        fileSize: processedFiles.originalFile.buffer.length,
+        fileSize,
         fileSuffix: processedFiles.originalFile.newSuffix || '.mp4',
-        videoDuration: Math.round(processedFiles.originalFile.duration || 0) // 视频时长（秒，整数）
+        videoDuration: Math.round(processedFiles.originalFile.duration || 0)
       }
     } else if (context.mediaType === MediaType.VOICE && processedFiles) {
+      // 支持流式处理：从文件路径获取大小
+      let fileSize: number
+      if (processedFiles.originalFile.streamProcessed && processedFiles.originalFile.filePath) {
+        // 流式处理：从文件路径获取大小
+        const stats = await fs.promises.stat(processedFiles.originalFile.filePath)
+        fileSize = stats.size
+      } else {
+        // 传统处理：从buffer获取大小
+        fileSize = processedFiles.originalFile.compressedSize || processedFiles.originalFile.size || 0
+      }
+
       context.requestFields = {
         ...context.requestFields,
-        fileSize: processedFiles.originalFile.compressedSize,
+        fileSize,
         fileSuffix: processedFiles.originalFile.newSuffix,
-        duration: Math.round(processedFiles.originalFile.duration)
+        duration: Math.round(processedFiles.originalFile.duration || 0)
       }
     } else if (context.mediaType === MediaType.FILE && processedFiles) {
       const ext = context.filePath.split('.').pop() || ''
@@ -559,7 +688,7 @@ class MediaTaskService {
       fileSuffix: context.requestFields?.fileSuffix
     }
 
-    const msgId = getMessageId()
+    const msgId = getMessageId()  // 补位 ID，后期会进行回补
     const sequenceId = msgId
     const objectName = urlUtil.extractObjectName(context.uploadUrls?.originalUploadUrl || '')
     // 插入上传中消息
@@ -585,12 +714,14 @@ class MediaTaskService {
 
       if (uploadUrls.originalUploadUrl && processedFiles?.originalFile) {
         console.info('media-service: 开始上传原文件:', uploadUrls.originalUploadUrl)
-        if (processedFiles.originalFile.skipProcessing && processedFiles.originalFile.filePath) {  // 大文件使用流式上传
-          console.info('media-service: 使用流式上传大文件:', processedFiles.originalFile.filePath)
+        if (processedFiles.originalFile.filePath && (processedFiles.originalFile.skipProcessing || processedFiles.originalFile.streamProcessed)) {
+          const uploadType = processedFiles.originalFile.skipProcessing ? '跳过处理的大文件' : '流式处理的文件'
+          console.info(`media-service: 使用流式上传${uploadType}:`, processedFiles.originalFile.filePath)
           await StreamUploader.streamUploadFile(
             uploadUrls.originalUploadUrl,
             processedFiles.originalFile.filePath,
             {
+              contentType: processedFiles.originalFile.mimeType || processedFiles.originalFile.newMimeType,
               onProgress: (progress) => {
                 event.sender.send('media:upload:progress', {
                   messageId: context.messageId,
@@ -599,7 +730,8 @@ class MediaTaskService {
               }
             })
         } else {
-          console.info('media-service: 使用传统上传小文件')
+          // 传统上传：只有memory处理的小文件
+          console.info('media-service: 使用传统上传小文件（内存处理）')
           await this.uploadToMinIO(uploadUrls.originalUploadUrl, processedFiles.originalFile, (progress) => {
             event.sender.send('media:upload:progress', {
               messageId: context.messageId,
@@ -612,14 +744,36 @@ class MediaTaskService {
       // 上传缩略图（如果有）
       if (uploadUrls.thumbnailUploadUrl && processedFiles?.thumbnailFile) {
         console.log('开始上传缩略图:', uploadUrls.thumbnailUploadUrl)
-        await this.uploadToMinIO(uploadUrls.thumbnailUploadUrl, processedFiles.thumbnailFile, (progress) => {
-          // 缩略图占剩余10%进度
-          const totalProgress = 90 + Math.round(progress * 0.1)
-          event.sender.send('media:upload:progress', {
-            messageId: context.messageId,
-            progress: totalProgress
+
+        // 判断缩略图是否使用流式上传
+        if (processedFiles.thumbnailFile.filePath) {
+          // 流式上传缩略图
+          console.info('media-service: 使用流式上传缩略图:', processedFiles.thumbnailFile.filePath)
+          await StreamUploader.streamUploadFile(
+            uploadUrls.thumbnailUploadUrl,
+            processedFiles.thumbnailFile.filePath,
+            {
+              contentType: processedFiles.thumbnailFile.mimeType || processedFiles.thumbnailFile.newMimeType,
+              onProgress: (progress) => {
+                const totalProgress = 90 + Math.round(progress * 0.1)
+                event.sender.send('media:upload:progress', {
+                  messageId: context.messageId,
+                  progress: totalProgress
+                })
+              }
+            })
+        } else {
+          // 传统上传缩略图
+          console.info('media-service: 使用传统上传缩略图')
+          await this.uploadToMinIO(uploadUrls.thumbnailUploadUrl, processedFiles.thumbnailFile, (progress) => {
+            // 缩略图占剩余10%进度
+            const totalProgress = 90 + Math.round(progress * 0.1)
+            event.sender.send('media:upload:progress', {
+              messageId: context.messageId,
+              progress: totalProgress
+            })
           })
-        })
+        }
       }
 
       // 上传完成，发送100%进度
@@ -679,12 +833,7 @@ class MediaTaskService {
           messageId: context.messageId?.toString()
         })
       }
-
       console.log('上传确认成功:', confirmResult)
-
-      // 后端确认成功后会通过WebSocket发送消息回填
-      // WebSocket handler会处理消息替换逻辑
-
     } catch (error) {
       console.error('上传确认失败:', error)
       throw error
@@ -741,32 +890,32 @@ class MediaTaskService {
    * 根据文件大小和类型确定处理策略
    */
   private determineProcessingStrategy(fileSize: number, fileName: string, mediaType: MediaType): ProcessingStrategy {
-    const ext = fileName.toLowerCase()
-
     console.log(`策略判断 - 文件: ${fileName}, 大小: ${fileSize} bytes, 类型: ${mediaType}`)
 
-    // 1. 超大文件直接跳过处理（50MB+）
-    if (fileSize > 50 * 1024 * 1024) {
-      console.log('策略: skip (超大文件)')
-      return 'skip'
+    const threshold = 2 * 1024 * 1024 // 2MB阈值
+
+    if (mediaType === MediaType.IMAGE || mediaType === MediaType.VIDEO || mediaType === MediaType.VOICE) {
+      // 媒体文件：小于2MB用memory，否则用stream
+      if (fileSize < threshold) {
+        console.log('策略: memory (小媒体文件)')
+        return 'memory'
+      } else {
+        console.log('策略: stream (大媒体文件)')
+        return 'stream'
+      }
+    } else if (mediaType === MediaType.FILE) {
+      // 普通文件：小于2MB用memory，否则用skip
+      if (fileSize < threshold) {
+        console.log('策略: memory (小文件)')
+        return 'memory'
+      } else {
+        console.log('策略: skip (大文件)')
+        return 'skip'
+      }
     }
 
-    // 2. 文档类型跳过媒体处理
-    const documentExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
-                               '.txt', '.rtf', '.zip', '.rar', '.7z', '.tar', '.gz']
-    if (documentExtensions.some(docExt => ext.endsWith(docExt))) {
-      console.log('策略: skip (文档类型)')
-      return 'skip'
-    }
-
-    // 3. 大文件使用流式处理（10MB-50MB）
-    if (fileSize > 10 * 1024 * 1024) {
-      console.log('策略: stream (大文件)')
-      return 'stream'
-    }
-
-    // 4. 小文件使用内存处理（<10MB）
-    console.log('策略: memory (小文件)')
+    // 默认策略
+    console.log('策略: memory (默认)')
     return 'memory'
   }
 

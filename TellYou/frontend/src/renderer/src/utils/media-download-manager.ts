@@ -15,6 +15,7 @@ interface DownloadState {
   progress?: DownloadProgress;
   error?: string
   localPath?: string
+  url?: string // 向后兼容字段，与localPath相同
 }
 
 /**
@@ -46,7 +47,7 @@ class MediaDownloadManager {
             percentage: data.percentage,
             speed: data.speed,
             timeRemaining: data.timeRemaining,
-          },
+          }
         }
       this.updateState(key, state)
     })
@@ -103,20 +104,50 @@ class MediaDownloadManager {
   }
   // 请求媒体文件
   async requestMedia(messageId: number, type: "original" | "thumbnail", mediaType: MediaType): Promise<string | null> {
+    const key = `${messageId}-${type}-${mediaType}`
     try {
       const channel = `${mediaType}:cache:get:${type}`
       const result = await window.electronAPI.invoke(channel, {
         id: messageId,
       })
-      const key = `${messageId}-${type}-${mediaType}`
-      this.updateState(key, {
-        status: "completed",
-        localPath: result.localPath
-      })
-      console.log("request-media:签名地址", result)
-      return result || null
+      
+      // 检查返回结果格式
+      if (typeof result === 'string') {
+        // 直接返回URL字符串
+        this.updateState(key, {
+          status: "completed",
+          localPath: result,
+          url: result // 向后兼容
+        })
+        console.log("request-media:签名地址", result)
+        return result
+      } else if (result && typeof result === 'object' && result.localPath) {
+        // 返回对象格式，提取localPath
+        this.updateState(key, {
+          status: "completed",
+          localPath: result.localPath,
+          url: result.localPath // 向后兼容
+        })
+        console.log("request-media:签名地址", result.localPath)
+        return result.localPath
+      } else {
+        // 无效的返回格式
+        this.updateState(key, {
+          status: "error",
+          error: "服务器返回了无效的文件地址"
+        })
+        return null
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`请求${mediaType}文件失败:`, error)
+      
+      // 更新错误状态
+      this.updateState(key, {
+        status: "error",
+        error: errorMessage
+      })
+      
       return null
     }
   }
