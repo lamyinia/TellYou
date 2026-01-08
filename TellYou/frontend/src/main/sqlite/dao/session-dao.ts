@@ -67,13 +67,13 @@ class SessionDao {
       return result.changes
     } catch {
       console.error("updatePartialBySessionId:updateSession 失败")
-      return 0;
+      return 0
     }
   }
   //  根据 contactId，更新会话的某些字段
   public async updatePartialByContactId(params: Partial<Session>, contactId: string): Promise<number> {
     try {
-      const result = await this.update(params, { contactId: contactId });
+      const result = await this.update(params, { contactId: contactId })
       return result.changes
     } catch {
       console.error("updatePartialByContactId:updateSession 失败")

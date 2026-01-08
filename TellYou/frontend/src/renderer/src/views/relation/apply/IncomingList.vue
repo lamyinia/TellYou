@@ -45,12 +45,12 @@ const toggle = (applyId: string): void => {
   else selected.value.add(applyId);
 };
 
-const approveSelected = async (): void => {
+const approveSelected = async (): Promise<void> => {
   const ids = Array.from(selected.value).map(String);
   const promises: Promise<any>[] = [];
   ids.forEach((id: string): void => {
     promises.push(
-      window.electronAPI.invoke("proxy:application:accept-friend", id),
+      window.electronAPI.invoke("proxy:application:accept-friend-apply", id),
     );
   });
 
@@ -106,7 +106,7 @@ const _notify = (
       <template #title>
         <NickName
           :target-id="item.applyUserId"
-          contact-type="1"
+          :contact-type="1"
           :nickname-version="'99999'"
           :placeholder="'未知'"
           side="left"

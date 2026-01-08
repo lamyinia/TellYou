@@ -161,7 +161,7 @@ class NetMaster {
     return this.axiosInstance
   }
 
-  public async getUserAvatarUploadUrl(fileSize: number, fileSuffix: string,): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
+  public async getUserAvatarUploadUrl(fileSize: number, fileSuffix: string): Promise<{ originalUploadUrl: string; thumbnailUploadUrl: string }> {
     const response = await this.get(Api.GET_AVATAR_UPLOAD_URL, {
       params: { fileSize, fileSuffix }
     })
@@ -401,6 +401,7 @@ interface DownloadOptions {
   timeout?: number
 }
 
+// 连接对象存储服务器
 class NetMinIO {
   private readonly axiosInstance: AxiosInstance
 
@@ -408,7 +409,7 @@ class NetMinIO {
     this.axiosInstance = axiosInstance
   }
 
-  public async simpleUploadFile(uploadUrl: string, fileBuffer: Buffer, mimeType: string,): Promise<void> {
+  public async simpleUploadFile(uploadUrl: string, fileBuffer: Buffer, mimeType: string): Promise<void> {
     console.info("上传URL，文件大小，MIME类型:", uploadUrl, fileBuffer.length, mimeType)
     try {
       new URL(uploadUrl)
@@ -695,7 +696,7 @@ export class StreamUploader {
       const parsedUrl = new URL(uploadUrl)
       const isHttps = parsedUrl.protocol === 'https:'
       const client = isHttps ? https : http
-      
+
       let isCompleted = false  // 标记请求是否已完成
 
       const requestOptions = {
@@ -749,7 +750,7 @@ export class StreamUploader {
           reject(error)
         }
       })
-      
+
       req.on('error', (error) => {
         if (!isCompleted) {
           clearTimeout(timeoutId)
@@ -848,7 +849,7 @@ export class StreamUploader {
   static getMimeTypeFromPath(filePath: string): string {
     const path = require('path')
     const ext = path.extname(filePath).toLowerCase()
-    
+
     const mimeMap: Record<string, string> = {
       '.avif': 'image/avif',
       '.jpg': 'image/jpeg',
@@ -863,7 +864,7 @@ export class StreamUploader {
       '.wav': 'audio/wav',
       '.pdf': 'application/pdf'
     }
-    
+
     return mimeMap[ext] || 'application/octet-stream'
   }
 }

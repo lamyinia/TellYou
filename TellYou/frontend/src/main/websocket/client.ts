@@ -1,4 +1,4 @@
-/*eslint-disable*/
+/* eslint-disable */
 
 import WebSocket from "ws"
 import { store } from "../index"
@@ -58,7 +58,7 @@ export const connectWs = (): void => {
   ws = new WebSocket(urlWithToken)
   channelUtil.registerChannel(ws)
   ws.on("open", () => {
-    console.info("客户端连接成功");
+    console.info("客户端连接成功")
     maxReConnectTimes = 100
   })
   ws.on("close", () => {
@@ -69,9 +69,9 @@ export const connectWs = (): void => {
   })
   ws.on("message", async (data: any) => {
     console.info("收到消息:", data.toString())
-    const msg = JSON.parse(data);
+    const msg = JSON.parse(data)
     if (msg?.messageType) {
-      console.info("聊天信息处理");
+      console.info("聊天信息处理")
       await websocketHandler.handleChatMessage(msg)
       return
     }
@@ -81,17 +81,17 @@ export const connectWs = (): void => {
       return
     }
     if (msg?.metaSessionType) {
-      console.info("会话信息处理");
+      console.info("会话信息处理")
       await websocketHandler.handleSession(msg)
       return
     }
     if (msg?.eventType) {
       console.info("事件处理")
-      return;
+      return
     }
     if (msg?.behaviourType) {
       console.info("事件处理")
-      return;
+      return
     }
-  });
-};
+  })
+}

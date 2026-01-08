@@ -15,8 +15,8 @@ interface DownloadProgress {
 }
 
 interface FileCacheItem {
-  originalPath: string;
-  originalLocalPath?: string;
+  originalPath: string
+  originalLocalPath?: string
 }
 
 class FileCache {

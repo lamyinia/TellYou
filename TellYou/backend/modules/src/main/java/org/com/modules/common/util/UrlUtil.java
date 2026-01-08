@@ -15,26 +15,32 @@ public class UrlUtil {
     // StringBuilder复用池（可选）
     private static final ThreadLocal<StringBuilder> STRING_BUILDER_POOL = ThreadLocal.withInitial(() -> new StringBuilder(128));
 
-    public static Integer extractVersionFromUrl(String url){
+    public static Integer extractVersionFromUrl(String url) {
         String splits[] = URLUtil.getPath(url).split("/");
-        return Integer.parseInt(splits[splits.length-2]);
+        return Integer.parseInt(splits[splits.length - 2]);
     }
-    public static String getFirstOriginalAvatar(String host, String uid){
+
+    public static String getFirstOriginalAvatar(String host, String uid) {
         return host + URLConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
-    public static String getFirstThumbAvatar(String host, String uid){
+
+    public static String getFirstThumbAvatar(String host, String uid) {
         return host + URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
-    public static String getFirstOriginalAvatar(String uid){
+
+    public static String getFirstOriginalAvatar(String uid) {
         return URLConstant.originalAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
-    public static String getFirstThumbAvatar(String uid){
+
+    public static String getFirstThumbAvatar(String uid) {
         return URLConstant.thumbedAvatarPath + uid + StrUtil.SLASH + "1" + StrUtil.SLASH + "index.avif";
     }
-    public static String generateGroupAvatar(Long groupId){
+
+    public static String generateGroupAvatar(Long groupId) {
         Long hash = System.currentTimeMillis();
-        return URLConstant.groupAvatarPath + groupId + StrUtil.SLASH + hash + StrUtil.SLASH +"index.avif";
+        return URLConstant.groupAvatarPath + groupId + StrUtil.SLASH + hash + StrUtil.SLASH + "index.avif";
     }
+
     public static String getMimeType(String fileSuffix) {
         return switch (fileSuffix.toLowerCase()) {
             case ".jpg", ".jpeg" -> "image/jpeg";
@@ -53,9 +59,10 @@ public class UrlUtil {
 
     /**
      * 生成聊天文件对象名（高性能版本）
-     * @param type 文件类型 (image/video/voice/file)
-     * @param targetId 目标ID
-     * @param hash 文件哈希
+     *
+     * @param type      文件类型 (image/video/voice/file)
+     * @param targetId  目标ID
+     * @param hash      文件哈希
      * @param extension 文件扩展名（不带点号）
      * @return 对象名称
      */
@@ -68,7 +75,7 @@ public class UrlUtil {
         LocalDate today = LocalDate.now();
         String dateStr = DATE_CACHE.computeIfAbsent(today, date -> date.format(DATE_FORMATTER));
 
-        // 使用StringBuilder替代String.format
+        // 使用StringBuilder 替代 String.format
         StringBuilder sb = STRING_BUILDER_POOL.get();
         sb.setLength(0); // 清空StringBuilder
 

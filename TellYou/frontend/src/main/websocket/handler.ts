@@ -118,9 +118,9 @@ class WebsocketHandler {
     }
   }
 
-  public async handleBlack(msg: any): Promise<void> {}
-  // 被强制下线、被警告
-  public async handleClientEvent(msg: any): Promise<void> {}
+  // public async handleBlack(msg: any): Promise<void> {}
+  // // 被强制下线、被警告
+  // public async handleClientEvent(msg: any): Promise<void> {}
 }
 
 const websocketHandler = new WebsocketHandler()

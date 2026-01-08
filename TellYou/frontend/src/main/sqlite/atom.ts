@@ -12,8 +12,12 @@ import { join } from "path"
  * @date 2025/10/12 16:19
  */
 
-type ColumnMap = { [bizField: string]: string }
-type GlobalColumnMap = { [tableName: string]: ColumnMap }
+type ColumnMap = {
+  [bizField: string]: string
+}
+type GlobalColumnMap = {
+  [tableName: string]: ColumnMap
+}
 
 export interface SqliteResult {
   success: boolean
@@ -21,6 +25,17 @@ export interface SqliteResult {
   lastInsertRowID?: number
   error?: string
 }
+
+export interface QueryOptions {
+  select?: string[]
+  where?: Record<string, unknown>
+  orderBy?: string | string[]
+  limit?: number
+  offset?: number
+  groupBy?: string[]
+  having?: Record<string, unknown>
+}
+
 export const nullResult: SqliteResult = {
   success: false,
   changes: 0,
@@ -42,6 +57,25 @@ class SqliteManager {
   }
 
   /**
+   * 转换为驼峰命名
+   */
+  private toCamelCase(str: string): string {
+    return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase())
+  }
+
+  /**
+   * 数据库字段转业务字段
+   */
+  private convertDb2Biz(data: Record<string, unknown> | null): Record<string, unknown> | null {
+    if (!data) return null
+    const bizData: Record<string, unknown> = {}
+    for (const item in data) {
+      bizData[this.toCamelCase(item)] = data[item]
+    }
+    return bizData
+  }
+
+  /**
    * 初始化数据库表
    */
   public async initTable(): Promise<void> {
@@ -52,6 +86,43 @@ class SqliteManager {
       await this.createTable()
     })
     await this.initTableColumnsMap()
+  }
+
+  /**
+   * 创建数据库表
+   */
+  private async createTable(): Promise<void> {
+    if (!this.dataBase) return
+
+    const add_table = async (): Promise<void> => {
+      for (const item of add_tables) {
+        this.dataBase!.run(item)
+      }
+    }
+    const add_index = async (): Promise<void> => {
+      for (const item of add_indexes) {
+        this.dataBase!.run(item)
+      }
+    }
+    await add_table()
+    await add_index()
+  }
+
+  /**
+   * 初始化表字段映射
+   */
+  private async initTableColumnsMap(): Promise<void> {
+    let sql: string = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'"
+    const tables = await this.queryAll(sql, [])
+    for (let i = 0; i < tables.length; ++i) {
+      sql = `PRAGMA table_info(${(tables[i] as { name: string }).name})`
+      const columns = await this.queryAll(sql, [])
+      const columnsMapItem: ColumnMap = {}
+      for (let j = 0; j < columns.length; j++) {
+        columnsMapItem[this.toCamelCase((columns[j] as { name: string }).name)] = (columns[j] as { name: string }).name
+      }
+      this.globalColumnMap[(tables[i] as { name: string }).name] = columnsMapItem
+    }
   }
 
   /**
@@ -112,6 +183,117 @@ class SqliteManager {
       })
       stmt.finalize()
     })
+  }
+
+  /**
+   * 通用查询方法
+   */
+  public query<T = Record<string, unknown>>(tableName: string, options?: QueryOptions): Promise<T[]> {
+    const columnMap = this.globalColumnMap[tableName]
+    if (!columnMap) {
+      console.warn(`表 ${tableName} 的字段映射未找到`)
+      return Promise.resolve([])
+    }
+
+    // 1. 构建 SELECT 子句
+    let selectClause = '*'
+    if (options?.select && options.select.length > 0) {
+      const dbFields = options.select.map(bizField => {
+        const dbField = columnMap[bizField]
+        if (!dbField) {
+          console.warn(`字段 ${bizField} 在表 ${tableName} 中未找到映射`)
+          return bizField // 找不到映射就用原字段
+        }
+        return dbField
+      })
+      selectClause = dbFields.join(', ')
+    }
+
+    // 2. 构建 WHERE 子句
+    const whereConditions: string[] = []
+    const params: unknown[] = []
+    if (options?.where) {
+      for (const [bizField, value] of Object.entries(options.where)) {
+        if (value !== undefined) {
+          const dbField = columnMap[bizField] || bizField
+          whereConditions.push(`${dbField} = ?`)
+          params.push(value)
+        }
+      }
+    }
+
+    // 3. 构建 ORDER BY 子句
+    let orderByClause = ''
+    if (options?.orderBy) {
+      const orderFields = Array.isArray(options.orderBy) ? options.orderBy : [options.orderBy]
+      const dbOrderFields = orderFields.map(field => {
+        // 支持 "field ASC" 或 "field DESC" 格式
+        const parts = field.trim().split(/\s+/)
+        const bizField = parts[0]
+        const direction = parts[1] || ''
+        const dbField = columnMap[bizField] || bizField
+        return direction ? `${dbField} ${direction}` : dbField
+      })
+      orderByClause = ` ORDER BY ${dbOrderFields.join(', ')}`
+    }
+
+    // 4. 构建 GROUP BY 子句
+    let groupByClause = ''
+    if (options?.groupBy && options.groupBy.length > 0) {
+      const dbGroupFields = options.groupBy.map(bizField => columnMap[bizField] || bizField)
+      groupByClause = ` GROUP BY ${dbGroupFields.join(', ')}`
+    }
+
+    // 5. 构建 HAVING 子句
+    let havingClause = ''
+    if (options?.having) {
+      const havingConditions: string[] = []
+      for (const [bizField, value] of Object.entries(options.having)) {
+        if (value !== undefined) {
+          const dbField = columnMap[bizField] || bizField
+          havingConditions.push(`${dbField} = ?`)
+          params.push(value)
+        }
+      }
+      if (havingConditions.length > 0) {
+        havingClause = ` HAVING ${havingConditions.join(' AND ')}`
+      }
+    }
+
+    // 6. 构建 LIMIT 和 OFFSET 子句
+    let limitClause = ''
+    if (options?.limit !== undefined) {
+      limitClause = ` LIMIT ${options.limit}`
+      if (options?.offset !== undefined) {
+        limitClause += ` OFFSET ${options.offset}`
+      }
+    }
+
+    // 7. 构建完整 SQL
+    const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : ''
+    const sql = `SELECT ${selectClause} FROM ${tableName}${whereClause}${groupByClause}${havingClause}${orderByClause}${limitClause}`
+
+    // 8. 执行查询
+    return this.queryAll(sql, params) as Promise<T[]>
+  }
+
+  /**
+   * 通用单条查询方法
+   */
+  public queryOneByCondition<T = Record<string, unknown>>(tableName: string, options?: QueryOptions): Promise<T | null> {
+    const queryOptions = { ...options, limit: 1 }
+    return this.query<T>(tableName, queryOptions).then(results => results[0] || null)
+  }
+
+  /**
+   * 通用计数查询方法
+   */
+  public queryCountByCondition(tableName: string, options?: Omit<QueryOptions, 'select' | 'orderBy' | 'limit' | 'offset'>): Promise<number> {
+    const countOptions: QueryOptions = {
+      ...options,
+      select: ['COUNT(*) as count']
+    }
+    return this.query<{ count: number }>(tableName, countOptions).then(results => results[0]?.count || 0)
   }
 
   /**
@@ -265,59 +447,126 @@ class SqliteManager {
   }
 
   /**
-   * 转换为驼峰命名
+   * 通用删除方法
    */
-  private toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase())
+  public delete(tableName: string, where: Record<string, unknown>): Promise<SqliteResult> {
+    if (!where || Object.keys(where).length === 0) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: "删除操作必须提供 WHERE 条件，以防止误删全表数据"
+      })
+    }
+
+    const columnMap = this.globalColumnMap[tableName]
+    if (!columnMap) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: `表 ${tableName} 的字段映射未找到`
+      })
+    }
+
+    const whereConditions: string[] = []
+    const params: unknown[] = []
+
+    for (const [bizField, value] of Object.entries(where)) {
+      if (value !== undefined) {
+        const dbField = columnMap[bizField] || bizField
+        whereConditions.push(`${dbField} = ?`)
+        params.push(value)
+      }
+    }
+
+    if (whereConditions.length === 0) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: "没有有效的删除条件"
+      })
+    }
+
+    const sql = `DELETE FROM ${tableName} WHERE ${whereConditions.join(' AND ')}`
+    console.info("删除SQL:", sql, params)
+
+    return this.sqliteRun(sql, params)
   }
 
   /**
-   * 数据库字段转业务字段
+   * 根据ID删除单条记录
    */
-  private convertDb2Biz(data: Record<string, unknown> | null): Record<string, unknown> | null {
-    if (!data) return null
-    const bizData: Record<string, unknown> = {}
-    for (const item in data) {
-      bizData[this.toCamelCase(item)] = data[item]
-    }
-    return bizData
+  public deleteById(tableName: string, id: number | string): Promise<SqliteResult> {
+    return this.delete(tableName, { id })
   }
 
   /**
-   * 创建数据库表
+   * 批量删除记录
    */
-  private async createTable(): Promise<void> {
-    if (!this.dataBase) return
+  public deleteBatch(tableName: string, ids: (number | string)[], idField: string = 'id'): Promise<SqliteResult> {
+    if (!ids || ids.length === 0) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: "批量删除必须提供ID列表"
+      })
+    }
 
-    const add_table = async (): Promise<void> => {
-      for (const item of add_tables) {
-        this.dataBase!.run(item)
-      }
+    const columnMap = this.globalColumnMap[tableName]
+    if (!columnMap) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: `表 ${tableName} 的字段映射未找到`
+      })
     }
-    const add_index = async (): Promise<void> => {
-      for (const item of add_indexes) {
-        this.dataBase!.run(item)
-      }
-    }
-    await add_table()
-    await add_index()
+
+    const dbField = columnMap[idField] || idField
+    const placeholders = ids.map(() => '?').join(',')
+    const sql = `DELETE FROM ${tableName} WHERE ${dbField} IN (${placeholders})`
+
+    console.info("批量删除SQL:", sql, ids)
+
+    return this.sqliteRun(sql, ids)
   }
 
   /**
-   * 初始化表字段映射
+   * 软删除方法（更新删除标记而不是物理删除）
    */
-  private async initTableColumnsMap(): Promise<void> {
-    let sql: string = "select name from sqlite_master where type = 'table' and name != 'sqlite_sequence'"
-    const tables = await this.queryAll(sql, [])
-    for (let i = 0; i < tables.length; ++i) {
-      sql = `PRAGMA table_info(${(tables[i] as { name: string }).name})`
-      const columns = await this.queryAll(sql, [])
-      const columnsMapItem: ColumnMap = {}
-      for (let j = 0; j < columns.length; j++) {
-        columnsMapItem[this.toCamelCase((columns[j] as { name: string }).name)] = (columns[j] as { name: string }).name
-      }
-      this.globalColumnMap[(tables[i] as { name: string }).name] = columnsMapItem
+  public softDelete(tableName: string, where: Record<string, unknown>, deleteField: string = 'isDeleted', deleteValue: unknown = 1): Promise<SqliteResult> {
+    const updateData = { [deleteField]: deleteValue }
+    return this.update(tableName, updateData, where)
+  }
+
+  /**
+   * 批量软删除
+   */
+  public softDeleteBatch(tableName: string, ids: (number | string)[], idField: string = 'id', deleteField: string = 'isDeleted', deleteValue: unknown = 1): Promise<SqliteResult> {
+    if (!ids || ids.length === 0) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: "批量软删除必须提供ID列表"
+      })
     }
+
+    const columnMap = this.globalColumnMap[tableName]
+    if (!columnMap) {
+      return Promise.resolve({
+        success: false,
+        changes: 0,
+        error: `表 ${tableName} 的字段映射未找到`
+      })
+    }
+
+    const dbIdField = columnMap[idField] || idField
+    const dbDeleteField = columnMap[deleteField] || deleteField
+    const placeholders = ids.map(() => '?').join(',')
+    const sql = `UPDATE ${tableName} SET ${dbDeleteField} = ? WHERE ${dbIdField} IN (${placeholders})`
+    const params = [deleteValue, ...ids]
+
+    console.info("批量软删除SQL:", sql, params)
+
+    return this.sqliteRun(sql, params)
   }
 }
 

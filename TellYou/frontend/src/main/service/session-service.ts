@@ -107,7 +107,7 @@ class SessionService {
     const change = await sessionDao.insertOrIgnoreContact(obj)
     console.info("session-service:check-session:insert:", obj)
     if (change > 0) {
-      return contact;
+      return contact
     } else {
       await sessionDao.updatePartialBySessionId(
         { status: 1 } as Partial<Session>,

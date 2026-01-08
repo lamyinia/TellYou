@@ -1,23 +1,23 @@
 /* eslint-disable */
 
-import { ipcMain } from "electron";
-import messageDao from "@main/sqlite/dao/message-dao";
-import sessionDao from "@main/sqlite/dao/session-dao";
-import messageAdapter from "@main/sqlite/adapter/message-adapter";
-import channelUtil from "@main/util/channel-util";
-import objectUtil from "@main/util/object-util";
+import { ipcMain } from "electron"
+import messageDao from "@main/sqlite/dao/message-dao"
+import sessionDao from "@main/sqlite/dao/session-dao"
+import messageAdapter from "@main/sqlite/adapter/message-adapter"
+import channelUtil from "@main/util/channel-util"
+import objectUtil from "@main/util/object-util"
 
 class MessageService {
   public beginServe(): void {
     ipcMain.handle("websocket:send", async (_, msg) => {
-      console.log(msg);
+      console.log(msg)
       try {
-        await channelUtil.sendText(msg);
-        console.log("发送成功");
-        return true;
+        await channelUtil.sendText(msg)
+        console.log("发送成功")
+        return true
       } catch (error) {
-        console.error("发送消息失败:", error);
-        return false;
+        console.error("发送消息失败:", error)
+        return false
       }
     })
     ipcMain.handle("message:get-by-sessionId",
@@ -27,8 +27,8 @@ class MessageService {
   }
 
   public async handleSingleMessage(message: any): Promise<number> {
-    console.log("message-service:handle-single-message", message);
-    const messageData = messageAdapter.adaptToDatabaseMessage(message);
+    console.log("message-service:handle-single-message", message)
+    const messageData = messageAdapter.adaptToDatabaseMessage(message)
     const messageId: number = await messageDao.insertOrIgnore(messageData).then(result => result.lastInsertRowID || 0)
 
     await sessionDao.keepSessionFresh({
@@ -76,4 +76,4 @@ class MessageService {
   }
 }
 
-export const messageService = new MessageService();
+export const messageService = new MessageService()

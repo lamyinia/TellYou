@@ -81,7 +81,7 @@ log.debug = (...args: any[]) => {
 }
 
 
-app.setPath("userData", app.getPath("userData") + "_" + urlUtil.instanceId);
+app.setPath("userData", app.getPath("userData") + "_" + urlUtil.instanceId)
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "tellyou",
