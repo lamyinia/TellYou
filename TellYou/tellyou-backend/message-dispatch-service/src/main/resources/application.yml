@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: message-dispatch-service
+
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+  discovery:
+    refresh-interval-seconds: 10
+
+services:
+  connector:
+    name: netty-connector

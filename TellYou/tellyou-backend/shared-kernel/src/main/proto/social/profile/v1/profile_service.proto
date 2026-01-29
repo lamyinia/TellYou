@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package social.profile.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.profile.v1";
+option java_outer_classname = "ProfileServiceProto";
+
+service ProfileService {
+  rpc CreateDefaultProfile (CreateDefaultProfileRequest) returns (CreateDefaultProfileResponse);
+}
+
+message CreateDefaultProfileRequest {
+  int64 user_id = 1;
+  string nick_name = 2;
+  int32 sex = 3;
+}
+
+message CreateDefaultProfileResponse {
+  bool created = 1;
+}

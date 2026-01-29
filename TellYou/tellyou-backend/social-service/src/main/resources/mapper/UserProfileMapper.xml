@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.UserProfileMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.UserProfileDO">
+        <id column="user_id" property="userId"/>
+        <result column="im_id" property="imId"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="avatar" property="avatar"/>
+        <result column="sex" property="sex"/>
+        <result column="personal_signature" property="personalSignature"/>
+        <result column="area_name" property="areaName"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="avatar_version" property="avatarVersion"/>
+        <result column="nickname_version" property="nicknameVersion"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="org.com.social.infrastructure.persistence.po.UserProfileDO">
+        INSERT INTO user_profile (
+            user_id, im_id, nick_name, avatar, sex, personal_signature,
+            area_name, area_code, avatar_version, nickname_version
+        )
+        VALUES (
+            #{userId}, #{imId}, #{nickName}, #{avatar}, #{sex}, #{personalSignature},
+            #{areaName}, #{areaCode}, #{avatarVersion}, #{nicknameVersion}
+        )
+    </insert>
+
+    <update id="update" parameterType="org.com.social.infrastructure.persistence.po.UserProfileDO">
+        UPDATE user_profile
+        <set>
+            <if test="imId != null">im_id = #{imId},</if>
+            <if test="nickName != null">nick_name = #{nickName},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="personalSignature != null">personal_signature = #{personalSignature},</if>
+            <if test="areaName != null">area_name = #{areaName},</if>
+            <if test="areaCode != null">area_code = #{areaCode},</if>
+            <if test="avatarVersion != null">avatar_version = #{avatarVersion},</if>
+            <if test="nicknameVersion != null">nickname_version = #{nicknameVersion},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT user_id, im_id, nick_name, avatar, sex, personal_signature,
+               area_name, area_code, avatar_version, nickname_version
+        FROM user_profile
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByImId" resultMap="BaseResultMap">
+        SELECT user_id, im_id, nick_name, avatar, sex, personal_signature,
+               area_name, area_code, avatar_version, nickname_version
+        FROM user_profile
+        WHERE im_id = #{imId}
+    </select>
+
+    <select id="existsByImId" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM user_profile
+        WHERE im_id = #{imId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM user_profile
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

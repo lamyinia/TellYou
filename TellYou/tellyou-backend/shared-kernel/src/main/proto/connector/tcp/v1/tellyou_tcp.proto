@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package connector.tcp.v1;
+
+import "google/protobuf/struct.proto";
+
+option java_multiple_files = true;
+option java_package = "org.com.nettyconnector.proto.connector.tcp.v1";
+option java_outer_classname = "TellYouTcpProto";
+
+message Envelope {
+  uint32 version = 1;
+  uint64 stream_id = 2;
+  int64 timestamp_ms = 3;
+  string trace_id = 4;
+
+  oneof payload {
+    AuthRequest auth_request = 10;
+    AuthOk auth_ok = 11;
+    AuthFail auth_fail = 12;
+
+    Ping ping = 20;
+    Pong pong = 21;
+
+    ChatUplink chat_uplink = 30;
+    UplinkAck uplink_ack = 31;
+    PersistedAck persisted_ack = 32;
+
+    ChatDeliver chat_deliver = 40;
+    DeliveryAck delivery_ack = 41;
+
+    Error error = 127;
+  }
+}
+
+message AuthRequest {
+  string token = 1;
+  string client_id = 2;
+  string device_id = 3;
+}
+
+message AuthOk {
+  int64 user_id = 1;
+  string gateway_id = 2;
+  int32 heartbeat_interval_sec = 3;
+}
+
+message AuthFail {
+  int32 error_code = 1;
+  string message = 2;
+}
+
+message Ping {
+}
+
+message Pong {
+}
+
+message ChatUplink {
+  string client_message_id = 1;
+  int32 type = 2;
+  int64 target_id = 3;
+  int64 session_id = 4;
+  string content = 5;
+  int64 client_time_ms = 6;
+  google.protobuf.Struct extra = 7;
+}
+
+enum UplinkAckStatus {
+  UPLINK_ACK_STATUS_UNSPECIFIED = 0;
+  ACCEPTED = 1;
+  REJECTED = 2;
+}
+
+message UplinkAck {
+  string client_message_id = 1;
+  UplinkAckStatus status = 2;
+  string reason = 3;
+}
+
+enum PersistedAckStatus {
+  PERSISTED_ACK_STATUS_UNSPECIFIED = 0;
+  PERSISTED = 1;
+  FAILED = 2;
+}
+
+message PersistedAck {
+  string client_message_id = 1;
+  string server_message_id = 2;
+  PersistedAckStatus status = 3;
+  string reason = 4;
+}
+
+message ChatDeliver {
+  string server_message_id = 1;
+  int32 type = 2;
+  int64 sender_id = 3;
+  int64 session_id = 4;
+  string content = 5;
+  int64 server_time_ms = 6;
+  google.protobuf.Struct extra = 7;
+}
+
+enum DeliveryAckType {
+  DELIVERY_ACK_TYPE_UNSPECIFIED = 0;
+  DELIVERED = 1;
+  READ = 2;
+}
+
+message DeliveryAck {
+  string server_message_id = 1;
+  DeliveryAckType ack_type = 2;
+  int64 client_time_ms = 3;
+}
+
+message Error {
+  int32 error_code = 1;
+  string message = 2;
+}

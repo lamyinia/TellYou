@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: message-pull-service
+
+grpc:
+  server:
+    port: 9094
+
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+
+service:
+  ip: ""

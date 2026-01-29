@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.UserDetailMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.UserDetailDO">
+        <id column="user_id" property="userId"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="last_login_ip" property="lastLoginIp"/>
+        <result column="rename_times_left" property="renameTimesLeft"/>
+        <result column="im_id_times_left" property="imIdTimesLeft"/>
+        <result column="avatar_times_left" property="avatarTimesLeft"/>
+        <result column="signature_times_left" property="signatureTimesLeft"/>
+        <result column="extension" property="extension"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="org.com.social.infrastructure.persistence.po.UserDetailDO">
+        INSERT INTO user_detail (
+            user_id, last_login_time, last_login_ip,
+            rename_times_left, im_id_times_left, avatar_times_left, signature_times_left,
+            extension
+        )
+        VALUES (
+            #{userId}, #{lastLoginTime}, #{lastLoginIp},
+            #{renameTimesLeft}, #{imIdTimesLeft}, #{avatarTimesLeft}, #{signatureTimesLeft},
+            #{extension}
+        )
+    </insert>
+
+    <update id="update" parameterType="org.com.social.infrastructure.persistence.po.UserDetailDO">
+        UPDATE user_detail
+        <set>
+            <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
+            <if test="lastLoginIp != null">last_login_ip = #{lastLoginIp},</if>
+            <if test="renameTimesLeft != null">rename_times_left = #{renameTimesLeft},</if>
+            <if test="imIdTimesLeft != null">im_id_times_left = #{imIdTimesLeft},</if>
+            <if test="avatarTimesLeft != null">avatar_times_left = #{avatarTimesLeft},</if>
+            <if test="signatureTimesLeft != null">signature_times_left = #{signatureTimesLeft},</if>
+            <if test="extension != null">extension = #{extension},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT user_id, last_login_time, last_login_ip,
+               rename_times_left, im_id_times_left, avatar_times_left, signature_times_left,
+               extension
+        FROM user_detail
+        WHERE user_id = #{userId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM user_detail
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

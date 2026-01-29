@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: social-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/tellyou?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: "@Ly135790"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+grpc:
+  server:
+    port: 9090
+
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+
+service:
+  ip: ""
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: org.com.social.infrastructure.persistence.po

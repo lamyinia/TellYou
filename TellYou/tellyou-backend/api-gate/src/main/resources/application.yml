@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+# Nacos 配置
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+
+# gRPC 配置
+grpc:
+  use-plaintext: true  # 开发环境 true，生产环境 false
+  timeout:
+    default: 5000  # 默认超时时间（毫秒）
+    auth-service: 3000  # 认证服务超时时间（毫秒）
+    social-service: 5000  # 社交服务超时时间（毫秒）
+
+# JWT配置
+jwt:
+  secret: tellyou-secret-key
+  uid-key: uid
+
+# 网关路由配置（动态路由从Nacos读取）
+gateway:
+  route:
+    config-data-id: gateway-routes  # Nacos配置DataId

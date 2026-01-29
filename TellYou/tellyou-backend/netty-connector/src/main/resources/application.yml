@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: netty-connector
+
+grpc:
+  server:
+    port: 9092
+
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+
+service:
+  ip: ""
+
+gateway:
+  id: "connector-1"
+
+netty:
+  tcp:
+    port: 7070

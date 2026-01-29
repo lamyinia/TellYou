@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/tellyou?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: "@Ly135790"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+grpc:
+  server:
+    port: 9091
+
+  use-plaintext: true
+
+nacos:
+  server-addr: localhost:8848
+  namespace: public
+  group: DEFAULT_GROUP
+
+service:
+  ip: ""
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: org.com.auth.infrastructure.persistence.po
+
+jwt:
+  secret: tellyou-secret-key-please-change-in-production-32bytes
+  uid-key: uid
+  ttl-millis: 604800000
+
+services:
+  social:
+    name: social-service
+
+auth:
+  snowflake:
+    worker-id: 1
+    datacenter-id: 1
