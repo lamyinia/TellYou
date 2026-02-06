@@ -25,6 +25,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-spring-boot-starter</artifactId>
+        </dependency>
+
         <!-- Shared Kernel（包含 Nacos 和 gRPC 工具类） -->
         <dependency>
             <groupId>org.com</groupId>

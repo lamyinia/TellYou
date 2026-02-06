@@ -21,6 +21,7 @@ import imageCache from "@main/cache/image-cache"
 import videoCache from "@main/cache/video-cache"
 import fileCache from "@main/cache/file-cache"
 import profileService from '@main/service/profile-service'
+import { startTcpGatewayTest } from "@main/util/tcp-util"
 
 const Store = (__Store as any).default || __Store
 log.transports.file.level = "debug"
@@ -119,8 +120,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
   createWindow()
+  startTcpGatewayTest()
   app.on("activate", function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0){
+      createWindow()
+    }
   })
 })
 app.on("window-all-closed", () => {

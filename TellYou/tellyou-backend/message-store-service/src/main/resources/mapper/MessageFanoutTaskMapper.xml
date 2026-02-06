@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.store.infrastructure.persistence.mapper.MessageFanoutTaskMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.store.infrastructure.persistence.po.MessageFanoutTaskDO">
+        <id column="id" property="id"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="msg_id" property="msgId"/>
+        <result column="seq" property="seq"/>
+        <result column="status" property="status"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="next_retry_at" property="nextRetryAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="org.com.store.infrastructure.persistence.po.MessageFanoutTaskDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO message_fanout_task
+        (session_id, msg_id, seq, status, retry_count, next_retry_at, created_at, updated_at)
+        VALUES
+        (#{sessionId}, #{msgId}, #{seq}, #{status}, #{retryCount}, #{nextRetryAt}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="listPending" resultMap="BaseResultMap">
+        SELECT id, session_id, msg_id, seq, status, retry_count, next_retry_at, created_at, updated_at
+        FROM message_fanout_task
+        WHERE status = 0
+          AND (next_retry_at IS NULL OR next_retry_at &lt;= #{now})
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="markProcessing">
+        UPDATE message_fanout_task
+        SET status = 3, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 0
+    </update>
+
+    <update id="markDone">
+        UPDATE message_fanout_task
+        SET status = 1, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+    <update id="markRetry">
+        UPDATE message_fanout_task
+        SET status = 0, retry_count = #{retryCount}, next_retry_at = #{nextRetryAt}, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+    <update id="markFailed">
+        UPDATE message_fanout_task
+        SET status = 2, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+</mapper>

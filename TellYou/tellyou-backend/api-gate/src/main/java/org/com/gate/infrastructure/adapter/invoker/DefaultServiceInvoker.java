@@ -1,4 +1,4 @@
-package org.com.gate.infrastructure.adapter;
+package org.com.gate.infrastructure.adapter.invoker;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.com.gate.domain.request.GatewayRequest;
 import org.com.gate.domain.route.Route;
 import org.com.gate.domain.route.ServiceName;
+import org.com.gate.infrastructure.adapter.GrpcResponse;
 import org.com.shared.infrastructure.grpc.GrpcClientFactory;
 import org.com.shared.proto.auth.v1.AuthServiceGrpc;
 import org.com.shared.proto.auth.v1.LoginRequest;
@@ -27,20 +28,16 @@ public class DefaultServiceInvoker implements ServiceInvoker {
 
     private final ServiceName serviceName;
     private final GrpcClientFactory grpcClientFactory;
-    private final long defaultTimeoutMs;
     private final long authServiceTimeoutMs;
-    private final long socialServiceTimeoutMs;
-    
+
     /**
      * 构造函数（用于手动创建，不依赖 Spring）
      */
-    public DefaultServiceInvoker(ServiceName serviceName, GrpcClientFactory grpcClientFactory, 
-                                 long defaultTimeoutMs, long authServiceTimeoutMs, long socialServiceTimeoutMs) {
+    public DefaultServiceInvoker(ServiceName serviceName, GrpcClientFactory grpcClientFactory,
+                                 long authServiceTimeoutMs) {
         this.serviceName = serviceName;
         this.grpcClientFactory = grpcClientFactory;
-        this.defaultTimeoutMs = defaultTimeoutMs;
         this.authServiceTimeoutMs = authServiceTimeoutMs;
-        this.socialServiceTimeoutMs = socialServiceTimeoutMs;
     }
 
     @Override
@@ -117,17 +114,6 @@ public class DefaultServiceInvoker implements ServiceInvoker {
             log.error("调用auth-service异常: method={}", methodName, e);
             return GrpcResponse.error("调用auth-service失败: " + e.getMessage());
         }
-    }
-    
-    /**
-     * 获取指定服务的超时时间（毫秒）
-     */
-    private long getTimeoutForService(String serviceName) {
-        return switch (serviceName) {
-            case "auth-service" -> authServiceTimeoutMs;
-            case "social-service" -> socialServiceTimeoutMs;
-            default -> defaultTimeoutMs;
-        };
     }
 
     private static Object firstNonNull(Object a, Object b) {

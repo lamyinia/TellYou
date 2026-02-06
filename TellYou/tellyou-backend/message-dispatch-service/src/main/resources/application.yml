@@ -2,12 +2,33 @@ spring:
   application:
     name: message-dispatch-service
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      database: 0
+
+grpc:
+  use-plaintext: true
+  timeout:
+    default: 3000
+    social-service: 3000
+    connector: 1000
+
 nacos:
   server-addr: localhost:8848
   namespace: public
   group: DEFAULT_GROUP
   discovery:
     refresh-interval-seconds: 10
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  consumer:
+    group: ${ROCKETMQ_CONSUMER_GROUP:message-dispatch-consumer}
+  topic:
+    message-persisted: ${ROCKETMQ_TOPIC_MESSAGE_PERSISTED:im_message_persisted}
 
 services:
   connector:

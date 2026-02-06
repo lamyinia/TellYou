@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.ImSessionMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.ImSessionDO">
+        <id column="session_id" property="sessionId"/>
+        <result column="session_type" property="sessionType"/>
+        <result column="state" property="state"/>
+        <result column="version" property="version"/>
+        <result column="message_flags" property="messageFlags"/>
+        <result column="ext_json" property="extJson"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT session_id, session_type, state, version, message_flags, ext_json
+        FROM im_session
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <insert id="insert" parameterType="org.com.social.infrastructure.persistence.po.ImSessionDO">
+        INSERT INTO im_session (session_id, session_type, state, version, message_flags, ext_json)
+        VALUES (#{sessionId}, #{sessionType}, #{state}, #{version}, #{messageFlags}, #{extJson})
+    </insert>
+
+    <update id="updateState">
+        UPDATE im_session
+        SET state = #{state},
+            version = version + 1
+        WHERE session_id = #{sessionId}
+    </update>
+
+</mapper>

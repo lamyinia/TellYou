@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package social.common.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.common.v1";
+option java_outer_classname = "SocialCommonProto";
+
+message CursorPageRequest {
+  uint32 page_size = 1;
+  string cursor = 2;
+}
+
+enum ContactType {
+  CONTACT_TYPE_UNSPECIFIED = 0;
+  CONTACT_TYPE_FRIEND = 1;
+  CONTACT_TYPE_GROUP = 2;
+}

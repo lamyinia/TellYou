@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package connector.deliver.v1;
+
+import "connector/tcp/v1/tellyou_tcp.proto";
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.connector.deliver.v1";
+option java_outer_classname = "ConnectorDeliverProto";
+
+service ConnectorDeliverService {
+  rpc DeliverChat(DeliverChatRequest) returns (DeliverChatResponse);
+}
+
+message DeliverChatRequest {
+  int64 user_id = 1;
+  string device_id = 2;
+  connector.tcp.v1.ChatDeliver deliver = 3;
+  string trace_id = 4;
+}
+
+message DeliverChatResponse {
+  int32 delivered = 1;
+  int32 offline = 2;
+  int32 not_writable = 3;
+  int32 errors = 4;
+}

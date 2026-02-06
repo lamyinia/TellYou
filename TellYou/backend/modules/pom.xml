@@ -107,10 +107,6 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.vavr</groupId>
-            <artifactId>vavr</artifactId>
-        </dependency>
     </dependencies>
 
     <build>

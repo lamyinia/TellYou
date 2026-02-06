@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package social.directory.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.directory.v1";
+option java_outer_classname = "DirectoryServiceProto";
+
+import "social/common/v1/common.proto";
+
+service DirectoryService {
+  rpc PullContacts (PullContactsRequest) returns (PullContactsResponse);
+
+  rpc CursorPageContacts (CursorPageContactsRequest) returns (CursorPageContactsResponse);
+}
+
+message PullContactsRequest {
+  int64 user_id = 1;
+}
+
+message ContactEntry {
+  int64 session_id = 1;
+  int64 contact_id = 2;
+  int32 role = 3;
+  social.common.v1.ContactType contact_type = 4;
+}
+
+message PullContactsResponse {
+  repeated ContactEntry contacts = 1;
+}
+
+message CursorPageContactsRequest {
+  int64 user_id = 1;
+  social.common.v1.CursorPageRequest page = 2;
+}
+
+message CursorPageContactsResponse {
+  string cursor = 1;
+  bool is_last = 2;
+  repeated int64 contact_ids = 3;
+}

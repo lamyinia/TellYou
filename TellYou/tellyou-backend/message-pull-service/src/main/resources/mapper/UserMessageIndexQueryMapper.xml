@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.pull.infrastructure.persistence.mapper.UserMessageIndexQueryMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.pull.infrastructure.persistence.po.UserMessageIndexDO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="msg_id" property="msgId"/>
+        <result column="seq" property="seq"/>
+        <result column="read_state" property="readState"/>
+    </resultMap>
+
+    <select id="listOfflineIndex" resultMap="BaseResultMap">
+        SELECT umi.id, umi.user_id, umi.session_id, umi.msg_id, umi.seq, umi.read_state
+        FROM user_message_index umi
+        LEFT JOIN session_read_offset sro
+          ON sro.user_id = umi.user_id
+         AND sro.session_id = umi.session_id
+        WHERE umi.user_id = #{userId}
+          AND umi.seq &gt; IFNULL(sro.last_seq, 0)
+          AND umi.id &gt; #{cursorMsgId}
+        ORDER BY umi.id ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

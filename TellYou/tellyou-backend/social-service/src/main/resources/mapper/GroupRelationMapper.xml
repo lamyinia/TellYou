@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.GroupRelationMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.GroupRelationDO">
+        <id column="group_id" property="groupId"/>
+        <id column="user_id" property="userId"/>
+        <result column="role" property="role"/>
+        <result column="join_time" property="joinTime"/>
+        <result column="leave_time" property="leaveTime"/>
+        <result column="contact_version" property="contactVersion"/>
+        <result column="is_active" property="isActive"/>
+        <result column="ext_power" property="extPower"/>
+    </resultMap>
+
+    <select id="selectOne" resultMap="BaseResultMap">
+        SELECT group_id, user_id, role, join_time, leave_time, contact_version, is_active, ext_power
+        FROM group_relation
+        WHERE group_id = #{groupId} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectActiveByUserId" resultMap="BaseResultMap">
+        SELECT group_id, user_id, role, join_time, leave_time, contact_version, is_active, ext_power
+        FROM group_relation
+        WHERE user_id = #{userId} AND is_active = 1
+    </select>
+
+    <select id="countActiveByGroupId" resultType="long">
+        SELECT COUNT(1)
+        FROM group_relation
+        WHERE group_id = #{groupId} AND is_active = 1
+    </select>
+
+    <select id="selectActivePageByGroupId" resultMap="BaseResultMap">
+        SELECT group_id, user_id, role, join_time, leave_time, contact_version, is_active, ext_power
+        FROM group_relation
+        WHERE group_id = #{groupId} AND is_active = 1
+        ORDER BY join_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="updateRole">
+        UPDATE group_relation
+        SET role = #{role}
+        WHERE group_id = #{groupId} AND user_id = #{userId}
+    </update>
+
+    <update id="deactivate">
+        UPDATE group_relation
+        SET is_active = 0,
+            leave_time = #{leaveTime},
+            contact_version = contact_version + 1
+        WHERE group_id = #{groupId} AND user_id = #{userId} AND is_active = 1
+    </update>
+
+    <insert id="insertBatch">
+        INSERT INTO group_relation (group_id, user_id, role, join_time, leave_time, contact_version, is_active, ext_power)
+        VALUES
+        <foreach collection="relations" item="r" separator=",">
+            (#{r.groupId}, #{r.userId}, #{r.role}, #{r.joinTime}, #{r.leaveTime}, #{r.contactVersion}, #{r.isActive}, #{r.extPower})
+        </foreach>
+    </insert>
+
+</mapper>

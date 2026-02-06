@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.pull.infrastructure.persistence.mapper.SessionReadOffsetMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.pull.infrastructure.persistence.po.SessionReadOffsetDO">
+        <id column="session_id" property="sessionId"/>
+        <id column="user_id" property="userId"/>
+        <result column="last_msg_id" property="lastMsgId"/>
+        <result column="last_seq" property="lastSeq"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="batchSelectByUserAndSessions" resultMap="BaseResultMap">
+        SELECT session_id, user_id, last_msg_id, last_seq, updated_at
+        FROM session_read_offset
+        WHERE user_id = #{userId}
+          AND session_id IN
+        <foreach collection="sessionIds" item="sid" open="(" close=")" separator=",">
+            #{sid}
+        </foreach>
+    </select>
+
+    <update id="updateLastSeqIfGreater">
+        UPDATE session_read_offset
+        SET last_seq = #{lastSeq}, updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+          AND user_id = #{userId}
+          AND last_seq &lt; #{lastSeq}
+    </update>
+
+    <insert id="insertIgnore">
+        INSERT IGNORE INTO session_read_offset
+        (session_id, user_id, last_msg_id, last_seq, updated_at)
+        VALUES
+        (#{sessionId}, #{userId}, #{lastMsgId}, #{lastSeq}, #{updatedAt})
+    </insert>
+
+    <select id="selectLastSeq" resultType="java.lang.Long">
+        SELECT last_seq
+        FROM session_read_offset
+        WHERE session_id = #{sessionId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+</mapper>

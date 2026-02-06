@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package social.relation.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.relation.v1";
+option java_outer_classname = "RelationServiceProto";
+
+service RelationService {
+  rpc DeleteFriend (DeleteFriendRequest) returns (DeleteFriendResponse);
+}
+
+message DeleteFriendRequest {
+  int64 user_id = 1;
+  int64 contact_id = 2;
+}
+
+message DeleteFriendResponse {
+  bool deleted = 1;
+  string reason = 2;
+}

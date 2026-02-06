@@ -18,8 +18,12 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableAspectJAutoProxy(proxyTargetClass = true, exposeProxy = true)
 public class StarterApplication {
     public static void main(String[] args) {
+        try {
+            Class<?> optionClass = Class.forName("io.vavr.control.Option");
+            System.err.println("[startup] io.vavr.control.Option loaded from: " + optionClass.getProtectionDomain().getCodeSource().getLocation());
+        } catch (ClassNotFoundException e) {
+            System.err.println("[startup] io.vavr.control.Option not present on classpath");
+        }
         SpringApplication.run(StarterApplication.class, args);
     }
 }
-
-

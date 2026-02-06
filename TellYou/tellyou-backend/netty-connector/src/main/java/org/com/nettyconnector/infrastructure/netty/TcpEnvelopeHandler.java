@@ -6,13 +6,18 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.com.nettyconnector.domain.connection.ConnectionKey;
+import org.com.nettyconnector.domain.connection.ConnectionManager;
+import org.com.nettyconnector.domain.connection.ConnectionMeta;
 import org.com.nettyconnector.proto.connector.tcp.v1.*;
 import org.com.nettyconnector.proto.connector.tcp.v1.Error;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 @ChannelHandler.Sharable
 public class TcpEnvelopeHandler extends SimpleChannelInboundHandler<Envelope> {
 
@@ -21,6 +26,24 @@ public class TcpEnvelopeHandler extends SimpleChannelInboundHandler<Envelope> {
 
     @Value("${netty.tcp.heartbeat-interval-sec:30}")
     private int heartbeatIntervalSec;
+
+    private final ConnectionManager connectionManager;
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) {
+        ctx.channel().attr(ConnectorChannelAttrs.CONNECTED_AT_MS).set(System.currentTimeMillis());
+        ctx.fireChannelActive();
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        try {
+            String channelId = ctx.channel().id().asShortText();
+            connectionManager.unbindByChannelId(channelId);
+        } catch (Exception ignored) {
+        }
+        ctx.fireChannelInactive();
+    }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Envelope msg) {
@@ -75,7 +98,28 @@ public class TcpEnvelopeHandler extends SimpleChannelInboundHandler<Envelope> {
 
         long userId = deriveUserId(token);
         ctx.channel().attr(ConnectorChannelAttrs.USER_ID).set(userId);
+        ctx.channel().attr(ConnectorChannelAttrs.DEVICE_ID).set(authRequest.getDeviceId());
+        ctx.channel().attr(ConnectorChannelAttrs.CLIENT_ID).set(authRequest.getClientId());
         ctx.channel().attr(ConnectorChannelAttrs.AUTHENTICATED).set(true);
+
+        String channelId = ctx.channel().id().asShortText();
+        Long connectedAt = ctx.channel().attr(ConnectorChannelAttrs.CONNECTED_AT_MS).get();
+        long connectedAtMs = connectedAt == null ? System.currentTimeMillis() : connectedAt;
+        long authenticatedAtMs = System.currentTimeMillis();
+        String deviceId = authRequest.getDeviceId();
+        String clientId = authRequest.getClientId();
+        if (deviceId == null || deviceId.isBlank()) {
+            deviceId = "unknown";
+        }
+        if (clientId == null || clientId.isBlank()) {
+            clientId = "unknown";
+        }
+
+        connectionManager.bindAuthenticated(
+                new ConnectionKey(userId, deviceId),
+                new ConnectionMeta(clientId, gatewayId, channelId, connectedAtMs, authenticatedAtMs),
+                ctx.channel()
+        );
 
         Envelope resp = Envelope.newBuilder()
                 .setVersion(req.getVersion())

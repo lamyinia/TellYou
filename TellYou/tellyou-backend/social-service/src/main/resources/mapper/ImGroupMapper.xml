@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.ImGroupMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.ImGroupDO">
+        <id column="group_id" property="groupId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="owner_id" property="ownerId"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="group_name" property="groupName"/>
+        <result column="avatar" property="avatar"/>
+        <result column="state" property="state"/>
+        <result column="join_mode" property="joinMode"/>
+        <result column="speak_mode" property="speakMode"/>
+        <result column="member_count" property="memberCount"/>
+        <result column="max_members" property="maxMembers"/>
+        <result column="partition_count" property="partitionCount"/>
+        <result column="max_partition_count" property="maxPartitionCount"/>
+        <result column="card" property="card"/>
+        <result column="notification" property="notification"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT group_id, session_id, owner_id, creator_id, group_name, avatar, state, join_mode, speak_mode,
+               member_count, max_members, partition_count, max_partition_count, card, notification, version
+        FROM im_group
+        WHERE session_id = #{sessionId}
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT group_id, session_id, owner_id, creator_id, group_name, avatar, state, join_mode, speak_mode,
+               member_count, max_members, partition_count, max_partition_count, card, notification, version
+        FROM im_group
+        WHERE group_id = #{groupId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT group_id, session_id, owner_id, creator_id, group_name, avatar, state, join_mode, speak_mode,
+               member_count, max_members, partition_count, max_partition_count, card, notification, version
+        FROM im_group
+        WHERE group_id IN
+        <foreach collection="groupIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert" parameterType="org.com.social.infrastructure.persistence.po.ImGroupDO">
+        INSERT INTO im_group (group_id, session_id, owner_id, creator_id, group_name, avatar, state, join_mode, speak_mode,
+                              member_count, max_members, partition_count, max_partition_count, card, notification, version)
+        VALUES (#{groupId}, #{sessionId}, #{ownerId}, #{creatorId}, #{groupName}, #{avatar}, #{state}, #{joinMode}, #{speakMode},
+                #{memberCount}, #{maxMembers}, #{partitionCount}, #{maxPartitionCount}, #{card}, #{notification}, #{version})
+    </insert>
+
+    <update id="updateName">
+        UPDATE im_group
+        SET group_name = #{groupName}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateNotification">
+        UPDATE im_group
+        SET notification = #{notification}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateCard">
+        UPDATE im_group
+        SET card = #{card}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateSpeakMode">
+        UPDATE im_group
+        SET speak_mode = #{speakMode}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateOwner">
+        UPDATE im_group
+        SET owner_id = #{ownerId}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateState">
+        UPDATE im_group
+        SET state = #{state}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <update id="updateMemberCount">
+        UPDATE im_group
+        SET member_count = #{memberCount},
+            version = CASE WHEN member_count <> #{memberCount} THEN version + 1 ELSE version END
+        WHERE group_id = #{groupId}
+    </update>
+
+</mapper>

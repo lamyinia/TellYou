@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.store.infrastructure.persistence.mapper.OutboxEventMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.store.infrastructure.persistence.po.OutboxEventDO">
+        <id column="id" property="id"/>
+        <result column="event_type" property="eventType"/>
+        <result column="topic" property="topic"/>
+        <result column="keys" property="keys"/>
+        <result column="body" property="body"/>
+        <result column="status" property="status"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="next_retry_at" property="nextRetryAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="org.com.store.infrastructure.persistence.po.OutboxEventDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO message_outbox
+        (event_type, topic, `keys`, body, status, retry_count, next_retry_at, created_at, updated_at)
+        VALUES
+        (#{eventType}, #{topic}, #{keys}, #{body}, #{status}, #{retryCount}, #{nextRetryAt}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="listPending" resultMap="BaseResultMap">
+        SELECT id, event_type, topic, `keys`, body, status, retry_count, next_retry_at, created_at, updated_at
+        FROM message_outbox
+        WHERE status = 0
+          AND (next_retry_at IS NULL OR next_retry_at &lt;= #{now})
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="lockPendingSkipLocked" resultMap="BaseResultMap">
+        SELECT id, event_type, topic, `keys`, body, status, retry_count, next_retry_at, created_at, updated_at
+        FROM message_outbox
+        WHERE status = 0
+          AND (next_retry_at IS NULL OR next_retry_at &lt;= #{now})
+        ORDER BY id ASC
+        LIMIT #{limit}
+        FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="markProcessingBatch">
+        UPDATE message_outbox
+        SET status = 3, updated_at = #{updatedAt}
+        WHERE status = 0
+          AND id IN
+          <foreach collection="ids" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+    </update>
+
+    <update id="markProcessing">
+        UPDATE message_outbox
+        SET status = 3, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 0
+    </update>
+
+    <update id="markSent">
+        UPDATE message_outbox
+        SET status = 1, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+    <update id="markRetry">
+        UPDATE message_outbox
+        SET status = 0, retry_count = #{retryCount}, next_retry_at = #{nextRetryAt}, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+    <update id="markFailed">
+        UPDATE message_outbox
+        SET status = 2, updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 3
+    </update>
+
+</mapper>

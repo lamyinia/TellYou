@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.GroupPartitionMapper">
+
+    <select id="exists" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM group_partition
+        WHERE group_id = #{groupId} AND partition_id = #{partitionId}
+    </select>
+
+    <insert id="insert" parameterType="org.com.social.infrastructure.persistence.po.GroupPartitionDO">
+        INSERT INTO group_partition (group_id, partition_id, partition_name)
+        VALUES (#{groupId}, #{partitionId}, #{partitionName})
+    </insert>
+ 
+</mapper>

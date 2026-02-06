@@ -46,7 +46,6 @@
         <mongodb-spring-boot-starter>3.5.0</mongodb-spring-boot-starter>
         <seata.version>2.0.0</seata.version>
         <minio.version>8.5.17</minio.version>
-        <vavr.version>1.0.0-alpha-4</vavr.version>
     </properties>
 
     <repositories>
@@ -172,11 +171,6 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version> ${minio.version} </version>
-            </dependency>
-            <dependency>
-                <groupId>io.vavr</groupId>
-                <artifactId>vavr</artifactId>
-                <version> ${vavr.version} </version>
             </dependency>
         </dependencies>
 

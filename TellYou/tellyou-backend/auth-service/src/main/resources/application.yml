@@ -26,9 +26,10 @@ mybatis:
   type-aliases-package: org.com.auth.infrastructure.persistence.po
 
 jwt:
-  secret: tellyou-secret-key-please-change-in-production-32bytes
   uid-key: uid
   ttl-millis: 604800000
+  private-key-path: "classpath:keys/jwt-private.pem"
+  public-key-path: "classpath:keys/jwt-public.pem"
 
 services:
   social:

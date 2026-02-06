@@ -1,10 +1,23 @@
 spring:
   application:
     name: message-store-service
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/tellyou?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
 
 grpc:
   server:
     port: 9095
+
+  use-plaintext: true
 
 nacos:
   server-addr: localhost:8848
@@ -13,3 +26,33 @@ nacos:
 
 service:
   ip: ""
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: org.com.store.infrastructure.persistence.po
+
+id:
+  snowflake:
+    worker-id: ${SNOWFLAKE_WORKER_ID:1}
+    datacenter-id: ${SNOWFLAKE_DATACENTER_ID:1}
+
+outbox:
+  poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:500}
+  batch-size: ${OUTBOX_BATCH_SIZE:100}
+  max-retry: ${OUTBOX_MAX_RETRY:10}
+  worker-threads: ${OUTBOX_WORKER_THREADS:4}
+  worker-queue-capacity: ${OUTBOX_WORKER_QUEUE_CAPACITY:1000}
+
+fanout:
+  poll-interval-ms: ${FANOUT_POLL_INTERVAL_MS:500}
+  batch-size: ${FANOUT_BATCH_SIZE:50}
+  max-retry: ${FANOUT_MAX_RETRY:10}
+  worker-threads: ${FANOUT_WORKER_THREADS:4}
+  worker-queue-capacity: ${FANOUT_WORKER_QUEUE_CAPACITY:1000}
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:message-store-producer}
+  topic:
+    message-persisted: ${ROCKETMQ_TOPIC_MESSAGE_PERSISTED:im_message_persisted}

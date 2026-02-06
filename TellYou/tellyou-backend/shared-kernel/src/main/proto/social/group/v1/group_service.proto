@@ -1,0 +1,279 @@
+syntax = "proto3";
+
+package social.group.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.group.v1";
+option java_outer_classname = "GroupServiceProto";
+
+service GroupService {
+  rpc GetBaseInfoList (GetBaseInfoListRequest) returns (GetBaseInfoListResponse);
+
+  rpc CreateGroup (CreateGroupRequest) returns (CreateGroupResponse);
+
+  rpc InviteFriends (InviteFriendsRequest) returns (InviteFriendsResponse);
+
+  rpc SendJoinApply (SendJoinApplyRequest) returns (SendJoinApplyResponse);
+
+  rpc AcceptJoinApplies (AcceptJoinAppliesRequest) returns (AcceptJoinAppliesResponse);
+
+  rpc LeaveGroup (LeaveGroupRequest) returns (LeaveGroupResponse);
+
+  rpc KickMember (KickMemberRequest) returns (KickMemberResponse);
+
+  rpc ModifyName (ModifyNameRequest) returns (ModifyNameResponse);
+
+  rpc ModifyNotification (ModifyNotificationRequest) returns (ModifyNotificationResponse);
+
+  rpc ModifyCard (ModifyCardRequest) returns (ModifyCardResponse);
+
+  rpc BanChat (BanChatRequest) returns (BanChatResponse);
+
+  rpc TransferOwner (TransferOwnerRequest) returns (TransferOwnerResponse);
+
+  rpc AddManagers (AddManagersRequest) returns (AddManagersResponse);
+
+  rpc WithdrawManagers (WithdrawManagersRequest) returns (WithdrawManagersResponse);
+
+  rpc PageMemberInfoList (PageMemberInfoListRequest) returns (PageMemberInfoListResponse);
+
+  rpc PageInvitableFriendList (PageInvitableFriendListRequest) returns (PageInvitableFriendListResponse);
+
+  rpc PageGroupApplyList (PageGroupApplyListRequest) returns (PageGroupApplyListResponse);
+
+  rpc DissolveGroup (DissolveGroupRequest) returns (DissolveGroupResponse);
+}
+
+message GroupInfo {
+  int64 group_id = 1;
+  string group_name = 2;
+  string avatar = 3;
+  int32 version = 4;
+}
+
+message GetBaseInfoListRequest {
+  repeated int64 group_ids = 1;
+}
+
+message GetBaseInfoListResponse {
+  repeated GroupInfo group_info_list = 1;
+}
+
+message CreateGroupRequest {
+  int64 from_user_id = 1;
+  string name = 2;
+}
+
+message CreateGroupResponse {
+  bool created = 1;
+  string reason = 2;
+  int64 group_id = 3;
+  int64 session_id = 4;
+}
+
+message InviteFriendsRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  repeated int64 target_list = 3;
+}
+
+message InviteFriendsResponse {
+  repeated int64 success_user_ids = 1;
+  repeated int64 failed_user_ids = 2;
+}
+
+message SendJoinApplyRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  string description = 3;
+}
+
+message SendJoinApplyResponse {
+  bool sent = 1;
+  string reason = 2;
+}
+
+message AcceptJoinAppliesRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  repeated int64 apply_ids = 3;
+}
+
+message AcceptJoinAppliesResponse {
+  repeated int64 joined_user_ids = 1;
+}
+
+message LeaveGroupRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+}
+
+message LeaveGroupResponse {
+  bool left = 1;
+  string reason = 2;
+}
+
+message KickMemberRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  int64 target_id = 3;
+}
+
+message KickMemberResponse {
+  bool kicked = 1;
+  string reason = 2;
+}
+
+message ModifyNameRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  string name = 3;
+}
+
+message ModifyNameResponse {
+  bool modified = 1;
+  string reason = 2;
+}
+
+message ModifyNotificationRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  string notification = 3;
+}
+
+message ModifyNotificationResponse {
+  bool modified = 1;
+  string reason = 2;
+}
+
+message ModifyCardRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  string card = 3;
+}
+
+message ModifyCardResponse {
+  bool modified = 1;
+  string reason = 2;
+}
+
+message BanChatRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  int32 chat_mode = 3;
+}
+
+message BanChatResponse {
+  bool modified = 1;
+  string reason = 2;
+}
+
+message TransferOwnerRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  int64 target_id = 3;
+}
+
+message TransferOwnerResponse {
+  bool transferred = 1;
+  string reason = 2;
+}
+
+message AddManagersRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  repeated int64 member_list = 3;
+}
+
+message AddManagersResponse {
+  bool updated = 1;
+  string reason = 2;
+}
+
+message WithdrawManagersRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  repeated int64 member_list = 3;
+}
+
+message WithdrawManagersResponse {
+  bool updated = 1;
+  string reason = 2;
+}
+
+message PageRequest {
+  uint32 page_no = 1;
+  uint32 page_size = 2;
+}
+
+message PageMemberInfoListRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  PageRequest page = 3;
+}
+
+message GroupMemberInfo {
+  int64 user_id = 1;
+  int32 role = 2;
+}
+
+message PageMemberInfoListResponse {
+  uint32 page_no = 1;
+  uint32 page_size = 2;
+  uint64 total_records = 3;
+  bool is_last = 4;
+  repeated GroupMemberInfo list = 5;
+}
+
+message PageInvitableFriendListRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  PageRequest page = 3;
+}
+
+message InvitableFriend {
+  int64 user_id = 1;
+}
+
+message PageInvitableFriendListResponse {
+  uint32 page_no = 1;
+  uint32 page_size = 2;
+  uint64 total_records = 3;
+  bool is_last = 4;
+  repeated InvitableFriend list = 5;
+}
+
+message PageGroupApplyListRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  PageRequest page = 3;
+}
+
+message ContactApply {
+  int64 apply_id = 1;
+  int64 apply_user_id = 2;
+  int64 target_id = 3;
+  int64 acceptor_id = 4;
+  int32 contact_type = 5;
+  int64 last_apply_time_ms = 6;
+  int32 status = 7;
+  string apply_info = 8;
+}
+
+message PageGroupApplyListResponse {
+  uint32 page_no = 1;
+  uint32 page_size = 2;
+  uint64 total_records = 3;
+  bool is_last = 4;
+  repeated ContactApply list = 5;
+}
+
+message DissolveGroupRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+}
+
+message DissolveGroupResponse {
+  bool dissolved = 1;
+  string reason = 2;
+}

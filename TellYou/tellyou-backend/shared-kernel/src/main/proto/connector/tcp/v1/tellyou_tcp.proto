@@ -64,6 +64,8 @@ message ChatUplink {
   string content = 5;
   int64 client_time_ms = 6;
   google.protobuf.Struct extra = 7;
+  uint32 partition_id = 8;
+  int32 appearance = 9;
 }
 
 enum UplinkAckStatus {
@@ -99,6 +101,9 @@ message ChatDeliver {
   string content = 5;
   int64 server_time_ms = 6;
   google.protobuf.Struct extra = 7;
+  uint32 partition_id = 8;
+  uint64 seq = 9;
+  int32 appearance = 10;
 }
 
 enum DeliveryAckType {

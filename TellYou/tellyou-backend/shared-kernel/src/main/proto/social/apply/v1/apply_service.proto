@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package social.apply.v1;
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.social.apply.v1";
+option java_outer_classname = "ApplyServiceProto";
+
+import "social/common/v1/common.proto";
+
+service ApplyService {
+  rpc CursorPullIncomingApplies (CursorPullIncomingAppliesRequest) returns (CursorPullIncomingAppliesResponse);
+
+  rpc CursorPullOutgoingApplies (CursorPullOutgoingAppliesRequest) returns (CursorPullOutgoingAppliesResponse);
+
+  rpc SendFriendApply (SendFriendApplyRequest) returns (SendFriendApplyResponse);
+
+  rpc AcceptFriendApply (AcceptFriendApplyRequest) returns (AcceptFriendApplyResponse);
+}
+
+message ContactApply {
+  int64 apply_id = 1;
+  int64 apply_user_id = 2;
+  int64 target_id = 3;
+  int64 acceptor_id = 4;
+  social.common.v1.ContactType contact_type = 5;
+  int64 last_apply_time_ms = 6;
+  int32 status = 7;
+  string apply_info = 8;
+}
+
+message CursorPullIncomingAppliesRequest {
+  int64 user_id = 1;
+  social.common.v1.CursorPageRequest page = 2;
+}
+
+message CursorPullIncomingAppliesResponse {
+  string cursor = 1;
+  bool is_last = 2;
+  repeated ContactApply list = 3;
+}
+
+message CursorPullOutgoingAppliesRequest {
+  int64 user_id = 1;
+  social.common.v1.CursorPageRequest page = 2;
+}
+
+message CursorPullOutgoingAppliesResponse {
+  string cursor = 1;
+  bool is_last = 2;
+  repeated ContactApply list = 3;
+}
+
+message SendFriendApplyRequest {
+  int64 from_user_id = 1;
+  int64 contact_id = 2;
+  string description = 3;
+}
+
+message SendFriendApplyResponse {
+  bool accepted = 1;
+  string reason = 2;
+}
+
+message AcceptFriendApplyRequest {
+  int64 from_user_id = 1;
+  int64 apply_id = 2;
+}
+
+message AcceptFriendApplyResponse {
+  bool accepted = 1;
+  string reason = 2;
+  int64 session_id = 3;
+}

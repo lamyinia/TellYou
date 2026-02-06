@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.store.infrastructure.persistence.mapper.MessageDedupMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.store.infrastructure.persistence.po.MessageDedupDO">
+        <id column="client_message_id" property="clientMessageId"/>
+        <result column="msg_id" property="msgId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="partition_id" property="partitionId"/>
+        <result column="seq" property="seq"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="org.com.store.infrastructure.persistence.po.MessageDedupDO">
+        INSERT INTO message_dedup
+        (client_message_id, msg_id, session_id, partition_id, seq, created_at)
+        VALUES
+        (#{clientMessageId}, #{msgId}, #{sessionId}, #{partitionId}, #{seq}, #{createdAt})
+    </insert>
+
+    <select id="selectByClientMessageId" resultMap="BaseResultMap">
+        SELECT client_message_id, msg_id, session_id, partition_id, seq, created_at
+        FROM message_dedup
+        WHERE client_message_id = #{clientMessageId}
+    </select>
+
+    <update id="updateMsgIdAndSeqByClientMessageId">
+        UPDATE message_dedup
+        SET msg_id = #{msgId}, seq = #{seq}
+        WHERE client_message_id = #{clientMessageId}
+    </update>
+
+</mapper>

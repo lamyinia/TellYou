@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.pull.infrastructure.persistence.mapper.MessageQueryMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.pull.infrastructure.persistence.po.MessageDO">
+        <id column="msg_id" property="msgId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="sender_id" property="senderId"/>
+        <result column="partition_id" property="partitionId"/>
+        <result column="seq" property="seq"/>
+        <result column="msg_type" property="msgType"/>
+        <result column="appearance" property="appearance"/>
+        <result column="content" property="content"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="listBySessionAfterSeq" resultMap="BaseResultMap">
+        SELECT msg_id, session_id, sender_id, partition_id, seq, msg_type, appearance, content, created_at
+        FROM message
+        WHERE session_id = #{sessionId}
+          AND seq &gt; #{afterSeq}
+        ORDER BY seq ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listByMsgIds" resultMap="BaseResultMap">
+        SELECT msg_id, session_id, sender_id, partition_id, seq, msg_type, appearance, content, created_at
+        FROM message
+        WHERE msg_id IN
+        <foreach collection="msgIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+</mapper>

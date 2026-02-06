@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package message.store.v1;
+
+import "google/protobuf/struct.proto";
+
+option java_multiple_files = true;
+option java_package = "org.com.shared.proto.message.store.v1";
+option java_outer_classname = "MessageStoreServiceProto";
+
+service MessageStoreService {
+  rpc PersistChatMessage (PersistChatMessageRequest) returns (PersistChatMessageResponse);
+}
+
+message PersistChatMessageRequest {
+  string client_message_id = 1;
+  int32 type = 2;
+  int64 target_id = 3;
+  int64 session_id = 4;
+  int64 sender_id = 5;
+  string content = 6;
+  int64 client_time_ms = 7;
+  google.protobuf.Struct extra = 8;
+  uint32 partition_id = 9;
+  int32 appearance = 10;
+  string trace_id = 11;
+}
+
+message PersistChatMessageResponse {
+  bool persisted = 1;
+  string server_message_id = 2;
+  uint64 seq = 3;
+  uint32 partition_id = 4;
+  int32 appearance = 5;
+  int64 server_time_ms = 6;
+  string reason = 7;
+}

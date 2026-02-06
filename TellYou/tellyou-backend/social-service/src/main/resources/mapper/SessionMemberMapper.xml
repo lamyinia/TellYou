@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.social.infrastructure.persistence.mapper.SessionMemberMapper">
+
+    <resultMap id="BaseResultMap" type="org.com.social.infrastructure.persistence.po.SessionMemberDO">
+        <id column="session_id" property="sessionId"/>
+        <id column="user_id" property="userId"/>
+        <result column="role" property="role"/>
+        <result column="join_time" property="joinTime"/>
+        <result column="leave_time" property="leaveTime"/>
+        <result column="is_active" property="isActive"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectOne" resultMap="BaseResultMap">
+        SELECT session_id, user_id, role, join_time, leave_time, is_active, version
+        FROM session_member
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT session_id, user_id, role, join_time, leave_time, is_active, version
+        FROM session_member
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <insert id="insertBatch">
+        INSERT INTO session_member (session_id, user_id, role, join_time, leave_time, is_active, version)
+        VALUES
+        <foreach collection="members" item="m" separator=",">
+            (#{m.sessionId}, #{m.userId}, #{m.role}, #{m.joinTime}, #{m.leaveTime}, #{m.isActive}, #{m.version})
+        </foreach>
+    </insert>
+
+    <update id="updateRole">
+        UPDATE session_member
+        SET role = #{role},
+            version = version + 1
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+    </update>
+
+    <update id="deactivate">
+        UPDATE session_member
+        SET is_active = 0,
+            leave_time = #{leaveTime},
+            version = version + 1
+        WHERE session_id = #{sessionId} AND user_id = #{userId} AND is_active = 1
+    </update>
+
+</mapper>
